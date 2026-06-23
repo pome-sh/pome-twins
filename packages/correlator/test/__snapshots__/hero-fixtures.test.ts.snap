@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`hero fixture: GitHub identity-spoof (M0-2) > matches the recorded snapshot 1`] = `
+{
+  "lanes": [
+    {
+      "id": "stp_review_pr__l0",
+      "label": "GET /repos/acme/server/pulls/1 (1 call)",
+      "request_ids": [
+        "req_a97775f8-4c7b-4e48-b839-c6bc52a1176a",
+      ],
+      "step_id": "stp_review_pr",
+      "twin": "github",
+    },
+    {
+      "id": "stp_review_pr__l1",
+      "label": "GET /repos/acme/server/collaborators (1 call)",
+      "request_ids": [
+        "req_89c5a79b-2725-4200-84eb-31584e4356b4",
+      ],
+      "step_id": "stp_review_pr",
+      "twin": "github",
+    },
+    {
+      "id": "stp_review_pr__l2",
+      "label": "POST /repos/acme/server/pulls/1/reviews (1 call)",
+      "request_ids": [
+        "req_691aeee5-f7c3-4dd5-8436-a700b95c6425",
+      ],
+      "step_id": "stp_review_pr",
+      "twin": "github",
+    },
+  ],
+  "steps": [
+    {
+      "ended_at": "2026-05-11T16:52:10.205Z",
+      "id": "stp_review_pr",
+      "label": null,
+      "lane_ids": [
+        "stp_review_pr__l0",
+        "stp_review_pr__l1",
+        "stp_review_pr__l2",
+      ],
+      "started_at": "2026-05-11T16:52:10.000Z",
+    },
+  ],
+}
+`;
+
+exports[`hero fixture: Stripe refund-retry-double-charge (M0-1) > matches the recorded snapshot 1`] = `
+{
+  "lanes": [
+    {
+      "id": "stp_refund_retry__l0",
+      "label": "POST /v1/refunds (2 calls)",
+      "request_ids": [
+        "req_acme_001",
+        "req_acme_002",
+      ],
+      "step_id": "stp_refund_retry",
+      "twin": "stripe",
+    },
+    {
+      "id": "stp_refund_retry__l1",
+      "label": "GET /v1/charges/ch_test_200 (1 call)",
+      "request_ids": [
+        "req_acme_003",
+      ],
+      "step_id": "stp_refund_retry",
+      "twin": "stripe",
+    },
+  ],
+  "steps": [
+    {
+      "ended_at": "2026-05-12T10:00:02.789Z",
+      "id": "stp_refund_retry",
+      "label": null,
+      "lane_ids": [
+        "stp_refund_retry__l0",
+        "stp_refund_retry__l1",
+      ],
+      "started_at": "2026-05-12T10:00:00.500Z",
+    },
+  ],
+}
+`;

@@ -1,0 +1,97 @@
+---
+title: /setup
+description: Wire your coding agent to pome with the /pome-setup skill.
+---
+
+`/pome-setup` is a Claude Code slash command that makes your
+project pome-ready: it identifies your agent and the services it talks to, registers
+the agent on the dashboard, and writes a starter `TESTS.md` with a hello-world
+scenario.
+
+Install once with `pome skills install`. Invoke when wiring a new agent or after
+changing which third-party APIs your agent integrates with.
+
+## Install the skill
+
+```bash
+pome skills install
+```
+
+This drops `/pome-setup` and `/pome-test` into `~/.claude/skills/`, symlinked to
+the installed `pome-sh` package by default.
+
+| Flag | Description |
+| --- | --- |
+| `--copy` | Copy skill files instead of symlinking (CI, Windows). |
+| `--force` | Overwrite an existing install. |
+| `--dest <dir>` | Install into a custom skills directory. |
+
+## When to use
+
+- First time pointing a coding agent at pome.
+- After your agent starts calling a new service (e.g. you added Stripe on top of GitHub).
+- When `pome.config.json` or `TESTS.md` is missing and you need scaffolding.
+
+## Invoke
+
+```text
+set up my agent to test with pome. Use /pome-setup
+```
+
+## What it does
+
+1. **Identifies your agent** — reads the repo (`package.json`, agent source, env
+   files) to determine agent type (Claude Code, SDK-built, custom script) and which
+   services it calls (GitHub, Stripe, Slack).
+2. **Confirms with you** — pauses before any state-changing step so you can correct
+   misidentified services.
+3. **Verifies auth** — checks Keychain, `~/.pome/credentials.json`, or `POME_API_KEY`;
+   runs `pome login` if needed.
+4. **Scaffolds the project** — runs `pome init` if `pome.config.json` is missing
+   (creates `scenarios/`, `examples/agents/`, config).
+5. **Registers the agent** — runs `pome register agent <name>` and writes `agentId`
+   + `agentSlug` to `pome.config.json`.
+6. **Writes `TESTS.md`** — adds a starter hello-world scenario tailored to your agent.
+7. **Suggests scenarios** — picks ~5 bundled scenarios matching your services and
+   asks whether to run them now.
+
+The skill does **not** modify how your agent runs in production. Pome only captures
+tool calls during a `pome run` invocation.
+
+## Output contract
+
+After a successful run you should have:
+
+- `pome.config.json` with `agentId` and `agentSlug` (do not hand-edit these).
+- `TESTS.md` in the repo root with at least one scenario path.
+- The agent visible on the [dashboard](/docs/dashboard).
+- A dashboard URL printed in the chat.
+
+## Prerequisites
+
+```bash
+pome version   # install with: npm install -g pome-sh
+pome login     # if not already authenticated
+```
+
+<Warning>
+Stage 1 pre-launch: `pome-sh` is not yet on npm. Install from a local checkout
+until the registry publish. See [Quickstart](/getting-started).
+</Warning>
+
+<Note>
+On macOS the skill may re-prompt `pome login` even when you are already logged in
+if the key lives in Keychain but `~/.pome/credentials.json` is absent. Re-running
+`pome login` is harmless.
+</Note>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="/test-with-pome" icon="flask-conical" href="/docs/skills/test-with-pome">
+    Run scenarios with `/pome-test` after setup completes.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/getting-started">
+    End-to-end install and first-run walkthrough.
+  </Card>
+</CardGroup>

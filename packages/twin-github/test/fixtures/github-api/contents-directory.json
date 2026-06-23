@@ -1,0 +1,13 @@
+[
+  {
+    "type": "file",
+    "size": 1,
+    "name": "index.ts",
+    "path": "src/index.ts",
+    "sha": "fixture",
+    "url": "<url>",
+    "git_url": "<url>",
+    "html_url": "<url>",
+    "download_url": "<url>"
+  }
+]

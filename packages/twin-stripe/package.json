@@ -1,0 +1,63 @@
+{
+  "name": "@pome-sh/twin-stripe",
+  "version": "0.1.0",
+  "description": "Deterministic test double for Stripe x402 machine payments — stateful clone agents can drive without burning sandbox quota or real chain gas.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/server.js",
+  "bin": {
+    "twin-stripe": "./dist/src/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "FIDELITY.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/server.ts",
+    "seed": "tsx scripts/seed.ts",
+    "smoke": "bun run build && tsx scripts/smoke.ts",
+    "start": "node dist/src/server.js",
+    "prepack": "bun run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "stripe",
+    "x402",
+    "twin",
+    "test-double",
+    "agent-testing",
+    "pome",
+    "machine-payments"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pome-sh/pome.git",
+    "directory": "packages/twin-stripe"
+  },
+  "homepage": "https://github.com/pome-sh/pome/tree/main/packages/twin-stripe",
+  "bugs": {
+    "url": "https://github.com/pome-sh/pome/issues"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@pome-sh/shared-types": "workspace:*",
+    "better-sqlite3": "^12.5.0",
+    "hono": "^4.10.7",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.0.3",
+    "stripe": "22.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

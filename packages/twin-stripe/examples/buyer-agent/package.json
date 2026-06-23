@@ -1,0 +1,23 @@
+{
+  "name": "@pome-sh/twin-stripe-buyer-agent-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bundled twin-stripe example: a buyer agent that pays an x402-gated resource against a local Pome Stripe twin.",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "hono": "^4.10.7"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3.0"
+  }
+}

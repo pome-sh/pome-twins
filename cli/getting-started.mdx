@@ -1,0 +1,111 @@
+---
+title: "Quickstart"
+description: "Install pome, log in, and run your first scenario through your coding agent."
+---
+
+Pome runs your coding agent against a deterministic clone of a real SaaS API (GitHub, Stripe, or Slack), records every tool call, and scores the result. You drive it from the agent you already use. The CLI ships two skills; they set up your agent and run a first scenario.
+
+## 1. Install
+
+```bash
+npm install -g pome-sh
+pome version
+```
+
+<Warning>
+Stage 1 pre-launch: `pome-sh` is not yet on npm. Until the launch publish, install from a local checkout: `git clone https://github.com/pome-sh/pome && cd pome/cli && bun install && bun run build && npm install -g . --ignore-scripts`.
+</Warning>
+
+## 2. Log in
+
+```bash
+pome login
+```
+
+A browser opens at `app.pome.sh`, you sign in, and a `pme_…` API key is stored in your **macOS Keychain** (preferred) or `~/.pome/credentials.json` (Linux/Windows or when Keychain is unavailable). CI can skip this and set `POME_API_KEY` directly.
+
+## 3. Install the Pome skills
+
+The Pome skills teach your coding agent how to wire itself up to pome and run scenarios.
+
+```bash
+pome skills install
+```
+
+Two skills land in your agent's skills directory (`~/.claude/skills/`, symlinked to the installed `pome-sh` package so `npm i -g pome-sh@latest` keeps them current):
+
+- `/pome-setup`: identifies your agent and the services it talks to, registers it on the dashboard, and writes a starter `TESTS.md`.
+- `/pome-test`: runs the scenarios that match your agent and reports the results.
+
+## 4. First run
+
+Open your coding agent (Claude Code, for example) in the project that contains your agent code. Then prompt it:
+
+```text
+set up my agent to test with pome. Use /pome-setup
+```
+
+`/pome-setup` will:
+
+1. Identify your agent + the services it uses (GitHub? Stripe?) and confirm with you.
+2. Add minimal, non-breaking hooks so pome can capture tool calls during a test run.
+3. Register the agent on the dashboard and print a URL.
+4. Suggest 5 scenarios from the library that match your agent and ask for confirmation.
+
+Once you confirm, prompt the agent again:
+
+```text
+test my agents with pome
+```
+
+`/pome-test` runs the confirmed scenarios against the matching twin and reports back inline.
+
+## 5. See the results
+
+Open the dashboard:
+
+```text
+https://app.pome.sh
+```
+
+Each run shows the trace, the score, and the judge feedback for any criterion that failed. Local copies of the artifacts (`events.jsonl`, `score.json`, state snapshots) stay on disk under `runs/<scenario>/<run-id>/`.
+
+## Run the twin locally
+
+`pome run` defaults to the hosted twin on `app.pome.sh`. To run the twin yourself, pull the image and start it with Docker:
+
+```bash
+docker run --rm -p 3333:3333 ghcr.io/pome-sh/twins:github
+```
+
+The image exposes port 3333. Then point pome at the local twin with `POME_LOCAL=1`:
+
+```bash
+POME_LOCAL=1 pome run scenarios/<your-scenario>.md
+```
+
+<Note>
+Until the Stage 1 public flip, the GHCR image is private. Run `docker login ghcr.io` first.
+</Note>
+
+The standalone twin path is documented in the [GitHub twin guide](/docs/twins/github).
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="/setup" icon="sparkles" href="/docs/skills/setup">
+    Wire your agent with `/pome-setup`.
+  </Card>
+  <Card title="/test-with-pome" icon="flask-conical" href="/docs/skills/test-with-pome">
+    Run scenarios with `/pome-test`.
+  </Card>
+  <Card title="GitHub twin" icon="github" href="/docs/twins/github">
+    Twin reference and bundled GitHub scenarios.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/docs/cli">
+    Command reference: `pome run`, `pome session`, flags, and exit codes.
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/docs/dashboard">
+    Where runs, agents, and twins live, and how the judge surfaces fixes.
+  </Card>
+</CardGroup>

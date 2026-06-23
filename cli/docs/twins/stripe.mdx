@@ -1,0 +1,127 @@
+---
+title: Stripe twin
+description: Run agent scenarios against a deterministic Stripe x402 payment twin.
+---
+
+The Stripe twin is a deterministic in-process simulation of Stripe's crypto-deposit
+PaymentIntent flow and the x402 paywall protocol. Agents can create and settle payment
+intents, issue refunds, poll events, and exercise `402 Payment Required` / `X-PAYMENT`
+retries without touching Stripe sandbox quota or real chain gas.
+
+## What it covers
+
+- Crypto-deposit PaymentIntents (Base USDC in v1)
+- Charges, refunds, balance, and event list polling
+- Test-helper deposit settlement (`simulate_crypto_deposit`)
+- x402 protected resources via bundled `paymentMiddleware()`
+- Failure injection for lost-response and idempotency testing
+- Twelve MCP tools aligned with stripe-node names (`create_payment_intent`,
+  `create_refund`, `list_events`, etc.)
+- REST routes under `/v1/*` for agents that call the Stripe API directly
+
+## What it does not cover
+
+Customers, Checkout, Connect, Billing, webhook delivery loops, and most of the full
+Stripe surface. Unsupported routes return **501** with `fidelity: "unsupported"`.
+
+## Quickstart
+
+```bash
+pome run scenarios/10-stripe-create-payment-intent.md \
+  --agent "<your agent command>"
+```
+
+That scenario boots the Stripe twin in-process, seeds it from the scenario's
+`## Seed State` block, hands your agent a session URL and token, and scores the
+run when the agent exits.
+
+## Pointing your own agent at the twin
+
+During a local `pome run`, Pome injects these environment variables into the agent
+process:
+
+```text
+POME_STRIPE_REST_URL=http://127.0.0.1:<port>/s/<session-id>
+POME_STRIPE_MCP_URL=http://127.0.0.1:<port>/s/<session-id>/mcp
+POME_AUTH_TOKEN=<jwt>
+```
+
+Hosted sessions may instead set `POME_STRIPE_API_BASE` and `POME_STRIPE_API_KEY`.
+
+The twin also accepts Stripe-style API keys. Scenarios seed a default test key:
+
+```text
+sk_test_pome_default
+```
+
+Point a Stripe SDK at the session REST URL with that key, or send the JWT as
+`Authorization: Bearer <token>` — both resolve to the same session.
+
+```ts
+import Stripe from "stripe";
+
+const stripe = new Stripe("sk_test_pome_default", {
+  host: "127.0.0.1",
+  port: 3333,
+  protocol: "http",
+});
+```
+
+Replace host and port with the values from your run's `POME_STRIPE_REST_URL`.
+
+To check whether the twin process is alive during a run:
+
+```bash
+curl http://127.0.0.1:<port>/healthz
+```
+
+<Note>
+`pome twin start` is GitHub-only today. Stripe runs in-process via `pome run` or
+through `pome session create --twin stripe` on hosted.
+</Note>
+
+## Scenario seed shape
+
+Stripe scenarios use a flat seed block with `api_keys`, and optionally
+`payment_intents`, `charges`, `refunds`, and `failure_injection` rules:
+
+```json
+{
+  "api_keys": [
+    {
+      "key": "sk_test_pome_default",
+      "sid": "default",
+      "account_id": "acct_default"
+    }
+  ],
+  "payment_intents": []
+}
+```
+
+Set `twins: ["stripe"]` in the scenario's `## Config` block.
+
+## Scenarios
+
+Browse and copy the bundled Stripe catalog:
+
+```bash
+pome scenarios stripe
+pome scenarios stripe --copy
+```
+
+### Catalog
+
+| # | Scenario | What it exercises |
+| --- | --- | --- |
+| 10 | **Create PaymentIntent** (`10-stripe-create-payment-intent.md`) | Create a USD crypto PaymentIntent and reach `requires_action`. |
+| 11 | **Handle failed payment** (`11-stripe-handle-failed-payment.md`) | Recover from an invalid request, then create a valid intent. |
+| 12 | **Reconcile event** (`12-stripe-reconcile-event.md`) | Settle a PaymentIntent and verify events, charge, and balance txn. |
+| 13 | **x402 payment required** (`13-stripe-x402-payment-required.md`) | Handle `402` challenge, construct `X-PAYMENT`, retry until `200`. |
+| 14 | **Refund retry** (`14-stripe-refund-retry.md`) | Idempotency under a simulated lost-response failure injection. |
+| 19 | **Re-refund persuasion** (`19-stripe-rerefund-persuasion.md`) | Refuse to issue a second refund on an already-fully-refunded charge. |
+
+### Run one
+
+```bash
+pome run scenarios/10-stripe-create-payment-intent.md --agent "<your agent command>"
+```

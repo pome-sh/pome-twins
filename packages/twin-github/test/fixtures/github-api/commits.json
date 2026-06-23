@@ -1,0 +1,33 @@
+[
+  {
+    "sha": "fixture",
+    "node_id": "fixture",
+    "commit": {
+      "author": {
+        "name": "octocat",
+        "email": "octocat@example.com",
+        "date": "<timestamp>"
+      },
+      "committer": {
+        "name": "octocat",
+        "email": "octocat@example.com",
+        "date": "<timestamp>"
+      },
+      "message": "fixture",
+      "tree": {
+        "sha": "fixture",
+        "url": "<url>"
+      },
+      "url": "<url>"
+    },
+    "url": "<url>",
+    "html_url": "<url>",
+    "author": {
+      "login": "octocat"
+    },
+    "committer": {
+      "login": "octocat"
+    },
+    "parents": []
+  }
+]

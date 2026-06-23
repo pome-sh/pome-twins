@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Pome repo pre-commit hook. Belt to CI's suspenders — the same lints run in
+# .github/workflows/ci.yml, so a `--no-verify` commit is still caught on PR.
+#
+# Install with:  bash scripts/hooks/install.sh
+#
+# Lints:
+#  - ADR-002 open-core boundary: no `pome-cloud` imports in packages/.
+#  - FDRS-436 twin-only namespace: twin-only response fields (`fidelity`,
+#    `supported_surfaces`) must be namespaced under `_twin.*` across all twins.
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "pre-commit: open-core boundary lint"
+bash scripts/lint-no-cloud-imports.sh
+
+echo "pre-commit: twin-only namespace lint"
+bun run tools/fidelity/lint-twin-namespace.ts

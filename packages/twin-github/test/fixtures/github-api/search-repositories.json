@@ -1,0 +1,27 @@
+{
+  "total_count": 1,
+  "incomplete_results": false,
+  "items": [
+    {
+      "id": 1,
+      "node_id": "fixture",
+      "name": "repo",
+      "full_name": "owner/repo",
+      "owner": {
+        "login": "owner"
+      },
+      "private": false,
+      "html_url": "<url>",
+      "description": "fixture",
+      "fork": false,
+      "url": "<url>",
+      "contents_url": "<url>",
+      "issues_url": "<url>",
+      "pulls_url": "<url>",
+      "default_branch": "main",
+      "created_at": "<timestamp>",
+      "updated_at": "<timestamp>",
+      "pushed_at": "<timestamp>"
+    }
+  ]
+}

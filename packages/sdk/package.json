@@ -1,0 +1,45 @@
+{
+  "name": "@pome-sh/sdk",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
+  },
+  "publishConfig": { "access": "public" },
+  "files": [
+    "src",
+    "scripts",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "emit-fidelity": "tsx scripts/emit-fidelity.ts"
+  },
+  "dependencies": {
+    "@pome-sh/shared-types": "workspace:*",
+    "hono": "^4.10.7",
+    "zod": "^4.1.13"
+  },
+  "peerDependencies": {
+    "@hono/node-server": "^1.19.6"
+  },
+  "peerDependenciesMeta": {
+    "@hono/node-server": { "optional": true }
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@types/node": "^25.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

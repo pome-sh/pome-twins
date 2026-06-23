@@ -1,0 +1,47 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:dc61105892c6860b081a878b21b8ec4c56190d103bd896ac4c0d20c640210651",
+    "model": "claude-opus-4-7",
+    "compiled_at": "2026-05-22T14:30:00.154Z"
+  },
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "api",
+      "description": "ACME API service",
+      "default_branch": "main",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a",
+          "description": "Something isn't working"
+        },
+        {
+          "name": "feature",
+          "color": "a2eeef",
+          "description": "New feature request"
+        },
+        {
+          "name": "question",
+          "color": "d876e3",
+          "description": "Further information is requested"
+        }
+      ],
+      "collaborators": [
+        "alice",
+        "bob"
+      ],
+      "issues": [
+        {
+          "number": 1,
+          "title": "500 error on POST /orders after deploy",
+          "body": "Started failing right after the 14:00 deploy. Stack trace points to OrderController#create.",
+          "state": "open",
+          "labels": [],
+          "assignee": null
+        }
+      ]
+    }
+  ]
+}

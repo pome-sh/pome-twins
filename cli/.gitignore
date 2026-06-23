@@ -1,0 +1,10 @@
+node_modules/
+dist/
+runs/
+.pome/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+.gstack/
+.audit/

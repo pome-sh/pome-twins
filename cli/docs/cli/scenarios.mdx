@@ -1,0 +1,62 @@
+---
+title: pome scenarios
+description: Browse and copy the bundled scenario library per twin.
+---
+
+`pome scenarios` lists the curated scenario catalog shipped with the CLI. Use it to
+discover runnable scenarios per twin and copy them into your project for editing.
+
+The catalog is the source of truth for `pome scenarios` and the `/pome-test` skill.
+Per-twin scenario descriptions live on each [twin reference page](/docs/twins/github).
+
+## Usage
+
+```bash
+pome scenarios [twin] [options]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `[twin]` | No | Twin id (`github`, `stripe`, or `slack`). Omit to list available twins. |
+
+## Options
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--copy` | off | Copy the twin's runnable scenarios into the local project. |
+| `--dest <dir>` | `./scenarios/` | With `--copy`, write into this directory instead of `./scenarios/`. |
+| `--force` | off | With `--copy`, overwrite existing files in the destination. |
+
+## Behavior
+
+- **No args** — prints available twins and one-line descriptions.
+- **`<twin>`** — lists runnable scenarios for that twin. Reference-only seed files
+  (e.g. `00-default-seed.md`) are skipped.
+- **`--copy`** — writes the same runnable files into `./scenarios/` (or `--dest`).
+  Existing files are preserved unless `--force` is set.
+
+## Examples
+
+```bash
+# List twins
+pome scenarios
+
+# List GitHub scenarios
+pome scenarios github
+
+# Copy Stripe scenarios into the project
+pome scenarios stripe --copy
+
+# Copy into a custom directory, overwriting existing files
+pome scenarios slack --copy --dest ./my-scenarios --force
+```
+
+## Related
+
+After copying, run a scenario with [`pome run`](./run):
+
+```bash
+pome run scenarios/01-bug-happy-path.md --agent "<your agent command>"
+```

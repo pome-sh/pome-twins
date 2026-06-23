@@ -1,0 +1,54 @@
+name: twin-slack image
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'packages/twin-slack/**'
+      - 'packages/shared-types/**'
+      - '.github/workflows/twin-slack-image.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        id: meta
+        with:
+          # One shared package, one image per twin distinguished by tag
+          # prefix: ghcr.io/pome-sh/twins:slack (rolling), :slack-<version>,
+          # :slack-<sha>. `latest=false` — a single `latest` can't span three
+          # twins in one package.
+          images: ghcr.io/pome-sh/twins
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=slack,enable={{is_default_branch}}
+            type=semver,pattern=slack-{{version}}
+            type=semver,pattern=slack-v{{version}}
+            type=sha,prefix=slack-,format=short
+      - uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        id: build
+        with:
+          context: packages/twin-slack
+          build-contexts: |
+            shared-types=packages/shared-types
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.github_clone/
+*.db
+.DS_Store
+coverage/

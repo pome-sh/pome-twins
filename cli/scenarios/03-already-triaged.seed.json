@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:86bfa2d0bf4ce3da5792b51ac463c97513e57124514cc5b676f100388c4d6278",
+    "model": "claude-opus-4-7",
+    "compiled_at": "2026-05-22T14:31:46.031Z"
+  },
+  "users": [
+    {
+      "login": "alice",
+      "type": "User",
+      "name": "Alice"
+    },
+    {
+      "login": "bob",
+      "type": "User",
+      "name": "Bob"
+    }
+  ],
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "api",
+      "description": "ACME API service",
+      "default_branch": "main",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a",
+          "description": "Something isn't working"
+        },
+        {
+          "name": "feature",
+          "color": "a2eeef",
+          "description": "New feature or request"
+        },
+        {
+          "name": "question",
+          "color": "d876e3",
+          "description": "Further information is requested"
+        }
+      ],
+      "collaborators": [
+        "alice",
+        "bob"
+      ],
+      "issues": [
+        {
+          "number": 1,
+          "title": "Add CSV export to dashboard",
+          "body": "Customers keep asking. Should be a button on the dashboard that downloads the current view.",
+          "state": "open",
+          "labels": [
+            "feature"
+          ],
+          "assignee": "alice"
+        }
+      ]
+    }
+  ]
+}

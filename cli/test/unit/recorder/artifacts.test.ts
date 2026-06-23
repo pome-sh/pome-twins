@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: Apache-2.0
+// FDRS-399 — `writeRunArtifactsCore` must append to events.jsonl so rows
+// written by the capture-server child during a run are preserved alongside
+// the recorder's twin-traffic rows. Pre-FDRS-399 the function truncated.
+
+import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { writeRunArtifactsCore } from "../../../src/recorder/artifacts.js";
+import type { Scenario } from "../../../src/scenario/scenarioSchema.js";
+
+function fakeScenario(): Scenario {
+  return {
+    slug: "fdrs-399-artifacts-test",
+    title: "FDRS-399 artifacts test",
+    prompt: "noop",
+    seedState: { repositories: [] },
+    config: {
+      twins: ["github"],
+      timeout: 5,
+      passThreshold: 100,
+    },
+    successCriteria: [],
+  } as unknown as Scenario;
+}
+
+describe("writeRunArtifactsCore — events.jsonl", () => {
+  it("preserves rows already written to events.jsonl (append, not truncate)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pome-art-"));
+    const scenario = fakeScenario();
+    const runId = "run_test";
+    const runDir = join(root, scenario.slug, runId);
+    await mkdir(runDir, { recursive: true });
+
+    // Simulate the capture-server having already appended an LlmCallEvent
+    // row to events.jsonl before the runner reaches writeRunArtifactsCore.
+    const preExisting = {
+      ts: "2026-05-26T12:00:00.000Z",
+      event_id: "evt_capture_1",
+      parent_id: null,
+      kind: "LlmCallEvent",
+      host: "api.anthropic.com",
+      port: 443,
+      latency_ms: 42,
+      bytes_in: 100,
+      bytes_out: 200,
+      url: null,
+      method: null,
+      status: null,
+      model: null,
+      prompt_tokens: null,
+      completion_tokens: null,
+      cost_usd: null,
+    };
+    await writeFile(join(runDir, "events.jsonl"), JSON.stringify(preExisting) + "\n");
+
+    const recorderEvent = {
+      ts: "2026-05-26T12:00:01.000Z",
+      event_id: "evt_twin_1",
+      parent_id: null,
+      kind: "TwinHttpEvent",
+      method: "GET",
+      url: "/repos/acme/api/issues/1",
+      status: 200,
+    };
+
+    await writeRunArtifactsCore({
+      artifactsDir: root,
+      runId,
+      scenario,
+      startedAt: "2026-05-26T11:59:59.000Z",
+      completedAt: "2026-05-26T12:00:02.000Z",
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      events: [recorderEvent as never],
+      stateInitial: {},
+      stateFinal: {},
+    });
+
+    const lines = (await readFile(join(runDir, "events.jsonl"), "utf8"))
+      .split("\n")
+      .filter((l) => l.length > 0)
+      .map((l) => JSON.parse(l));
+    const kinds = lines.map((r: { kind: string }) => r.kind).sort();
+    expect(kinds).toEqual(["LlmCallEvent", "TwinHttpEvent"]);
+    const captureRow = lines.find((r: { event_id: string }) => r.event_id === "evt_capture_1");
+    const twinRow = lines.find((r: { event_id: string }) => r.event_id === "evt_twin_1");
+    expect(captureRow).toBeDefined();
+    expect(twinRow).toBeDefined();
+  });
+
+  it("tool_calls.jsonl reflects only the recorder events (still truncates)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pome-art-"));
+    const scenario = fakeScenario();
+    const runId = "run_test_2";
+    const runDir = join(root, scenario.slug, runId);
+    await mkdir(runDir, { recursive: true });
+
+    // Pre-fill tool_calls.jsonl with garbage that MUST be overwritten — only
+    // events.jsonl gains the append semantics in FDRS-399.
+    await writeFile(join(runDir, "tool_calls.jsonl"), "GARBAGE\n");
+
+    const recorderEvent = {
+      ts: "2026-05-26T12:00:01.000Z",
+      event_id: "evt_twin_only",
+      parent_id: null,
+      kind: "TwinHttpEvent",
+      method: "GET",
+      url: "/x",
+      status: 200,
+    };
+
+    await writeRunArtifactsCore({
+      artifactsDir: root,
+      runId,
+      scenario,
+      startedAt: "2026-05-26T11:59:59.000Z",
+      completedAt: "2026-05-26T12:00:02.000Z",
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      events: [recorderEvent as never],
+      stateInitial: {},
+      stateFinal: {},
+    });
+
+    const tc = (await readFile(join(runDir, "tool_calls.jsonl"), "utf8")).trim();
+    expect(tc).not.toContain("GARBAGE");
+    expect(JSON.parse(tc).event_id).toBe("evt_twin_only");
+  });
+});

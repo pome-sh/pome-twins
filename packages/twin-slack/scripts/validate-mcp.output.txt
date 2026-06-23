@@ -1,0 +1,115 @@
+Server: http://127.0.0.1:57347
+MCP   : http://127.0.0.1:57347/s/validate-mcp-session/mcp
+
+━━━ 1. JSON-RPC tools/list ━━━
+tools/list returned 8 tools (expected 8)
+  - slack_post_message: Post a new message to a Slack channel
+  - slack_reply_to_thread: Reply to a specific message thread in Slack
+  - slack_add_reaction: Add a reaction emoji to a message
+  - slack_get_channel_history: Get recent messages from a channel
+  - slack_get_thread_replies: Get all replies in a message thread
+  - slack_list_channels: List public or pre-defined channels in the workspace with pagination
+  - slack_get_users: Get a list of all users in the workspace with their basic profile information
+  - slack_get_user_profile: Get detailed profile information for a specific user
+
+━━━ 2. tools/call slack_list_channels via JSON-RPC ━━━
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ok\":true,\"channels\":[{\"id\":\"C_GENERAL\",\"name\":\"general\",\"name_normalized\":\"general\",\"is_channel\":true,\"is_group\":false,\"is_im\":false,\"is_mpim\":false,\"is_private\":false,\"is_archived\":false,\"is_general\":true,\"is_shared\":false,\"is_org_shared\":false,\"is_pending_ext_shared\":false,\"pending_shared\":[],\"context_team_id\":\"T_POME\",\"creator\":\"U_PRIMARY\",\"created\":1779912654,\"unlinked\":0,\"parent_conversation\":null,\"topic\":{\"value\":\"Company-wide announcements and chatter.\",\"creator\":\"U_PRIMARY\",\"last_set\":1779912654},\"purpose\":{\"value\":\"This channel is for company-wide communication.\",\"creator\":\"U_PRIMARY\",\"last_set\":1779912654},\"previous_names\":[],\"num_members\":3},{\"id\":\"C_RANDOM\",\"name\":\"random\",\"name_normalized\":\"random\",\"is_channel\":true,\"is_group\":false,\"is_im\":false,\"is_mpim\":false,\"is_private\":false,\"is_archived\":false,\"is_general\":false,\"is_shared\":false,\"is_org_shared\":false,\"is_pending_ext_shared\":false,\"pending_shared\":[],\"context_team_id\":\"T_POME\",\"creator\":\"U_PRIMARY\",\"created\":1779912654,\"unlinked\":0,\"parent_conversation\":null,\"topic\":{\"value\":\"Non-work chatter and water cooler talk.\",\"creator\":\"U_PRIMARY\",\"last_set\":1779912654},\"purpose\":{\"value\":\"A place for non-work-related flimflam.\",\"creator\":\"U_PRIMARY\",\"last_set\":1779912654},\"previous_names\":[],\"num_members\":0}],\"response_metadata\":{\"next_cursor\":\"\"}}"
+    }
+  ]
+}
+
+━━━ 3. tools/call slack_post_message via JSON-RPC ━━━
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ok\":true,\"channel\":\"C_GENERAL\",\"ts\":\"1735689600.000003\",\"message\":{\"type\":\"message\",\"user\":\"U_PRIMARY\",\"text\":\"via validate-mcp\",\"ts\":\"1735689600.000003\",\"team\":\"T_POME\"}}"
+    }
+  ]
+}
+
+━━━ 4. Legacy /mcp/call parity check ━━━
+legacy /mcp/call status=200
+{
+  "ok": true,
+  "channels": [
+    {
+      "id": "C_GENERAL",
+      "name": "general",
+      "name_normalized": "general",
+      "is_channel": true,
+      "is_group": false,
+      "is_im": false,
+      "is_mpim": false,
+      "is_private": false,
+      "is_archived": false,
+      "is_general": true,
+      "is_shared": false,
+      "is_org_shared": false,
+      "is_pending_ext_shared": false,
+      "pending_shared": [],
+      "context_team_id": "T_POME",
+      "creator": "U_PRIMARY",
+      "created": 1779912654,
+      "unlinked": 0,
+      "parent_conversation": null,
+      "topic": {
+        "value": "Company-wide announcements and chatter.",
+        "creator": "U_PRIMARY",
+        "last_set": 1779912654
+      },
+      "purpose": {
+        "value": "This channel is for company-wide communication.",
+        "creator": "U_PRIMARY",
+        "last_set": 1779912654
+      },
+      "previous_names": [],
+      "num_members": 3
+    },
+    {
+      "id": "C_RANDOM",
+      "name": "random",
+      "name_normalized": "random",
+      "is_channel": true,
+      "is_group": false,
+      "is_im": false,
+      "is_mpim": false,
+      "is_private": false,
+      "is_archived": false,
+      "is_general": false,
+      "is_shared": false,
+      "is_org_shared": false,
+      "is_pending_ext_shared": false,
+      "pending_shared": [],
+      "context_team_id": "T_POME",
+      "creator": "U_PRIMARY",
+      "created": 1779912654,
+      "unlinked": 0,
+      "parent_conversation": null,
+      "topic": {
+        "value": "Non-work chatter and water cooler talk.",
+        "creator": "U_PRIMARY",
+        "last_set": 1779912654
+      },
+      "purpose": {
+        "value": "A place for non-work-related flimflam.",
+        "creator": "U_PRIMARY",
+        "last_set": 1779912654
+      },
+      "previous_names": [],
+      "num_members": 0
+    }
+  ],
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}
+
+━━━ 5. Recorder events (twin emits one event per tools/call regardless of MCP vs legacy) ━━━
+recorder captured 2 tool events
+  - /s/validate-mcp-session/mcp → tool=slack_list_channels status=200 state_mutation=false
+  - /s/validate-mcp-session/mcp → tool=slack_post_message status=200 state_mutation=true

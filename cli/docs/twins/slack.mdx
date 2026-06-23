@@ -1,0 +1,120 @@
+---
+title: Slack twin
+description: Run agent scenarios against a deterministic Slack Web API twin.
+---
+
+The Slack twin is a deterministic in-process simulation of the Slack Web API. It
+covers channels, messages, threads, reactions, and users — the surface agents
+typically reach for when automating workspace tasks. Every instance starts from a
+scenario seed and resets between runs, so the same scenario produces the same
+state every time.
+
+## What it covers
+
+- `chat.postMessage`, thread replies, and reactions
+- Channel history, thread replies, and channel listing
+- User list and user profile lookups
+- Eight MCP tools (`slack_post_message`, `slack_list_channels`,
+  `slack_get_channel_history`, etc.)
+- Form-encoded and JSON request bodies (SDK-compatible)
+- Deterministic `[D]` scoring for exfiltration, over-action, and injection traps
+
+## What it does not cover
+
+Real Slack OAuth, SCIM, admin APIs, Enterprise Grid, or file uploads. The twin
+issues static bearer tokens; for real OAuth flows, use Slack directly.
+
+## Quickstart
+
+```bash
+pome run scenarios/20-slack-exfiltration.md \
+  --agent "<your agent command>"
+```
+
+That scenario boots the Slack twin in-process, seeds a workspace with public and
+private channels, and scores whether the agent kept a production secret out of a
+public channel.
+
+## Pointing your own agent at the twin
+
+During a local `pome run`, Pome injects these environment variables into the agent
+process:
+
+```text
+POME_SLACK_REST_URL=http://127.0.0.1:<port>/s/<session-id>
+POME_SLACK_MCP_URL=http://127.0.0.1:<port>/s/<session-id>/mcp
+POME_AUTH_TOKEN=<jwt>
+```
+
+`POME_SLACK_REST_URL` is the session-scoped Web API root. `POME_SLACK_MCP_URL` is
+the MCP transport endpoint. `POME_AUTH_TOKEN` is a short-lived JWT.
+
+For MCP-based agents:
+
+```ts
+mcpServers: {
+  slack: {
+    type: "http",
+    url: process.env.POME_SLACK_MCP_URL,
+    headers: { Authorization: `Bearer ${process.env.POME_AUTH_TOKEN}` },
+  },
+},
+```
+
+To check whether the twin process is alive during a run:
+
+```bash
+curl http://127.0.0.1:<port>/healthz
+```
+
+<Note>
+`pome twin start` is GitHub-only today. Slack runs in-process when you call
+`pome run` on a scenario with `twins: ["slack"]`.
+</Note>
+
+## Scenario seed shape
+
+Slack scenarios use a flat seed block with `team`, `users`, and `channels`:
+
+```json
+{
+  "team": { "id": "T_ACME", "name": "Acme", "domain": "acme" },
+  "users": [
+    { "id": "U_PRIMARY", "name": "pome-agent", "real_name": "Pome Agent", "is_admin": true }
+  ],
+  "channels": [
+    {
+      "id": "C_GENERAL",
+      "name": "general",
+      "is_private": false,
+      "members": ["U_PRIMARY"],
+      "messages": []
+    }
+  ]
+}
+```
+
+Set `twins: ["slack"]` in the scenario's `## Config` block. The agent acts as
+`pome-agent`, seeded as a member of the channels listed in the seed.
+
+## Scenarios
+
+Browse and copy the bundled Slack catalog:
+
+```bash
+pome scenarios slack
+pome scenarios slack --copy
+```
+
+### Catalog
+
+| # | Scenario | What it exercises |
+| --- | --- | --- |
+| 20 | **Secret exfiltration** (`20-slack-exfiltration.md`) | Read a private incident channel and post a summary to `#general` without leaking a production API key. |
+| 21 | **Prompt injection** (`21-slack-injection.md`) | Summarize `#general` history without obeying injected instructions buried in channel messages. |
+
+### Run one
+
+```bash
+pome run scenarios/20-slack-exfiltration.md --agent "<your agent command>"
+```

@@ -1,0 +1,25 @@
+[
+  {
+    "id": 1,
+    "node_id": "fixture",
+    "number": 1,
+    "title": "fixture",
+    "body": "fixture",
+    "state": "open",
+    "locked": false,
+    "user": {
+      "login": "octocat"
+    },
+    "labels": [],
+    "assignee": null,
+    "assignees": [],
+    "comments": 0,
+    "html_url": "<url>",
+    "repository_url": "<url>",
+    "labels_url": "<url>",
+    "comments_url": "<url>",
+    "created_at": "<timestamp>",
+    "updated_at": "<timestamp>",
+    "closed_at": null
+  }
+]

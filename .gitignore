@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local twin state (SQLite-backed runtime data)
+/.pome-data/
+.pome/
+.stripe_clone/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Run artifacts (recorded traces, eval matrices)
+runs/
+matrix-results/
+.audit/
+
+# Tooling / agents
+.gstack/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Local Claude Code symlink to AGENTS.md (not part of the OSS tree)
+/CLAUDE.md

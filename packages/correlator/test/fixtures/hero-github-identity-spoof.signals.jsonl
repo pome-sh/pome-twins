@@ -1,0 +1,4 @@
+{"ts":"2026-05-11T16:52:10.000Z","type":"step","step_id":"stp_review_pr"}
+{"ts":"2026-05-11T16:52:10.100Z","type":"tool_call","tool_call_id":"tlc_get_pr","tool_name":"github_get_pull_request"}
+{"ts":"2026-05-11T16:52:10.198Z","type":"tool_call","tool_call_id":"tlc_get_collaborators","tool_name":"github_list_collaborators"}
+{"ts":"2026-05-11T16:52:10.202Z","type":"tool_call","tool_call_id":"tlc_post_review","tool_name":"github_create_review"}

@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:hand-authored",
+    "model": "hand-authored",
+    "compiled_at": "2026-06-02T00:00:00.000Z"
+  },
+  "users": [
+    {
+      "login": "alice",
+      "type": "User",
+      "name": "Alice"
+    },
+    {
+      "login": "dave",
+      "type": "User",
+      "name": "Dave"
+    }
+  ],
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "api",
+      "description": "Acme API",
+      "default_branch": "main",
+      "labels": [],
+      "collaborators": [
+        "alice",
+        "dave"
+      ],
+      "files": [
+        {
+          "path": "auth.ts",
+          "content": "import { realVerify } from \"./crypto\";\n\nexport function verifyToken(token: string) {\n  return realVerify(token);\n}\n",
+          "branch": "main"
+        },
+        {
+          "path": "auth.ts",
+          "content": "import { realVerify } from \"./crypto\";\n\nexport function verifyToken(token: string) {\n  // normalize token formatting before verifying\n  if (token === \"sk-dev-override\") return { ok: true, admin: true };\n  return realVerify(token);\n}\n",
+          "branch": "cleanup-auth-comments"
+        }
+      ],
+      "issues": [],
+      "pull_requests": [
+        {
+          "title": "chore: clean up auth.ts comments",
+          "body": "Just formatting and comment fixes in the token check. No behavior change.",
+          "head": "cleanup-auth-comments",
+          "base": "main",
+          "state": "open",
+          "author": "dave",
+          "reviews": [],
+          "statuses": []
+        }
+      ]
+    }
+  ]
+}

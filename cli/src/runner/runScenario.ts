@@ -1,0 +1,220 @@
+// SPDX-License-Identifier: Apache-2.0
+import { serve } from "@hono/node-server";
+import { randomBytes, randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve as resolvePath, sep as pathSep } from "node:path";
+import { sign } from "hono/jwt";
+import { parseScenarioFile } from "../scenario/parseScenario.js";
+import { bootTwin } from "../twin/twinHarness.js";
+import { getAvailablePort } from "./ports.js";
+import { runAgentCommand } from "./agentRunner.js";
+import { spawnCaptureServerChild } from "./captureServerChild.js";
+import { mergeAdapterSignalsIntoEvents } from "./mergeAdapterSignals.js";
+import { scoreAndWriteRun, writeRunNoScore } from "./runScenarioCore.js";
+
+// Override for how `pome capture-server` is invoked as a child. Production
+// re-invokes process.argv[1] (the same compiled `pome` binary). Tests pass
+// `{ execPath: "bun", prefixArgs: ["src/cli/main.ts"] }` to run from source.
+// The full child argv ends up as `[...prefixArgs, "capture-server", "--port",
+// "0", "--events-out", <eventsJsonlPath>]`.
+export type CaptureServerCommand = {
+  execPath: string;
+  prefixArgs: string[];
+};
+
+export type RunScenarioOptions = {
+  scenarioPath: string;
+  agentCommand: string;
+  artifactsDir?: string;
+  captureServerCommand?: CaptureServerCommand;
+  // FDRS-405 — skip spawning the capture-server child and do NOT inject
+  // HTTP_PROXY/HTTPS_PROXY into the agent env. Used by the overhead-gate
+  // CI workflow to measure proxy-on-vs-off latency, and exposed as
+  // `pome run --no-capture` for ad-hoc baselining.
+  noCapture?: boolean;
+  // Fired once the capture-server child is up and listening, with its pid.
+  // Tests use this to assert no orphan after the run.
+  onCaptureServerSpawned?: (pid: number) => void;
+  // ADR-004 — when false, capture the trace + state but DO NOT score. This is
+  // the `pome run --local` self-host path: evaluation (the `[D]`/`[P]` judge)
+  // is a hosted feature, so a self-hoster gets the recorded trace to observe
+  // locally and the verdict comes from Pome cloud. Defaults to true so the
+  // internal POME_LOCAL=1 path (used by `pome matrix`) keeps scoring locally.
+  evaluate?: boolean;
+};
+
+export async function runScenario(options: RunScenarioOptions) {
+  const scenario = await parseScenarioFile(options.scenarioPath);
+  const runId = `run_${randomUUID()}`;
+  const artifactsDir = options.artifactsDir ?? "runs";
+  const startedAt = new Date().toISOString();
+
+  // ADR-004 — `--local` self-host runs capture the trace without scoring;
+  // every other caller (hosted, the POME_LOCAL=1 matrix path, tests) scores.
+  const writeRun = options.evaluate === false ? writeRunNoScore : scoreAndWriteRun;
+
+  // FDRS-411: per-run signals file. Lives as a sibling of events.jsonl in the
+  // run's artifact directory so adapters that import `@pome-sh/adapter-claude-sdk`
+  // and call `withPome()` can write M0 HookEvent / ToolUseEvent rows. The
+  // runner merges these into events.jsonl post-run via
+  // `mergeAdapterSignalsIntoEvents`. Forward-slash path is passed to the
+  // subprocess so cross-platform shell quoting stays sane.
+  const runDir = join(artifactsDir, scenario.slug, runId);
+  await mkdir(runDir, { recursive: true });
+  const signalsPath = join(runDir, "signals.jsonl");
+  await writeFile(signalsPath, "");
+  const signalsPathForEnv = pathSep === "\\" ? signalsPath.replace(/\\/g, "/") : signalsPath;
+  const eventsJsonlPath = join(runDir, "events.jsonl");
+  // Touch events.jsonl so the capture-server child has a target file to
+  // append to (it would create it anyway, but this also ensures `pome
+  // inspect` doesn't fall back to the legacy-detection branch if the run
+  // dies before any rows are written).
+  await writeFile(eventsJsonlPath, "");
+
+  // FDRS-399: spawn the capture-server child BEFORE the twin and the agent.
+  // The agent inherits HTTP_PROXY/HTTPS_PROXY pointing at this child;
+  // NO_PROXY keeps twin traffic out of the proxy so it isn't double-counted
+  // as LlmCallEvent. FDRS-405: `noCapture` skips spawn + env injection.
+  const captureServer = options.noCapture
+    ? null
+    : await spawnCaptureServerChild({
+        eventsOut: resolvePath(eventsJsonlPath),
+        execPath: options.captureServerCommand?.execPath,
+        binArgs: options.captureServerCommand
+          ? [
+              ...options.captureServerCommand.prefixArgs,
+              "capture-server",
+              "--port",
+              "0",
+              "--events-out",
+              resolvePath(eventsJsonlPath),
+            ]
+          : undefined,
+      });
+  if (captureServer) options.onCaptureServerSpawned?.(captureServer.pid);
+
+  const twinName = scenario.config.twins[0] ?? "github";
+  const harness = await bootTwin({
+    twin: twinName,
+    seedState: scenario.seedState,
+    runId,
+  });
+  const stateInitial = await harness.exportState();
+  const port = await getAvailablePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+
+  const sid = runId;
+  const authSecret = process.env.TWIN_AUTH_SECRET ?? randomBytes(32).toString("hex");
+  process.env.TWIN_AUTH_SECRET = authSecret;
+  const token = await sign(
+    {
+      sid,
+      team_id: "tm_local",
+      // The self-host agent acts as `pome-agent`, the collaborator the twin
+      // seeds onto every repo. Without a login claim the REST merge gate
+      // (which checks the authenticated user has push access) rejects merges —
+      // the MCP merge path calls the domain directly and never hit this, so it
+      // was invisible until a scripted REST agent needed to merge.
+      login: "pome-agent",
+      // Twin-supplied claims (e.g. Stripe's `account_id`, so the token resolves
+      // to the account the seed data lives in). github/slack supply none.
+      ...(harness.extraClaims ?? {}),
+      exp: Math.floor(Date.now() / 1000) + Math.max(scenario.config.timeout * 2, 600),
+    },
+    authSecret
+  );
+  const sessionBase = `${baseUrl}/s/${sid}`;
+
+  const server = serve({ fetch: harness.app.fetch, port, hostname: "127.0.0.1" });
+
+  const proxyEnv: Record<string, string> = captureServer
+    ? {
+        // FDRS-399 — agent's outbound traffic flows through the capture-server.
+        // Twin traffic is localhost, NO_PROXY excludes it so it stays a
+        // TwinHttpEvent (recorded in-process) and isn't double-counted as a
+        // proxy-captured LlmCallEvent.
+        HTTP_PROXY: `http://127.0.0.1:${captureServer.port}`,
+        HTTPS_PROXY: `http://127.0.0.1:${captureServer.port}`,
+        NO_PROXY: "127.0.0.1,localhost",
+      }
+    : {};
+  const env = {
+    POME_TASK: scenario.prompt,
+    POME_TWIN_NAMES: scenario.config.twins.join(","),
+    // Twin-agnostic URL contract: the agent reads `POME_<TWIN>_{REST,MCP}_URL`.
+    // For github this resolves to the historical `POME_GITHUB_{REST,MCP}_URL`;
+    // slack/stripe get their own prefixes (the mcp-loop scaffold's
+    // `resolveMcpUrl` already keys off `POME_<TWIN>_MCP_URL`).
+    [`POME_${harness.envName}_REST_URL`]: sessionBase,
+    [`POME_${harness.envName}_MCP_URL`]: `${sessionBase}/mcp`,
+    POME_AUTH_TOKEN: token,
+    POME_RUN_ID: runId,
+    POME_ARTIFACTS_DIR: runDir,
+    POME_ADAPTER_SIGNALS_PATH: signalsPathForEnv,
+    ...proxyEnv,
+  };
+
+  try {
+    const preflight = await runAgentCommand({
+      command: options.agentCommand,
+      env,
+      // Cold agent startup can exceed 10s on CI; cap preflight below full scenario
+      // timeout but leave enough headroom for toolchain startup.
+      timeoutSeconds: Math.min(60, scenario.config.timeout),
+      preflight: true
+    });
+    if (preflight.exitCode !== 0) {
+      const stateFinal = await harness.exportState();
+      const { score, artifacts, exitCode } = await writeRun({
+        artifactsDir,
+        runId,
+        scenario,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        agentStdout: preflight.stdout,
+        agentStderr: preflight.stderr,
+        agentExitCode: preflight.exitCode,
+        agentTimedOut: preflight.timedOut ?? false,
+        events: harness.events(),
+        stateInitial,
+        stateFinal
+      });
+      await mergeAdapterSignalsIntoEvents(signalsPath, eventsJsonlPath);
+      // Preflight failure always exits 3 (matches prior behavior). scoreAndWriteRun's
+      // exitCode would already be 3 here because preflight.exitCode !== 0, but be
+      // explicit for clarity.
+      void exitCode;
+      return { scenario, runId, artifacts, score, agent: preflight, exitCode: 3 };
+    }
+
+    const agent = await runAgentCommand({
+      command: options.agentCommand,
+      env,
+      timeoutSeconds: scenario.config.timeout
+    });
+    const stateFinal = await harness.exportState();
+    const { score, artifacts, exitCode } = await writeRun({
+      artifactsDir,
+      runId,
+      scenario,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      agentStdout: agent.stdout,
+      agentStderr: agent.stderr,
+      agentExitCode: agent.exitCode,
+      agentTimedOut: agent.timedOut ?? false,
+      events: harness.events(),
+      stateInitial,
+      stateFinal
+    });
+    await mergeAdapterSignalsIntoEvents(signalsPath, eventsJsonlPath);
+    return { scenario, runId, artifacts, score, agent, exitCode };
+  } finally {
+    // Drain capture-server first so any in-flight LlmCallEvent rows land
+    // in events.jsonl before we move on; THEN close the twin (which would
+    // otherwise reset any open twin-side sockets and could race the proxy).
+    if (captureServer) await captureServer.shutdown();
+    server.close();
+    harness.close();
+  }
+}

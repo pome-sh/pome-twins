@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.stripe_clone/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

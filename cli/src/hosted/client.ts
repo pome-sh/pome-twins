@@ -1,0 +1,520 @@
+// SPDX-License-Identifier: Apache-2.0
+import {
+  createSessionResponseSchema,
+  type CreateSessionResponse,
+  type CriterionDef,
+  finalizeResponseSchema,
+  type FinalizeResponse,
+  sessionPublicSchema,
+  type SessionPublic,
+  submitResultResponseSchema,
+  type SubmitResultResponse,
+  type CriterionResult,
+  type Lane,
+  type Step,
+} from "../types/shared.js";
+import {
+  HostedAuthError,
+  HostedOrchError,
+  HostedQuotaError,
+} from "./errors.js";
+
+export interface HostedClientConfig {
+  baseUrl: string;
+  apiKey: string;
+  /** Per-request timeout. Defaults to 30s; the cloud's own twin spawn is
+   *  ~2s cold but we leave headroom for GHCR pulls.  */
+  timeoutMs?: number;
+}
+
+export interface CreateSessionInput {
+  scenarioSource: string;
+  twins: string[];
+  /** Omit for one-off sessions; reuse only when intentionally replaying a create after network uncertainty. */
+  idempotencyKey?: string;
+  /** Agents-as-first-class-entity (ADR-013). Resolved from pome.config.json's
+   *  `agentId` by callers. Server validates `agent.team_id === apiKey.team_id`
+   *  and `requested_twins ⊆ agent_enabled_services`. Optional during rollout;
+   *  will become required once the dashboard / control-plane catch up. */
+  agentId?: string;
+  /** Pre-resolved seed JSON. When supplied, cloud uses it directly and skips
+   *  extracting JSON from the scenario markdown — required for the post-2026-05-22
+   *  prose `## Seed State` shape, where the markdown has no fenced JSON block. */
+  seed?: unknown;
+}
+
+export interface FetchOnTwinInput {
+  twinUrl: string;
+  agentToken: string;
+}
+
+export interface SubmitResultInput {
+  scenarioName: string;
+  scenarioHash: string;
+  durationMs: number;
+  agentModel: string;
+  satisfactionScore: number;
+  criteriaResults: CriterionResult[];
+  judgeModel: string;
+  judgeTokensIn: number | null;
+  judgeTokensOut: number | null;
+  // Free-form SDK / framework label persisted to runs.agent_sdk (pome-cloud
+  // ADR-013). CLI reads it from `pome.config.json` { agent: { sdk: "..." } };
+  // common values: "claude-agent-sdk", "openai-agents", "openclaw", "hermes",
+  // "custom". Omit / null when the user has not declared it — control-plane
+  // accepts both shapes.
+  agentSdk?: string | null;
+  // Correlator output (FDRS-326). Empty arrays when no adapter signals were
+  // captured AND the heuristic correlator is unavailable.
+  lanes: Lane[];
+  steps: Step[];
+  // CLI-generated fix prompt (FDRS-323). Null when no LLM judge is configured,
+  // the LLM call failed, or the user passed --no-fix-prompt.
+  fixPrompt: string | null;
+  // FDRS-357: storage key returned by requestEventsUploadUrl, or null if the
+  // upload was skipped / failed. Cloud persists this into runs.events_jsonl_url.
+  eventsJsonlUrl: string | null;
+  traceJsonl: string;
+  stateInitialJson: string;
+  stateFinalJson: string;
+}
+
+export interface EventsUploadUrlResponse {
+  url: string;
+  key: string;
+}
+
+export interface StateUploadUrlEntry {
+  url: string;
+  key: string;
+}
+
+export interface StateUploadUrlResponse {
+  state_initial: StateUploadUrlEntry;
+  state_final: StateUploadUrlEntry;
+}
+
+export interface SignalsUploadUrlResponse {
+  url: string;
+  key: string;
+}
+
+export interface FinalizeInput {
+  /** "completed" | "timeout" | "preflight_failed" — free-form for now. */
+  stopReason: string;
+  exitCode: number;
+  durationMs: number;
+  agentModel: string;
+  agentSdk?: string | null;
+  // Criterion *definitions* (not results). Cloud judges these against the
+  // recorded trace/state and returns the authoritative score.
+  criteria: CriterionDef[];
+  scenarioName: string;
+  scenarioHash: string;
+  scenarioPrompt: string;
+  expectedBehavior: string;
+  // Optional storage-key overrides. When omitted, cloud loads from the
+  // conventional `team-<>/session-<>/<filename>` paths populated by the
+  // corresponding upload-url endpoints (events.jsonl via
+  // `requestEventsUploadUrl`; state_{initial,final}.json via
+  // `requestStateUploadUrl`). When an override is supplied, cloud loads
+  // from that key instead. Best-effort: missing state blobs cause the judge
+  // to substitute "{}" rather than failing the run.
+  traceStorageKey?: string;
+  stateInitialStorageKey?: string;
+  stateFinalStorageKey?: string;
+  // F0-4 / L7 — when set, cloud's finalize-run switches the correlator to
+  // `correlateTraceJsonlWithSignals` so adapter-emitted HookEvent /
+  // ToolUseEvent / SubagentSpawnEvent rows correlate into lanes/steps
+  // alongside the twin-HTTP timeline. The CLI uploads signals.jsonl via
+  // `requestSignalsUploadUrl` first; the returned storage key flows here.
+  signalsStorageKey?: string;
+}
+
+export interface HostedClient {
+  createSession(input: CreateSessionInput): Promise<CreateSessionResponse>;
+  listSessions(opts?: { limit?: number }): Promise<SessionPublic[]>;
+  getSession(sessionId: string): Promise<SessionPublic>;
+  fetchState(input: FetchOnTwinInput): Promise<unknown>;
+  fetchEvents(input: FetchOnTwinInput): Promise<unknown[]>;
+  /** ADR-013 — authoritative run finalize. Cloud judges and returns the score. */
+  finalize(
+    sessionId: string,
+    input: FinalizeInput,
+  ): Promise<FinalizeResponse>;
+  /**
+   * @deprecated Use `finalize` instead. `/v1/sessions/:id/result` is a shim
+   * kept for ≥1 OSS CLI release per ADR-013; cloud ignores the CLI-supplied
+   * score and re-judges. Will be removed in the V1.1 CLI cut.
+   */
+  submitResult(
+    sessionId: string,
+    input: SubmitResultInput,
+  ): Promise<SubmitResultResponse>;
+  requestEventsUploadUrl(sessionId: string): Promise<EventsUploadUrlResponse>;
+  requestStateUploadUrl(sessionId: string): Promise<StateUploadUrlResponse>;
+  /** F0-4 / L7 — mint a signed PUT for `signals.jsonl` (adapter-emitted
+   *  HookEvent / ToolUseEvent / SubagentSpawnEvent rows). The returned
+   *  `key` flows into `FinalizeInput.signalsStorageKey`. */
+  requestSignalsUploadUrl(sessionId: string): Promise<SignalsUploadUrlResponse>;
+  /** @param bestEffort default true — hosted runner swallows network errors on teardown */
+  deleteSession(sessionId: string, bestEffort?: boolean): Promise<void>;
+}
+
+export function createHostedClient(config: HostedClientConfig): HostedClient {
+  const timeoutMs = config.timeoutMs ?? 30_000;
+
+  async function readResponse<T>(
+    res: Response,
+    parse: (raw: unknown) => T
+  ): Promise<T> {
+    const text = await res.text();
+    let json: unknown;
+    try {
+      json = text.length ? JSON.parse(text) : {};
+    } catch {
+      throw new HostedOrchError(`non-JSON response (status ${res.status})`);
+    }
+    if (!res.ok) {
+      // Cloud's REST envelope is `{ error: { type, message, request_id } }`.
+      // The twin pod's bearer-auth middleware uses Hono's default 401 shape:
+      // `{ message: "Forbidden", documentation_url: "" }`. Handle both.
+      const cloudErr = (json as { error?: { type?: string; message?: string; request_id?: string } }).error;
+      const twinErr = cloudErr ? null : (json as { message?: string });
+      const msg = cloudErr?.message ?? twinErr?.message ?? `HTTP ${res.status}`;
+      const reqId = cloudErr?.request_id;
+      if (res.status === 401 || res.status === 403) {
+        throw new HostedAuthError(msg, reqId);
+      }
+      if (res.status === 402 || res.status === 429) {
+        throw new HostedQuotaError(msg, reqId);
+      }
+      throw new HostedOrchError(msg, reqId);
+    }
+    try {
+      return parse(json);
+    } catch (err) {
+      throw new HostedOrchError(
+        `unexpected response shape: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  async function postJson<T>(
+    path: string,
+    body: unknown,
+    parse: (raw: unknown) => T
+  ): Promise<T> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(`${config.baseUrl}${path}`, {
+        method: "POST",
+        headers: {
+          "x-api-key": config.apiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      throw new HostedOrchError(
+        err instanceof Error ? err.message : "network error"
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    return readResponse(res, parse);
+  }
+
+  async function getJsonBearer<T>(
+    url: string,
+    bearer: string,
+    parse: (raw: unknown) => T
+  ): Promise<T> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "GET",
+        headers: { authorization: `Bearer ${bearer}` },
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      throw new HostedOrchError(
+        err instanceof Error ? err.message : "network error"
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    return readResponse(res, parse);
+  }
+
+  async function getJsonWithApiKey<T>(
+    path: string,
+    parse: (raw: unknown) => T,
+  ): Promise<T> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(`${config.baseUrl}${path}`, {
+        method: "GET",
+        headers: { "x-api-key": config.apiKey },
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      throw new HostedOrchError(
+        err instanceof Error ? err.message : "network error",
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    return readResponse(res, parse);
+  }
+
+  return {
+    async createSession(input) {
+      const body: Record<string, unknown> = {
+        twins: input.twins,
+        scenario_source: Buffer.from(input.scenarioSource, "utf8").toString(
+          "base64",
+        ),
+      };
+      if (input.idempotencyKey) {
+        body.idempotency_key = input.idempotencyKey;
+      }
+      if (input.agentId) {
+        body.agent_id = input.agentId;
+      }
+      if (input.seed !== undefined) {
+        body.seed = input.seed;
+      }
+      return postJson("/v1/sessions", body, (raw) =>
+        createSessionResponseSchema.parse(raw),
+      );
+    },
+
+    async listSessions(opts) {
+      const lim = opts?.limit ?? 50;
+      const q = `?limit=${encodeURIComponent(String(lim))}`;
+      return getJsonWithApiKey(`/v1/sessions${q}`, (raw) => {
+        if (!Array.isArray(raw)) {
+          throw new HostedOrchError("GET /v1/sessions expected a JSON array");
+        }
+        return raw.map((row) => sessionPublicSchema.parse(row));
+      });
+    },
+
+    async getSession(sessionId) {
+      return getJsonWithApiKey(
+        `/v1/sessions/${encodeURIComponent(sessionId)}`,
+        (raw) => sessionPublicSchema.parse(raw),
+      );
+    },
+
+    async fetchState(input) {
+      return getJsonBearer(
+        `${input.twinUrl}/_pome/state`,
+        input.agentToken,
+        // domain.exportState() shape varies per twin; pass through.
+        (raw) => raw
+      );
+    },
+
+    async fetchEvents(input) {
+      return getJsonBearer(
+        `${input.twinUrl}/_pome/events`,
+        input.agentToken,
+        (raw) => {
+          if (!Array.isArray(raw)) {
+            throw new HostedOrchError("twin /_pome/events returned non-array");
+          }
+          return raw;
+        }
+      );
+    },
+
+    async requestEventsUploadUrl(sessionId) {
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/result-upload-url`,
+        {},
+        (raw) => {
+          if (
+            typeof raw === "object" &&
+            raw !== null &&
+            typeof (raw as { url?: unknown }).url === "string" &&
+            typeof (raw as { key?: unknown }).key === "string"
+          ) {
+            return raw as EventsUploadUrlResponse;
+          }
+          throw new HostedOrchError(
+            "POST /v1/sessions/:id/result-upload-url returned unexpected shape",
+          );
+        },
+      );
+    },
+
+    async requestSignalsUploadUrl(sessionId) {
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/signals-upload-url`,
+        {},
+        (raw) => {
+          if (
+            typeof raw === "object" &&
+            raw !== null &&
+            typeof (raw as { url?: unknown }).url === "string" &&
+            typeof (raw as { key?: unknown }).key === "string"
+          ) {
+            return raw as SignalsUploadUrlResponse;
+          }
+          throw new HostedOrchError(
+            "POST /v1/sessions/:id/signals-upload-url returned unexpected shape",
+          );
+        },
+      );
+    },
+
+    async requestStateUploadUrl(sessionId) {
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/state-upload-url`,
+        {},
+        (raw) => {
+          const isEntry = (x: unknown): x is StateUploadUrlEntry =>
+            typeof x === "object" &&
+            x !== null &&
+            typeof (x as { url?: unknown }).url === "string" &&
+            typeof (x as { key?: unknown }).key === "string";
+          if (
+            typeof raw === "object" &&
+            raw !== null &&
+            isEntry((raw as { state_initial?: unknown }).state_initial) &&
+            isEntry((raw as { state_final?: unknown }).state_final)
+          ) {
+            return raw as StateUploadUrlResponse;
+          }
+          throw new HostedOrchError(
+            "POST /v1/sessions/:id/state-upload-url returned unexpected shape",
+          );
+        },
+      );
+    },
+
+    async finalize(sessionId, input) {
+      const body: Record<string, unknown> = {
+        stop_reason: input.stopReason,
+        exit_code: input.exitCode,
+        duration_ms: input.durationMs,
+        agent_model: input.agentModel,
+        agent_sdk: normalizeAgentSdk(input.agentSdk),
+        criteria: input.criteria,
+        scenario_name: input.scenarioName,
+        scenario_hash: input.scenarioHash,
+        scenario_prompt: input.scenarioPrompt,
+        expected_behavior: input.expectedBehavior,
+      };
+      if (input.traceStorageKey !== undefined) {
+        body.trace_storage_key = input.traceStorageKey;
+      }
+      if (input.stateInitialStorageKey !== undefined) {
+        body.state_initial_storage_key = input.stateInitialStorageKey;
+      }
+      if (input.stateFinalStorageKey !== undefined) {
+        body.state_final_storage_key = input.stateFinalStorageKey;
+      }
+      if (input.signalsStorageKey !== undefined) {
+        body.signals_storage_key = input.signalsStorageKey;
+      }
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/finalize`,
+        body,
+        (raw) => finalizeResponseSchema.parse(raw),
+      );
+    },
+
+    async submitResult(sessionId, input) {
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/result`,
+        {
+          scenario_name: input.scenarioName,
+          scenario_hash: input.scenarioHash,
+          duration_ms: input.durationMs,
+          agent_model: input.agentModel,
+          satisfaction_score: input.satisfactionScore,
+          criteria_results: input.criteriaResults,
+          judge_model: input.judgeModel,
+          judge_tokens_in: input.judgeTokensIn,
+          judge_tokens_out: input.judgeTokensOut,
+          agent_sdk: normalizeAgentSdk(input.agentSdk),
+          lanes: input.lanes,
+          steps: input.steps,
+          fix_prompt: input.fixPrompt,
+          events_jsonl_url: input.eventsJsonlUrl,
+          trace_jsonl_b64: Buffer.from(input.traceJsonl, "utf8").toString(
+            "base64"
+          ),
+          state_initial_json_b64: Buffer.from(
+            input.stateInitialJson,
+            "utf8"
+          ).toString("base64"),
+          state_final_json_b64: Buffer.from(
+            input.stateFinalJson,
+            "utf8"
+          ).toString("base64"),
+        },
+        (raw) => submitResultResponseSchema.parse(raw)
+      );
+    },
+
+    async deleteSession(sessionId, bestEffort = true) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      let res: Response;
+      try {
+        res = await fetch(
+          `${config.baseUrl}/v1/sessions/${encodeURIComponent(sessionId)}`,
+          {
+            method: "DELETE",
+            headers: { "x-api-key": config.apiKey },
+            signal: ctrl.signal,
+          }
+        );
+      } catch (err) {
+        if (bestEffort) return;
+        throw new HostedOrchError(
+          err instanceof Error ? err.message : "network error",
+        );
+      } finally {
+        clearTimeout(timer);
+      }
+      // Cloud spec (pome-cloud docs/05-api-spec.md): 204 on success. Accept
+      // 200 too in case a future control-plane returns a body. 409 keeps
+      // best-effort teardown idempotent when a concurrent reaper already
+      // closed the row.
+      if (res.status === 204 || res.status === 200 || res.status === 409) return;
+      if (res.status === 404) {
+        if (bestEffort) return;
+        throw new HostedOrchError(
+          `DELETE /v1/sessions/${sessionId} → 404 (not found)`,
+        );
+      }
+      if (res.status === 401 || res.status === 403) {
+        throw new HostedAuthError(
+          `DELETE /v1/sessions/${sessionId} → ${res.status}`
+        );
+      }
+      // 404 / 5xx — log via thrown but caller can swallow if mid-teardown.
+      throw new HostedOrchError(
+        `DELETE /v1/sessions/${sessionId} → ${res.status}`
+      );
+    },
+  };
+}
+
+function normalizeAgentSdk(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}

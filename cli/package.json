@@ -1,0 +1,99 @@
+{
+  "name": "pome-sh",
+  "version": "0.6.4",
+  "description": "Digital-twin testing for AI agents — run scenarios against resettable local or hosted twins, record tool calls, and score the result.",
+  "keywords": [
+    "ai",
+    "agents",
+    "agent-testing",
+    "digital-twin",
+    "llm",
+    "evals",
+    "claude",
+    "anthropic",
+    "github",
+    "stripe",
+    "cli"
+  ],
+  "homepage": "https://pome.sh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pome-sh/pome.git",
+    "directory": "cli"
+  },
+  "bugs": {
+    "url": "https://github.com/pome-sh/pome/issues"
+  },
+  "author": "Pome <founders@pome.sh> (https://pome.sh)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "workspaces": ["."],
+  "bin": {
+    "pome": "./dist/src/cli/main.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "scenarios",
+    "skills",
+    "vendor",
+    "getting-started.mdx",
+    "cli-reference.mdx",
+    "changelog.mdx",
+    "GUIDE.md",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-prompts.mjs",
+    "dev": "tsx src/cli/main.ts",
+    "pome": "node dist/src/cli/main.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:e2e": "vitest run test/e2e",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/openai": "^3.0.67",
+    "@anthropic-ai/sdk": "^0.98.0",
+    "@hono/node-server": "^1.19.6",
+    "@openrouter/ai-sdk-provider": "^2.9.0",
+    "@pome-sh/correlator": "file:./vendor/pome-sh-correlator-0.1.0.tgz",
+    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.3.0.tgz",
+    "ai": "^6.0.193",
+    "better-sqlite3": "^12.5.0",
+    "commander": "^14.0.2",
+    "hono": "^4.10.7",
+    "yaml": "^2.8.2",
+    "zod": "^4.1.13"
+  },
+  "overrides": {
+    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.3.0.tgz"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.19.19",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bundleDependencies": [
+    "@pome-sh/correlator",
+    "@pome-sh/shared-types"
+  ]
+}

@@ -1,0 +1,79 @@
+# Pome digital twins — local agent testing.
+#
+# Quickstart (GitHub twin only, port 3333):
+#
+#   docker compose up -d
+#   curl http://127.0.0.1:3333/healthz
+#
+# All three product twins (host ports 3333 / 3334 / 3335):
+#
+#   docker compose --profile twins up -d
+#
+# All twins ship from one GHCR package, one tag per twin:
+#   ghcr.io/pome-sh/twins:github  :stripe  :slack
+# See the README for package layout and dev commands.
+#
+# GHCR images are private until Stage 1 OSS launch — authenticate first:
+#   docker login ghcr.io
+#
+# On first launch each service generates a random 32-byte hex auth secret at
+# ./.pome-data/<twin>/secret and persists SQLite under ./.pome-data/<twin>/.
+# Override any twin by exporting TWIN_AUTH_SECRET (>= 32 chars) before up.
+
+x-twin-entrypoint: &twin-entrypoint
+  - /bin/sh
+  - -c
+  - |
+    set -e
+    if [ -z "$$TWIN_AUTH_SECRET" ]; then
+      mkdir -p /data
+      if [ ! -f /data/secret ]; then
+        node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))' > /data/secret
+        chmod 600 /data/secret
+      fi
+      TWIN_AUTH_SECRET=$$(cat /data/secret)
+    fi
+    export TWIN_AUTH_SECRET
+    exec node dist/src/server.js
+
+services:
+  twin-github:
+    image: ghcr.io/pome-sh/twins:github
+    ports:
+      - "3333:3333"
+    volumes:
+      - ./.pome-data/github:/data
+    environment:
+      GITHUB_CLONE_HOST: "0.0.0.0"
+      GITHUB_CLONE_DB: /data/github_clone.db
+      TWIN_AUTH_SECRET: "${TWIN_AUTH_SECRET:-}"
+    command: *twin-entrypoint
+    restart: unless-stopped
+
+  twin-stripe:
+    profiles: ["twins"]
+    image: ghcr.io/pome-sh/twins:stripe
+    ports:
+      - "3334:3333"
+    volumes:
+      - ./.pome-data/stripe:/data
+    environment:
+      STRIPE_CLONE_HOST: "0.0.0.0"
+      STRIPE_CLONE_DB: /data/stripe.db
+      TWIN_AUTH_SECRET: "${TWIN_AUTH_SECRET:-}"
+    command: *twin-entrypoint
+    restart: unless-stopped
+
+  twin-slack:
+    profiles: ["twins"]
+    image: ghcr.io/pome-sh/twins:slack
+    ports:
+      - "3335:3333"
+    volumes:
+      - ./.pome-data/slack:/data
+    environment:
+      SLACK_CLONE_HOST: "0.0.0.0"
+      SLACK_CLONE_DB: /data/slack.db
+      TWIN_AUTH_SECRET: "${TWIN_AUTH_SECRET:-}"
+    command: *twin-entrypoint
+    restart: unless-stopped

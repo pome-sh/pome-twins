@@ -1,0 +1,67 @@
+{
+  "name": "@pome-sh/twin-slack",
+  "version": "0.1.0",
+  "description": "Deterministic Slack Web API twin for agent testing — REST + MCP, SQLite-backed state.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/server.js",
+  "bin": {
+    "twin-slack": "./dist/src/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "FIDELITY.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/server.ts",
+    "seed": "tsx scripts/seed.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "validate:mcp": "tsx scripts/validate-mcp.ts",
+    "verify:cloud-token": "tsx scripts/verify-cloud-token.ts",
+    "agent:claude": "tsx examples/claude-slack-agent.ts",
+    "start": "node dist/src/server.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@pome-sh/shared-types": "workspace:*",
+    "better-sqlite3": "^12.5.0",
+    "hono": "^4.10.7",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@slack/web-api": "^7.16.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.0.3",
+    "@vitest/coverage-v8": "4.1.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "keywords": [
+    "slack",
+    "twin",
+    "test-double",
+    "agent-testing",
+    "mcp",
+    "pome"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pome-sh/pome.git",
+    "directory": "packages/twin-slack"
+  },
+  "homepage": "https://github.com/pome-sh/pome/tree/main/packages/twin-slack",
+  "bugs": {
+    "url": "https://github.com/pome-sh/pome/issues"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

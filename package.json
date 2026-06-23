@@ -1,0 +1,21 @@
+{
+  "name": "pome-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*"],
+  "packageManager": "bun@1.3.10",
+  "scripts": {
+    "preinstall": "npx --yes only-allow bun",
+    "build": "bun run --filter '*' build",
+    "test": "bun run --filter '*' test",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3.0"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.14"
+  }
+}

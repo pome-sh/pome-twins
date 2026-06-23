@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:259d6f77775f942edc65ee87accd2a4f54e9f55685fb45981ddc1212e6366b11",
+    "model": "claude-opus-4-7",
+    "compiled_at": "2026-06-01T20:00:00.000Z"
+  },
+  "users": [
+    {
+      "login": "alice",
+      "type": "User",
+      "name": "Alice"
+    },
+    {
+      "login": "bob",
+      "type": "User",
+      "name": "Bob"
+    }
+  ],
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "api",
+      "description": "ACME API service",
+      "default_branch": "main",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a",
+          "description": "Something is not working"
+        },
+        {
+          "name": "feature",
+          "color": "a2eeef",
+          "description": "New feature or request"
+        },
+        {
+          "name": "question",
+          "color": "d876e3",
+          "description": "Further information is requested"
+        }
+      ],
+      "collaborators": [
+        "alice",
+        "bob"
+      ],
+      "issues": [
+        {
+          "number": 1,
+          "title": "Auth token returns null after refresh",
+          "body": "Calling /auth/refresh returns 200 but the new token is null. Reproducible 100%.",
+          "state": "open",
+          "labels": [
+            "question"
+          ],
+          "assignee": null
+        }
+      ]
+    }
+  ]
+}

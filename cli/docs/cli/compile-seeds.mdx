@@ -1,0 +1,61 @@
+---
+title: pome compile-seeds
+description: Compile prose seed sections in scenario files into .seed.json sidecars.
+---
+
+`pome compile-seeds` turns the `## Seed State` prose or JSON block in a scenario
+markdown file into a compiled `.seed.json` sidecar. Hosted runs and the seed
+compiler use these sidecars for faster, deterministic seed loading.
+
+By default the compiler calls Anthropic directly with `ANTHROPIC_API_KEY`. Pass
+`--hosted` to route compilation through the Pome control plane instead (uses your
+Pome API key; no Anthropic key required).
+
+## Usage
+
+```bash
+pome compile-seeds [target] [options]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `[target]` | No | Path to a scenario `.md` file or directory. Defaults to `./scenarios`. |
+
+## Options
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--force` | off | Recompile even when the sidecar's `source_hash` already matches the scenario file. |
+| `--hosted` | off | Compile via the Pome control plane instead of calling Anthropic directly. |
+| `--api-url <url>` | `POME_API_URL` or `https://api.pome.sh` | Control-plane base URL. Only relevant with `--hosted`. |
+
+## Behavior
+
+- Walks the target path for `.md` scenario files.
+- Reads each file's `## Seed State` section and compiles it to `<scenario>.seed.json`
+  alongside the markdown file.
+- Skips recompilation when the sidecar hash matches unless `--force` is set.
+- v1 hosted compilation supports GitHub-shaped seeds. Stripe and Slack seeds use
+  their respective twin schemas when running locally.
+
+## Examples
+
+```bash
+# Compile every scenario in ./scenarios/
+pome compile-seeds
+
+# Compile one file
+pome compile-seeds scenarios/01-bug-happy-path.md
+
+# Force recompile after editing seed prose
+pome compile-seeds scenarios/ --force
+
+# Use the cloud compiler (requires pome login)
+pome compile-seeds scenarios/ --hosted
+```
+
+## Exit codes
+
+Returns a non-zero exit code when compilation fails for any file in the batch.

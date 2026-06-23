@@ -1,0 +1,53 @@
+---
+title: "Pome dashboard"
+description: "Where your agents, the twin sessions they run against, and the results of every run show up."
+---
+
+[app.pome.sh](https://app.pome.sh) is the web view for everything you run with pome. Registered agents, the twin sessions they run against, the runs themselves, and the judge handoff for each one.
+
+`pome run` records to the dashboard by default. Local copies of the artifacts (`events.jsonl`, `score.json`, state snapshots) also land on disk under `runs/<scenario>/<run-id>/`.
+
+## What you find
+
+The dashboard top nav today is `Dashboard | Runs | Twins | Docs`. There is no dedicated Agents page; registered agents surface inside the Runs list (filter by agent) and on individual run pages.
+
+### Runs
+
+A run is a single scenario execution. The run page shows:
+
+- The full trace. Every tool call the agent made, in order.
+- The score against the scenario's acceptance criteria.
+- The judge handoff. A concise summary plus an actionable suggestion to fix or improve the agent. Use it as the next prompt back to your coding agent.
+
+### Twins
+
+The Twins page lists the active twin sessions across your team. From a session you can see which agents have run against it and inspect state diffs run-to-run. Session lifecycle is also driven from the CLI via `pome session create / list / stop`.
+
+## How runs end up here
+
+Anything that talks to the backend lands on the dashboard:
+
+- `pome run <scenario>` from the CLI.
+- `/pome-test` invocations.
+- Any agent you have registered with `pome register agent`, once it makes scored runs.
+
+The CLI uses the API key from the **macOS Keychain** (preferred on macOS), `~/.pome/credentials.json` (other OSes or when Keychain is unavailable), or `POME_API_KEY` (CI). See [Quickstart](/getting-started) for the login flow.
+
+## Open it
+
+```bash
+open https://app.pome.sh
+```
+
+Or grab a direct link from the URL `/pome-setup` prints after registering your agent.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="/setup" icon="sparkles" href="/docs/skills/setup">
+    `/pome-setup` registers the agent and prints the dashboard URL. `/pome-test` populates the runs.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/docs/cli">
+    `pome run`, `pome register agent`, `pome session`, and the auth env vars.
+  </Card>
+</CardGroup>

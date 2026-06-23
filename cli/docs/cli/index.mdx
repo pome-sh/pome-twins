@@ -1,0 +1,64 @@
+---
+title: Command Line Interface
+description: Overview of the pome CLI and links to per-command reference pages.
+---
+
+The `pome` CLI runs agent scenarios against deterministic twins, records tool calls,
+and scores results. Hosted runs record and **score** on [app.pome.sh](https://app.pome.sh)
+by default; `pome run --local` runs the in-process twin and records the trace without
+scoring (evaluation is a hosted feature).
+
+## Command index
+
+| Command | What it does | Reference |
+| --- | --- | --- |
+| `pome run` | Run one or more scenario files against a twin and score the agent. | [run](./run) |
+| `pome session` | Create, list, and stop hosted sandbox sessions. | [session](./session) |
+| `pome scenarios` | Browse and copy the bundled scenario library. | [scenarios](./scenarios) |
+| `pome compile-seeds` | Compile prose seed sections into `.seed.json` sidecars. | [compile-seeds](./compile-seeds) |
+| `pome inspect` | Print a human-readable report for a run. | [inspect](./inspect) |
+| `pome init` | Scaffold `scenarios/`, `examples/agents/`, and `pome.config.json`. | [init](./init) |
+
+## Other commands
+
+| Command | What it does |
+| --- | --- |
+| `pome login` / `pome logout` | Sign in via browser and store a team API key; clear local credentials. |
+| `pome register agent <name>` | Create a cloud agent and write `agentId` + `agentSlug` to `pome.config.json`. |
+| `pome docs [topic]` | Read bundled docs in the terminal or print `docs.pome.sh` URLs. |
+| `pome skills install` | Install `/pome-setup` and `/pome-test` into `~/.claude/skills/`. |
+| `pome twin start <name>` | Start a standalone GitHub twin on a local port. |
+| `pome twin reset` / `pome twin status` | Reset or inspect standalone twin state. |
+| `pome fix-prompt` | Generate a paste-into-IDE fix prompt for a failed run (BYOK LLM). |
+| `pome health` | In-process smoke check against the bundled GitHub twin. |
+| `pome version` | Print the CLI version. |
+
+## Auth resolution order
+
+1. `POME_API_KEY` environment variable.
+2. macOS Keychain entry (`security find-generic-password -s pome-sh`) on macOS.
+3. `~/.pome/credentials.json` written by `pome login`.
+
+If none are set, hosted commands fail fast. Use `pome run --local` to bypass auth and
+run against a local in-process twin (trace only, no scoring).
+
+## Exit codes
+
+<Warning>
+Stage 1 known regressions: some `pome run` paths return exit code 2 or 3 when 1 was
+documented. CI consumers branching on `$?` should not yet treat this table as a hard
+contract. See [troubleshooting](/docs/troubleshooting).
+</Warning>
+
+A `--local` run is **not scored**, so its exit code reflects only whether the agent
+ran cleanly (0) or errored/timed out (3) — exit 0 from `--local` means "trace
+captured," not "scenario passed." Do not gate CI on a `--local` exit code.
+
+| Code | Meaning |
+| --- | --- |
+| 0 | All scenarios passed (hosted/scored run), or trace captured (`--local`, not scored). |
+| 1 | At least one scenario scored below threshold. |
+| 2 | Twin or runner error (network, 5xx, twin spawn failed). |
+| 3 | Auth error (401/403). Re-run `pome login`. |
+| 4 | Quota exceeded. |
+| 5 | Usage error (bad flags, missing files). |

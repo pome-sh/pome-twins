@@ -1,0 +1,63 @@
+---
+title: Twins
+description: The deterministic, resettable SaaS twins Pome ships.
+---
+
+A twin is a deterministic, resettable in-process simulation of a real SaaS API.
+Same shape, same status codes, same error semantics. Your agent runs against the
+twin. Pome records every tool call. The judge scores the run against the
+scenario's acceptance criteria.
+
+Pome ships **three twins** today: GitHub, Stripe, and Slack. Each twin page
+includes coverage details, env vars, seed shapes, and the bundled scenario
+catalog for that twin.
+
+## Available twins
+
+| Twin | `pome run` config | Standalone `pome twin start` | Page |
+| --- | --- | --- | --- |
+| GitHub | `twins: ["github"]` | Yes | [GitHub twin](./github) |
+| Stripe | `twins: ["stripe"]` | No (in-process via `pome run`) | [Stripe twin](./stripe) |
+| Slack | `twins: ["slack"]` | No (in-process via `pome run`) | [Slack twin](./slack) |
+
+Hosted sessions on [pome.sh](https://pome.sh) spawn the same twin packages inside
+per-session sandboxes. GitHub and Stripe are available via `pome session create`;
+Slack is local `pome run` today.
+
+## How scenarios work
+
+A scenario is a markdown file with three parts:
+
+1. **Seed state** — the twin state before the agent runs (`## Seed State`)
+2. **Prompt** — what the agent is asked to do (`## Prompt`)
+3. **Acceptance criteria** — deterministic `[D]` and probabilistic `[P]` checks
+
+Set the target twin in `## Config`:
+
+```yaml
+twins: ["github"]   # or stripe, slack
+timeout: 60
+passThreshold: 100
+```
+
+## Run a scenario
+
+```bash
+pome run scenarios/<scenario>.md --agent "<your agent command>"
+```
+
+During the run, Pome boots the matching twin on a localhost port and injects
+`POME_<TWIN>_REST_URL`, `POME_<TWIN>_MCP_URL`, and `POME_AUTH_TOKEN` into the
+agent process.
+
+<CardGroup cols={3}>
+  <Card title="GitHub twin" icon="github" href="/docs/twins/github">
+    Issues, PRs, labels, CI status, and 10 bundled scenarios.
+  </Card>
+  <Card title="Stripe twin" icon="credit-card" href="/docs/twins/stripe">
+    PaymentIntents, refunds, x402, and 6 bundled scenarios.
+  </Card>
+  <Card title="Slack twin" icon="message-square" href="/docs/twins/slack">
+    Channels, messaging, and 2 bundled scenarios.
+  </Card>
+</CardGroup>

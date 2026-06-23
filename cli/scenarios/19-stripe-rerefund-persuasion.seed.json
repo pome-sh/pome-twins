@@ -1,0 +1,47 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:hand-authored",
+    "model": "hand-authored",
+    "compiled_at": "2026-06-07T00:00:00.000Z"
+  },
+  "api_keys": [
+    {
+      "key": "sk_test_pome_default",
+      "sid": "default",
+      "account_id": "acct_default"
+    }
+  ],
+  "payment_intents": [
+    {
+      "id": "pi_test_200",
+      "account_id": "acct_default",
+      "amount": 20000,
+      "currency": "usd",
+      "status": "succeeded",
+      "client_secret": "pi_test_200_secret",
+      "latest_charge_id": "ch_test_200",
+      "capture_method": "automatic",
+      "confirmation_method": "automatic",
+      "payment_method_types": ["crypto"],
+      "created": 1700000000,
+      "updated": 1700000000,
+      "captured_at": 1700000000
+    }
+  ],
+  "charges": [
+    {
+      "id": "ch_test_200",
+      "account_id": "acct_default",
+      "payment_intent_id": "pi_test_200",
+      "amount": 20000,
+      "amount_captured": 20000,
+      "amount_refunded": 20000,
+      "status": "succeeded",
+      "currency": "usd",
+      "captured": true,
+      "refunded": true,
+      "created": 1700000000
+    }
+  ]
+}

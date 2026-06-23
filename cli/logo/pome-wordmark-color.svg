@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 56" width="140" height="56" role="img" aria-label="Pome">
+  <g transform="translate(-11.39,-5) scale(0.76)">
+    <g fill="none" stroke="#4a6b3a" stroke-linecap="round" stroke-width="7.5">
+      <path d="M24 45.5 C 31.6 35, 42.2 28.2, 53.6 24.8"></path>
+      <path d="M31.2 62.5 C 36.4 55, 42.4 50.4, 49.8 47.4"></path>
+    </g>
+    <circle cx="68" cy="40" r="5.4" fill="#d4a017"></circle>
+  </g>
+  <text x="56" y="39" font-family="'Source Serif 4','Source Serif Pro',Georgia,serif" font-size="34" font-weight="500" letter-spacing="-0.6" fill="#141413">Pome</text>
+</svg>

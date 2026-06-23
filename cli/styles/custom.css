@@ -1,0 +1,396 @@
+/*
+ * Pome docs — custom styles
+ *
+ * Source of truth for tokens: pome-cloud/brand/tokens/tokens.css.
+ * Do not edit these values without updating the brand source.
+ *
+ * Pome is a SINGLE-PALETTE system. Cream canvas in light mode, dark navy
+ * surface in dark mode. Both are brand-legitimate. Code blocks stay dark
+ * navy in both modes; terminals are terminals.
+ *
+ * Mintlify ships Tailwind utility classes at high specificity, so every
+ * rule below uses !important. Selectors target Mintlify's actual element
+ * tags (card, callout, code-block) and IDs (#navbar, #sidebar, #footer)
+ * rather than guessed class names.
+ */
+
+@import url("/fonts/geist/geist.css");
+@import url("/fonts/geist-mono/geist-mono.css");
+
+:root {
+  --pome-primary: #4a6b3a;
+  --pome-primary-active: #324a26;
+  --pome-primary-on-dark: #7ea766;
+
+  --pome-canvas: #faf9f5;
+  --pome-surface-soft: #f5f0e8;
+  --pome-surface-card: #efe9de;
+  --pome-surface-cream-strong: #e8e0d2;
+  --pome-surface-dark: #181715;
+  --pome-surface-dark-soft: #1f1e1b;
+  --pome-surface-dark-elevated: #252320;
+
+  --pome-hairline: #e6dfd8;
+  --pome-hairline-on-dark: #2a2825;
+
+  --pome-ink: #141413;
+  --pome-body-strong: #252523;
+  --pome-body: #3d3d3a;
+  --pome-muted: #6c6a64;
+  --pome-on-dark: #faf9f5;
+  --pome-on-dark-soft: #a09d96;
+
+  --pome-success: #5db872;
+  --pome-warning: #d4a017;
+  --pome-error: #c64545;
+  --pome-info: #5db8a6;
+  --pome-accent-rust: #c8632e;
+
+  --pome-radius-sm: 6px;
+  --pome-radius-md: 8px;
+  --pome-radius-lg: 12px;
+  --pome-radius-pill: 9999px;
+
+  --pome-space-md: 16px;
+  --pome-space-lg: 24px;
+  --pome-space-xl: 32px;
+
+  --pome-ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --pome-dur-fast: 120ms;
+  --pome-dur-base: 240ms;
+
+  --pome-font-display: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --pome-font-body: "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --pome-font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
+    monospace;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * LAYOUT PAINT — body, navbar, sidebar, content, footer all cream
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(html, body) {
+  background: var(--pome-canvas) !important;
+  color: var(--pome-ink) !important;
+  font-family: var(--pome-font-body) !important;
+  font-feature-settings: "liga" 1, "calt" 1 !important;
+}
+
+:where(
+  #header,
+  #navbar,
+  #navbar-transition,
+  #content-container,
+  #content-area,
+  #content-side-layout,
+  #table-of-contents,
+  #table-of-contents-layout,
+  #footer,
+  main,
+  [role="main"]
+) {
+  background: var(--pome-canvas) !important;
+  color: var(--pome-ink) !important;
+}
+
+:where(#sidebar, #sidebar-content, #navigation-items) {
+  background: var(--pome-canvas) !important;
+  color: var(--pome-ink) !important;
+}
+
+:where(#header, #navbar, #navbar-transition) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+:where(#sidebar div, #sidebar nav, #sidebar aside) {
+  background: transparent !important;
+}
+
+/* Dark mode: dark navy canvas, cream text */
+html.dark :where(html, body),
+.dark :where(html, body) {
+  background: var(--pome-surface-dark) !important;
+  color: var(--pome-on-dark) !important;
+}
+
+html.dark :where(
+  #header,
+  #navbar,
+  #navbar-transition,
+  #content-container,
+  #content-area,
+  #content-side-layout,
+  #table-of-contents,
+  #table-of-contents-layout,
+  #footer,
+  #sidebar,
+  #sidebar-content,
+  #navigation-items,
+  main,
+  [role="main"]
+),
+.dark :where(
+  #header,
+  #navbar,
+  #navbar-transition,
+  #content-container,
+  #content-area,
+  #content-side-layout,
+  #table-of-contents,
+  #table-of-contents-layout,
+  #footer,
+  #sidebar,
+  #sidebar-content,
+  #navigation-items,
+  main,
+  [role="main"]
+) {
+  background: var(--pome-surface-dark) !important;
+  color: var(--pome-on-dark) !important;
+}
+
+/* Page-title divider — Mintlify renders a faint hr/border between the
+ * h1 + description and the body content. Brand's "no hard lines" rule
+ * says cream-on-cream contrast does the work. Strip it. */
+:where(#page-title, #page-title + *, hr) {
+  border-bottom: none !important;
+  border-top: none !important;
+}
+
+:where(#content-area hr) {
+  display: none !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * TYPOGRAPHY — Source Serif 4 display, Geist body, Geist Mono code
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(h1, h2, #page-title) {
+  font-family: var(--pome-font-display) !important;
+  font-weight: 400 !important;
+  color: var(--pome-ink) !important;
+}
+
+:where(h1, #page-title) {
+  font-size: 44px !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.8px !important;
+}
+
+:where(h2) {
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.3px !important;
+}
+
+:where(h3) {
+  font-family: var(--pome-font-body) !important;
+  font-size: 19px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  color: var(--pome-ink) !important;
+}
+
+:where(h4, h5, h6) {
+  font-family: var(--pome-font-body) !important;
+  font-weight: 500 !important;
+  color: var(--pome-ink) !important;
+}
+
+/* Inline code inside headings — inherit heading size, drop the pill
+ * background. Otherwise a heading like "events.jsonl uses ..." reads
+ * as a 26px dark-pill instead of a heading with a mono identifier. */
+:where(h1, h2, h3, h4, h5, h6, #page-title) :where(code) {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  font-size: 0.92em !important;
+  border-radius: 0 !important;
+}
+
+:where(p, li, td, th, span) {
+  color: var(--pome-body) !important;
+}
+
+html.dark :where(h1, h2, h3, h4, h5, h6, #page-title, strong, b),
+.dark :where(h1, h2, h3, h4, h5, h6, #page-title, strong, b) {
+  color: var(--pome-on-dark) !important;
+}
+
+html.dark :where(p, li, td, th, span),
+.dark :where(p, li, td, th, span) {
+  color: var(--pome-on-dark-soft) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CODE — Geist Mono; code blocks are always dark navy
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(code, pre, kbd, samp, code-block) {
+  font-family: var(--pome-font-mono) !important;
+  font-feature-settings: "liga" 1, "calt" 1, "tnum" 1 !important;
+}
+
+:where(code-block, pre) {
+  background: var(--pome-surface-dark) !important;
+  color: var(--pome-on-dark) !important;
+  border-radius: var(--pome-radius-lg) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:where(code-block pre, pre code) {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+:where(:not(pre) > code) {
+  background: var(--pome-surface-card) !important;
+  color: var(--pome-ink) !important;
+  padding: 1px 6px !important;
+  border-radius: var(--pome-radius-md) !important;
+  font-size: 0.9em !important;
+}
+
+html.dark :where(:not(pre) > code),
+.dark :where(:not(pre) > code) {
+  background: var(--pome-surface-dark-elevated) !important;
+  color: var(--pome-on-dark) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * LINKS — moss accent
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(a) {
+  color: var(--pome-primary) !important;
+  text-underline-offset: 2px !important;
+  transition: color var(--pome-dur-fast) var(--pome-ease-out) !important;
+}
+
+:where(a:hover) {
+  color: var(--pome-primary-active) !important;
+}
+
+html.dark :where(a),
+.dark :where(a) {
+  color: var(--pome-primary-on-dark) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CARDS — Mintlify <card> element, cream-card fill, no shadow/border
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(card) {
+  background: var(--pome-surface-card) !important;
+  border-radius: var(--pome-radius-lg) !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: var(--pome-space-xl) !important;
+  color: var(--pome-ink) !important;
+  transition: box-shadow var(--pome-dur-base) var(--pome-ease-out) !important;
+}
+
+:where(card:hover) {
+  box-shadow: 0 1px 3px rgba(20 20 19 / 0.08) !important;
+}
+
+html.dark :where(card),
+.dark :where(card) {
+  background: var(--pome-surface-dark-elevated) !important;
+  color: var(--pome-on-dark) !important;
+}
+
+/* card-group is deprecated but kept for back-compat — render as a
+ * transparent grid container, no fill of its own */
+:where(card-group, columns) {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CALLOUTS — Mintlify <callout>, 1.5px left rule per variant
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(callout) {
+  background: var(--pome-surface-card) !important;
+  color: var(--pome-ink) !important;
+  border-radius: var(--pome-radius-md) !important;
+  border: none !important;
+  border-left-width: 1.5px !important;
+  border-left-style: solid !important;
+  border-left-color: var(--pome-muted) !important;
+  box-shadow: none !important;
+  padding: var(--pome-space-md) var(--pome-space-lg) !important;
+}
+
+:where(callout[data-callout-type="tip"], callout.tip) {
+  border-left-color: var(--pome-primary) !important;
+}
+
+:where(callout[data-callout-type="info"], callout.info) {
+  border-left-color: var(--pome-info) !important;
+}
+
+:where(callout[data-callout-type="warning"], callout.warning) {
+  border-left-color: var(--pome-warning) !important;
+}
+
+:where(callout[data-callout-type="check"], callout[data-callout-type="success"], callout.check) {
+  border-left-color: var(--pome-success) !important;
+}
+
+html.dark :where(callout),
+.dark :where(callout) {
+  background: var(--pome-surface-dark-elevated) !important;
+  color: var(--pome-on-dark) !important;
+}
+
+html.dark :where(callout[data-callout-type="tip"], callout.tip),
+.dark :where(callout[data-callout-type="tip"], callout.tip) {
+  border-left-color: var(--pome-primary-on-dark) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * TABLES — hairline separators, no zebra
+ * ────────────────────────────────────────────────────────────────────── */
+
+:where(table) {
+  border-collapse: collapse !important;
+  border: 1px solid var(--pome-hairline) !important;
+  border-radius: var(--pome-radius-md) !important;
+  overflow: hidden !important;
+}
+
+:where(table th, table td) {
+  border-bottom: 1px solid var(--pome-hairline) !important;
+  padding: 12px 16px !important;
+}
+
+:where(table th) {
+  font-weight: 500 !important;
+  background: var(--pome-surface-soft) !important;
+  color: var(--pome-body-strong) !important;
+  text-align: left !important;
+}
+
+html.dark :where(table),
+.dark :where(table) {
+  border-color: var(--pome-hairline-on-dark) !important;
+}
+
+html.dark :where(table th, table td),
+.dark :where(table th, table td) {
+  border-bottom-color: var(--pome-hairline-on-dark) !important;
+}
+
+html.dark :where(table th),
+.dark :where(table th) {
+  background: var(--pome-surface-dark-soft) !important;
+  color: var(--pome-on-dark) !important;
+}

@@ -1,0 +1,25 @@
+name: cli-version-gate
+on:
+  pull_request:
+    paths:
+      - 'cli/src/**'
+      - 'cli/package.json'
+      - 'cli/.changeset/**'
+      - 'scripts/check-cli-version-bump.sh'
+      - '.github/workflows/cli-version-gate.yml'
+
+concurrency:
+  group: cli-version-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: cli/src/** must bump version or add a changeset
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - run: BASE_REF="origin/${{ github.event.pull_request.base.ref }}" scripts/check-cli-version-bump.sh

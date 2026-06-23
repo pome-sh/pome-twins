@@ -1,0 +1,132 @@
+---
+title: How Pome works
+description: Twins, scenarios, runs, scoring, and where artifacts land.
+---
+
+Pome tests agents by running them against deterministic twins, recording what they
+did, and scoring the outcome. The loop is the same whether you drive it from the
+CLI, a coding-agent skill, or the dashboard.
+
+## The loop
+
+```text
+Scenario (seed + prompt + criteria)
+        ↓
+   pome run
+        ↓
+  Twin boots with seed state
+        ↓
+  Agent runs (tool calls hit the twin)
+        ↓
+  Pome records events + exports twin state
+        ↓
+  Judge scores [D] and [P] criteria
+        ↓
+  Artifacts + dashboard URL
+```
+
+## Twins
+
+A twin is an in-process (or hosted) simulation of a real SaaS API. It preserves
+response shapes and error semantics without calling the live service.
+
+| Twin | Config | What agents exercise |
+| --- | --- | --- |
+| GitHub | `twins: ["github"]` | Issues, PRs, labels, comments, commit status |
+| Stripe | `twins: ["stripe"]` | PaymentIntents, refunds, x402 paywalls |
+| Slack | `twins: ["slack"]` | Channels, messages, threads, reactions |
+
+Each run starts from the scenario's **seed state** — a JSON block that describes
+the twin's initial world (repos, charges, channels, etc.). The twin resets between
+runs so the same scenario produces the same baseline every time.
+
+See [Twins reference](/docs/twins) for per-twin coverage, env vars, and bundled
+scenarios.
+
+## Scenarios
+
+A scenario is a markdown file with three parts:
+
+1. **`## Seed State`** — JSON the twin loads before the agent starts.
+2. **`## Prompt`** — passed to the agent as `POME_TASK`.
+3. **Acceptance criteria** — `[D]` deterministic checks on twin state or events;
+   `[P]` probabilistic checks judged by an LLM.
+
+```yaml
+# ## Config
+twins: ["github"]
+timeout: 60
+passThreshold: 100
+```
+
+Browse and copy bundled scenarios:
+
+```bash
+pome scenarios github --copy
+```
+
+## Runs
+
+`pome run <scenario.md>` boots the matching twin, spawns your agent with injected
+environment variables (`POME_<TWIN>_REST_URL`, `POME_AUTH_TOKEN`, etc.), waits for
+the agent to exit, then scores the result.
+
+Hosted is the default — runs record to [app.pome.sh](https://app.pome.sh). Set
+`POME_LOCAL=1` for engineer-only in-process local twins.
+
+## Artifacts
+
+Every run writes a directory at `runs/<scenario>/<run-id>/`:
+
+| File | Contents |
+| --- | --- |
+| `events.jsonl` | Canonical event stream — `TwinHttpEvent`, `LlmCallEvent`, `RunStartedEvent`, etc. |
+| `score.json` | Per-criterion verdicts and aggregate satisfaction (0–100). |
+| `state_initial.json` / `state_final.json` | Twin state before and after the agent. |
+
+<Note>
+`tool_calls.jsonl` is also written for older clients. New integrations should read
+`events.jsonl`.
+</Note>
+
+Hosted runs also get a dashboard URL with the full trace, score breakdown, and judge
+handoff for failures.
+
+## Scoring
+
+- **`[D]` deterministic** — Pome checks twin state or recorded events directly.
+  Example: "issue #42 has label `bug`" or "no message containing the secret appears
+  in a public channel."
+- **`[P]` probabilistic** — An LLM judge reads the trace and evaluates judgment
+  criteria. Example: "the agent recognized the label was contextually wrong."
+
+A run passes when satisfaction ≥ `passThreshold` (default 100).
+
+## When to run pome
+
+Run pome before merging changes that affect agent behavior:
+
+- Prompt or system-instruction edits
+- New or modified tools
+- Model swaps
+- Twin integration changes (new API surface your agent calls)
+
+Compare scores across runs. The trace shows exactly which tool calls changed and
+which criteria flipped.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/getting-started">
+    Install and complete your first run.
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/docs/dashboard">
+    Where runs, sessions, and judge feedback live.
+  </Card>
+  <Card title="pome run" icon="terminal" href="/docs/cli/run">
+    CLI reference for running scenarios.
+  </Card>
+  <Card title="/test-with-pome" icon="flask-conical" href="/docs/skills/test-with-pome">
+    Run scenarios from your coding agent with `/pome-test`.
+  </Card>
+</CardGroup>

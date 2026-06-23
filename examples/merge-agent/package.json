@@ -1,0 +1,26 @@
+{
+  "name": "@pome-sh/merge-agent-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bundled Pome example: a model-driven GitHub PR merge agent (Vercel AI SDK) run against the local GitHub twin's REST surface.",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/openai": "^3.0.67",
+    "ai": "^6.0.193",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3.0"
+  }
+}

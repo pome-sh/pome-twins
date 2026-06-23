@@ -1,0 +1,4 @@
+{"ts":"2026-05-12T10:00:00.500Z","type":"step","step_id":"stp_refund_retry"}
+{"ts":"2026-05-12T10:00:01.100Z","type":"tool_call","tool_call_id":"tlc_post_refund_attempt_1","tool_name":"stripe_create_refund"}
+{"ts":"2026-05-12T10:00:01.450Z","type":"tool_call","tool_call_id":"tlc_post_refund_attempt_2","tool_name":"stripe_create_refund"}
+{"ts":"2026-05-12T10:00:02.780Z","type":"tool_call","tool_call_id":"tlc_get_charge","tool_name":"stripe_retrieve_charge"}

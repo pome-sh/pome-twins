@@ -1,0 +1,46 @@
+---
+title: Pome
+---
+## Introduction
+
+Pome is the safety layer for your AI agents.
+
+You can use Pome to understand, test, and validate how AI agents behave before
+they ever interact with real users.
+
+Pome builds simulations of your agent's interactions against deterministic scenarios. Pome
+replaces guesswork with certainty by providing the deep visibility required to take
+autonomous agents from experimental toys to production-ready tools.
+
+## Simulation Evaluations
+
+Pome builds simulations to understand how an AI agent will interact with the real
+world using **stateful digital twins** in sandboxes. In these simulations, Pome
+automatically runs scenarios to see how agents behave, where they fail, and how they
+can be improved.
+
+A **scenario** is a specific situation we put the agent in:
+
+- A **starting world state** — the twin's seeded baseline (repos, charges, channels, etc.)
+- A **task to complete** — the prompt the agent receives
+- The **real services it must call** — GitHub, Stripe, Slack, and more via twins
+
+By varying these inputs, Pome surfaces edge cases that normal tests never reach.
+
+Pome brings deterministic safety checks and deep visibility into how your agent
+works — and aims to be the fastest way to build safer agents. Runs, traces, and
+scores live on the dashboard at [pome.sh](https://pome.sh).
+
+## How to start
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/getting-started">
+    Install, log in, install skills, and complete a first scored run in minutes.
+  </Card>
+  <Card title="How Pome works" icon="workflow" href="/docs/how-pome-works">
+    Twins, scenarios, runs, scoring, and artifacts explained end to end.
+  </Card>
+  <Card title="/setup" icon="sparkles" href="/docs/skills/setup">
+    Wire your coding agent to pome with `/pome-setup`.
+  </Card>
+</CardGroup>

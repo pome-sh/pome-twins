@@ -1,0 +1,2776 @@
+Twin booted on http://127.0.0.1:53252
+MCP endpoint: http://127.0.0.1:53252/s/validate-mcp-session/mcp
+MCP client.connect() OK (initialize handshake completed)
+
+━━━ tools/list (real SDK over the wire) ━━━
+Tool count returned: 62
+Expected count (toolDefinitions.length): 62
+All 62 tool names match toolDefinitions ✓
+Full tool list (from the wire):
+[
+  {
+    "name": "search_repositories",
+    "description": "Search local repositories by name or description.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "q": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_repository",
+    "description": "Create a repository with an initial README and main branch.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "private": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "fork_repository",
+    "description": "Fork a repository into the current user or an organization.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "organization": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_repository",
+    "description": "Get one repository.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "search_code",
+    "description": "Search files in the local GitHub twin.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "q": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "search_users",
+    "description": "Search seeded users and organizations.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "q": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_file_contents",
+    "description": "Read a file or directory from a repository branch.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_commits",
+    "description": "List commits for a repository.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_or_update_file",
+    "description": "Create or update one file and advance the branch head atomically.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "sha": {
+          "type": "string"
+        },
+        "encoding": {
+          "type": "string",
+          "enum": [
+            "utf-8",
+            "base64"
+          ]
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "path",
+        "message",
+        "content"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_branch",
+    "description": "Create a branch from an existing branch or SHA.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from_branch": {
+          "type": "string"
+        },
+        "sha": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "branch"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "push_files",
+    "description": "Push multiple files in a single commit.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "content": {
+                "type": "string"
+              },
+              "encoding": {
+                "type": "string",
+                "enum": [
+                  "utf-8",
+                  "base64"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "message",
+        "files"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_issue",
+    "description": "Get one issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_issue",
+    "description": "Update an issue title, body, state, labels, or assignees.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "search_issues",
+    "description": "Search all local issues.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "q": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed",
+            "all"
+          ]
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_issues",
+    "description": "List repository issues with common filters.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed",
+            "all"
+          ]
+        },
+        "labels": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_issue_comment",
+    "description": "Add an issue comment.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "body"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_issue_comments",
+    "description": "List comments on an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_issue",
+    "description": "Create an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "title"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_repository_labels",
+    "description": "List labels defined on a repository.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_label",
+    "description": "Create a repository label.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "color": {
+          "default": "ededed",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "name",
+        "color",
+        "description"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_issue_labels",
+    "description": "List labels applied to an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_issue_labels",
+    "description": "Apply one or more labels to an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "labels": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "labels"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "remove_issue_label",
+    "description": "Remove one label from an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "label"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_collaborators",
+    "description": "List repository collaborators.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_assignees",
+    "description": "Add assignees to an issue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issueNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "assignees": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "assignees"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request",
+    "description": "Get one pull request.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request_reviews",
+    "description": "List pull request reviews.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_pull_request_review",
+    "description": "Create a pull request review.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "event": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REQUEST_CHANGES",
+            "COMMENT"
+          ]
+        },
+        "body": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "event"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request_comments",
+    "description": "List review comments on a pull request.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request_files",
+    "description": "List files changed by a pull request.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request_status",
+    "description": "Get combined status for a pull request head commit.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_pull_requests",
+    "description": "List repository pull requests.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed",
+            "all"
+          ]
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "merge_pull_request",
+    "description": "Merge a pull request using simplified local merge semantics.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "commit_title": {
+          "type": "string"
+        },
+        "commit_message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_pull_request_branch",
+    "description": "Update a PR branch from its base branch.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "expected_head_sha": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_pull_request",
+    "description": "Create a pull request from a head branch to a base branch.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "title",
+        "head"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_branches",
+    "description": "List branches for a repository.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_branch",
+    "description": "Get one branch by name.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "branch"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_branch",
+    "description": "Delete a branch (cannot delete the default branch or a branch backing an open PR).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "branch"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_file",
+    "description": "Delete one file and advance the branch head atomically.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "path",
+        "message",
+        "sha"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_commit",
+    "description": "Get one commit with its file changes and stats.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "ref"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "compare_commits",
+    "description": "Compare two commits, branches, or tags. Returns ahead/behind/identical/diverged.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "base",
+        "head"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request_diff",
+    "description": "Get a unified-diff-style text representation of a pull request.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_pull_request",
+    "description": "Update a pull request title, body, state, or base branch.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "base": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_pull_request_commits",
+    "description": "List commits on a pull request, oldest first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_pull_request_review_comment",
+    "description": "Create an inline review comment on a pull request at a file path and line.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "LEFT",
+            "RIGHT"
+          ]
+        },
+        "commit_id": {
+          "type": "string"
+        },
+        "commitId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "body",
+        "path",
+        "line"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_reply_to_pull_request_comment",
+    "description": "Reply to an existing pull request review comment.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pull_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pullNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "comment_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "commentId": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "body"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_issue_comment",
+    "description": "Update the body of an existing issue comment.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "comment_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "commentId": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "body"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_issue_comment",
+    "description": "Delete an issue comment by ID.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "comment_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "commentId": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_milestones",
+    "description": "List milestones for a repository.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed",
+            "all"
+          ]
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_milestone",
+    "description": "Create a milestone.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "due_on": {
+          "type": "string"
+        },
+        "dueOn": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed"
+          ]
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "title"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_milestone",
+    "description": "Update a milestone.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "milestone_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "milestoneNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "due_on": {
+          "type": "string"
+        },
+        "dueOn": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed"
+          ]
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_milestone",
+    "description": "Delete a milestone.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "milestone_number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "milestoneNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_commit_status",
+    "description": "Create a commit status (pending/success/failure/error) on a commit SHA.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "error",
+            "failure",
+            "pending",
+            "success"
+          ]
+        },
+        "context": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "target_url": {
+          "type": "string"
+        },
+        "targetUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "sha",
+        "state"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_combined_status_for_ref",
+    "description": "Get the combined status for a ref (SHA, branch, or tag).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "ref"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_check_run",
+    "description": "Create a check run on a commit SHA.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head_sha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headSha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "in_progress",
+            "completed"
+          ]
+        },
+        "conclusion": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failure",
+            "neutral",
+            "cancelled",
+            "timed_out",
+            "action_required",
+            "skipped",
+            "stale"
+          ]
+        },
+        "details_url": {
+          "type": "string"
+        },
+        "detailsUrl": {
+          "type": "string"
+        },
+        "external_id": {
+          "type": "string"
+        },
+        "externalId": {
+          "type": "string"
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string"
+        },
+        "completedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "name"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_check_runs_for_ref",
+    "description": "List check runs for a ref (SHA, branch, or tag).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "ref"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_tags",
+    "description": "List tags for a repository, most recent first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_releases",
+    "description": "List releases for a repository, most recent first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perPage": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_latest_release",
+    "description": "Get the latest published (non-draft, non-prerelease) release.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_release",
+    "description": "Create a release. Auto-creates the tag if it doesn't exist.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tagName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_commitish": {
+          "type": "string"
+        },
+        "targetCommitish": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "prerelease": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "owner",
+        "repo"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_me",
+    "description": "Get the authenticated user.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_collaborator",
+    "description": "Add a collaborator to a repository. Returns 201 + invitation envelope for new users, 204 when already a collaborator.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permission": {
+          "type": "string",
+          "enum": [
+            "pull",
+            "push",
+            "admin",
+            "maintain",
+            "triage"
+          ]
+        }
+      },
+      "required": [
+        "owner",
+        "repo",
+        "username"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    }
+  }
+]
+
+━━━ tools/call get_pull_request (strict read against seeded fixture) ━━━
+Raw callTool() result:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"id\":3605789809,\"node_id\":\"PR_3605789809\",\"number\":1,\"state\":\"open\",\"locked\":false,\"title\":\"MCP wire-fixture PR\",\"body\":\"Strict-read fixture for validate-mcp.\",\"user\":{\"login\":\"alice\",\"id\":92903040,\"node_id\":\"U_92903040\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/92903040?v=4\",\"html_url\":\"https://github.com/alice\",\"type\":\"User\",\"site_admin\":false},\"html_url\":\"https://github.com/acme/api/pull/1\",\"url\":\"https://api.github.com/repos/acme/api/pulls/1\",\"issue_url\":\"https://api.github.com/repos/acme/api/issues/1\",\"commits_url\":\"https://api.github.com/repos/acme/api/pulls/1/commits\",\"review_comments_url\":\"https://api.github.com/repos/acme/api/pulls/1/comments\",\"review_comment_url\":\"https://api.github.com/repos/acme/api/pulls/comments{/number}\",\"comments_url\":\"https://api.github.com/repos/acme/api/issues/1/comments\",\"statuses_url\":\"https://api.github.com/repos/acme/api/statuses/{sha}\",\"head\":{\"label\":\"acme:feature/x\",\"ref\":\"feature/x\",\"sha\":\"8a5b92327fee92aa7cbc5c1c4be659ec1f4d07e7\",\"repo\":{\"id\":1,\"node_id\":\"R_1\",\"name\":\"api\",\"full_name\":\"acme/api\",\"owner\":{\"login\":\"acme\",\"id\":2988346,\"node_id\":\"U_2988346\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/2988346?v=4\",\"html_url\":\"https://github.com/acme\",\"type\":\"Organization\",\"site_admin\":false},\"private\":false,\"html_url\":\"https://github.com/acme/api\",\"description\":\"Validation fixture for MCP wire-protocol round-trip.\",\"fork\":false,\"url\":\"https://api.github.com/repos/acme/api\",\"contents_url\":\"https://api.github.com/repos/acme/api/contents/{+path}\",\"issues_url\":\"https://api.github.com/repos/acme/api/issues{/number}\",\"pulls_url\":\"https://api.github.com/repos/acme/api/pulls{/number}\",\"default_branch\":\"main\",\"created_at\":\"2026-05-27T16:19:21.819Z\",\"updated_at\":\"2026-05-27T16:19:21.820Z\",\"pushed_at\":\"2026-05-27T16:19:21.820Z\"},\"user\":{\"login\":\"acme\",\"id\":2988346,\"node_id\":\"U_2988346\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/2988346?v=4\",\"html_url\":\"https://github.com/acme\",\"type\":\"Organization\",\"site_admin\":false}},\"base\":{\"label\":\"acme:main\",\"ref\":\"main\",\"sha\":\"d19ab25b4905c296401660c9613a368c44f79b3e\",\"repo\":{\"id\":1,\"node_id\":\"R_1\",\"name\":\"api\",\"full_name\":\"acme/api\",\"owner\":{\"login\":\"acme\",\"id\":2988346,\"node_id\":\"U_2988346\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/2988346?v=4\",\"html_url\":\"https://github.com/acme\",\"type\":\"Organization\",\"site_admin\":false},\"private\":false,\"html_url\":\"https://github.com/acme/api\",\"description\":\"Validation fixture for MCP wire-protocol round-trip.\",\"fork\":false,\"url\":\"https://api.github.com/repos/acme/api\",\"contents_url\":\"https://api.github.com/repos/acme/api/contents/{+path}\",\"issues_url\":\"https://api.github.com/repos/acme/api/issues{/number}\",\"pulls_url\":\"https://api.github.com/repos/acme/api/pulls{/number}\",\"default_branch\":\"main\",\"created_at\":\"2026-05-27T16:19:21.819Z\",\"updated_at\":\"2026-05-27T16:19:21.820Z\",\"pushed_at\":\"2026-05-27T16:19:21.820Z\"},\"user\":{\"login\":\"acme\",\"id\":2988346,\"node_id\":\"U_2988346\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/2988346?v=4\",\"html_url\":\"https://github.com/acme\",\"type\":\"Organization\",\"site_admin\":false}},\"merged\":false,\"merge_commit_sha\":null,\"draft\":false,\"commits\":1,\"additions\":0,\"deletions\":0,\"changed_files\":1,\"created_at\":\"2026-05-27T16:19:21.821Z\",\"updated_at\":\"2026-05-27T16:19:21.821Z\",\"closed_at\":null,\"merged_at\":null}"
+    }
+  ]
+}
+✓ MCP content[0].text parses to PR #1 title="MCP wire-fixture PR" state=open
+
+━━━ Recorder parity: legacy /mcp/call vs new /mcp (same tool, same args) ━━━
+Legacy /mcp/call event:
+{
+  "run_id": "run_validate_mcp",
+  "twin": "github",
+  "scenario_step_id": null,
+  "step_id": null,
+  "tool_call_id": null,
+  "method": "POST",
+  "path": "/s/validate-mcp-session/mcp/call",
+  "request_body": {
+    "tool": "get_pull_request",
+    "arguments": {
+      "owner": "acme",
+      "repo": "api",
+      "pull_number": 1
+    }
+  },
+  "status": 200,
+  "response_body": {
+    "id": 3605789809,
+    "node_id": "PR_3605789809",
+    "number": 1,
+    "state": "open",
+    "locked": false,
+    "title": "MCP wire-fixture PR",
+    "body": "Strict-read fixture for validate-mcp.",
+    "user": {
+      "login": "alice",
+      "id": 92903040,
+      "node_id": "U_92903040",
+      "avatar_url": "https://avatars.githubusercontent.com/u/92903040?v=4",
+      "html_url": "https://github.com/alice",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/acme/api/pull/1",
+    "url": "https://api.github.com/repos/acme/api/pulls/1",
+    "issue_url": "https://api.github.com/repos/acme/api/issues/1",
+    "commits_url": "https://api.github.com/repos/acme/api/pulls/1/commits",
+    "review_comments_url": "https://api.github.com/repos/acme/api/pulls/1/comments",
+    "review_comment_url": "https://api.github.com/repos/acme/api/pulls/comments{/number}",
+    "comments_url": "https://api.github.com/repos/acme/api/issues/1/comments",
+    "statuses_url": "https://api.github.com/repos/acme/api/statuses/{sha}",
+    "head": {
+      "label": "acme:feature/x",
+      "ref": "feature/x",
+      "sha": "8a5b92327fee92aa7cbc5c1c4be659ec1f4d07e7",
+      "repo": {
+        "id": 1,
+        "node_id": "R_1",
+        "name": "api",
+        "full_name": "acme/api",
+        "owner": {
+          "login": "acme",
+          "id": 2988346,
+          "node_id": "U_2988346",
+          "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+          "html_url": "https://github.com/acme",
+          "type": "Organization",
+          "site_admin": false
+        },
+        "private": false,
+        "html_url": "https://github.com/acme/api",
+        "description": "Validation fixture for MCP wire-protocol round-trip.",
+        "fork": false,
+        "url": "https://api.github.com/repos/acme/api",
+        "contents_url": "https://api.github.com/repos/acme/api/contents/{+path}",
+        "issues_url": "https://api.github.com/repos/acme/api/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/acme/api/pulls{/number}",
+        "default_branch": "main",
+        "created_at": "2026-05-27T16:19:21.819Z",
+        "updated_at": "2026-05-27T16:19:21.820Z",
+        "pushed_at": "2026-05-27T16:19:21.820Z"
+      },
+      "user": {
+        "login": "acme",
+        "id": 2988346,
+        "node_id": "U_2988346",
+        "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+        "html_url": "https://github.com/acme",
+        "type": "Organization",
+        "site_admin": false
+      }
+    },
+    "base": {
+      "label": "acme:main",
+      "ref": "main",
+      "sha": "d19ab25b4905c296401660c9613a368c44f79b3e",
+      "repo": {
+        "id": 1,
+        "node_id": "R_1",
+        "name": "api",
+        "full_name": "acme/api",
+        "owner": {
+          "login": "acme",
+          "id": 2988346,
+          "node_id": "U_2988346",
+          "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+          "html_url": "https://github.com/acme",
+          "type": "Organization",
+          "site_admin": false
+        },
+        "private": false,
+        "html_url": "https://github.com/acme/api",
+        "description": "Validation fixture for MCP wire-protocol round-trip.",
+        "fork": false,
+        "url": "https://api.github.com/repos/acme/api",
+        "contents_url": "https://api.github.com/repos/acme/api/contents/{+path}",
+        "issues_url": "https://api.github.com/repos/acme/api/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/acme/api/pulls{/number}",
+        "default_branch": "main",
+        "created_at": "2026-05-27T16:19:21.819Z",
+        "updated_at": "2026-05-27T16:19:21.820Z",
+        "pushed_at": "2026-05-27T16:19:21.820Z"
+      },
+      "user": {
+        "login": "acme",
+        "id": 2988346,
+        "node_id": "U_2988346",
+        "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+        "html_url": "https://github.com/acme",
+        "type": "Organization",
+        "site_admin": false
+      }
+    },
+    "merged": false,
+    "merge_commit_sha": null,
+    "draft": false,
+    "commits": 1,
+    "additions": 0,
+    "deletions": 0,
+    "changed_files": 1,
+    "created_at": "2026-05-27T16:19:21.821Z",
+    "updated_at": "2026-05-27T16:19:21.821Z",
+    "closed_at": null,
+    "merged_at": null
+  },
+  "fidelity": "semantic",
+  "state_mutation": false,
+  "state_delta": null,
+  "error": null
+}
+
+New /mcp (JSON-RPC) event:
+{
+  "run_id": "run_validate_mcp",
+  "twin": "github",
+  "scenario_step_id": null,
+  "step_id": null,
+  "tool_call_id": null,
+  "method": "POST",
+  "path": "/s/validate-mcp-session/mcp",
+  "request_body": {
+    "tool": "get_pull_request",
+    "arguments": {
+      "owner": "acme",
+      "repo": "api",
+      "pull_number": 1
+    }
+  },
+  "status": 200,
+  "response_body": {
+    "id": 3605789809,
+    "node_id": "PR_3605789809",
+    "number": 1,
+    "state": "open",
+    "locked": false,
+    "title": "MCP wire-fixture PR",
+    "body": "Strict-read fixture for validate-mcp.",
+    "user": {
+      "login": "alice",
+      "id": 92903040,
+      "node_id": "U_92903040",
+      "avatar_url": "https://avatars.githubusercontent.com/u/92903040?v=4",
+      "html_url": "https://github.com/alice",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/acme/api/pull/1",
+    "url": "https://api.github.com/repos/acme/api/pulls/1",
+    "issue_url": "https://api.github.com/repos/acme/api/issues/1",
+    "commits_url": "https://api.github.com/repos/acme/api/pulls/1/commits",
+    "review_comments_url": "https://api.github.com/repos/acme/api/pulls/1/comments",
+    "review_comment_url": "https://api.github.com/repos/acme/api/pulls/comments{/number}",
+    "comments_url": "https://api.github.com/repos/acme/api/issues/1/comments",
+    "statuses_url": "https://api.github.com/repos/acme/api/statuses/{sha}",
+    "head": {
+      "label": "acme:feature/x",
+      "ref": "feature/x",
+      "sha": "8a5b92327fee92aa7cbc5c1c4be659ec1f4d07e7",
+      "repo": {
+        "id": 1,
+        "node_id": "R_1",
+        "name": "api",
+        "full_name": "acme/api",
+        "owner": {
+          "login": "acme",
+          "id": 2988346,
+          "node_id": "U_2988346",
+          "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+          "html_url": "https://github.com/acme",
+          "type": "Organization",
+          "site_admin": false
+        },
+        "private": false,
+        "html_url": "https://github.com/acme/api",
+        "description": "Validation fixture for MCP wire-protocol round-trip.",
+        "fork": false,
+        "url": "https://api.github.com/repos/acme/api",
+        "contents_url": "https://api.github.com/repos/acme/api/contents/{+path}",
+        "issues_url": "https://api.github.com/repos/acme/api/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/acme/api/pulls{/number}",
+        "default_branch": "main",
+        "created_at": "2026-05-27T16:19:21.819Z",
+        "updated_at": "2026-05-27T16:19:21.820Z",
+        "pushed_at": "2026-05-27T16:19:21.820Z"
+      },
+      "user": {
+        "login": "acme",
+        "id": 2988346,
+        "node_id": "U_2988346",
+        "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+        "html_url": "https://github.com/acme",
+        "type": "Organization",
+        "site_admin": false
+      }
+    },
+    "base": {
+      "label": "acme:main",
+      "ref": "main",
+      "sha": "d19ab25b4905c296401660c9613a368c44f79b3e",
+      "repo": {
+        "id": 1,
+        "node_id": "R_1",
+        "name": "api",
+        "full_name": "acme/api",
+        "owner": {
+          "login": "acme",
+          "id": 2988346,
+          "node_id": "U_2988346",
+          "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+          "html_url": "https://github.com/acme",
+          "type": "Organization",
+          "site_admin": false
+        },
+        "private": false,
+        "html_url": "https://github.com/acme/api",
+        "description": "Validation fixture for MCP wire-protocol round-trip.",
+        "fork": false,
+        "url": "https://api.github.com/repos/acme/api",
+        "contents_url": "https://api.github.com/repos/acme/api/contents/{+path}",
+        "issues_url": "https://api.github.com/repos/acme/api/issues{/number}",
+        "pulls_url": "https://api.github.com/repos/acme/api/pulls{/number}",
+        "default_branch": "main",
+        "created_at": "2026-05-27T16:19:21.819Z",
+        "updated_at": "2026-05-27T16:19:21.820Z",
+        "pushed_at": "2026-05-27T16:19:21.820Z"
+      },
+      "user": {
+        "login": "acme",
+        "id": 2988346,
+        "node_id": "U_2988346",
+        "avatar_url": "https://avatars.githubusercontent.com/u/2988346?v=4",
+        "html_url": "https://github.com/acme",
+        "type": "Organization",
+        "site_admin": false
+      }
+    },
+    "merged": false,
+    "merge_commit_sha": null,
+    "draft": false,
+    "commits": 1,
+    "additions": 0,
+    "deletions": 0,
+    "changed_files": 1,
+    "created_at": "2026-05-27T16:19:21.821Z",
+    "updated_at": "2026-05-27T16:19:21.821Z",
+    "closed_at": null,
+    "merged_at": null
+  },
+  "fidelity": "semantic",
+  "state_mutation": false,
+  "state_delta": null,
+  "error": null
+}
+
+Field-key set equal? YES ✓
+Per-field comparison (excluding volatile ts/request_id/correlation_id/latency_ms):
+{
+  "path": {
+    "legacy": "/s/validate-mcp-session/mcp/call",
+    "mcp": "/s/validate-mcp-session/mcp"
+  }
+}
+✓ Only `path` differs between surfaces (the intentional, surface-identifying field).
+✓ request_body, response_body, state_mutation, state_delta, status, fidelity, error all byte-identical.
+
+━━━ RESULT ━━━
+ALL VALIDATIONS PASSED ✓
