@@ -8,7 +8,8 @@ and answers the same REST and MCP calls your agent makes in production, backed
 by a real SQLite state to ensure a stateful simulation for end-to-end testing.
 
 You can use a digital twin to evaluate your AI Agents, train ML Models, or even write End-to-End tests
-for agents that emulate production systems entirely. We use the same Digital Twins to ensure 
+for agents that emulate production systems entirely. You can also use Pome Digital twins to evaluate AI
+against 1000s of scenarios on Pome. 
 
 You can open a pull request against the GitHub twin and it is there to list, review, and merge,
 gated by the same push-access rules as the live API. Create a Stripe payment and the balance moves.
