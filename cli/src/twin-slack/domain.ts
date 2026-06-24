@@ -348,7 +348,8 @@ export class SlackDomain {
     const channel = this.requireChannel(args.channel);
     if (channel.is_archived) slackError("already_archived", 400);
     if (channel.name === "general") slackError("cant_archive_general", 400);
-    void actor;
+    const acting = this.resolveActorUser(actor);
+    if (!acting.is_admin) this.assertChannelMember(channel, acting.id);
     const out = this.db.transaction(() => {
       const before = this.requireChannelRow(channel.id);
       this.db.prepare(`UPDATE channels SET is_archived = 1 WHERE id = ?`).run(channel.id);
@@ -362,12 +363,13 @@ export class SlackDomain {
   conversationsInvite(args: { channel: string; users: string }, actor: Actor, onDelta: DeltaHook = NOOP): Record<string, unknown> {
     const channel = this.requireChannel(args.channel);
     if (channel.is_archived) slackError("is_archived", 400);
+    const acting = this.resolveActorUser(actor);
+    if (!acting.is_admin) this.assertChannelMember(channel, acting.id);
     const userIds = (args.users ?? "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
     if (userIds.length === 0) slackError("no_user", 400);
-    void actor;
     const now = nowIso();
     const out = this.db.transaction(() => {
       const beforeMembers = this.channelMemberIds(channel.id);
