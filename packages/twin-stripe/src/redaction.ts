@@ -19,6 +19,7 @@ const HARD_REDACT_KEYS = new Set([
 ]);
 
 const SCRUB_PATTERNS: RegExp[] = [
+  /redaction_fixture_secret_[A-Za-z0-9_-]{8,}/g,
   /sk-[A-Za-z0-9_-]{20,}/g,
   /ghp_[A-Za-z0-9]{36}/g,
   /github_pat_[A-Za-z0-9_]{20,}/g,

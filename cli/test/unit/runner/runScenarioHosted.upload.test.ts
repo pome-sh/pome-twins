@@ -221,7 +221,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     // runner injected via POME_ADAPTER_SIGNALS_PATH. JSON-stringify so
     // path escaping works on Windows too.
     const stubSignal =
-      '{"kind":"HookEvent","event_id":"hk_1","ts":"2026-05-27T18:00:00.000Z","token":"github_pat_1234567890abcdef1234567890abcdef1234567890"}';
+      '{"kind":"HookEvent","event_id":"hk_1","ts":"2026-05-27T18:00:00.000Z","token":"redaction_fixture_secret_signal"}';
     const agentScript = `require('fs').appendFileSync(process.env.POME_ADAPTER_SIGNALS_PATH, ${JSON.stringify(`${stubSignal}\n`)}); console.log('ok');`;
     const stubAgent = `node -e ${JSON.stringify(agentScript)}`;
 
@@ -239,7 +239,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     expect(signalsPutCount).toBe(1);
     expect(signalsPutBody).toContain('"kind":"HookEvent"');
     expect(signalsPutBody).toContain("[REDACTED]");
-    expect(signalsPutBody).not.toContain("github_pat_1234567890abcdef1234567890abcdef1234567890");
+    expect(signalsPutBody).not.toContain("redaction_fixture_secret_signal");
     expect(getFinalizeSignalsStorageKey()).toBe(SIGNALS_KEY);
   });
 
@@ -318,8 +318,8 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       }),
       fetchStateImpl: async () => ({
         ...FAKE_STATE,
-        api_key: "sk-test-12345678901234567890",
-        nested: { session_token: "pme_12345678901234567890" },
+        api_key: "redaction_fixture_secret_state_key",
+        nested: { session_token: "redaction_fixture_secret_state_session" },
       }),
     });
 
@@ -368,8 +368,8 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     expect(parsedInitial.nested.session_token).toBe("[REDACTED]");
     expect(parsedFinal.api_key).toBe("[REDACTED]");
     expect(parsedFinal.nested.session_token).toBe("[REDACTED]");
-    expect(stateInitialBody).not.toContain("sk-test-12345678901234567890");
-    expect(stateFinalBody).not.toContain("pme_12345678901234567890");
+    expect(stateInitialBody).not.toContain("redaction_fixture_secret_state_key");
+    expect(stateFinalBody).not.toContain("redaction_fixture_secret_state_session");
   });
 
   it("requestStateUploadUrl throws (e.g. 404): finalize gets no state keys and run completes (FDRS-395)", async () => {

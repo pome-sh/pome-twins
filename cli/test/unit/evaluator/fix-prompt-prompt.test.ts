@@ -168,29 +168,31 @@ describe("buildFixUserPrompt", () => {
           method: "POST",
           path: "/v1/refunds",
           status: 200,
-          request_body: { authorization: "Bearer sk-test-12345678901234567890" },
-          response_body: { token: "github_pat_1234567890abcdef1234567890abcdef1234567890" },
+          request_body: { authorization: "Bearer redaction_fixture_secret_header" },
+          response_body: { token: "redaction_fixture_secret_response" },
         },
       ],
       criteriaResults: [
         {
-          criterion: { type: "P", text: "Do not leak xoxb-12345678901234567890" },
+          criterion: { type: "P", text: "Do not leak redaction_fixture_secret_criterion" },
           passed: false,
           skipped: false,
-          reason: "saw pme_12345678901234567890 in output",
+          reason: "saw redaction_fixture_secret_reason_value in output",
         },
       ],
       scenario: {
         ...scenario,
-        title: "Secret sk-test-12345678901234567890",
-        prompt: "Use github_pat_1234567890abcdef1234567890abcdef1234567890",
+        title: "Secret redaction_fixture_secret_title_value",
+        prompt: "Use redaction_fixture_secret_prompt_value",
       },
     });
     expect(out).toContain("[REDACTED]");
-    expect(out).not.toContain("sk-test-12345678901234567890");
-    expect(out).not.toContain("github_pat_1234567890abcdef1234567890abcdef1234567890");
-    expect(out).not.toContain("xoxb-12345678901234567890");
-    expect(out).not.toContain("pme_12345678901234567890");
+    expect(out).not.toContain("redaction_fixture_secret_header");
+    expect(out).not.toContain("redaction_fixture_secret_response");
+    expect(out).not.toContain("redaction_fixture_secret_criterion");
+    expect(out).not.toContain("redaction_fixture_secret_reason_value");
+    expect(out).not.toContain("redaction_fixture_secret_title_value");
+    expect(out).not.toContain("redaction_fixture_secret_prompt_value");
   });
 
   it("renders an empty-failures section when nothing failed", () => {

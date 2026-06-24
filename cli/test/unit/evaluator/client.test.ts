@@ -3,7 +3,7 @@ import { callJudge, JudgeHttpError } from "../../../src/evaluator/probabilistic/
 
 const cfg = {
   baseUrl: "https://api.example.com/v1",
-  apiKey: "sk-test",
+  apiKey: "test-api-key",
   model: "test-model",
   source: "pome_llm" as const,
 };
@@ -34,7 +34,7 @@ describe("callJudge", () => {
         method: "POST",
         headers: expect.objectContaining({
           "content-type": "application/json",
-          authorization: "Bearer sk-test",
+          authorization: "Bearer test-api-key",
         }),
       }),
     );
@@ -57,7 +57,7 @@ describe("callJudge", () => {
 
     await callJudge({ ...cfg, source: "anthropic_env" }, "system", "user");
     const headers = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].headers;
-    expect(headers["x-api-key"]).toBe("sk-test");
+    expect(headers["x-api-key"]).toBe("test-api-key");
     expect(headers["anthropic-version"]).toBeDefined();
     expect(headers.authorization).toBeUndefined();
   });
