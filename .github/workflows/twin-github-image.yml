@@ -7,6 +7,10 @@ on:
     paths:
       - 'packages/twin-github/**'
       - 'packages/shared-types/**'
+      - 'packages/*/package.json'
+      - 'package.json'
+      - 'bun.lock'
+      - '.dockerignore'
       - '.github/workflows/twin-github-image.yml'
   workflow_dispatch:
 
@@ -45,15 +49,8 @@ jobs:
       - uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         id: build
         with:
-          context: packages/twin-github
-          # Expose shared-types as a named build context so the
-          # twin-github Dockerfile can vendor it in before bun install.
-          # `@pome-sh/shared-types` is a `workspace:*` dep that bun
-          # cannot resolve from a single-package Docker context; the
-          # Dockerfile rewrites the dep to `file:./vendor/shared-types`
-          # at build time. See packages/twin-github/Dockerfile.
-          build-contexts: |
-            shared-types=packages/shared-types
+          context: .
+          file: packages/twin-github/Dockerfile
           # PR builds verify the Dockerfile compiles but never push to
           # GHCR — only main / tag pushes publish. Without this gate
           # the GITHUB_TOKEN from a fork or unauthorized actor could

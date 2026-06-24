@@ -1,0 +1,34 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /cli
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /packages/twin-github
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /packages/twin-slack
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /packages/twin-stripe
+    schedule:
+      interval: weekly
