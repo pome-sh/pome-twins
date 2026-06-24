@@ -17,7 +17,7 @@ RUN bun run --cwd packages/twin-github build
 # supported under bun (https://github.com/oven-sh/bun/issues/4290), so the
 # image must ship a real node to load the .node binary. Node 24 trixie matches
 # the NODE_MODULE_VERSION and glibc used by the build stage.
-FROM node:24-trixie-slim@sha256:9022946fb57e6fb6a2503931470deba4b49db02bfc8f587f93007fd33ef54415 AS runtime
+FROM node:26-trixie-slim@sha256:f9b8bd6c62fcd007c08ce2bb2907485b624b968fd76094445822e0ec14002cf0 AS runtime
 WORKDIR /repo
 ENV NODE_ENV=production
 ENV GITHUB_CLONE_HOST=0.0.0.0
