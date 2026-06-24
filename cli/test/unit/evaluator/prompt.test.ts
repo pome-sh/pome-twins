@@ -113,6 +113,26 @@ describe("buildUserPrompt", () => {
     expect(out).toMatch(/…/);
     expect(out.indexOf(big)).toBe(-1);
   });
+  it("redacts secrets from state, trace, criterion, and summary before prompting", () => {
+    const out = buildUserPrompt({
+      ...ctx,
+      criterion: { type: "P" as const, text: "Never expose sk-test-12345678901234567890" },
+      stateBefore: { token: "github_pat_1234567890abcdef1234567890abcdef1234567890" },
+      events: [
+        {
+          method: "POST",
+          path: "/x",
+          status: 200,
+          request_body: { authorization: "Bearer sk-test-12345678901234567890" },
+        },
+      ],
+      agentSummary: "I saw xoxb-12345678901234567890",
+    });
+    expect(out).toContain("[REDACTED]");
+    expect(out).not.toContain("sk-test-12345678901234567890");
+    expect(out).not.toContain("github_pat_1234567890abcdef1234567890abcdef1234567890");
+    expect(out).not.toContain("xoxb-12345678901234567890");
+  });
   it("omits the agent summary section when no summary is provided", () => {
     const out = buildUserPrompt(ctx);
     expect(out).not.toContain("<agent-summary>");

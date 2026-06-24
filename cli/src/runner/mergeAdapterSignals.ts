@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { readFile, writeFile } from "node:fs/promises";
 import { eventSchema, type Event } from "../types/shared.js";
+import { redactEvent } from "../recorder/redaction.js";
 
 // Post-run merge of the adapter signals JSONL into the canonical events.jsonl
 // (FDRS-411 + FDRS-412). The canonical implementation of the pure ts-sort
@@ -53,7 +54,7 @@ export async function mergeAdapterSignalsIntoEvents(
       dropped += 1;
       continue;
     }
-    signalRows.push(result.data);
+    signalRows.push(redactEvent(result.data));
   }
 
   if (signalRows.length === 0) return { appended: 0, dropped };
@@ -78,7 +79,7 @@ export async function mergeAdapterSignalsIntoEvents(
     }
     const result = eventSchema.safeParse(parsed);
     if (result.success) {
-      eventRows.push(result.data);
+      eventRows.push(redactEvent(result.data));
     } else {
       // A schema-invalid row on disk means the writer drifted from the M0
       // schema; preserving the raw line is safer than dropping it silently.

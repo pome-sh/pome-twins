@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { runAgentCommand } from "./agentRunner.js";
 import { correlateRun } from "./correlateRun.js";
 import { toTwinHttpEvent, writeRunArtifactsCore, writeScoreJson } from "../recorder/artifacts.js";
-import { redactEvent } from "../recorder/redaction.js";
+import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { createHostedClient, type HostedClient } from "../hosted/client.js";
 import {
@@ -205,8 +205,8 @@ export async function runScenarioHosted(
     // `toTwinHttpEvent`'s input is the legacy twin/github RecorderEvent type.
     const eventsJsonl =
       legacyEvents.map((e) => JSON.stringify(redactEvent(toTwinHttpEvent(e)))).join("\n") + "\n";
-    const stateInitialJson = JSON.stringify(stateInitial);
-    const stateFinalJson = JSON.stringify(stateFinal);
+    const stateInitialJson = JSON.stringify(redactSecrets(stateInitial));
+    const stateFinalJson = JSON.stringify(redactSecrets(stateFinal));
 
     async function putBlob(
       url: string,
@@ -260,7 +260,7 @@ export async function runScenarioHosted(
     // upload entirely so cloud doesn't allocate storage for "{}" payloads.
     async function uploadSignals(): Promise<string | null> {
       try {
-        const signalsBody = await readFile(signalsPath, "utf8").catch(() => "");
+        const signalsBody = redactJsonl(await readFile(signalsPath, "utf8").catch(() => ""));
         if (signalsBody.trim().length === 0) {
           return null;
         }
@@ -417,4 +417,18 @@ export async function runScenarioHosted(
     await client.deleteSession(session.session_id).catch(() => undefined);
     await rm(signalsDir, { recursive: true, force: true }).catch(() => undefined);
   }
+}
+
+function redactJsonl(body: string): string {
+  const lines = body.split("\n");
+  const redacted = lines
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      try {
+        return JSON.stringify(redactSecrets(JSON.parse(line)));
+      } catch {
+        return redactSecrets(line);
+      }
+    });
+  return redacted.length > 0 ? `${redacted.join("\n")}\n` : "";
 }

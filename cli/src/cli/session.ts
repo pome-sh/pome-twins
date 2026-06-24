@@ -36,7 +36,7 @@ function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   }
   return {
     session_id: res.session_id,
-    session_token: res.session_token ?? res.session_id,
+    session_token: res.session_token ? "***redacted***" : res.session_id,
     twin_url: res.twin_url,
     expires_at: res.expires_at,
     openapi_url: res.openapi_url,

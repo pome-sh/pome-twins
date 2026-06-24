@@ -14,6 +14,7 @@ import { executeTool, isMutatingTool, listTools } from "./tools.js";
 import { handleMcpRequest, mcpMethodNotAllowed } from "./mcp.js";
 import { twinBuildInfo } from "./build-info.js";
 import { unsupportedEnvelope } from "./unsupported-envelope.js";
+import { redactSecrets } from "../recorder/redaction.js";
 
 type HandleResult = { status: number; body: unknown; mutation: boolean; stateDelta?: StateDelta };
 
@@ -95,7 +96,7 @@ export function createGitHubCloneApp(options: GitHubCloneAppOptions = {}) {
       runtime: twinBuildInfo()
     })
   );
-  session.get("/_pome/state", (c) => c.json(domain.exportState()));
+  session.get("/_pome/state", (c) => c.json(redactSecrets(domain.exportState())));
   session.get("/_pome/events", (c) => c.json(recorder?.events() ?? []));
 
   // Real MCP JSON-RPC endpoint (Streamable HTTP, stateless). The bearerAuth

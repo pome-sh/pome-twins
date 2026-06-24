@@ -1,9 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-//
-// Centralized secret redactor for recorder request_body / response_body.
-// Mirrors `cli/src/recorder/redaction.ts` — same key set, same shape — so
-// both the OSS twin and the CLI's vendored twin redact identically before
-// any event lands in `events.jsonl`.
 const REDACTED = "[REDACTED]";
 
 const HARD_REDACT_KEYS = new Set([
@@ -20,7 +15,7 @@ const HARD_REDACT_KEYS = new Set([
   "refresh_token",
   "session_token",
   "agent_token",
-  "anthropic_api_key"
+  "anthropic_api_key",
 ]);
 
 const SCRUB_PATTERNS: RegExp[] = [
@@ -32,7 +27,7 @@ const SCRUB_PATTERNS: RegExp[] = [
   /AKIA[0-9A-Z]{16}/g,
   /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g,
   /-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g,
-  /-----BEGIN [A-Z ]+-----/g
+  /-----BEGIN [A-Z ]+-----/g,
 ];
 
 function scrubString(value: string): string {
@@ -45,18 +40,18 @@ function scrubString(value: string): string {
 
 export function redactSecrets(value: unknown): unknown {
   if (typeof value === "string") return scrubString(value);
-  if (Array.isArray(value)) {
-    return value.map(redactSecrets);
-  }
-
+  if (Array.isArray(value)) return value.map(redactSecrets);
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+      Object.entries(value).map(([key, nested]) => [
         key,
         HARD_REDACT_KEYS.has(key.toLowerCase()) ? REDACTED : redactSecrets(nested),
       ])
     );
   }
-
   return value;
+}
+
+export function redactEvent<T>(event: T): T {
+  return redactSecrets(event) as T;
 }

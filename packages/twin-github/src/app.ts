@@ -16,6 +16,7 @@ import { twinBuildInfo } from "./build-info.js";
 import { unsupportedEnvelope } from "./unsupported-envelope.js";
 import { githubAccessControlPayload } from "./access-control.js";
 import { summarizeGitHubAccessControlCatalog } from "@pome-sh/shared-types";
+import { redactSecrets } from "./redaction.js";
 
 type HandleResult = { status: number; body: unknown; mutation: boolean; stateDelta?: StateDelta };
 
@@ -127,7 +128,7 @@ export function createGitHubCloneApp(options: GitHubCloneAppOptions = {}) {
       runtime: twinBuildInfo()
     })
   );
-  session.get("/_pome/state", (c) => c.json(domain.exportState()));
+  session.get("/_pome/state", (c) => c.json(redactSecrets(domain.exportState())));
   session.get("/_pome/events", (c) => c.json(recorder?.events() ?? []));
   session.get("/_pome/access-control", (c) => c.json(githubAccessControlPayload()));
 

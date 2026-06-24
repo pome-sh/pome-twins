@@ -85,7 +85,7 @@ export async function runCaptureServer(
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(options.port, () => resolve());
+    server.listen(options.port, "127.0.0.1", () => resolve());
   });
 
   const addr = server.address();

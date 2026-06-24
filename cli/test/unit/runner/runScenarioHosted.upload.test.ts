@@ -58,6 +58,7 @@ function makeStubClient({
   requestEventsUploadUrlImpl,
   requestStateUploadUrlImpl,
   requestSignalsUploadUrlImpl,
+  fetchStateImpl,
   finalizeScore = 100,
 }: {
   requestEventsUploadUrlImpl: () => Promise<{ url: string; key: string }>;
@@ -66,6 +67,7 @@ function makeStubClient({
     state_final: { url: string; key: string };
   }>;
   requestSignalsUploadUrlImpl?: () => Promise<{ url: string; key: string }>;
+  fetchStateImpl?: () => Promise<unknown>;
   finalizeScore?: number;
 }): {
   client: HostedClient;
@@ -99,9 +101,7 @@ function makeStubClient({
     async getSession() {
       return {} as SessionPublic;
     },
-    async fetchState() {
-      return FAKE_STATE;
-    },
+    fetchState: fetchStateImpl ?? (async () => FAKE_STATE),
     async fetchEvents() {
       return [FAKE_EVENT];
     },
@@ -220,7 +220,8 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     // Stub agent writes a single fake HookEvent to the signals path the
     // runner injected via POME_ADAPTER_SIGNALS_PATH. JSON-stringify so
     // path escaping works on Windows too.
-    const stubSignal = '{"kind":"HookEvent","event_id":"hk_1","ts":"2026-05-27T18:00:00.000Z"}';
+    const stubSignal =
+      '{"kind":"HookEvent","event_id":"hk_1","ts":"2026-05-27T18:00:00.000Z","token":"github_pat_1234567890abcdef1234567890abcdef1234567890"}';
     const agentScript = `require('fs').appendFileSync(process.env.POME_ADAPTER_SIGNALS_PATH, ${JSON.stringify(`${stubSignal}\n`)}); console.log('ok');`;
     const stubAgent = `node -e ${JSON.stringify(agentScript)}`;
 
@@ -237,6 +238,8 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     expect(eventsPutCount).toBe(1);
     expect(signalsPutCount).toBe(1);
     expect(signalsPutBody).toContain('"kind":"HookEvent"');
+    expect(signalsPutBody).toContain("[REDACTED]");
+    expect(signalsPutBody).not.toContain("github_pat_1234567890abcdef1234567890abcdef1234567890");
     expect(getFinalizeSignalsStorageKey()).toBe(SIGNALS_KEY);
   });
 
@@ -313,6 +316,11 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
         state_initial: { url: STATE_INITIAL_URL, key: STATE_INITIAL_KEY },
         state_final: { url: STATE_FINAL_URL, key: STATE_FINAL_KEY },
       }),
+      fetchStateImpl: async () => ({
+        ...FAKE_STATE,
+        api_key: "sk-test-12345678901234567890",
+        nested: { session_token: "pme_12345678901234567890" },
+      }),
     });
 
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
@@ -352,12 +360,16 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     });
     expect(stateInitialBody).not.toBeNull();
     expect(stateFinalBody).not.toBeNull();
-    // Both blobs should be JSON-parseable copies of the twin's exported state
+    // Both blobs should be JSON-parseable redacted copies of the twin's exported state
     // (same fixture for stateInitial and stateFinal in this stub).
-    expect(JSON.parse(stateInitialBody as unknown as string)).toEqual(
-      FAKE_STATE,
-    );
-    expect(JSON.parse(stateFinalBody as unknown as string)).toEqual(FAKE_STATE);
+    const parsedInitial = JSON.parse(stateInitialBody as unknown as string);
+    const parsedFinal = JSON.parse(stateFinalBody as unknown as string);
+    expect(parsedInitial.api_key).toBe("[REDACTED]");
+    expect(parsedInitial.nested.session_token).toBe("[REDACTED]");
+    expect(parsedFinal.api_key).toBe("[REDACTED]");
+    expect(parsedFinal.nested.session_token).toBe("[REDACTED]");
+    expect(stateInitialBody).not.toContain("sk-test-12345678901234567890");
+    expect(stateFinalBody).not.toContain("pme_12345678901234567890");
   });
 
   it("requestStateUploadUrl throws (e.g. 404): finalize gets no state keys and run completes (FDRS-395)", async () => {

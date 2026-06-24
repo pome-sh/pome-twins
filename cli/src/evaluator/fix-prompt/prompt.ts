@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { RecorderEvent } from "../../types/shared.js";
 import type { CriterionResult } from "../score.js";
 import type { Scenario } from "../../scenario/scenarioSchema.js";
+import { redactEvent, redactSecrets } from "../../recorder/redaction.js";
 
 export const FIX_PROMPT_TEMPLATE_VERSION = "v1";
 
@@ -93,14 +94,16 @@ function renderFailedCriteria(results: CriterionResult[]): string {
 }
 
 export function buildFixUserPrompt(ctx: FixPromptContext): string {
-  const failures = renderFailedCriteria(ctx.criteriaResults);
-  const trace = renderEvents(ctx.events);
+  const failures = redactSecrets(renderFailedCriteria(ctx.criteriaResults)) as string;
+  const trace = renderEvents(ctx.events.map((event) => redactEvent(event)));
+  const scenarioTitle = redactSecrets(ctx.scenario.title) as string;
+  const scenarioPrompt = redactSecrets(ctx.scenario.prompt) as string;
 
   return `## Scenario
-${ctx.scenario.title}
+${scenarioTitle}
 
 ## Scenario prompt (what the agent was told to do)
-${ctx.scenario.prompt}
+${scenarioPrompt}
 
 ## Failed criteria
 ${escapeTagContent(failures)}

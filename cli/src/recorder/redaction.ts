@@ -16,8 +16,15 @@ const HARD_REDACT_KEYS = new Set([
   "x-api-key",
   "cookie",
   "api_key",
+  "client_secret",
+  "webhook_secret",
+  "password",
+  "secret",
   "token",
   "access_token",
+  "refresh_token",
+  "session_token",
+  "agent_token",
   "anthropic_api_key"
 ]);
 
@@ -26,6 +33,9 @@ const HARD_REDACT_KEYS = new Set([
 const SCRUB_PATTERNS: RegExp[] = [
   /sk-[A-Za-z0-9_-]{20,}/g,
   /ghp_[A-Za-z0-9]{36}/g,
+  /github_pat_[A-Za-z0-9_]{20,}/g,
+  /xox[aboprs]-[A-Za-z0-9-]{20,}/g,
+  /(?:pme|pk|rk)_[A-Za-z0-9_-]{20,}/g,
   /AKIA[0-9A-Z]{16}/g,
   /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g,
   /-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g,

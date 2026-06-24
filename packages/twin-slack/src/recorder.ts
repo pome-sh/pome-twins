@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Recorder, RecorderEvent } from "./types.js";
+import { redactEvent } from "./redaction.js";
 
 // In-memory, run-scoped recorder for the twin pod. Events live for the
 // lifetime of the machine — discarded when the sandbox shuts down (DELETE
@@ -8,7 +9,7 @@ export function createRecorder(): Recorder {
   const items: RecorderEvent[] = [];
   return {
     record(event) {
-      items.push(event);
+      items.push(redactEvent(event));
     },
     events() {
       return [...items];

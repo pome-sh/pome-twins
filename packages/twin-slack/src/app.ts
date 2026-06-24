@@ -16,6 +16,7 @@ import { slackError, slackOk } from "./serializers.js";
 import { unsupportedEnvelope } from "./unsupported-envelope.js";
 import type { Recorder, SlackTwinDatabase } from "./types.js";
 import { asBool, asNumber, asString, asOptionalString, nowIso, parseFormOrJson, requestId } from "./util.js";
+import { redactSecrets } from "./redaction.js";
 
 export type CreateSlackTwinAppOptions = {
   db?: SlackTwinDatabase;
@@ -80,7 +81,7 @@ export function createSlackTwinApp(opts: CreateSlackTwinAppOptions = {}) {
   session.get("/healthz", (c) => c.json({ ok: true, sid: c.req.param("sid") }));
 
   session.get("/_pome/health", (c) => c.json({ ok: true, twin: "slack" }));
-  session.get("/_pome/state", (c) => c.json(domain.exportState()));
+  session.get("/_pome/state", (c) => c.json(redactSecrets(domain.exportState())));
   session.get("/_pome/events", (c) => c.json(recorder ? recorder.events() : []));
 
   // MCP — JSON-RPC 2.0 streamable HTTP.

@@ -86,8 +86,8 @@ export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promis
   await writeJson(join(runDir, "state-before.json"), input.stateInitial);
   await writeJson(join(runDir, "state-after.json"), input.stateFinal);
   await writeJson(join(runDir, "state-diff.json"), summarizeStateDiff(input.stateInitial, input.stateFinal));
-  await writeFile(join(runDir, "stdout.txt"), input.stdout);
-  await writeFile(join(runDir, "stderr.log"), input.stderr);
+  await writeFile(join(runDir, "stdout.txt"), redactText(input.stdout));
+  await writeFile(join(runDir, "stderr.log"), redactText(input.stderr));
   await writeJson(join(input.artifactsDir, "latest.json"), {
     run_id: input.runId,
     scenario: input.scenario.slug,
@@ -152,6 +152,10 @@ export async function readMetaSummary(runDir: string): Promise<RunMetaSummary> {
 
 async function writeJson(path: string, value: unknown) {
   await writeFile(path, `${JSON.stringify(redactSecrets(value), null, 2)}\n`);
+}
+
+function redactText(value: string): string {
+  return redactSecrets(value) as string;
 }
 
 function summarizeStateDiff(before: unknown, after: unknown) {

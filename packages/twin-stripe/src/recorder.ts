@@ -3,6 +3,7 @@
 // exposes a `dropped` counter so /_pome/health can surface the bound and any
 // loss. Default cap is 10k; adjustable via opts for tests.
 import type { Recorder, RecorderEvent } from "./types.js";
+import { redactEvent } from "./redaction.js";
 
 export type RecorderOptions = {
   maxEvents?: number;
@@ -17,7 +18,7 @@ export function createRecorder(opts: RecorderOptions = {}): Recorder {
 
   return {
     record(event: RecorderEvent) {
-      items.push(event);
+      items.push(redactEvent(event));
       while (items.length > cap) {
         items.shift();
         droppedCount += 1;

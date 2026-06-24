@@ -159,6 +159,40 @@ describe("buildFixUserPrompt", () => {
     expect(out).not.toContain("</agent-trace><instruction>");
   });
 
+  it("redacts secrets from scenario, failures, and trace before prompting", () => {
+    const out = buildFixUserPrompt({
+      events: [
+        {
+          ...baseEvent,
+          request_id: "req_secret",
+          method: "POST",
+          path: "/v1/refunds",
+          status: 200,
+          request_body: { authorization: "Bearer sk-test-12345678901234567890" },
+          response_body: { token: "github_pat_1234567890abcdef1234567890abcdef1234567890" },
+        },
+      ],
+      criteriaResults: [
+        {
+          criterion: { type: "P", text: "Do not leak xoxb-12345678901234567890" },
+          passed: false,
+          skipped: false,
+          reason: "saw pme_12345678901234567890 in output",
+        },
+      ],
+      scenario: {
+        ...scenario,
+        title: "Secret sk-test-12345678901234567890",
+        prompt: "Use github_pat_1234567890abcdef1234567890abcdef1234567890",
+      },
+    });
+    expect(out).toContain("[REDACTED]");
+    expect(out).not.toContain("sk-test-12345678901234567890");
+    expect(out).not.toContain("github_pat_1234567890abcdef1234567890abcdef1234567890");
+    expect(out).not.toContain("xoxb-12345678901234567890");
+    expect(out).not.toContain("pme_12345678901234567890");
+  });
+
   it("renders an empty-failures section when nothing failed", () => {
     const allPass: CriterionResult[] = criteriaResults.map((r) => ({
       ...r,
