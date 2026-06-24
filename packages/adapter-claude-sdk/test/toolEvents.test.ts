@@ -111,6 +111,7 @@ describe("withToolEvents", () => {
   });
 
   it("redacts secrets in tool_use input before write", async () => {
+    const apiKey = "sk-" + "test-ABCDEFGHIJKLMNOPQRSTUVWX";
     const messages: FakeMsg[] = [
       {
         type: "assistant",
@@ -122,7 +123,7 @@ describe("withToolEvents", () => {
               name: "set_creds",
               input: {
                 authorization: "Bearer leakme",
-                note: "key sk-test-ABCDEFGHIJKLMNOPQRSTUVWX",
+                note: `key ${apiKey}`,
               },
             },
           ],
@@ -136,6 +137,7 @@ describe("withToolEvents", () => {
   });
 
   it("redacts secrets in tool_result output before write", async () => {
+    const apiKey = "sk-" + "a".repeat(24);
     const messages: FakeMsg[] = [
       {
         type: "assistant",
@@ -150,7 +152,7 @@ describe("withToolEvents", () => {
             {
               type: "tool_result",
               tool_use_id: "toolu_r",
-              content: [{ type: "text", text: "token=sk-aaaaaaaaaaaaaaaaaaaaaaaa" }],
+              content: [{ type: "text", text: `token=${apiKey}` }],
               is_error: false,
             },
           ],
@@ -160,7 +162,7 @@ describe("withToolEvents", () => {
     for await (const _ of withToolEvents(fakeRun(messages))) void _;
     const [row] = readRows(signalsPath).filter((r) => r.kind === "ToolResultEvent");
     expect(JSON.stringify(row.output)).toContain("[REDACTED]");
-    expect(JSON.stringify(row.output)).not.toContain("sk-aaaaaaaaaaaaaaaaaaaaaaaa");
+    expect(JSON.stringify(row.output)).not.toContain(apiKey);
   });
 
   it("propagates is_error=true from the content block", async () => {

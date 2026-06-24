@@ -82,12 +82,18 @@ export function bearerAuth(): MiddlewareHandler {
 }
 
 function verifyProviderToken(provider: "github", token: string): string | undefined {
-  const match = token.match(/^(?:github_pat|ghp)_pome_([^_]+)_(.+)$/);
+  const match = token.match(/^(?:github_pat|ghp)_pome_([^_]+)_(?:(\d+)_)?(.+)$/);
   if (!match) return undefined;
   const sid = decodeBase64Url(match[1]!);
   if (!sid) return undefined;
-  const expected = signProvider(provider, sid, resolveAuthSecret());
-  const actual = match[2]!;
+  const exp = match[2] ? Number(match[2]) : undefined;
+  if (exp !== undefined && (!Number.isSafeInteger(exp) || exp < Math.floor(Date.now() / 1000))) {
+    return undefined;
+  }
+  const expected = exp === undefined
+    ? signProvider(provider, sid, resolveAuthSecret())
+    : signProviderExp(provider, sid, exp, resolveAuthSecret());
+  const actual = match[3]!;
   if (safeEqual(actual, expected)) return sid;
   return undefined;
 }
@@ -95,6 +101,13 @@ function verifyProviderToken(provider: "github", token: string): string | undefi
 function signProvider(provider: string, sid: string, secret: string) {
   return createHmac("sha256", secret)
     .update(`${provider}:${sid}`)
+    .digest("base64url")
+    .slice(0, 22);
+}
+
+function signProviderExp(provider: string, sid: string, exp: number, secret: string) {
+  return createHmac("sha256", secret)
+    .update(`${provider}:${sid}:${exp}`)
     .digest("base64url")
     .slice(0, 22);
 }
@@ -113,11 +126,28 @@ function safeEqual(a: string, b: string) {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
-export function localhostOnly(): MiddlewareHandler {
+export function requireAdminAuth(): MiddlewareHandler {
   return async (c, next) => {
+    const adminToken = process.env.TWIN_ADMIN_TOKEN;
+    if (adminToken && adminToken.length > 0) {
+      const provided = c.req.header("X-Admin-Token") ?? c.req.header("x-admin-token");
+      if (!provided) {
+        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
+      }
+      const a = Buffer.from(provided);
+      const b = Buffer.from(adminToken);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
+      }
+      await next();
+      return;
+    }
     const remote: string | undefined = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket
       ?.remoteAddress;
     if (!remote) {
+      if (process.env.NODE_ENV === "production") {
+        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
+      }
       await next();
       return;
     }
@@ -132,3 +162,5 @@ export function localhostOnly(): MiddlewareHandler {
     await next();
   };
 }
+
+export const localhostOnly = requireAdminAuth;

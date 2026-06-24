@@ -1,28 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `pome docs` — terminal-first documentation.
+ * `pome docs` — topic-first links to canonical documentation.
  *
- * **Help surfaces** (see also docs/HELP-SURFACES.md):
  * - `pome --help` / `pome help` — Commander-generated flag + subcommand reference (terse).
- * - `pome docs [topic]` — narrative Mintlify docs, rendered from bundled sources in this package.
+ * - `pome docs [topic]` — stable docs.pome.sh URLs for narrative docs.
  * - `pome <cmd> --help` — per-command options.
- *
- * We use a **structured index** (`docs-topics.ts`) plus **bundled Markdown/MDX** sources
- * rather than fetching Mintlify HTML (see header comment in docs-topics.ts).
  */
 import { createInterface } from "node:readline";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 
 import { DEFAULT_DOCS_SITE_ORIGIN } from "./defaults.js";
 import { DOCS_TOPICS, type DocsTopic } from "./docs-topics.js";
-import { resolvePackageRoot } from "./resolve-package-root.js";
-import {
-  prepareDocSource,
-  renderFullDocument,
-  renderSingleSection,
-  sectionMenuLabel,
-} from "./docs-render.js";
 
 function useColor(): boolean {
   return Boolean(process.stdout.isTTY && !process.env.NO_COLOR);
@@ -105,82 +92,12 @@ function topicMatchesFilter(t: DocsTopic, filter: string): boolean {
   );
 }
 
-async function readTopicSource(topic: DocsTopic): Promise<string | null> {
-  const root = resolvePackageRoot(import.meta.url);
-  if (!root) return null;
-  try {
-    return await readFile(join(root, topic.sourceFile), "utf8");
-  } catch {
-    return null;
-  }
-}
-
-function printDocFooter(url: string, topic: DocsTopic): void {
-  console.log("");
-  console.log(dim(`Web: ${url}`));
-  console.log(dim(`Source file: ${topic.sourceFile} (bundled with this package)`));
-}
-
 async function promptLine(rl: ReturnType<typeof createInterface>, q: string): Promise<string> {
   return await new Promise((resolve) => rl.question(q, resolve));
 }
 
-async function browseSections(
-  topic: DocsTopic,
-  site: string,
-  width: number,
-  colored: boolean,
-): Promise<void> {
-  const raw = await readTopicSource(topic);
-  if (!raw) {
-    console.error(
-      `Could not read ${topic.sourceFile} from the installed package — printing URL only.`,
-    );
-    console.log(`${site}${topic.path}`);
-    process.exitCode = 2;
-    return;
-  }
-
-  const prepared = prepareDocSource(raw);
-  const url = `${site}${topic.path}`;
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-
-  try {
-    while (true) {
-      console.log("");
-      console.log(bold(`${topic.title} — sections`));
-      console.log(dim(`0  Full document`));
-      prepared.sections.forEach((sec, i) => {
-        console.log(dim(`${i + 1}  `) + sectionMenuLabel(sec));
-      });
-      console.log(dim(`b  Back to topic list`));
-      const pick = (await promptLine(rl, dim("Choice: "))).trim().toLowerCase();
-      if (pick === "b" || pick === "q") return;
-      if (pick === "0") {
-        const lines = renderFullDocument(prepared, { useColor: colored, width });
-        console.log("");
-        for (const ln of lines) console.log(ln);
-        printDocFooter(url, topic);
-        await promptLine(rl, dim("Enter to continue… "));
-        continue;
-      }
-      const n = Number.parseInt(pick, 10);
-      if (!Number.isFinite(n) || n < 1 || n > prepared.sections.length) {
-        console.error(dim("Unrecognized choice."));
-        continue;
-      }
-      const lines = renderSingleSection(prepared, n - 1, {
-        useColor: colored,
-        width,
-      });
-      console.log("");
-      if (lines) for (const ln of lines) console.log(ln);
-      printDocFooter(url, topic);
-      await promptLine(rl, dim("Enter to continue… "));
-    }
-  } finally {
-    rl.close();
-  }
+function printTopicUrl(topic: DocsTopic, site: string): void {
+  console.log(`${site}${topic.path}`);
 }
 
 export async function runDocsCommand(
@@ -189,7 +106,6 @@ export async function runDocsCommand(
 ): Promise<void> {
   const site = (opts.site ?? DEFAULT_DOCS_SITE_ORIGIN).replace(/\/$/, "");
   const width = Math.max(40, Math.min(100, process.stdout.columns ?? 80));
-  const colored = useColor();
   const ttyIn = process.stdin.isTTY === true;
   const ttyOut = process.stdout.isTTY === true;
   const interactive = ttyIn && ttyOut && !topicArg && !opts.urlOnly;
@@ -201,22 +117,7 @@ export async function runDocsCommand(
       process.exitCode = 2;
       return;
     }
-    const url = `${site}${match.path}`;
-    if (opts.urlOnly || !ttyOut) {
-      console.log(url);
-      return;
-    }
-    const raw = await readTopicSource(match);
-    if (!raw) {
-      console.error(`Missing bundled doc source: ${match.sourceFile}`);
-      console.log(url);
-      process.exitCode = 2;
-      return;
-    }
-    const prepared = prepareDocSource(raw);
-    const lines = renderFullDocument(prepared, { useColor: colored, width });
-    for (const ln of lines) console.log(ln);
-    printDocFooter(url, match);
+    printTopicUrl(match, site);
     return;
   }
 
@@ -230,13 +131,12 @@ export async function runDocsCommand(
   console.log(bold("Pome docs"));
   console.log(
     dim(
-      "Terminal view: bundled Mintlify sources · URLs match docs.pome.sh · " +
-        "`pome --help` lists commands; this is narrative docs.",
+      "URL navigator for docs.pome.sh · `pome --help` lists commands; docs.pome.sh hosts narrative docs.",
     ),
   );
   console.log(
     dim(
-      "Example: `pome docs getting-started` prints the install + first-run path in your terminal.",
+      "Example: `pome docs getting-started` prints the canonical quickstart URL.",
     ),
   );
   console.log("");
@@ -252,7 +152,6 @@ export async function runDocsCommand(
       console.log("");
       i += 1;
     }
-    console.log(dim("Non-interactive stdin: id<TAB>url lines were printed on stdout above."));
     return;
   }
 
@@ -285,7 +184,7 @@ export async function runDocsCommand(
 
       const direct = findTopic(answer, DOCS_TOPICS);
       if (direct && (list.includes(direct) || filter === "")) {
-        await browseSections(direct, site, width, colored);
+        printTopicUrl(direct, site);
         filter = "";
         continue;
       }
@@ -297,7 +196,7 @@ export async function runDocsCommand(
         n <= list.length &&
         answer === String(n)
       ) {
-        await browseSections(list[n - 1]!, site, width, colored);
+        printTopicUrl(list[n - 1]!, site);
         filter = "";
         continue;
       }

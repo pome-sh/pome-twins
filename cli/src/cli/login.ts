@@ -60,9 +60,7 @@ export async function loginWithClerk(options: LoginOptions): Promise<void> {
     console.error(`Saved Pome credentials to ${path}`);
   }
 
-  console.error(
-    `Team: ${exchanged.team_id} · API key id: ${exchanged.api_key.id ?? "(created)"}`,
-  );
+  console.error("Pome login complete.");
   console.error("Next: `pome session create --twin github` or `pome run <scenario>.md`");
 }
 

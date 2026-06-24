@@ -124,6 +124,7 @@ async function runPome(input: { noCapture: boolean; target: string }): Promise<R
     POME_CAPTURE_TEST_TARGET: input.target,
     OVERHEAD_BENCH_N: String(N),
   };
+  env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(process.env.POME_AGENT_ENV_ALLOWLIST, "POME_CAPTURE_TEST_TARGET");
   // Pome reads ~/.pome/credentials.json when present; POME_LOCAL=1 routes
   // around it. The keychain shim is also force-disabled so a developer with
   // creds in macOS Keychain doesn't accidentally trigger a hosted run.
@@ -147,6 +148,12 @@ async function runPome(input: { noCapture: boolean; target: string }): Promise<R
     console.warn(`[overhead-gate] warning: got ${samples.length}/${N} samples (noCapture=${input.noCapture})`);
   }
   return { stdout, stderr, exitCode, runDir, samples };
+}
+
+function appendAllowlist(existing: string | undefined, name: string): string {
+  const values = new Set((existing ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
+  values.add(name);
+  return [...values].join(",");
 }
 
 async function assertPrFaqAcceptance1(runDir: string): Promise<void> {

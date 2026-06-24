@@ -8,7 +8,7 @@
 
 - **F6 (real `git_sha` / `build_time` in `pome health`)**: `scripts/copy-prompts.mjs` now writes `dist/build-info.json` during `bun run build`, baking the resolved git SHA (CI `POME_GIT_SHA` / `GITHUB_SHA` / `git rev-parse HEAD` / "dev" fallback) and the ISO `build_time`. `cli/src/twin-github/build-info.ts` reads the file at runtime, with the existing env-var overrides still winning so hosted twins can stamp values via process env.
 
-- **F7 (`agentSlug` documented)**: `cli/cli-reference.mdx` `pome register agent` row now mentions both `agentId` AND `agentSlug` — both are load-bearing (dashboard composes per-agent deep-links from the slug). Added a `pome session list` row covering the new `--state` flag.
+- **F7 (`agentSlug` documented)**: CLI reference docs now mention both `agentId` AND `agentSlug` for `pome register agent` — both are load-bearing (dashboard composes per-agent deep-links from the slug). Added a `pome session list` row covering the new `--state` flag.
 
 - **F8 (`pome init` next-steps mentions Stripe + `--sdk claude`)**: the post-init message now lists two optional follow-ups — `pome init --sdk claude` (gated on `@pome-sh/adapter-claude-sdk` npm publish, Stage 1) and `pome scenarios stripe --copy` (Stage 2). Users with non-GitHub workloads now have a breadcrumb instead of a dead-end.
 

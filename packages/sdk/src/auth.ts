@@ -6,6 +6,7 @@
 // from a localhost client.
 import type { MiddlewareHandler } from "hono";
 import { verify } from "hono/jwt";
+import { timingSafeEqual } from "node:crypto";
 
 export interface SessionClaims {
   sid: string;
@@ -65,11 +66,28 @@ export function bearerAuth(): MiddlewareHandler {
   };
 }
 
-export function localhostOnly(): MiddlewareHandler {
+export function requireAdminAuth(): MiddlewareHandler {
   return async (c, next) => {
+    const adminToken = process.env.TWIN_ADMIN_TOKEN;
+    if (adminToken && adminToken.length > 0) {
+      const provided = c.req.header("X-Admin-Token") ?? c.req.header("x-admin-token");
+      if (!provided) {
+        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
+      }
+      const a = Buffer.from(provided);
+      const b = Buffer.from(adminToken);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
+      }
+      await next();
+      return;
+    }
     const remote: string | undefined = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket
       ?.remoteAddress;
     if (!remote) {
+      if (process.env.NODE_ENV === "production") {
+        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
+      }
       await next();
       return;
     }
@@ -84,3 +102,5 @@ export function localhostOnly(): MiddlewareHandler {
     await next();
   };
 }
+
+export const localhostOnly = requireAdminAuth;

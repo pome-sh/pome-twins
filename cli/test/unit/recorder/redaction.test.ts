@@ -32,14 +32,16 @@ describe("redactEvent — hard-redacted header keys", () => {
 
 describe("redactEvent — regex scrubs in string values", () => {
   it("scrubs sk- API keys (20+ chars)", () => {
-    const out = redactEvent({ note: "key is sk-abc123DEF456ghi789jklMNO and more" }) as { note: string };
-    expect(out.note).not.toContain("sk-abc123");
+    const key = "sk-" + "abc123DEF456ghi789jklMNO";
+    const out = redactEvent({ note: `key is ${key} and more` }) as { note: string };
+    expect(out.note).not.toContain(key);
     expect(out.note).toContain("[REDACTED]");
   });
 
   it("scrubs sk-ant- Anthropic prefix", () => {
-    const out = redactEvent({ note: "use sk-ant-api03-AAAAAAAAAAAAAAAAAAAA tomorrow" }) as { note: string };
-    expect(out.note).not.toContain("sk-ant-api03-AAAA");
+    const key = "sk-" + "ant-api03-" + "A".repeat(20);
+    const out = redactEvent({ note: `use ${key} tomorrow` }) as { note: string };
+    expect(out.note).not.toContain(key);
     expect(out.note).toContain("[REDACTED]");
   });
 
@@ -72,10 +74,11 @@ describe("redactEvent — regex scrubs in string values", () => {
   });
 
   it("scrubs secrets inside arrays", () => {
-    const out = redactEvent({ items: ["ok", "sk-abc123DEF456ghi789jklMN0"] }) as { items: string[] };
+    const key = "sk-" + "abc123DEF456ghi789jklMN0";
+    const out = redactEvent({ items: ["ok", key] }) as { items: string[] };
     expect(out.items[0]).toBe("ok");
     expect(out.items[1]).toContain("[REDACTED]");
-    expect(out.items[1]).not.toContain("sk-abc123");
+    expect(out.items[1]).not.toContain(key);
   });
 });
 

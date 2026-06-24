@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { randomUUID } from "node:crypto";
+import { chmod, mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 import { createHostedClient } from "../hosted/client.js";
 import type { CreateSessionResponse } from "../types/shared.js";
@@ -34,7 +36,7 @@ function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   }
   return {
     session_id: res.session_id,
-    session_token: res.session_token ?? res.session_id,
+    session_token: res.session_token ? "***redacted***" : res.session_id,
     twin_url: res.twin_url,
     expires_at: res.expires_at,
     openapi_url: res.openapi_url,
@@ -77,6 +79,7 @@ export async function runSessionCreate(opts: {
   twin: string;
   showSecrets: boolean;
   format: "text" | "json" | "env";
+  secretsFile?: string;
 }): Promise<void> {
   const twin = opts.twin.trim().toLowerCase();
   if (!ALLOWED_TWINS.has(twin)) {
@@ -102,24 +105,25 @@ export async function runSessionCreate(opts: {
     agentId,
   });
 
+  if (opts.secretsFile) {
+    await writeSecretsFile(opts.secretsFile, formatEnvExport(session, twin));
+    console.error(`Wrote session secrets to ${opts.secretsFile} (mode 0600).`);
+  }
+
   if (opts.format === "json") {
-    const payload = opts.showSecrets ? session : redactSession(session);
+    const payload = redactSession(session);
     console.log(JSON.stringify(payload, null, 2));
     return;
   }
 
   if (opts.format === "env") {
-    if (!opts.showSecrets) {
-      console.error(
-        "Refusing to print environment exports without --show-secrets (unsafe).",
-      );
-      process.exitCode = 2;
+    if (opts.secretsFile) {
       return;
     }
     console.error(
-      "# Warning: secrets below — only paste into a trusted shell session.",
+      "Refusing to print environment exports. Use --secrets-file <path> to write them to a 0600 file.",
     );
-    console.log(formatEnvExport(session, twin));
+    process.exitCode = 2;
     return;
   }
 
@@ -135,26 +139,19 @@ export async function runSessionCreate(opts: {
     console.error(`Twin URL: ${session.twin_url}`);
   }
   if (opts.showSecrets) {
-    console.error(`Agent token: ${session.agent_token}`);
-    if (session.provider_credentials.github) {
-      console.error(
-        `GitHub token: ${session.provider_credentials.github.token}`,
-      );
-    }
-    if (session.provider_credentials.stripe) {
-      console.error(
-        `Stripe key: ${session.provider_credentials.stripe.api_key}`,
-      );
-    }
-  } else {
-    console.error(
-      "Secrets redacted. Use --show-secrets or --format json --show-secrets.",
-    );
+    console.error("--show-secrets no longer prints secrets. Use --secrets-file <path>.");
   }
+  console.error("Secrets redacted.");
   // Print the concrete dashboard deep-link rather than the vague "open the
   // Twins page" hint (F22). Users who care can copy it straight into the
   // browser.
   console.error(`Dashboard: ${DEFAULT_DASHBOARD_URL}/twins/${session.session_id}`);
+}
+
+async function writeSecretsFile(path: string, contents: string): Promise<void> {
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await writeFile(path, contents, { mode: 0o600 });
+  await chmod(path, 0o600);
 }
 
 export type SessionListStateFilter =

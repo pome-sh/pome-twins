@@ -1,0 +1,16 @@
+.git
+.github
+.DS_Store
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+.env
+.env.*
+.pome
+**/.pome
+*.log
+*.sqlite
+*.db

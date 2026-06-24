@@ -103,6 +103,7 @@ async function runPome(input: { target: string }): Promise<string> {
     POME_CLI_DISABLE_KEYCHAIN: "1",
     POME_CAPTURE_TEST_TARGET: input.target,
   };
+  env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(process.env.POME_AGENT_ENV_ALLOWLIST, "POME_CAPTURE_TEST_TARGET");
 
   const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env);
   if (exitCode !== 0) {
@@ -115,6 +116,12 @@ async function runPome(input: { target: string }): Promise<string> {
     run_dir: string;
   };
   return resolve(latest.run_dir);
+}
+
+function appendAllowlist(existing: string | undefined, name: string): string {
+  const values = new Set((existing ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
+  values.add(name);
+  return [...values].join(",");
 }
 
 async function assertEventsShape(runDir: string): Promise<void> {

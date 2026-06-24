@@ -18,6 +18,7 @@ import { resetDatabase } from "./db.js";
 import type { FailureInjectionStore } from "./failure-injection.js";
 import type { Recorder, ResolvedSession, TwinStripeDatabase } from "./types.js";
 import { applySeed, defaultSeed, parseSeed } from "./seed.js";
+import { redactSecrets } from "./redaction.js";
 import { twinBuildInfo } from "./build-info.js";
 
 export type PomeRoutesOptions = {
@@ -138,7 +139,7 @@ export function mountSessionPomeRoutes(
     const sess = (c as unknown as { get(key: string): unknown }).get("session") as
       | ResolvedSession
       | undefined;
-    return c.json(provider(c, sess) as Record<string, unknown>);
+    return c.json(redactSecrets(provider(c, sess)) as Record<string, unknown>);
   });
 
   session.get("/_pome/events", (c) => c.json(recorder.events()));

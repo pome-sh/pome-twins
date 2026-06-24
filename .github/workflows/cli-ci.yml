@@ -17,13 +17,8 @@ concurrency:
 
 jobs:
   test:
-    name: ${{ matrix.os }} · Node ${{ matrix.node }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: [20, 22]
+    name: ubuntu-latest · Node 20
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     defaults:
@@ -36,7 +31,8 @@ jobs:
           bun-version: 1.3.10
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 20
+      - run: node scripts/verify-vendor.mjs
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run build

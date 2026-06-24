@@ -26,6 +26,7 @@ describe("loginWithClerk", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     if (savedHome === undefined) delete process.env.HOME;
     else process.env.HOME = savedHome;
     globalThis.fetch = savedFetch;
@@ -35,6 +36,10 @@ describe("loginWithClerk", () => {
   it("ignores invalid local callbacks while waiting for the real Clerk callback", async () => {
     const tmp = await mkdtemp(join(tmpdir(), "pome-login-"));
     process.env.HOME = tmp;
+    const stderr: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
+      stderr.push(String(msg));
+    });
 
     const exchange = vi.fn(async () =>
       new Response(
@@ -87,6 +92,10 @@ describe("loginWithClerk", () => {
         dashboard_url: "https://dashboard.example.com",
         team_id: "tm_login",
       });
+      const output = stderr.join("\n");
+      expect(output).toContain("Pome login complete.");
+      expect(output).not.toContain("tm_login");
+      expect(output).not.toContain("pme_created");
     } finally {
       await rm(tmp, { recursive: true, force: true });
     }

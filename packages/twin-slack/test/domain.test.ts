@@ -194,6 +194,17 @@ describe("SlackDomain — direct unit coverage", () => {
     expect(all.channels.find((c) => c.id === "C_RANDOM")).toBeUndefined();
   });
 
+  it("conversations.archive requires private-channel membership for non-admins", () => {
+    const { domain } = fresh();
+    const ch = domain.conversationsCreate({ name: "private-archive", is_private: true }, { login: "pome-agent" }) as {
+      channel: { id: string };
+    };
+    domain.conversationsInvite({ channel: ch.channel.id, users: "U_ALICE" }, { login: "pome-agent" });
+
+    expect(() => domain.conversationsArchive({ channel: ch.channel.id }, { login: "bob" })).toThrow(/not_in_channel/);
+    expect(() => domain.conversationsArchive({ channel: ch.channel.id }, { login: "alice" })).not.toThrow();
+  });
+
   it("chat.postMessage with no text/blocks/attachments returns no_text", () => {
     const { domain } = fresh();
     expect(() => domain.chatPostMessage({ channel: "C_GENERAL" }, { login: "pome-agent" })).toThrow(/no_text/);
@@ -269,5 +280,18 @@ describe("SlackDomain — direct unit coverage", () => {
     expect(() =>
       domain.conversationsInvite({ channel: ch.channel.id, users: "U_ALICE" }, { login: "pome-agent" })
     ).toThrow(/already_in_channel/);
+  });
+
+  it("conversations.invite requires private-channel membership for non-admins", () => {
+    const { domain } = fresh();
+    const ch = domain.conversationsCreate({ name: "private-invite", is_private: true }, { login: "pome-agent" }) as {
+      channel: { id: string };
+    };
+    domain.conversationsInvite({ channel: ch.channel.id, users: "U_ALICE" }, { login: "pome-agent" });
+
+    expect(() => domain.conversationsInvite({ channel: ch.channel.id, users: "U_BOB" }, { login: "bob" })).toThrow(
+      /not_in_channel/
+    );
+    expect(() => domain.conversationsInvite({ channel: ch.channel.id, users: "U_BOB" }, { login: "alice" })).not.toThrow();
   });
 });

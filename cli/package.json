@@ -33,14 +33,10 @@
   },
   "files": [
     "dist",
-    "docs",
     "examples",
     "scenarios",
     "skills",
     "vendor",
-    "getting-started.mdx",
-    "cli-reference.mdx",
-    "changelog.mdx",
     "GUIDE.md",
     "LICENSE",
     "package.json",
@@ -58,6 +54,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run test/e2e",
+    "verify:vendor": "node scripts/verify-vendor.mjs",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish"

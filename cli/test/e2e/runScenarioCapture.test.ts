@@ -24,6 +24,12 @@ function listenEphemeral(server: ReturnType<typeof createNetServer>): Promise<nu
   });
 }
 
+function appendAllowlist(existing: string | undefined, name: string): string {
+  const values = new Set((existing ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
+  values.add(name);
+  return [...values].join(",");
+}
+
 describe("runScenario — capture-server wiring (FDRS-399)", () => {
   let echoPort = 0;
   let echoCloser: (() => Promise<void>) | null = null;
@@ -52,8 +58,11 @@ describe("runScenario — capture-server wiring (FDRS-399)", () => {
     const probePath = new URL("../fixtures/agents/capture-probe-agent.ts", import.meta.url).pathname;
 
     // Pin the target the probe will tunnel to. The fixture reads this from env;
-    // the runner inherits process.env into the agent.
+    // opt into forwarding only this test-only variable through the hardened
+    // agent environment allowlist.
+    const previousAllowlist = process.env.POME_AGENT_ENV_ALLOWLIST;
     process.env.POME_CAPTURE_TEST_TARGET = `127.0.0.1:${echoPort}`;
+    process.env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(previousAllowlist, "POME_CAPTURE_TEST_TARGET");
 
     let capturedPid = -1;
     try {
@@ -102,6 +111,8 @@ describe("runScenario — capture-server wiring (FDRS-399)", () => {
       ).toHaveLength(0);
     } finally {
       delete process.env.POME_CAPTURE_TEST_TARGET;
+      if (previousAllowlist === undefined) delete process.env.POME_AGENT_ENV_ALLOWLIST;
+      else process.env.POME_AGENT_ENV_ALLOWLIST = previousAllowlist;
     }
 
     expect(capturedPid).toBeGreaterThan(0);

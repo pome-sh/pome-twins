@@ -22,6 +22,31 @@ and observabilitys, at <https://pome.sh>.
 
 ⚠️ Pome is in Beta. It's dependencies and CLI shape might change in the future. For questions or suggestions, email: `founders@pome.sh`
 
+## CLI Installation
+
+Install the `pome` command before running scenarios or hosted twins. Until the
+first npm registry release ships, install from the GitHub source checkout.
+
+```bash
+git clone --depth 1 https://github.com/pome-sh/pome.git
+cd pome/cli
+npm install
+npm install -g .
+pome --help
+```
+
+If you prefer Bun:
+
+```bash
+bun install
+bun run build
+npm link
+```
+
+After installation, run `pome login` once to connect the CLI to your Pome
+account, then run `pome init` in any project where you want scenarios and run
+artifacts.
+
 ## Quickstart
 
 Prerequisites: [Docker](https://docs.docker.com/get-docker/), [Bun ≥ 1.3](https://bun.sh),

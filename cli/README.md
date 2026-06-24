@@ -3,44 +3,71 @@
 The `pome` command runs AI-agent scenarios against resettable hosted twins,
 records tool calls, and scores the result.
 
-## Install (GitHub — primary)
+## CLI Installation
 
-V1 ships from the public repo until an npm release is published (see below). The CLI lives at `cli/` inside the `pome-sh/pome` monorepo.
+Install the `pome` command first. Until the first npm registry release ships,
+install from the GitHub source checkout.
 
 ```bash
 git clone --depth 1 https://github.com/pome-sh/pome.git
 cd pome/cli
-npm install            # install local dev deps so `prepare` can build
-npm install -g .       # global install runs `prepare` (tsc + copy-prompts)
+npm install
+npm install -g .
 pome --help
 ```
 
-The first `npm install` is required: `npm install -g .` runs the `prepare` hook (which calls `tsc`), and on a fresh clone `cli/node_modules/` is empty, so `tsc` cannot resolve `@types/node`, `zod`, `node:crypto`, etc. and aborts with hundreds of TS2580 / TS2307 errors. The local install populates `cli/node_modules/` first.
+Run the local `npm install` before `npm install -g .` so the `prepare` build has
+the TypeScript dependencies it needs.
 
-If your environment is bun-friendly, this is equivalent and slightly faster:
+If you prefer Bun:
 
 ```bash
 bun install
 bun run build
-npm link               # symlink the built dist/ to a global `pome`
+npm link
 ```
 
-**Smoke (clean machine):** install as above → `pome --help` shows `init`, `login`, `register`, `session`, `run`, `inspect`, `docs`.
+Smoke test:
+
+```bash
+pome --help
+```
+
+You should see commands such as `init`, `login`, `register`, `session`, `run`,
+`inspect`, and `docs`.
 
 ### Install from npm registry
 
-_Not available yet._ `pome-sh` on npm (or another scope) will be documented here once the first registry release ships. Until then, use the GitHub install line.
+_Not available yet._ Registry install instructions will be documented here once
+the first package release ships. Until then, install from GitHub.
 
-## Hosted in 60 seconds
+## First-Time Setup
+
+After the CLI is installed, set up your account and the project directory where
+you want Pome scenarios and run artifacts to live.
 
 ```bash
 pome login
-pome session create --twin github
+pome init
 ```
 
-Then open **Twins** on [app.pome.sh](https://app.pome.sh) — the session row should match the id from the CLI. Use `pome session list` and `pome session stop <session-id>` to manage sandboxes.
+`pome login` opens the browser and stores a local API key. `pome init` creates
+starter folders such as `scenarios/`, `examples/agents/`, `runs/`, plus
+`pome.config.json` in the current directory.
 
-For narrative docs, run `pome docs getting-started` (renders the page in your terminal from bundled Mintlify sources and shows the `docs.pome.sh` URL). `pome --help` / `pome help` list subcommands; see `docs/HELP-SURFACES.md` for how those surfaces relate.
+To verify hosted twins are reachable:
+
+```bash
+pome session create --twin github
+pome session list
+```
+
+Open **Twins** on [app.pome.sh](https://app.pome.sh) to see the same session.
+Use `pome session stop <session-id>` when you are done.
+
+For narrative docs, run `pome docs getting-started` to print the canonical
+`docs.pome.sh` URL. `pome --help` and `pome help <command>` show CLI reference
+details.
 
 ## Local development (this repository)
 
@@ -53,8 +80,6 @@ bun run pome -- health
 ## Quickstart
 
 ```bash
-pome login
-pome init
 pome register agent my-agent
 pome run scenarios/01-bug-happy-path.md --agent "npx tsx examples/agents/scripted-triage-agent.ts"
 pome inspect latest
@@ -120,7 +145,7 @@ The same catalog drives `pome init` — running `pome scenarios github --copy` a
 
 ### `pome docs [topic]`
 
-Read Mintlify narrative docs **in the terminal** (Markdown/MDX shipped inside the package) with optional section navigation on a TTY, or print stable `docs.pome.sh` URLs. Sources are indexed in `src/cli/docs-topics.ts` — the CLI does not scrape the website.
+Print stable `docs.pome.sh` URLs for Mintlify narrative docs. The authored docs live in the `pome` repo; this package keeps only topic metadata for lookup.
 
 ```bash
 pome docs
@@ -128,7 +153,7 @@ pome docs getting-started
 pome docs github --url
 ```
 
-See `docs/HELP-SURFACES.md` for how `pome docs` relates to `pome --help`. Set `NO_COLOR=1` for plain output.
+Use `pome --help` for command reference and `pome docs [topic]` for the corresponding web docs URL.
 
 ### `pome session create|list|stop`
 
@@ -137,11 +162,12 @@ Hosted sandbox sessions (same API as the dashboard Twins page). Requires `pome l
 ```bash
 pome session create --twin github
 pome session create --twin stripe --format json
+pome session create --twin stripe --format env --secrets-file .pome-session.env
 pome session list
 pome session stop ses_...
 ```
 
-Secrets (`agent_token`, provider keys) are **redacted** by default. Use `--show-secrets` and/or `--format env` only on trusted terminals. `--format json` is intended for automation (`NO_COLOR` / non-TTY friendly).
+Secrets (`agent_token`, provider keys) are never printed to stdout/stderr. Use `--secrets-file <path>` to write shell exports to a local file with mode **0600**. `--format json` is intended for automation and stays redacted.
 
 ### `pome run <path>`
 

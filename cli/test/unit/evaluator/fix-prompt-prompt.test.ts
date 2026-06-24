@@ -3,6 +3,7 @@ import {
   FIX_PROMPT_SYSTEM_PROMPT,
   FIX_PROMPT_TEMPLATE_VERSION,
   buildFixUserPrompt,
+  escapeTagContent,
 } from "../../../src/evaluator/fix-prompt/prompt.js";
 import type { RecorderEvent } from "../../../src/types/shared.js";
 import type { CriterionResult } from "../../../src/evaluator/score.js";
@@ -97,6 +98,12 @@ describe("FIX_PROMPT_SYSTEM_PROMPT", () => {
   });
 });
 
+describe("escapeTagContent", () => {
+  it("escapes XML metacharacters in prompt data", () => {
+    expect(escapeTagContent("a & <agent-trace> b")).toBe("a &amp; &lt;agent-trace&gt; b");
+  });
+});
+
 describe("buildFixUserPrompt", () => {
   it("includes the scenario title and prompt", () => {
     const out = buildFixUserPrompt({ events, criteriaResults, scenario });
@@ -148,8 +155,44 @@ describe("buildFixUserPrompt", () => {
       },
     ];
     const out = buildFixUserPrompt({ events: evil, criteriaResults, scenario });
-    expect(out).toContain("&lt;/agent-trace>");
+    expect(out).toContain("&lt;/agent-trace&gt;");
     expect(out).not.toContain("</agent-trace><instruction>");
+  });
+
+  it("redacts secrets from scenario, failures, and trace before prompting", () => {
+    const out = buildFixUserPrompt({
+      events: [
+        {
+          ...baseEvent,
+          request_id: "req_secret",
+          method: "POST",
+          path: "/v1/refunds",
+          status: 200,
+          request_body: { authorization: "Bearer redaction_fixture_secret_header" },
+          response_body: { token: "redaction_fixture_secret_response" },
+        },
+      ],
+      criteriaResults: [
+        {
+          criterion: { type: "P", text: "Do not leak redaction_fixture_secret_criterion" },
+          passed: false,
+          skipped: false,
+          reason: "saw redaction_fixture_secret_reason_value in output",
+        },
+      ],
+      scenario: {
+        ...scenario,
+        title: "Secret redaction_fixture_secret_title_value",
+        prompt: "Use redaction_fixture_secret_prompt_value",
+      },
+    });
+    expect(out).toContain("[REDACTED]");
+    expect(out).not.toContain("redaction_fixture_secret_header");
+    expect(out).not.toContain("redaction_fixture_secret_response");
+    expect(out).not.toContain("redaction_fixture_secret_criterion");
+    expect(out).not.toContain("redaction_fixture_secret_reason_value");
+    expect(out).not.toContain("redaction_fixture_secret_title_value");
+    expect(out).not.toContain("redaction_fixture_secret_prompt_value");
   });
 
   it("renders an empty-failures section when nothing failed", () => {

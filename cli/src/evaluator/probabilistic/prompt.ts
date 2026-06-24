@@ -1,14 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Criterion } from "../../scenario/scenarioSchema.js";
+import { redactEvent, redactSecrets } from "../../recorder/redaction.js";
 
-const RESERVED_TAGS = /(<\/?(agent-state|agent-trace|agent-summary)(?:\s[^>]*)?\/?>)/gi;
 const MAX_EVENTS = 50;
 const BODY_CHAR_LIMIT = 800;
 const STATE_SOFT_CAP_KB = 30;
 const SUMMARY_CHAR_LIMIT = 6000;
 
 export function escapeTagContent(text: string): string {
-  return text.replace(RESERVED_TAGS, (match) => match.replace("<", "&lt;"));
+  return text.replace(/[&<>]/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      default:
+        return char;
+    }
+  });
 }
 
 export const SYSTEM_PROMPT = `You are an evaluator for AI agent testing. You assess whether an agent successfully met a specific success criterion during a scenario run.
@@ -116,9 +127,9 @@ function renderState(state: unknown): { json: string; warning: string | null } {
 }
 
 export function buildUserPrompt(ctx: PromptContext): string {
-  const before = renderState(ctx.stateBefore);
-  const after = renderState(ctx.stateAfter);
-  const trace = renderEvents(ctx.events);
+  const before = renderState(redactSecrets(ctx.stateBefore));
+  const after = renderState(redactSecrets(ctx.stateAfter));
+  const trace = renderEvents(ctx.events.map((event) => redactEvent(event)));
 
   const zeroActivity = ctx.toolCallCount === 0;
   const activityLine = zeroActivity
@@ -128,7 +139,9 @@ export function buildUserPrompt(ctx: PromptContext): string {
   const beforeWarn = before.warning ? `\n${before.warning}` : "";
   const afterWarn = after.warning ? `\n${after.warning}` : "";
 
-  const summaryText = ctx.agentSummary?.trim();
+  const summaryText = typeof ctx.agentSummary === "string"
+    ? (redactSecrets(ctx.agentSummary) as string).trim()
+    : undefined;
   const summarySection = summaryText
     ? `\n\n## Agent Final Summary
 <agent-summary>
@@ -141,7 +154,7 @@ ${escapeTagContent(
     : "";
 
   return `## Success Criterion
-${ctx.criterion.text}
+${redactSecrets(ctx.criterion.text)}
 
 ## Agent Activity Summary
 ${activityLine}
