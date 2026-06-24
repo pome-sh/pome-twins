@@ -13,7 +13,7 @@ COPY packages packages
 RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/twin-slack build
 
-FROM node:24-trixie-slim@sha256:9022946fb57e6fb6a2503931470deba4b49db02bfc8f587f93007fd33ef54415 AS runtime
+FROM node:26-trixie-slim@sha256:f9b8bd6c62fcd007c08ce2bb2907485b624b968fd76094445822e0ec14002cf0 AS runtime
 WORKDIR /repo
 ENV NODE_ENV=production
 ENV SLACK_CLONE_HOST=0.0.0.0
