@@ -8,7 +8,6 @@ import type { Scenario } from "../../scenario/scenarioSchema.js";
 
 export const FIX_PROMPT_TEMPLATE_VERSION = "v1";
 
-const RESERVED_TAGS = /(<\/?(agent-state|agent-trace)(?:\s[^>]*)?\/?>)/gi;
 const MAX_EVENTS = 50;
 const BODY_CHAR_LIMIT = 800;
 
@@ -24,7 +23,18 @@ function loadSystemPrompt(): string {
 export const FIX_PROMPT_SYSTEM_PROMPT = loadSystemPrompt();
 
 export function escapeTagContent(text: string): string {
-  return text.replace(RESERVED_TAGS, (match) => match.replace("<", "&lt;"));
+  return text.replace(/[&<>]/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      default:
+        return char;
+    }
+  });
 }
 
 export interface FixPromptContext {

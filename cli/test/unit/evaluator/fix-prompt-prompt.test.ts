@@ -3,6 +3,7 @@ import {
   FIX_PROMPT_SYSTEM_PROMPT,
   FIX_PROMPT_TEMPLATE_VERSION,
   buildFixUserPrompt,
+  escapeTagContent,
 } from "../../../src/evaluator/fix-prompt/prompt.js";
 import type { RecorderEvent } from "../../../src/types/shared.js";
 import type { CriterionResult } from "../../../src/evaluator/score.js";
@@ -97,6 +98,12 @@ describe("FIX_PROMPT_SYSTEM_PROMPT", () => {
   });
 });
 
+describe("escapeTagContent", () => {
+  it("escapes XML metacharacters in prompt data", () => {
+    expect(escapeTagContent("a & <agent-trace> b")).toBe("a &amp; &lt;agent-trace&gt; b");
+  });
+});
+
 describe("buildFixUserPrompt", () => {
   it("includes the scenario title and prompt", () => {
     const out = buildFixUserPrompt({ events, criteriaResults, scenario });
@@ -148,7 +155,7 @@ describe("buildFixUserPrompt", () => {
       },
     ];
     const out = buildFixUserPrompt({ events: evil, criteriaResults, scenario });
-    expect(out).toContain("&lt;/agent-trace>");
+    expect(out).toContain("&lt;/agent-trace&gt;");
     expect(out).not.toContain("</agent-trace><instruction>");
   });
 
