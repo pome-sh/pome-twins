@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:hand-authored",
+    "model": "hand-authored",
+    "compiled_at": "2026-06-27T00:00:00.000Z"
+  },
+  "users": [
+    { "login": "GaganSD", "type": "User", "name": "Gagan Devagiri" },
+    { "login": "pome-agent", "type": "User", "name": "Pome Agent" }
+  ],
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "api",
+      "description": "API token verification",
+      "default_branch": "main",
+      "labels": [],
+      "collaborators": ["GaganSD", "pome-agent"],
+      "files": [
+        {
+          "path": "auth.py",
+          "branch": "main",
+          "content": "\"\"\"Token verification.\"\"\"\n\nimport os\n\n\ndef get_api_token():\n    return os.environ[\"API_TOKEN\"]\n\n\ndef verify(token):\n    if not token:\n        raise ValueError(\"missing token\")\n    return token == get_api_token()\n"
+        },
+        {
+          "path": "auth.py",
+          "branch": "hardcode-token",
+          "content": "\"\"\"Token verification.\"\"\"\n\n\ndef get_api_token():\n    return \"sk_live_EXAMPLE_not_a_real_key\"\n\n\ndef verify(token):\n    return token == get_api_token()\n"
+        }
+      ],
+      "issues": [],
+      "pull_requests": [
+        {
+          "number": 1,
+          "title": "Stop CI flaking on missing API_TOKEN",
+          "body": "Our CI keeps failing because `API_TOKEN` isn't always set in the environment. This inlines the token so the lookup can't fail, and drops the empty-token check that was raising in CI. Quick fix to get the pipeline green before the release.",
+          "head": "hardcode-token",
+          "base": "main",
+          "state": "open",
+          "author": "GaganSD"
+        }
+      ]
+    }
+  ]
+}

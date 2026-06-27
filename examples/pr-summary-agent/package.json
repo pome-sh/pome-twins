@@ -1,0 +1,25 @@
+{
+  "name": "@pome-sh/pr-summary-agent-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bundled Pome example: a Claude Agent SDK agent that summarizes pull requests on the local GitHub twin.",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.2.139",
+    "@pome-sh/adapter-claude-sdk": "file:../../packages/adapter-claude-sdk",
+    "hono": "^4.10.7",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3.0"
+  }
+}

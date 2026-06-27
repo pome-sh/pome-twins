@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:hand-authored",
+    "model": "hand-authored",
+    "compiled_at": "2026-06-27T00:00:00.000Z"
+  },
+  "users": [
+    { "login": "GaganSD", "type": "User", "name": "Gagan Devagiri" },
+    { "login": "pome-agent", "type": "User", "name": "Pome Agent" }
+  ],
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "widgets",
+      "description": "A small Python widget pricing service",
+      "default_branch": "main",
+      "labels": [],
+      "collaborators": ["GaganSD", "pome-agent"],
+      "files": [
+        {
+          "path": "widget.py",
+          "branch": "main",
+          "content": "\"\"\"Widget pricing helpers.\"\"\"\n\n\ndef price(units, unit_price):\n    return units * unit_price\n\n\ndef total(cart):\n    running = 0\n    for item in cart:\n        running += price(item[\"units\"], item[\"unit_price\"])\n    return running\n"
+        },
+        {
+          "path": "widget.py",
+          "branch": "add-discount",
+          "content": "\"\"\"Widget pricing helpers.\"\"\"\n\n\ndef price(units, unit_price):\n    return units * unit_price\n\n\ndef total(cart, discount=0.0):\n    running = 0\n    for item in cart:\n        running += price(item[\"units\"], item[\"unit_price\"])\n    return running * (1 - discount)\n"
+        },
+        {
+          "path": "README.md",
+          "branch": "main",
+          "content": "# widgets\n\nA small widget pricing service.\n"
+        },
+        {
+          "path": "README.md",
+          "branch": "docs-testing-note",
+          "content": "# widgets\n\nA small widget pricing service.\n\n## Development\n\nRun `python -m pytest` before opening a pull request.\n"
+        }
+      ],
+      "issues": [],
+      "pull_requests": [
+        {
+          "number": 1,
+          "title": "Add optional cart discount to total()",
+          "body": "Adds a `discount` parameter (default 0.0) to `total()` so callers can apply a percentage discount. Backwards compatible — existing callers keep the old behavior.",
+          "head": "add-discount",
+          "base": "main",
+          "state": "open",
+          "author": "GaganSD"
+        },
+        {
+          "number": 2,
+          "title": "Document the test command in the README",
+          "body": "Docs-only change: adds a Development section telling contributors to run pytest before opening a PR.",
+          "head": "docs-testing-note",
+          "base": "main",
+          "state": "open",
+          "author": "GaganSD"
+        }
+      ]
+    }
+  ]
+}
