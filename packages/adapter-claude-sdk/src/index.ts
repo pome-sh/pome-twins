@@ -23,3 +23,8 @@ export { tool } from "./tool.js";
 export { query } from "./query.js";
 export { CORRELATION_HEADER } from "./fetch.js";
 export { ADAPTER_SIGNALS_ENV } from "./signals.js";
+export {
+  flushPomeTelemetry,
+  OTEL_ENDPOINT_ENV,
+  OTEL_HEADERS_ENV,
+} from "./otel.js";

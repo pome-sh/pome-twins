@@ -6,6 +6,7 @@ import {
   type SDKMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { buildPomeHooks } from "./hooks.js";
+import { withGenAiSpans } from "./genai-spans.js";
 import { withToolEvents } from "./wrapQuery.js";
 
 type QueryParams = Parameters<typeof sdkQuery>[0];
@@ -25,7 +26,11 @@ type HooksConfig = Partial<Record<HookEvent, HookCallbackMatcher[]>>;
  * the underlying SDK directly if you need them.
  */
 export function query(params: QueryParams): AsyncGenerator<SDKMessage, void, unknown> {
-  return withToolEvents<SDKMessage>(sdkQuery(withPomeHooks(params)));
+  // withGenAiSpans (outermost) reads each assistant turn's token usage and
+  // emits gen_ai OTLP spans for the dashboard's Agent telemetry panel; it
+  // flushes the exporter on the terminal `result` message. Inert when no OTLP
+  // endpoint is configured.
+  return withGenAiSpans<SDKMessage>(withToolEvents<SDKMessage>(sdkQuery(withPomeHooks(params))));
 }
 
 function withPomeHooks(params: QueryParams): QueryParams {

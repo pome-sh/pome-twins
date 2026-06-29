@@ -8,6 +8,7 @@
 // header injection but still wires ALS + signals fallback noop.
 
 import { installFetchHook, getAllowlist, uninstallFetchHook } from "./fetch.js";
+import { ensureOtel } from "./otel.js";
 
 export interface WithPomeOptions {
   twinHosts?: string[];
@@ -41,6 +42,9 @@ export function withPome(opts: WithPomeOptions = {}): void {
   if (installed) return;
   const twinHosts = opts.twinHosts ?? inferTwinHostsFromEnv();
   installFetchHook({ twinHosts });
+  // Stand up the OTLP/JSON trace exporter when the CLI configured an endpoint.
+  // No-op (returns null) in standalone dev, so this stays a safe one-call init.
+  ensureOtel();
   installed = true;
 }
 
