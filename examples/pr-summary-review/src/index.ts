@@ -89,6 +89,12 @@ async function main() {
   // ANTHROPIC_API_KEY from the environment) picks it up.
   process.env.ANTHROPIC_API_KEY = resolveAnthropicKey();
 
+  // Agent telemetry (per-task tokens / latency / errors on the dashboard) is
+  // emitted automatically by `withPome()` above: it reads the OTLP env the pome
+  // CLI injects (POME_OTEL_EXPORTER_OTLP_ENDPOINT/_HEADERS) and the wrapped
+  // `query()` emits a `gen_ai` span per LLM turn, flushing before exit. No-op
+  // when no endpoint is configured, so standalone dev needs nothing here.
+
   banner({ task: TASK, mcpUrl: MCP_URL, sid: MCP_SID });
 
   const twin = new TwinMcpClient(MCP_URL, token);

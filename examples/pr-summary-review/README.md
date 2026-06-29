@@ -109,6 +109,8 @@ All optional. Defaults match the repo-root `docker compose up`.
 | `INFISICAL_ENV` | `dev` | Infisical environment slug for the key lookup. |
 | `INFISICAL_PROJECT_ID` | — | Infisical project ID (if not inferred from `.infisical.json`). |
 | `POME_INFISICAL_SECRET_NAME` | `ANTHROPIC_API_KEY` | Secret name to fetch from Infisical. |
+| `POME_OTEL_EXPORTER_OTLP_ENDPOINT` | — | Session-scoped OTLP/JSON traces endpoint for agent telemetry (per-task tokens/latency/errors on the dashboard). Set by hosted `pome run`; `withPome()` emits `gen_ai` spans here. When unset, telemetry stays off. |
+| `POME_OTEL_EXPORTER_OTLP_HEADERS` | — | OTLP request headers (the `Bearer <agent_token>` auth), `key=value,…` format. Set by hosted `pome run`. |
 | `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/demo/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
 | `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. Pome CLI sets this; otherwise the agent mints its own. |
 | `POME_TASK` | bundled summarize+review prompt | Override the agent's task. Pome CLI sets this from the scenario file. |
