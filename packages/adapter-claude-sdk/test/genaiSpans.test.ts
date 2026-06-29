@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 interface Captured {
   authorization?: string;
+  xApiKey?: string;
   body: unknown;
 }
 
@@ -39,7 +40,11 @@ beforeEach(async () => {
       } catch {
         /* leave null */
       }
-      captured.push({ authorization: req.headers["authorization"] as string | undefined, body });
+      captured.push({
+        authorization: req.headers["authorization"] as string | undefined,
+        xApiKey: req.headers["x-api-key"] as string | undefined,
+        body,
+      });
       res.writeHead(200, { "content-type": "application/json" });
       res.end("{}");
     });
@@ -127,6 +132,21 @@ describe("withGenAiSpans → OTLP/JSON export", () => {
     // Resource identity for dashboard attribution.
     expect(resourceAttrs["service.name"]).toBe("pr-sum-agent");
     expect(resourceAttrs["pome.session_id"]).toBe("ses_test");
+  });
+
+  it("forwards the x-api-key header (the production auth path the CLI injects)", async () => {
+    process.env.POME_OTEL_EXPORTER_OTLP_HEADERS = "x-api-key=pme_team_key";
+    const { _resetOtelForTest } = await import("../src/otel.js");
+    _resetOtelForTest();
+
+    await drive([
+      { type: "assistant", message: { model: "claude-opus-4-8", usage: { input_tokens: 1, output_tokens: 1 } } },
+      { type: "result", subtype: "success" },
+    ]);
+
+    expect(captured.length).toBeGreaterThanOrEqual(1);
+    // The CLI ships the team key via `x-api-key`, not `Authorization: Bearer`.
+    expect(captured[0]!.xApiKey).toBe("pme_team_key");
   });
 
   it("skips assistant turns that reported no usage", async () => {

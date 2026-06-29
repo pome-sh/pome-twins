@@ -10,11 +10,18 @@
 // module is what produces the spans the rollup reads.
 //
 // Wiring: the CLI runner injects `POME_OTEL_EXPORTER_OTLP_ENDPOINT` (the full
-// session-scoped traces URL), `POME_OTEL_EXPORTER_OTLP_HEADERS` (the agent_token
-// bearer), `OTEL_SERVICE_NAME`, and `OTEL_RESOURCE_ATTRIBUTES`. `withPome()`
-// stands up an OTLP/JSON trace exporter from those; `query()` emits one CLIENT
-// span per assistant turn with the model + that turn's token usage; the run
-// flushes before the agent process exits (finalize reads the blob right after).
+// session-scoped traces URL) and `POME_OTEL_EXPORTER_OTLP_HEADERS` (the team-key
+// `x-api-key=...` auth that sim-traces accepts), plus the standard
+// `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES`. `withPome()` stands up an
+// OTLP/JSON trace exporter from those; `query()` emits one CLIENT span per
+// assistant turn with the model + that turn's token usage; the run flushes
+// before the agent process exits (finalize reads the blob right after).
+//
+// Env namespacing is deliberately split: the ENDPOINT and HEADERS are
+// pome-namespaced so this never hijacks an agent author's own collector
+// configured via the standard `OTEL_EXPORTER_OTLP_*` vars, while SERVICE_NAME
+// and RESOURCE_ATTRIBUTES read the standard names (they only refine the
+// resource identity and are harmless to share).
 //
 // No endpoint env → every export is a static no-op (standalone dev, or any
 // agent run outside the pome CLI). Telemetry failures never surface to the
@@ -29,7 +36,6 @@ export const OTEL_ENDPOINT_ENV = "POME_OTEL_EXPORTER_OTLP_ENDPOINT";
 export const OTEL_HEADERS_ENV = "POME_OTEL_EXPORTER_OTLP_HEADERS";
 
 let provider: BasicTracerProvider | null = null;
-let tracer: Tracer | null = null;
 let initialized = false;
 
 // Parse the OTel `key1=value1,key2=value2` env format (used by both
@@ -59,7 +65,10 @@ function parseKeyValueList(raw: string | undefined): Record<string, string> {
  * emitter so an agent that emits before `withPome()` still works.
  */
 export function ensureOtel(): Tracer | null {
-  if (initialized) return tracer;
+  // `provider` is the single source of truth; the tracer is derived (cheap) so
+  // there is no second global to keep in sync. `initialized` records the
+  // "endpoint unset → stay off" decision so we don't re-check the env per span.
+  if (initialized) return provider ? provider.getTracer(TRACER_NAME) : null;
   initialized = true;
 
   const endpoint = process.env[OTEL_ENDPOINT_ENV]?.trim();
@@ -80,14 +89,21 @@ export function ensureOtel(): Tracer | null {
       resource: resourceFromAttributes(attributes),
       spanProcessors: [new BatchSpanProcessor(exporter)],
     });
-    tracer = provider.getTracer("@pome-sh/adapter-claude-sdk");
-    return tracer;
-  } catch {
-    // Telemetry must never break the agent run.
+    return provider.getTracer(TRACER_NAME);
+  } catch (err) {
+    // Telemetry must never break the agent run, but a silent failure here leaves
+    // the dashboard panel blank with no clue why — so warn (matches the CLI's
+    // best-effort console.warn house style for trace/blob failures).
     provider = null;
-    tracer = null;
+    console.warn(`[pome] agent telemetry disabled: OTel init failed: ${errMessage(err)}`);
     return null;
   }
+}
+
+const TRACER_NAME = "@pome-sh/adapter-claude-sdk";
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export interface GenAiTurn {
@@ -138,14 +154,15 @@ export async function flushPomeTelemetry(): Promise<void> {
   if (!provider) return;
   try {
     await provider.forceFlush();
-  } catch {
-    // best-effort
+  } catch (err) {
+    // Best-effort, but surface it: a swallowed flush failure means the run's
+    // telemetry silently never reaches the dashboard.
+    console.warn(`[pome] agent telemetry flush failed: ${errMessage(err)}`);
   }
 }
 
 /** Test-only: reset module state so a fresh env can be re-read. */
 export function _resetOtelForTest(): void {
   provider = null;
-  tracer = null;
   initialized = false;
 }

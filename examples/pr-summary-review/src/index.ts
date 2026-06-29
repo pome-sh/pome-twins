@@ -35,7 +35,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
-import { query, tool, withPome } from "@pome-sh/adapter-claude-sdk";
+import { flushPomeTelemetry, query, tool, withPome } from "@pome-sh/adapter-claude-sdk";
 import { sign } from "hono/jwt";
 import { z } from "zod";
 
@@ -140,6 +140,10 @@ async function main() {
     }
   } finally {
     thinking.stop();
+    // The query() wrapper flushes telemetry on the terminal `result` message;
+    // this is the belt-and-suspenders drain for paths that throw or abandon the
+    // stream before a result arrives, so partial-run spans still ship.
+    await flushPomeTelemetry();
   }
 
   process.exit(exitCode);

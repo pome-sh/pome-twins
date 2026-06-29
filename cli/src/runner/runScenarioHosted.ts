@@ -122,7 +122,10 @@ export async function runScenarioHosted(
     // POME_OTEL_COLLECTOR_URL fully overrides the endpoint for non-standard deploys.
     const otlpEndpoint =
       process.env.POME_OTEL_COLLECTOR_URL?.trim() ||
-      `${options.hosted.baseUrl}/v1/sessions/${session.session_id}/traces`;
+      new URL(
+        `/v1/sessions/${session.session_id}/traces`,
+        options.hosted.baseUrl,
+      ).toString();
 
     // 3. Run the agent. Env mirrors self-host so a customer's agent code
     //    is twin-mode-agnostic.
