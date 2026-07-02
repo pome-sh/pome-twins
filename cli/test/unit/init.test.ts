@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../../src/cli/main.js";
+import {
+  findTwin,
+  runnableScenarios,
+} from "../../src/cli/scenarios-catalog.js";
 
 const originalCwd = process.cwd();
 const tempDirs: string[] = [];
@@ -24,9 +28,14 @@ describe("pome init", () => {
 
     await createProgram().parseAsync(["node", "pome", "init"]);
 
+    const githubTwin = findTwin("github");
+    expect(githubTwin).not.toBeNull();
     expect(existsSync("pome.config.json")).toBe(true);
-    expect(existsSync("scenarios/01-bug-happy-path.md")).toBe(true);
+    for (const scenario of runnableScenarios(githubTwin!)) {
+      expect(existsSync(join("scenarios", scenario.filename))).toBe(true);
+    }
     expect(existsSync("scenarios/14-stripe-refund-retry.md")).toBe(false);
+    expect(existsSync("scenarios/20-slack-exfiltration.md")).toBe(false);
     expect(existsSync("examples/agents/scripted-triage-agent.ts")).toBe(true);
 
     // Bundled .seed.json sidecars must land alongside their .md so that

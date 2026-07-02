@@ -54,8 +54,8 @@ describe("scenarios catalog", () => {
   });
 
   // Drift gate: a scenario file added to disk but not registered here is
-  // invisible to `pome scenarios` and `pome init`. Fail loudly so the catalog
-  // stays the single source of truth (FDRS-624).
+  // invisible to `pome scenarios`. Fail loudly so the catalog stays the single
+  // source of truth for the bundled scenario library (FDRS-624).
   it("every bundled scenario .md file is registered in the catalog", () => {
     const onDisk = readdirSync(bundledScenariosDir)
       .filter((f) => f.endsWith(".md"))

@@ -6,6 +6,7 @@ name: quickstart-smoke
 on:
   pull_request:
     paths:
+      - 'README.md'
       - 'examples/triage-agent/**'
       - 'packages/adapter-claude-sdk/**'
       - 'docker-compose.yml'
@@ -46,6 +47,7 @@ jobs:
   # throwaway value. `packages: read` + a ghcr login let `docker compose pull`
   # fetch the twin image (private until the OSS launch).
   smoke:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

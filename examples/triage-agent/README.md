@@ -10,8 +10,8 @@ This is the example referenced in the README quickstart and the demo video
 
 ## Prerequisites
 
-- A running Pome twin on `http://127.0.0.1:3333` — the easiest way is the
-  repo-root `docker compose up` from `FDRS-248`. The twin auto-generates a
+- A running Pome twin on `http://127.0.0.1:3333` — the easiest way is
+  `docker compose up` from the repo root. The twin auto-generates a
   bearer secret at `<repo-root>/.pome-data/github/secret` on first run.
 - `bun >= 1.3.0` and `node >= 20`.
 - An Anthropic API key for the agent loop. BYOK via `ANTHROPIC_API_KEY`.
@@ -58,9 +58,9 @@ via env (`POME_GITHUB_MCP_URL`, `POME_AUTH_TOKEN`, `POME_TASK`):
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# from this directory, with the CLI repo checked out beside `pome`
-bun run --cwd ../../../cli dev -- run \
-  ../pome/examples/triage-agent/01-triage-acme-issues.md \
+# from this directory, with the CLI at ../../cli
+bun run --cwd ../../cli dev -- run \
+  ../examples/triage-agent/01-triage-acme-issues.md \
   --agent "bun run --cwd $(pwd) start"
 ```
 

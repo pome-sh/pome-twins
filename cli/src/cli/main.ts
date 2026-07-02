@@ -34,7 +34,7 @@ import { runMatrixHtmlCommand, type MatrixHtmlOptions } from "./matrix-html.js";
 import { runEvalReportCommand, type EvalReportOptions } from "./eval-report.js";
 import { runSkillsInstall } from "./skills.js";
 import {
-  SCENARIO_TWINS,
+  findTwin,
   runnableScenarios,
 } from "./scenarios-catalog.js";
 import {
@@ -156,7 +156,7 @@ export function createProgram() {
         "\n" +
         "Optional follow-ups:\n" +
         "  - pome init --sdk claude         # scaffold a Claude Agent SDK starter (gated on @pome-sh/adapter-claude-sdk npm publish — see Stage 1)\n" +
-        "  - pome scenarios stripe --copy   # add Stripe scenarios once the Stripe twin lands (Stage 2)\n" +
+        "  - pome scenarios stripe --copy   # add Stripe payment scenarios when needed\n" +
         "\n" +
         "See `pome docs getting-started` for a narrative walkthrough.";
 
@@ -1018,9 +1018,10 @@ async function copyStarterScenarios(packageRoot: string) {
   const scenarioDir = join(packageRoot, "scenarios");
   if (!existsSync(scenarioDir)) return;
 
-  const starterScenarios = SCENARIO_TWINS.flatMap((twin) =>
-    runnableScenarios(twin).map((s) => s.filename),
-  );
+  const starterTwin = findTwin("github");
+  const starterScenarios = starterTwin
+    ? runnableScenarios(starterTwin).map((s) => s.filename)
+    : [];
 
   await mkdir("scenarios", { recursive: true });
   await Promise.all(

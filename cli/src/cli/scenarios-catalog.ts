@@ -2,13 +2,12 @@
 /**
  * Catalog of scenarios bundled with the CLI, grouped by twin.
  *
- * Single source of truth for `pome scenarios` (browse + copy) and
- * `pome init` (initial scaffold). When adding a new scenario file
- * under `scenarios/`, append it here so both commands pick it up.
+ * Single source of truth for `pome scenarios` (browse + copy). `pome init`
+ * uses the GitHub twin entries from this catalog as its starter scaffold while
+ * Stripe/Slack scenarios remain opt-in via `pome scenarios <twin> --copy`.
  *
  * `runnable: false` marks a seed-only reference document (not a scenario
- * to execute) — `pome scenarios <twin>` and `pome init` skip these for
- * the local copy.
+ * to execute) — copy commands skip these.
  */
 export interface CatalogScenario {
   filename: string;

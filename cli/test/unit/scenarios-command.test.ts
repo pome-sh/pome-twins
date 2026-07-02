@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../../src/cli/main.js";
+import {
+  findTwin,
+  runnableScenarios,
+} from "../../src/cli/scenarios-catalog.js";
 
 const originalCwd = process.cwd();
 const tempDirs: string[] = [];
@@ -54,6 +58,8 @@ describe("pome scenarios", () => {
 
     const out = captured.log.concat(captured.error).join("\n");
     expect(out.toLowerCase()).toContain("github");
+    expect(out.toLowerCase()).toContain("stripe");
+    expect(out.toLowerCase()).toContain("slack");
   });
 
   it("lists runnable github scenarios and omits the seed", async () => {
@@ -68,6 +74,20 @@ describe("pome scenarios", () => {
     expect(out).toContain("04-judge-context.md");
     expect(out).toContain("05-github-identity-spoof.md");
     expect(out).not.toContain("00-default-seed.md");
+  });
+
+  it("lists runnable stripe and slack scenarios", async () => {
+    await inTempDir();
+    const captured = captureConsole();
+
+    await createProgram().parseAsync(["node", "pome", "scenarios", "stripe"]);
+    await createProgram().parseAsync(["node", "pome", "scenarios", "slack"]);
+
+    const out = captured.log.concat(captured.error).join("\n");
+    expect(out).toContain("14-stripe-refund-retry.md");
+    expect(out).toContain("19-stripe-rerefund-persuasion.md");
+    expect(out).toContain("20-slack-exfiltration.md");
+    expect(out).toContain("21-slack-injection.md");
   });
 
   it("errors with a helpful hint on unknown twin", async () => {
@@ -86,7 +106,7 @@ describe("pome scenarios", () => {
     expect(out.toLowerCase()).toContain("github");
   });
 
-  it("--copy copies 4 runnable scenarios into ./scenarios/", async () => {
+  it("--copy copies the runnable github scenarios into ./scenarios/", async () => {
     const dir = await inTempDir();
     captureConsole();
 
@@ -99,11 +119,14 @@ describe("pome scenarios", () => {
     ]);
 
     const scenariosDir = join(dir, "scenarios");
-    expect(existsSync(join(scenariosDir, "01-bug-happy-path.md"))).toBe(true);
-    expect(existsSync(join(scenariosDir, "03-already-triaged.md"))).toBe(true);
-    expect(existsSync(join(scenariosDir, "04-judge-context.md"))).toBe(true);
-    expect(existsSync(join(scenariosDir, "05-github-identity-spoof.md"))).toBe(
-      true,
+    const githubTwin = findTwin("github");
+    expect(githubTwin).not.toBeNull();
+    const githubScenarios = runnableScenarios(githubTwin!);
+    for (const scenario of githubScenarios) {
+      expect(existsSync(join(scenariosDir, scenario.filename))).toBe(true);
+    }
+    expect(readdirSync(scenariosDir).filter((f) => f.endsWith(".md"))).toHaveLength(
+      githubScenarios.length,
     );
     expect(existsSync(join(scenariosDir, "00-default-seed.md"))).toBe(false);
 
@@ -121,6 +144,26 @@ describe("pome scenarios", () => {
     expect(existsSync(join(scenariosDir, "04-judge-context.seed.json"))).toBe(
       true,
     );
+  });
+
+  it("--copy copies non-github twin scenarios on demand", async () => {
+    const dir = await inTempDir();
+    captureConsole();
+
+    await createProgram().parseAsync([
+      "node",
+      "pome",
+      "scenarios",
+      "stripe",
+      "--copy",
+    ]);
+
+    const scenariosDir = join(dir, "scenarios");
+    expect(existsSync(join(scenariosDir, "14-stripe-refund-retry.md"))).toBe(true);
+    expect(existsSync(join(scenariosDir, "19-stripe-rerefund-persuasion.md"))).toBe(
+      true,
+    );
+    expect(existsSync(join(scenariosDir, "01-bug-happy-path.md"))).toBe(false);
   });
 
   it("--copy preserves existing files (no overwrite without --force)", async () => {

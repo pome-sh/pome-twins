@@ -12,7 +12,6 @@ afterEach(() => {
 
 describe("secretCandidatePaths", () => {
   it("includes the per-twin github secret path (the compose default)", () => {
-    delete process.env.POME_TWIN;
     delete process.env.POME_DATA_SECRET_PATH;
     const paths = secretCandidatePaths();
     expect(paths.some((p) => p.endsWith(".pome-data/github/secret"))).toBe(true);
