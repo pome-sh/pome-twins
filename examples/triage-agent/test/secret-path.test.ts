@@ -29,11 +29,10 @@ describe("secretCandidatePaths", () => {
     expect(paths.some((p) => p.endsWith(".pome-data/secret"))).toBe(true);
   });
 
-  it("honors POME_TWIN for the highest-priority candidate", () => {
-    process.env.POME_TWIN = "stripe";
+  it("probes the github (target twin) secret before other twins", () => {
     const paths = secretCandidatePaths();
-    const firstPerTwin = paths.find((p) => /\.pome-data\/\w+\/secret$/.test(p));
-    expect(firstPerTwin?.endsWith(".pome-data/stripe/secret")).toBe(true);
+    const perTwin = paths.filter((p) => /\.pome-data\/\w+\/secret$/.test(p));
+    expect(perTwin[0]?.endsWith(".pome-data/github/secret")).toBe(true);
   });
 
   it("puts an explicit POME_DATA_SECRET_PATH first", () => {

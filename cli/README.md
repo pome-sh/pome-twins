@@ -262,7 +262,7 @@ exit code.
 | `0` | All scenarios passed (hosted/scored run), or trace captured (`--local`, not scored). |
 | `1` | At least one scenario scored below threshold. |
 | `2` | Twin or runner error (network, 5xx, twin spawn failed). |
-| `3` | Auth error (401/403). Re-run `pome login`. |
+| `3` | Auth error (401/403) — re-run `pome login`; also a `--local` agent that failed to start or timed out (see the note above). |
 | `4` | Quota exceeded. |
 | `5` | Usage error (bad flags, missing files). |
 

@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: quickstart-smoke-${{ github.workflow }}-${{ github.ref }}
+  group: quickstart-smoke-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -29,6 +29,10 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.10
+      # Root install first: the example's `file:` adapter dep resolves its own
+      # @anthropic-ai/claude-agent-sdk from the workspace node_modules, so the
+      # module import in the test succeeds.
+      - run: bun install --frozen-lockfile
       - name: Secret-path unit test
         working-directory: examples/triage-agent
         run: |
@@ -37,16 +41,27 @@ jobs:
 
   # End-to-end: compose up the GitHub twin, then run the agent in PREFLIGHT
   # mode (POME_PREFLIGHT=1) — it resolves the on-disk secret, mints a JWT, and
-  # hits the twin's /healthz, then exits 0. No ANTHROPIC_API_KEY required.
+  # probes the twin's /tools with that token, then exits 0. That path never
+  # calls Claude, but the code asserts ANTHROPIC_API_KEY is set, so we pass a
+  # throwaway value. `packages: read` + a ghcr login let `docker compose pull`
+  # fetch the twin image (private until the OSS launch).
   smoke:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.10
+      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Root install so the example's adapter dep resolves (see the unit job).
+      - run: bun install --frozen-lockfile
       - name: Start the GitHub twin
         run: docker compose up -d twin-github
       - name: Wait for the twin secret + health
@@ -64,6 +79,9 @@ jobs:
         working-directory: examples/triage-agent
         env:
           POME_PREFLIGHT: "1"
+          # preflight probes the twin only; it never calls Claude in this mode,
+          # but index.ts asserts the key is present, so a placeholder suffices.
+          ANTHROPIC_API_KEY: "sk-ant-preflight-not-used"
         run: |
           bun install
           bun run start

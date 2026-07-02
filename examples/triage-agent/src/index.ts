@@ -42,8 +42,6 @@ import { query, tool, withPome } from "@pome-sh/adapter-claude-sdk";
 import { sign } from "hono/jwt";
 import { z } from "zod";
 
-withPome();
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const TWIN_BASE_URL = process.env.POME_TWIN_BASE_URL ?? "http://127.0.0.1:3333";
@@ -75,6 +73,9 @@ const TASK = process.env.POME_TASK?.trim() || DEFAULT_TASK;
 // on `import.meta.main` keeps the module importable — e.g. by the secret-path
 // unit test — without kicking off a full agent run on import.
 if (import.meta.main) {
+  // Install the pome fetch-hook only for a real run — keeps the module free of
+  // import-time side effects (the secret-path unit test imports it).
+  withPome();
   await main();
 }
 
@@ -264,11 +265,12 @@ async function resolveAuthToken(): Promise<string> {
 // exported) as fallbacks. From this file the repo root is three levels up.
 export function secretCandidatePaths(): string[] {
   const explicit = process.env.POME_DATA_SECRET_PATH;
-  const twin = process.env.POME_TWIN?.trim() || "github";
   const repoRoot = resolve(__dirname, "../../..");
   const bases = [repoRoot, process.cwd()];
+  // This agent targets the GitHub twin, so its secret is probed first; the other
+  // twins + the legacy flat layout are fallbacks. (The twin target is fixed, so
+  // there's no knob to pick a different twin's secret and mint a mismatched JWT.)
   const relatives = [
-    `.pome-data/${twin}/secret`,
     ".pome-data/github/secret",
     ".pome-data/stripe/secret",
     ".pome-data/slack/secret",
