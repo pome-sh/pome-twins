@@ -28,9 +28,12 @@ if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
   exit 2
 fi
 
-# Was anything in cli/src/ or cli/vendor/ touched?
-if ! git diff --name-only --diff-filter=ACMRT "$BASE_REF"...HEAD \
-   | grep -qE '^cli/(src|vendor)/'; then
+# Was anything in cli/src/ or cli/vendor/ touched? Include deletions (D): dropping
+# a vendored tarball (a bundleDependencies entry) is a shipping behavior change too.
+# Capture to a variable first so that under `set -o pipefail` a grep-closed-pipe
+# SIGPIPE on `git diff` can't be misread as "no changes" and silently skip the gate.
+changed_files="$(git diff --name-only --diff-filter=ACMRTD "$BASE_REF"...HEAD)"
+if ! grep -qE '^cli/(src|vendor)/' <<<"$changed_files"; then
   echo "✅ No changes under cli/src/ or cli/vendor/; CLI version-bump gate skipped."
   exit 0
 fi
