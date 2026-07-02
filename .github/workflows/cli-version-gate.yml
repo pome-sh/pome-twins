@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'cli/src/**'
+      - 'cli/vendor/**'
       - 'cli/package.json'
       - 'cli/.changeset/**'
       - 'scripts/check-cli-version-bump.sh'
@@ -14,7 +15,7 @@ concurrency:
 
 jobs:
   check:
-    name: cli/src/** must bump version or add a changeset
+    name: cli/src/** or cli/vendor/** must bump version or add a changeset
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Fails (exit 1) if a PR touches `cli/src/**` without either:
+# Fails (exit 1) if a PR touches `cli/src/**` or `cli/vendor/**` without either:
 #   (a) a new changeset file under `cli/.changeset/*.md` (excluding README), OR
 #   (b) a bump to `cli/package.json` version vs the base branch.
 #
 # Purpose: prevent the failure mode behind PR #93, where behavior changes
 # shipped without a version bump so downstream users couldn't tell via
 # `pome --version` whether their install picked up the new code. See FDRS-396.
+#
+# `cli/vendor/**` is covered because the CLI bundles vendored tarballs
+# (@pome-sh/correlator, @pome-sh/shared-types, and — post-consolidation —
+# the twin packages) via `bundleDependencies`. Re-vendoring a tarball is a
+# behavior change that ships to users, yet touches no file under cli/src/**;
+# without this the gate is silent on twin swaps. See FDRS-593.
 #
 # Usage:
 #   BASE_REF=origin/main scripts/check-cli-version-bump.sh
@@ -22,10 +28,10 @@ if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
   exit 2
 fi
 
-# Was anything in cli/src/ touched?
+# Was anything in cli/src/ or cli/vendor/ touched?
 if ! git diff --name-only --diff-filter=ACMRT "$BASE_REF"...HEAD \
-   | grep -qE '^cli/src/'; then
-  echo "✅ No changes under cli/src/; CLI version-bump gate skipped."
+   | grep -qE '^cli/(src|vendor)/'; then
+  echo "✅ No changes under cli/src/ or cli/vendor/; CLI version-bump gate skipped."
   exit 0
 fi
 
@@ -61,7 +67,7 @@ fi
 cat >&2 <<EOF
 ❌ CLI version-bump gate failed.
 
-This PR touches cli/src/** but neither:
+This PR touches cli/src/** or cli/vendor/** but neither:
   (a) added a changeset file under cli/.changeset/, NOR
   (b) bumped cli/package.json version (still $head_version on both sides).
 
