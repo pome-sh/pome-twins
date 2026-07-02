@@ -11,6 +11,13 @@ describe("redaction mirror — provider secret shapes", () => {
     expect(out.note).toContain("[REDACTED]");
   });
 
+  it("redacts short Pome Stripe secret and restricted seed keys", () => {
+    const secretKey = "sk_test_pome_a";
+    const restrictedKey = "rk_test_pome_default";
+    const out = redactSecrets(`${secretKey} ${restrictedKey}`) as string;
+    expect(out).toBe("[REDACTED] [REDACTED]");
+  });
+
   it("redacts live Stripe secret keys", () => {
     const key = "sk_live_" + "51H".repeat(8);
     const out = redactSecrets(key) as string;
@@ -42,6 +49,9 @@ describe("redaction mirror — provider secret shapes", () => {
   it("does not over-redact benign lookalikes", () => {
     expect(redactSecrets({ msg: "task_test_pipeline_default" })).toEqual({
       msg: "task_test_pipeline_default",
+    });
+    expect(redactSecrets({ msg: "task-management-service-endpoint-handler" })).toEqual({
+      msg: "task-management-service-endpoint-handler",
     });
     expect(redactSecrets("The sky is blue and skills matter.")).toBe(
       "The sky is blue and skills matter.",

@@ -147,10 +147,11 @@ export function createGitHubCloneApp(options: GitHubCloneAppOptions = {}) {
   session.put("/repos/:owner/:repo/contents/*", (c) => handle(c, recorder, runId, async () => {
     const body = contentSchema.parse(await readJson(c));
     const args = { ...params(c), path: contentPath(c), ...body };
-    const { value, delta } = captureDelta((onDelta) => domain.createOrUpdateFile(args, {}, onDelta));
+    const actor = sessionFrom(c).login;
+    const { value, delta } = captureDelta((onDelta) => domain.createOrUpdateFile(args, { actor }, onDelta));
     // GitHub returns 201 Created for a new file, 200 OK for an update
     // (FDRS-596). `before: null` delta = insert (see packages/twin-github).
-    const status = delta?.before == null ? 201 : 200;
+    const status = delta !== null && delta.before === null ? 201 : 200;
     return { status, body: value, mutation: true, stateDelta: delta };
   }));
   session.get("/repos/:owner/:repo/commits", (c) => handle(c, recorder, runId, () => ok(domain.listCommits({ ...params(c), sha: c.req.query("sha"), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));

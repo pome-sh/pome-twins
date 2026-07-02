@@ -90,6 +90,15 @@ describe("redactEvent — provider secret shapes (FDRS-588 / FDRS-608)", () => {
     expect(out.note).toContain("[REDACTED]");
   });
 
+  it("redacts short Pome Stripe secret and restricted seed keys", () => {
+    const secretKey = "sk_test_pome_a";
+    const restrictedKey = "rk_test_pome_default";
+    const out = redactEvent({ note: `${secretKey} ${restrictedKey}` }) as { note: string };
+    expect(out.note).not.toContain(secretKey);
+    expect(out.note).not.toContain(restrictedKey);
+    expect(out.note).toBe("[REDACTED] [REDACTED]");
+  });
+
   it("redacts live Stripe secret keys (sk_live_...)", () => {
     const key = "sk_live_" + "51H".repeat(8);
     const out = redactEvent({ note: `key=${key}` }) as { note: string };
@@ -137,6 +146,10 @@ describe("redactEvent — provider secret shapes (FDRS-588 / FDRS-608)", () => {
     // A prose sentence with an apiVersion string stays intact.
     expect(redactEvent({ msg: "The sky is blue and skills matter." })).toEqual({
       msg: "The sky is blue and skills matter.",
+    });
+    // `sk-` redaction must not eat the "sk-" suffix inside ordinary slugs.
+    expect(redactEvent({ msg: "task-management-service-endpoint-handler" })).toEqual({
+      msg: "task-management-service-endpoint-handler",
     });
   });
 });

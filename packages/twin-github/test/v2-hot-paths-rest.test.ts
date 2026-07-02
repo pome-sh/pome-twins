@@ -78,6 +78,9 @@ describe("REST / cluster A — branches & files", () => {
       commit: { message: "drop" },
       author: { login: "alice" }
     });
+
+    const recreate = await jsonReq(a, "PUT", "/repos/acme/api/contents/del.txt", { message: "re-add", content: "y\n" }, aliceToken);
+    expect(recreate.status).toBe(201);
   });
 
   it("DELETE default branch returns 422", async () => {
@@ -106,6 +109,15 @@ describe("REST / cluster B — commits & diffs", () => {
     const sha = (create.body as { content: { sha: string } }).content.sha;
     const update = await jsonReq(a, "PUT", "/repos/acme/api/contents/newfile.ts", { message: "update", content: "2\n", sha });
     expect(update.status).toBe(200);
+
+    const seeded = await jsonReq(a, "GET", "/repos/acme/api/contents/README.md");
+    const seededSha = (seeded.body as { sha: string }).sha;
+    const seededUpdate = await jsonReq(a, "PUT", "/repos/acme/api/contents/README.md", {
+      message: "update seeded file",
+      content: "# Acme API\n\nUpdated.\n",
+      sha: seededSha
+    });
+    expect(seededUpdate.status).toBe(200);
   });
 
   it("GET /compare/:base...:head returns status + commits", async () => {

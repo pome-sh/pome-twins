@@ -94,14 +94,15 @@ export async function runScenario(options: RunScenarioOptions) {
   if (captureServer) options.onCaptureServerSpawned?.(captureServer.pid);
 
   const twinName = scenario.config.twins[0] ?? "github";
+  const port = await getAvailablePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
   const harness = await bootTwin({
     twin: twinName,
     seedState: scenario.seedState,
     runId,
+    twinBaseUrl: baseUrl,
   });
   const stateInitial = await harness.exportState();
-  const port = await getAvailablePort();
-  const baseUrl = `http://127.0.0.1:${port}`;
 
   const sid = runId;
   const authSecret = process.env.TWIN_AUTH_SECRET ?? randomBytes(32).toString("hex");

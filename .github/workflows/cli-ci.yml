@@ -3,11 +3,13 @@ on:
   pull_request:
     paths:
       - 'cli/**'
+      - 'packages/twin-stripe/**'
       - '.github/workflows/cli-ci.yml'
   push:
     branches: [main]
     paths:
       - 'cli/**'
+      - 'packages/twin-stripe/**'
       - '.github/workflows/cli-ci.yml'
   workflow_dispatch:
 

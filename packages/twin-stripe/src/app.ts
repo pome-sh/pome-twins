@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Twin-stripe Hono app. AGENT-A owns the chassis and exports `sessionRouter`
 // (a Hono sub-app already mounted under `/s/:sid`) for AGENT-B and AGENT-C
-// to extend with the 12 v1 routes and the `/x402/*` middleware respectively.
+// to extend with the Stripe REST, MCP, and x402 routes.
 //
 // Important wiring contracts:
 //   - bearerAuth() runs at the session level; downstream code can read
@@ -54,8 +54,7 @@ export type TwinStripeAppOptions = {
    * can register routes. Runs after auth + idempotency middleware are
    * installed and after the `mcp/*` and `_pome/{health,events}` routes
    * are mounted, but BEFORE `/_pome/state` and BEFORE the catch-all 501.
-   * AGENT-B uses this to mount the 12 v1 routes; AGENT-C uses it to
-   * mount the x402 paymentMiddleware demo routes.
+   * Embedders use this to mount the Stripe REST, MCP, and x402 routes.
    *
    * Returning a `stateProvider` from this hook lets the domain agent
    * supply the body for `GET /_pome/state` (F4). When omitted, the

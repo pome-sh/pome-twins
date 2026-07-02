@@ -11,6 +11,8 @@ export { StripeDomain } from "./domain/index.js";
 export { applySeed, defaultSeed, parseSeed, loadSeedFromEnv } from "./seed.js";
 export { createFailureInjectionStore } from "./failure-injection.js";
 export { registerStripeRoutes } from "./routes/index.js";
+export { registerStripeSessionRoutes } from "./session.js";
+export type { RegisterStripeSessionRoutesOptions } from "./session.js";
 export { listTools, executeTool, isMutatingTool, toolDefinitions } from "./tools.js";
 export { handleMcpRequest, mcpMethodNotAllowed } from "./mcp.js";
 export { createRecorder } from "./recorder.js";

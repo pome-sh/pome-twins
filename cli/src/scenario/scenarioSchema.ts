@@ -14,11 +14,9 @@ export const scenarioConfigSchema = z.object({
   passThreshold: z.number().min(0).max(100).default(100)
 });
 
-// FDRS-339: scenario-level failure injection. Mirrors the
-// `failureInjectionRuleSchema` in `@pome-sh/twin-stripe`. Kept local so the
-// CLI doesn't pull a runtime dep on the twin package (the twin package is a
-// runnable service, not a library — coupling the CLI parser to it would be
-// the wrong direction).
+// FDRS-339: scenario-level failure injection. Mirrors the packaged
+// twin-stripe `failureInjectionRuleSchema` without importing it into the
+// parser, so scenario validation stays decoupled from twin boot/runtime code.
 export const stripeFailureInjectionRuleSchema = z.object({
   method: z.string().min(1),
   path: z.string().min(1),

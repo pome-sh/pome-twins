@@ -12,7 +12,7 @@ Thanks for your interest! This document covers the developer workflow for the `p
 ```bash
 git clone https://github.com/pome-sh/cli.git
 cd cli
-bun install        # or: npm install
+bun install
 bun run build      # produces dist/
 ```
 
@@ -32,7 +32,7 @@ bun run test:e2e     # end-to-end tests
 bun run build        # full publishable build
 ```
 
-CI runs all four on Node 20 + 22 × macOS + Linux. PRs are gated on green CI.
+CI runs typecheck, build, tests, and vendor verification. PRs are gated on green CI.
 
 ## Pull requests
 
@@ -47,7 +47,9 @@ CI runs all four on Node 20 + 22 × macOS + Linux. PRs are gated on green CI.
 - `src/runner/`: scenario execution (local + hosted).
 - `src/hosted/`: control-plane HTTP client.
 - `src/evaluator/`: deterministic + probabilistic scoring.
-- `src/twin/` and `src/twin-github/`: digital-twin implementations.
+- `src/twin/`: local twin boot harness.
+- `src/twin-github/` and `src/twin-slack/`: local twin mirrors not yet consolidated.
+- `vendor/`: tarballs bundled into the published CLI, including the packaged Stripe twin. After changing `packages/twin-stripe/**`, rebuild the package tarball, replace `vendor/pome-sh-twin-stripe-0.1.0.tgz`, and update `scripts/verify-vendor.mjs`.
 - `scenarios/`: bundled starter scenarios shipped with the package.
 - `examples/`: example agent implementations.
 - `scripts/`: build-only helpers (not published).

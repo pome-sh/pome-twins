@@ -171,7 +171,7 @@
 
     "@pome-sh/shared-types": ["@pome-sh/shared-types@./vendor/pome-sh-shared-types-0.3.0.tgz", { "peerDependencies": { "zod": "^4.1.13" } }, "sha512-DGJE0jDum9kc0EQBzrS9zdqOl6rmUUyfkF42KGp2mplpSb4DbPEbUQ9ltIrbUSwmYCxeRkiGJxr59+s2O6+xYQ=="],
 
-    "@pome-sh/twin-stripe": ["@pome-sh/twin-stripe@./vendor/pome-sh-twin-stripe-0.1.0.tgz", { "dependencies": { "@hono/node-server": "^1.19.6", "@pome-sh/shared-types": "0.3.0", "better-sqlite3": "^12.5.0", "hono": "^4.10.7", "zod": "^4.1.13" }, "bin": { "twin-stripe": "./dist/src/server.js" } }, "sha512-wvknkKeh967Ll+as9hNydb5E6XcZKOVTvFD5IU8h5uvJ+ElQSSI9KRDgEvl2Qi9mv22pabUfMDNXrRLsLWEupw=="],
+    "@pome-sh/twin-stripe": ["@pome-sh/twin-stripe@./vendor/pome-sh-twin-stripe-0.1.0.tgz", { "dependencies": { "@hono/node-server": "^1.19.6", "@pome-sh/shared-types": "0.3.0", "better-sqlite3": "^12.5.0", "hono": "^4.10.7", "zod": "^4.1.13" }, "bin": { "twin-stripe": "./dist/src/server.js" } }, "sha512-3stTX9MArMXBUURlE4+vlxrC2wlQB75FDJ3/S+lDOhzSyE1caVBWk8JKb6bn1QBZ20tmXORpFxp7IPt9T/zJHQ=="],
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.0.0", "", { "os": "android", "cpu": "arm64" }, "sha512-TWMZnRLMe63C2Lhyicviu7ZHaU4kxa6PS3rofvc9GmcvptzNN11BcfQ4Sl7MwTOsisQoa2keB/EBdNCAnUo8vA=="],
 

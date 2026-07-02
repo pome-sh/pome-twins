@@ -188,7 +188,7 @@ export function createGitHubCloneApp(options: GitHubCloneAppOptions = {}) {
     // OK when an existing file is updated (FDRS-596). The domain reports a
     // `before: null` delta for an insert (documented convention in
     // shared-types' stateDeltaSchema).
-    const status = delta?.before == null ? 201 : 200;
+    const status = delta !== null && delta.before === null ? 201 : 200;
     return { status, body: value, mutation: true, stateDelta: delta };
   }));
   session.get("/repos/:owner/:repo/commits", (c) => handle(c, recorder, runId, () => ok(domain.listCommits({ ...params(c), sha: c.req.query("sha"), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));

@@ -40,15 +40,16 @@ const HARD_REDACT_KEYS = new Set([
 ]);
 
 // `sk-...` covers OpenAI + Anthropic (`sk-ant-...`) + variants like `sk-proj-`.
-// `sk_(test|live)_...` covers Stripe secret keys (FDRS-588) — a shorter body
-// threshold than the `pk`/`rk` rule below because seed keys like
-// `sk_test_pome_default` are only a dozen chars past the prefix.
+// The leading boundary avoids mangling benign kebab-case words ending in "sk".
+// `(s|r)k_(test|live)_...` covers Stripe secret/restricted keys (FDRS-588) —
+// a shorter body threshold than the `pk`/`rk` rule below because seed keys like
+// `sk_test_pome_a` are only a few chars past the prefix.
 // `xapp-...` is a Slack app-level token; `AIza...` is a Google API key
 // (FDRS-608). `g` flag matters: a single string may contain multiple secrets.
 const SCRUB_PATTERNS: RegExp[] = [
   /redaction_fixture_secret_[A-Za-z0-9_-]{8,}/g,
-  /sk-[A-Za-z0-9_-]{20,}/g,
-  /\bsk_(?:test|live)_[A-Za-z0-9_]{8,}/g,
+  /\bsk-[A-Za-z0-9_-]{20,}/g,
+  /\b[rs]k_(?:test|live)_[A-Za-z0-9_]{4,}/g,
   /ghp_[A-Za-z0-9]{36}/g,
   /github_pat_[A-Za-z0-9_]{20,}/g,
   /xox[aboprs]-[A-Za-z0-9-]{20,}/g,

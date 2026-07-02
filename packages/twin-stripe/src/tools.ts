@@ -2,7 +2,7 @@
 //
 // MCP tool definitions. Owned by AGENT-B.
 //
-// 12 tools, names mirroring stripe-node — `create_payment_intent`,
+// Tool names mirror stripe-node — `create_payment_intent`,
 // `retrieve_charge`, `list_events`, etc. Same shape as twin-github's
 // tools.ts so the MCP wrapper in app.ts (AGENT-A) just works:
 // `executeTool(domain, name, args)` and `listTools()`.

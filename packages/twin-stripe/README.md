@@ -137,7 +137,7 @@ Either way, the resolved session id must match the `:sid` in the URL.
 
 ## MCP
 
-12 tools available at `GET /s/:sid/mcp/tools`. Tool names match
+15 tools available at `GET /s/:sid/mcp/tools`. Tool names match
 `stripe-node` method names so an agent's mental model translates 1:1:
 
 ```
@@ -153,6 +153,9 @@ retrieve_balance
 list_balance_transactions
 retrieve_event
 list_events
+create_refund
+retrieve_refund
+list_refunds
 ```
 
 Call shapes:

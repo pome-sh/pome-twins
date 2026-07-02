@@ -39,10 +39,9 @@ import {
   listTools as listStripeTools,
   openTwinStripeDatabase,
   parseSeed as parseStripeSeed,
-  registerStripeRoutes,
+  registerStripeSessionRoutes,
   StripeDomain,
 } from "@pome-sh/twin-stripe";
-import type { ResolvedSession } from "@pome-sh/twin-stripe";
 
 // The account every local Stripe scenario seeds under. The runner mints a JWT
 // whose `account_id` claim matches this, so `exportState` and the session
@@ -79,6 +78,7 @@ export async function bootTwin(opts: {
   twin: string;
   seedState: unknown;
   runId: string;
+  twinBaseUrl?: string;
 }): Promise<TwinHarness> {
   const recorder = createRecorder();
 
@@ -143,11 +143,12 @@ export async function bootTwin(opts: {
         failureInjection,
         toolCount: listStripeTools().length,
         extendSession: (session) => {
-          registerStripeRoutes(session, domain, stripeRecorder, opts.runId);
-          return {
-            stateProvider: (_c, sess: ResolvedSession | undefined) =>
-              domain.exportState(sess?.account_id ?? STRIPE_LOCAL_ACCOUNT_ID),
-          };
+          return registerStripeSessionRoutes(session, {
+            domain,
+            recorder: stripeRecorder,
+            runId: opts.runId,
+            twinBaseUrl: opts.twinBaseUrl ?? "http://127.0.0.1:3333",
+          });
         },
       }) as TwinHarness["app"];
       return {

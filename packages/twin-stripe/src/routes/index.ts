@@ -3,7 +3,7 @@
 // Route registration surface. Owned by AGENT-B.
 //
 // `registerStripeRoutes(sessionRouter, domain, recorder, runId)` registers
-// the 12 v1 REST routes + the MCP tool routes + a loud 501 catch-all on
+// the Stripe REST routes + the MCP tool routes + a loud 501 catch-all on
 // the given Hono router. AGENT-A's `app.ts` calls this once after wiring
 // auth and the database.
 //
