@@ -399,6 +399,7 @@ export async function runScenarioHosted(
     //    cloud builds (pre-Session A) omit the field; default to an empty
     //    array — the fix-prompt action still bails cleanly when results
     //    are missing.
+    const hasCriteriaResults = finalized.criteria_results !== undefined;
     const results = finalized.criteria_results ?? [];
     const passed = results.filter((r) => outcomeOf(r) === "passed").length;
     const failed = results.filter((r) => outcomeOf(r) === "failed").length;
@@ -408,10 +409,13 @@ export async function runScenarioHosted(
     // A1 CAVEAT (FDRS-618): `satisfaction` here is the CLOUD-authoritative
     // score (`finalized.score`) — the hosted judge does NOT yet implement the
     // FDRS-591/611 outcome semantics, so `evaluated`/`can_pass` are derived
-    // locally from the returned per-criterion results only for LOCAL rendering
-    // (`pome inspect`) and can disagree with the cloud verdict until FDRS-618
-    // adopts the same model cloud-side. The hosted exit-code decision below
-    // deliberately stays on the cloud score, not the local A5 guard.
+    // locally only when /finalize returns per-criterion results. Older cloud
+    // builds omit `criteria_results`; for those, preserve the cloud score as
+    // renderable instead of inventing an empty local A5 verdict. When results
+    // are present, local rendering (`pome run` / `pome inspect`) can still
+    // disagree with the cloud exit code until FDRS-618 adopts the same model
+    // cloud-side. The hosted exit-code decision below deliberately stays on the
+    // cloud score, not the local A5 guard.
     const score: Score = {
       satisfaction: finalized.score,
       passed,
@@ -419,8 +423,8 @@ export async function runScenarioHosted(
       skipped,
       errored,
       total_required: totalRequired,
-      evaluated: totalRequired > 0,
-      can_pass: totalRequired > 0 && skipped === 0 && errored === 0,
+      evaluated: hasCriteriaResults ? totalRequired > 0 : true,
+      can_pass: hasCriteriaResults ? totalRequired > 0 && skipped === 0 && errored === 0 : true,
       results,
       judge_model: finalized.judge_model ?? null,
       judge_tokens_in: null,

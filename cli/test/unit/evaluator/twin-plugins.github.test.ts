@@ -383,7 +383,7 @@ describe("github plugin — other historical branches", () => {
     expect(result.passed).toBe(true);
   });
 
-  it("returns fail with 'Pome does not know' for criterion text it cannot match", () => {
+  it("returns skipped with 'Pome does not know' for criterion text it cannot match", () => {
     const result = githubPlugin.evaluate(
       { type: "D", text: "the weather is sunny" },
       { repositories: [] },
@@ -391,7 +391,8 @@ describe("github plugin — other historical branches", () => {
       noEvents,
     );
     expect(result.passed).toBe(false);
-    expect(result.skipped).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.outcome).toBe("skipped");
     expect(result.reason).toContain("Pome does not know");
   });
 });
