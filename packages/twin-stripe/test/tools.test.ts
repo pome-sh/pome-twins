@@ -10,32 +10,35 @@ import { toolDefinitions } from "../src/tools.js";
 const TOOL_NAMES = toolDefinitions.map((t) => t.name);
 
 describe("MCP tools", () => {
-  it("listTools returns 12 tools", async () => {
+  it("listTools returns 15 tools", async () => {
     const app = await createStripeApp();
     const tools = await rest(app, "GET", "/mcp/tools");
     expect(tools.status).toBe(200);
-    expect(tools.body.tools).toHaveLength(12);
+    expect(tools.body.tools).toHaveLength(15);
     const names = tools.body.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
       [
         "cancel_payment_intent",
         "confirm_payment_intent",
         "create_payment_intent",
+        "create_refund",
         "list_balance_transactions",
         "list_charges",
         "list_events",
         "list_payment_intents",
+        "list_refunds",
         "retrieve_balance",
         "retrieve_charge",
         "retrieve_event",
         "retrieve_payment_intent",
+        "retrieve_refund",
         "simulate_crypto_deposit",
       ].sort()
     );
   });
 
   it("every tool is callable through /mcp/call", async () => {
-    expect(TOOL_NAMES).toHaveLength(12);
+    expect(TOOL_NAMES).toHaveLength(15);
     for (const name of TOOL_NAMES) {
       const app = await createStripeApp();
       const args = await argsFor(app, name);
@@ -89,8 +92,18 @@ async function argsFor(
     case "list_charges":
     case "list_balance_transactions":
     case "list_events":
+    case "list_refunds":
     case "retrieve_balance":
       return {};
+    case "create_refund": {
+      const charge = await settleCharge(app);
+      return { charge };
+    }
+    case "retrieve_refund": {
+      const charge = await settleCharge(app);
+      const refund = await callTool(app, "create_refund", { charge });
+      return { id: refund.body.id };
+    }
     case "retrieve_payment_intent":
     case "confirm_payment_intent":
     case "cancel_payment_intent":
@@ -136,4 +149,22 @@ async function argsFor(
     default:
       return {};
   }
+}
+
+/** Mint a crypto-deposit PI and settle it, returning the settled charge id. */
+async function settleCharge(app: Awaited<ReturnType<typeof createStripeApp>>): Promise<string> {
+  const pi = await rest(app, "POST", "/v1/payment_intents", {
+    amount: 100,
+    currency: "usd",
+    payment_method_types: ["crypto"],
+    payment_method_options: {
+      crypto: { mode: "deposit", deposit_options: { networks: ["base"] } },
+    },
+  });
+  const settle = await rest(
+    app,
+    "POST",
+    `/v1/test_helpers/payment_intents/${pi.body.id}/simulate_crypto_deposit`
+  );
+  return settle.body.latest_charge as string;
 }

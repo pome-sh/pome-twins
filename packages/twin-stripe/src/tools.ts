@@ -123,6 +123,31 @@ export const toolDefinitions = [
     }),
   },
   {
+    name: "create_refund",
+    description:
+      "Refund a charge, fully or partially. Stripe refuses a refund on a charge that is already fully refunded, or one that would exceed the remaining refundable amount.",
+    schema: z.object({
+      charge: z.string().min(1),
+      amount: z.coerce.number().int().positive().optional(),
+      reason: z.string().optional(),
+    }),
+  },
+  {
+    name: "retrieve_refund",
+    description: "Retrieve a Refund by id.",
+    schema: z.object({ id: z.string().min(1) }),
+  },
+  {
+    name: "list_refunds",
+    description: "List refunds, optionally filtered by charge or payment_intent.",
+    schema: z.object({
+      ...limitShape,
+      ...createdRange,
+      charge: z.string().optional(),
+      payment_intent: z.string().optional(),
+    }),
+  },
+  {
     name: "retrieve_balance",
     description: "Retrieve the current balance (available + pending per currency).",
     schema: z.object({}).optional(),
@@ -169,6 +194,7 @@ export function isMutatingTool(name: string): boolean {
     "confirm_payment_intent",
     "cancel_payment_intent",
     "simulate_crypto_deposit",
+    "create_refund",
   ].includes(name);
 }
 
@@ -209,6 +235,14 @@ export function executeTool(
     case "list_charges": {
       const flat = flattenCreated(parsed);
       return domain.listCharges(accountId, { ...parsed, ...flat } as never);
+    }
+    case "create_refund":
+      return domain.createRefund(accountId, parsed as never).body;
+    case "retrieve_refund":
+      return domain.retrieveRefund(accountId, parsed.id as string);
+    case "list_refunds": {
+      const flat = flattenCreated(parsed);
+      return domain.listRefunds(accountId, { ...parsed, ...flat } as never);
     }
     case "retrieve_balance":
       return domain.retrieveBalance(accountId);

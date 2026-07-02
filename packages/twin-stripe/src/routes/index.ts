@@ -19,6 +19,7 @@ import type { StripeDomain } from "../domain/index.js";
 import type { Recorder } from "../types.js";
 import { unsupported } from "../errors.js";
 import { executeTool, isMutatingTool, listTools } from "../tools.js";
+import { handleMcpRequest, mcpMethodNotAllowed } from "../mcp.js";
 import { handle, ok, respond, accountId } from "./_helpers.js";
 import { registerPaymentIntentRoutes } from "./payment-intents.js";
 import { registerChargesRoutes } from "./charges.js";
@@ -39,6 +40,12 @@ export function registerStripeRoutes(
   runId: string
 ) {
   // MCP — registered before chassis stubs (extendSession runs first).
+  // JSON-RPC 2.0 streamable-HTTP endpoint (FDRS-528) — what the eval fleet's
+  // mcp-loop scaffold speaks. The legacy `/mcp/tools` + `/mcp/call` dispatch
+  // below stays for backward compat.
+  router.post("/mcp", (c) => handleMcpRequest(c, { domain, recorder, runId }));
+  router.get("/mcp", (c) => mcpMethodNotAllowed(c));
+  router.delete("/mcp", (c) => mcpMethodNotAllowed(c));
   router.get("/mcp/tools", (c) => c.json({ tools: listTools() }));
   router.post("/mcp/tools/:name", (c) =>
     handle(c, recorder, runId, async () => {
