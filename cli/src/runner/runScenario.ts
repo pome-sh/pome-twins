@@ -8,7 +8,8 @@ import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { bootTwin } from "../twin/twinHarness.js";
 import { getAvailablePort } from "./ports.js";
 import { runAgentCommand } from "./agentRunner.js";
-import { spawnCaptureServerChild } from "./captureServerChild.js";
+import { egressArgs, spawnCaptureServerChild } from "./captureServerChild.js";
+import { buildEgressAllowlist, readBlockedEgress, type BlockedEgress } from "../capture-server/egress.js";
 import { mergeAdapterSignalsIntoEvents } from "./mergeAdapterSignals.js";
 import { scoreAndWriteRun, writeRunNoScore } from "./runScenarioCore.js";
 
@@ -75,10 +76,20 @@ export async function runScenario(options: RunScenarioOptions) {
   // The agent inherits HTTP_PROXY/HTTPS_PROXY pointing at this child;
   // NO_PROXY keeps twin traffic out of the proxy so it isn't double-counted
   // as LlmCallEvent. FDRS-405: `noCapture` skips spawn + env injection.
+  //
+  // FDRS-635: the child enforces the deny-by-default egress floor. The
+  // allowlist is LLM providers + custom base-URL hosts + POME_EGRESS_ALLOW;
+  // the self-host twin lives on loopback, which the floor always allows.
+  // Refused CONNECTs land in the egress sidecar, read back after the run so
+  // the CLI can name the blocked hosts.
+  const egressAllowHosts = buildEgressAllowlist(process.env);
+  const egressJsonlPath = join(runDir, "egress.jsonl");
   const captureServer = options.noCapture
     ? null
     : await spawnCaptureServerChild({
         eventsOut: resolvePath(eventsJsonlPath),
+        allowHosts: egressAllowHosts,
+        egressOut: resolvePath(egressJsonlPath),
         execPath: options.captureServerCommand?.execPath,
         binArgs: options.captureServerCommand
           ? [
@@ -88,10 +99,20 @@ export async function runScenario(options: RunScenarioOptions) {
               "0",
               "--events-out",
               resolvePath(eventsJsonlPath),
+              ...egressArgs(egressAllowHosts, resolvePath(egressJsonlPath)),
             ]
           : undefined,
       });
   if (captureServer) options.onCaptureServerSpawned?.(captureServer.pid);
+
+  // Drain the capture-server (flushing any in-flight egress rows), then read
+  // back the refusals. Idempotent shutdown — the finally block's call is a
+  // no-op afterwards.
+  const collectBlockedEgress = async (): Promise<BlockedEgress[]> => {
+    if (!captureServer) return [];
+    await captureServer.shutdown();
+    return readBlockedEgress(egressJsonlPath);
+  };
 
   const twinName = scenario.config.twins[0] ?? "github";
   const port = await getAvailablePort();
@@ -185,7 +206,8 @@ export async function runScenario(options: RunScenarioOptions) {
       // exitCode would already be 3 here because preflight.exitCode !== 0, but be
       // explicit for clarity.
       void exitCode;
-      return { scenario, runId, artifacts, score, agent: preflight, exitCode: 3 };
+      const blockedEgress = await collectBlockedEgress();
+      return { scenario, runId, artifacts, score, agent: preflight, exitCode: 3, blockedEgress };
     }
 
     const agent = await runAgentCommand({
@@ -209,7 +231,8 @@ export async function runScenario(options: RunScenarioOptions) {
       stateFinal
     });
     await mergeAdapterSignalsIntoEvents(signalsPath, eventsJsonlPath);
-    return { scenario, runId, artifacts, score, agent, exitCode };
+    const blockedEgress = await collectBlockedEgress();
+    return { scenario, runId, artifacts, score, agent, exitCode, blockedEgress };
   } finally {
     // Drain capture-server first so any in-flight LlmCallEvent rows land
     // in events.jsonl before we move on; THEN close the twin (which would

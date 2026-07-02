@@ -9,16 +9,25 @@ import { runCaptureServer } from "./index.js";
 export interface RunCaptureServerCommandOptions {
   port: number;
   eventsOut: string;
+  // FDRS-635 — egress-floor allowlist patterns (already parsed from CSV) and
+  // the sidecar path for refused-CONNECT rows.
+  allowHosts?: readonly string[];
+  egressOut?: string;
 }
 
 export async function runCaptureServerCommand(
   options: RunCaptureServerCommandOptions,
 ): Promise<void> {
   const eventsOut = resolve(options.eventsOut);
-  const handle = await runCaptureServer({ port: options.port, eventsOut });
+  const egressOut = options.egressOut ? resolve(options.egressOut) : undefined;
+  const allowHosts = options.allowHosts ?? [];
+  const handle = await runCaptureServer({ port: options.port, eventsOut, allowHosts, egressOut });
 
   console.error(
     `pome capture-server listening on 127.0.0.1:${handle.port} (events → ${eventsOut})`,
+  );
+  console.error(
+    `pome capture-server egress floor: deny-by-default (${allowHosts.length} allowlisted pattern(s) + loopback)`,
   );
 
   let shuttingDown = false;

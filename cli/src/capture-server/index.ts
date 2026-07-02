@@ -17,10 +17,22 @@ import { createServer as createHttpServer, type Server, type IncomingMessage } f
 import { connect as netConnect, type Socket } from "node:net";
 import { dirname } from "node:path";
 import { redactEvent } from "../recorder/redaction.js";
+import { isHostAllowed, type EgressRefusedRow } from "./egress.js";
 
 export interface CaptureServerOptions {
   port: number; // 0 = ephemeral
   eventsOut: string;
+  // FDRS-635 — deny-by-default egress floor. CONNECTs to hosts outside this
+  // allowlist (patterns: exact host, `*.suffix`, or bare `*`) are refused
+  // with 403 before any upstream dial. Loopback is always allowed so twin
+  // traffic can never be broken by a bad allowlist. Omitting the option means
+  // "no extra hosts": loopback-only — the floor is the default, not opt-in.
+  allowHosts?: readonly string[];
+  // Where refused CONNECTs are recorded (JSONL, one EgressRefusedRow per
+  // refusal). A sidecar next to events.jsonl — deliberately NOT events.jsonl,
+  // whose row shape is locked by shared-types / the correlator. Optional: the
+  // floor enforces regardless; without it refusals just aren't persisted.
+  egressOut?: string;
 }
 
 export interface CaptureServerHandle {
@@ -66,6 +78,12 @@ export async function runCaptureServer(
 ): Promise<CaptureServerHandle> {
   await mkdir(dirname(options.eventsOut), { recursive: true });
   const writer = createWriteStream(options.eventsOut, { flags: "a" });
+  const allowHosts = options.allowHosts ?? [];
+  let egressWriter: WriteStream | null = null;
+  if (options.egressOut) {
+    await mkdir(dirname(options.egressOut), { recursive: true });
+    egressWriter = createWriteStream(options.egressOut, { flags: "a" });
+  }
 
   const pendingWrites = new Set<Promise<void>>();
   const liveSockets = new Set<Socket>();
@@ -80,7 +98,7 @@ export async function runCaptureServer(
   });
 
   server.on("connect", (req: IncomingMessage, clientSocket: Socket, head: Buffer) => {
-    handleConnect({ req, clientSocket, head, writer, liveSockets, pendingWrites });
+    handleConnect({ req, clientSocket, head, writer, egressWriter, allowHosts, liveSockets, pendingWrites });
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -113,6 +131,10 @@ export async function runCaptureServer(
     await serverClosed;
     await flush();
     await new Promise<void>((resolve) => writer.end(() => resolve()));
+    if (egressWriter) {
+      const ew = egressWriter;
+      await new Promise<void>((resolve) => ew.end(() => resolve()));
+    }
   };
 
   return { port, flush, close };
@@ -123,6 +145,8 @@ interface ConnectArgs {
   clientSocket: Socket;
   head: Buffer;
   writer: WriteStream;
+  egressWriter: WriteStream | null;
+  allowHosts: readonly string[];
   liveSockets: Set<Socket>;
   pendingWrites: Set<Promise<void>>;
 }
@@ -132,6 +156,8 @@ function handleConnect({
   clientSocket,
   head,
   writer,
+  egressWriter,
+  allowHosts,
   liveSockets,
   pendingWrites,
 }: ConnectArgs): void {
@@ -141,6 +167,31 @@ function handleConnect({
     return;
   }
   const { host, port } = target;
+
+  // FDRS-635 — the egress floor: refuse the tunnel BEFORE dialing upstream.
+  // The refusal is recorded in the egress sidecar so `pome run` can name the
+  // blocked host in its output.
+  if (!isHostAllowed(host, allowHosts)) {
+    if (egressWriter) {
+      const row: EgressRefusedRow = {
+        ts: new Date().toISOString(),
+        kind: "EgressRefusedEvent",
+        host,
+        port,
+      };
+      const ew = egressWriter;
+      const write = new Promise<void>((resolve) => {
+        ew.write(JSON.stringify(row) + "\n", () => resolve());
+      });
+      pendingWrites.add(write);
+      void write.finally(() => pendingWrites.delete(write));
+    }
+    clientSocket.end(
+      "HTTP/1.1 403 Forbidden\r\ncontent-type: text/plain\r\nconnection: close\r\n\r\n" +
+        `pome egress floor: CONNECT to ${host}:${port} refused — not on the allowlist (twin hosts + LLM providers + localhost). Extend with POME_EGRESS_ALLOW=<host,...> if this host is intentional.\r\n`,
+    );
+    return;
+  }
 
   // Pause until upstream is ready. Without pausing, the client might send
   // payload bytes between now and the upstream connect, and they'd be dropped

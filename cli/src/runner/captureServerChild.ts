@@ -19,10 +19,16 @@ import { spawn, type ChildProcess } from "node:child_process";
 export interface SpawnCaptureServerChildOptions {
   // Absolute path to events.jsonl. Passed verbatim to `--events-out`.
   eventsOut: string;
+  // FDRS-635 — egress-floor allowlist patterns, passed as `--allow` (CSV).
+  // Omitted/empty means loopback-only: the floor is deny-by-default.
+  allowHosts?: readonly string[];
+  // FDRS-635 — sidecar path for refused-CONNECT rows, passed as `--egress-out`.
+  egressOut?: string;
   // Override for tests. Defaults to process.execPath.
   execPath?: string;
   // Override for tests. When omitted we re-invoke this binary
-  // (process.argv[1]) with `capture-server --port 0 --events-out <path>`.
+  // (process.argv[1]) with `capture-server --port 0 --events-out <path>`
+  // plus the egress flags above.
   binArgs?: string[];
   // Max time to wait for the listening line before rejecting. Default 5s.
   readyTimeoutMs?: number;
@@ -45,7 +51,7 @@ export async function spawnCaptureServerChild(
   const execPath = options.execPath ?? process.execPath;
   const binArgs =
     options.binArgs ??
-    defaultBinArgs(options.eventsOut);
+    defaultBinArgs(options.eventsOut, options.allowHosts, options.egressOut);
   const readyTimeoutMs = options.readyTimeoutMs ?? 5_000;
   const shutdownGraceMs = options.shutdownGraceMs ?? 5_000;
 
@@ -125,7 +131,11 @@ export async function spawnCaptureServerChild(
   };
 }
 
-function defaultBinArgs(eventsOut: string): string[] {
+function defaultBinArgs(
+  eventsOut: string,
+  allowHosts?: readonly string[],
+  egressOut?: string,
+): string[] {
   // process.argv[1] is the script path we were invoked with. Re-invoking it
   // gives us the same binary (and the same code) without depending on PATH
   // having a `pome` shim — important when running from the dev tree
@@ -136,7 +146,19 @@ function defaultBinArgs(eventsOut: string): string[] {
       "Cannot determine pome binary path (process.argv[1] is empty). Pass `binArgs` explicitly.",
     );
   }
-  return [script, "capture-server", "--port", "0", "--events-out", eventsOut];
+  return [script, "capture-server", "--port", "0", "--events-out", eventsOut, ...egressArgs(allowHosts, egressOut)];
+}
+
+// Shared by defaultBinArgs and runScenario's test-override path so the two
+// spawn shapes can't drift.
+export function egressArgs(
+  allowHosts?: readonly string[],
+  egressOut?: string,
+): string[] {
+  const args: string[] = [];
+  if (allowHosts && allowHosts.length > 0) args.push("--allow", allowHosts.join(","));
+  if (egressOut) args.push("--egress-out", egressOut);
+  return args;
 }
 
 function makeShutdown(

@@ -711,6 +711,20 @@ export function createProgram() {
               console.error(`  ${runScoreLine(result.score, result.scenario.config.passThreshold, "numeric score")}`);
               console.error(`  run: ${result.artifacts.runDir}`);
             }
+            // FDRS-635 — name every host the egress floor refused, so a stray
+            // production call is a visible event, never a silent passthrough.
+            if (result.blockedEgress.length > 0) {
+              const refusals = result.blockedEgress.reduce((n, b) => n + b.count, 0);
+              const named = result.blockedEgress
+                .map((b) => `${b.host}:${b.port}${b.count > 1 ? ` ×${b.count}` : ""}`)
+                .join(", ");
+              console.error(
+                `  egress: refused ${refusals} tunnel(s) to non-allowlisted host(s) — ${named}`,
+              );
+              console.error(
+                "          twin + LLM traffic is unaffected; extend with POME_EGRESS_ALLOW=<host,…> if intentional.",
+              );
+            }
             if (result.exitCode !== 0) worstExit = result.exitCode;
           }
         }
@@ -979,7 +993,15 @@ export function createProgram() {
       "--events-out <path>",
       "Path to events.jsonl. Created if missing; appended to otherwise.",
     )
-    .action(async (opts: { port: string; eventsOut?: string }) => {
+    .option(
+      "--allow <hosts>",
+      "FDRS-635: comma-separated egress allowlist patterns (exact host or *.suffix). The floor is deny-by-default: only these hosts + loopback are tunnelled; everything else gets 403.",
+    )
+    .option(
+      "--egress-out <path>",
+      "Path to egress.jsonl, the sidecar recording refused CONNECTs. Optional; the floor enforces regardless.",
+    )
+    .action(async (opts: { port: string; eventsOut?: string; allow?: string; egressOut?: string }) => {
       if (!opts.eventsOut) {
         console.error("pome capture-server: --events-out <path> is required");
         process.exitCode = 2;
@@ -992,7 +1014,13 @@ export function createProgram() {
         return;
       }
       const { runCaptureServerCommand } = await import("../capture-server/run.js");
-      await runCaptureServerCommand({ port, eventsOut: opts.eventsOut });
+      const { parseAllowCsv } = await import("../capture-server/egress.js");
+      await runCaptureServerCommand({
+        port,
+        eventsOut: opts.eventsOut,
+        allowHosts: parseAllowCsv(opts.allow),
+        egressOut: opts.egressOut,
+      });
     });
 
   program
