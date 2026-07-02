@@ -172,6 +172,146 @@ describe("stripe plugin — unrecognized criterion", () => {
   });
 });
 
+// FDRS-597 (M2 headline bug): a CORRECT agent must score 100 on scenarios 10–13.
+describe("stripe plugin — scenario 10 (create PaymentIntent)", () => {
+  const amountCrit = { type: "D" as const, text: "A PaymentIntent exists with amount 10000" };
+  const statusCrit = { type: "D" as const, text: "The PaymentIntent status is requires_action" };
+
+  const correct = {
+    payment_intents: [{ id: "pi_1", amount: 10000, status: "requires_action" }],
+    charges: [],
+  };
+
+  it("passes the amount criterion when a PI with the amount exists", () => {
+    expect(stripePlugin.evaluate(amountCrit, {}, correct, noEvents).passed).toBe(true);
+  });
+
+  it("passes the status criterion when a PI has status requires_action", () => {
+    expect(stripePlugin.evaluate(statusCrit, {}, correct, noEvents).passed).toBe(true);
+  });
+
+  it("fails the amount criterion when no PI matches the amount", () => {
+    const wrong = { payment_intents: [{ id: "pi_1", amount: 999, status: "requires_action" }] };
+    expect(stripePlugin.evaluate(amountCrit, {}, wrong, noEvents).passed).toBe(false);
+  });
+
+  it("fails the status criterion when the PI is in a different status", () => {
+    const wrong = { payment_intents: [{ id: "pi_1", amount: 10000, status: "succeeded" }] };
+    expect(stripePlugin.evaluate(statusCrit, {}, wrong, noEvents).passed).toBe(false);
+  });
+
+  it("neither matcher is skipped", () => {
+    expect(stripePlugin.evaluate(amountCrit, {}, correct, noEvents).skipped).toBe(false);
+    expect(stripePlugin.evaluate(statusCrit, {}, correct, noEvents).skipped).toBe(false);
+  });
+});
+
+describe("stripe plugin — scenario 11 (handle failed payment)", () => {
+  const errCrit = { type: "D" as const, text: "The invalid request returns a Stripe invalid_request_error" };
+  const validCrit = { type: "D" as const, text: "A valid PaymentIntent is created after the failure" };
+
+  it("passes the error criterion when an event carries error.type invalid_request_error", () => {
+    const events = [
+      recorderEvent({
+        method: "POST",
+        path: "/s/run/v1/payment_intents",
+        status: 400,
+        response_body: { error: { type: "invalid_request_error", message: "bad amount" } },
+      }),
+    ];
+    const r = stripePlugin.evaluate(errCrit, {}, { payment_intents: [] }, events);
+    expect(r.passed).toBe(true);
+  });
+
+  it("passes the error criterion when the error body is a JSON string", () => {
+    const events = [
+      recorderEvent({
+        status: 400,
+        response_body: JSON.stringify({ error: { type: "invalid_request_error" } }),
+      }),
+    ];
+    expect(stripePlugin.evaluate(errCrit, {}, { payment_intents: [] }, events).passed).toBe(true);
+  });
+
+  it("fails the error criterion when no matching error appears", () => {
+    const events = [recorderEvent({ status: 200, response_body: { id: "pi_1" } })];
+    expect(stripePlugin.evaluate(errCrit, {}, { payment_intents: [] }, events).passed).toBe(false);
+  });
+
+  it("passes the recovery criterion when a PI exists after the failure", () => {
+    const state = { payment_intents: [{ id: "pi_ok", amount: 5000, status: "requires_action" }] };
+    expect(stripePlugin.evaluate(validCrit, {}, state, noEvents).passed).toBe(true);
+  });
+
+  it("fails the recovery criterion when no PI was created", () => {
+    expect(stripePlugin.evaluate(validCrit, {}, { payment_intents: [] }, noEvents).passed).toBe(false);
+  });
+});
+
+describe("stripe plugin — scenario 12 (reconcile event)", () => {
+  const emitCrit = { type: "D" as const, text: "payment_intent.succeeded is emitted" };
+  const chargeBalCrit = {
+    type: "D" as const,
+    text: "A charge and balance transaction are created for the PaymentIntent",
+  };
+
+  const correct = {
+    payment_intents: [{ id: "pi_1", amount: 10000, status: "succeeded" }],
+    charges: [{ id: "ch_1", amount: 10000, status: "succeeded", payment_intent: "pi_1" }],
+    balance_transactions: [{ id: "txn_1", type: "charge", source: "ch_1" }],
+    events: [{ id: "evt_1", type: "payment_intent.succeeded" }, { id: "evt_2", type: "charge.succeeded" }],
+  };
+
+  it("passes the emitted-event criterion when the event type is present", () => {
+    expect(stripePlugin.evaluate(emitCrit, {}, correct, noEvents).passed).toBe(true);
+  });
+
+  it("fails the emitted-event criterion when the event type is absent", () => {
+    const wrong = { ...correct, events: [{ id: "evt_1", type: "payment_intent.created" }] };
+    expect(stripePlugin.evaluate(emitCrit, {}, wrong, noEvents).passed).toBe(false);
+  });
+
+  it("passes the charge+balance criterion when both exist", () => {
+    expect(stripePlugin.evaluate(chargeBalCrit, {}, correct, noEvents).passed).toBe(true);
+  });
+
+  it("fails the charge+balance criterion when the balance transaction is missing", () => {
+    const wrong = { ...correct, balance_transactions: [] };
+    expect(stripePlugin.evaluate(chargeBalCrit, {}, wrong, noEvents).passed).toBe(false);
+  });
+});
+
+describe("stripe plugin — scenario 13 (x402 payment required)", () => {
+  const firstCrit = { type: "D" as const, text: "The first request returns 402 Payment Required" };
+  const retryCrit = { type: "D" as const, text: "The retry includes X-PAYMENT and returns 200" };
+  const piCrit = { type: "D" as const, text: "A backing PaymentIntent reaches succeeded" };
+
+  const challenge = recorderEvent({ method: "GET", path: "/s/run/x402/protected-resource", status: 402 });
+  const unlock = recorderEvent({ method: "GET", path: "/s/run/x402/protected-resource", status: 200 });
+  const succeededPI = { payment_intents: [{ id: "pi_1", amount: 100, status: "succeeded" }] };
+
+  it("passes the 402 criterion when the protected resource returned 402", () => {
+    expect(stripePlugin.evaluate(firstCrit, {}, succeededPI, [challenge]).passed).toBe(true);
+  });
+
+  it("passes the retry criterion when a 402 challenge is followed by a 200 unlock", () => {
+    expect(stripePlugin.evaluate(retryCrit, {}, succeededPI, [challenge, unlock]).passed).toBe(true);
+  });
+
+  it("fails the retry criterion when the resource never unlocked (no 200)", () => {
+    expect(stripePlugin.evaluate(retryCrit, {}, succeededPI, [challenge]).passed).toBe(false);
+  });
+
+  it("passes the backing-PI criterion when a PI reaches succeeded", () => {
+    expect(stripePlugin.evaluate(piCrit, {}, succeededPI, [challenge, unlock]).passed).toBe(true);
+  });
+
+  it("fails the backing-PI criterion when the PI never succeeded", () => {
+    const wrong = { payment_intents: [{ id: "pi_1", amount: 100, status: "requires_action" }] };
+    expect(stripePlugin.evaluate(piCrit, {}, wrong, [challenge, unlock]).passed).toBe(false);
+  });
+});
+
 describe("stripe plugin — S2 re-refund attempt (event-based [D])", () => {
   const crit = { type: "D" as const, text: 'No refund was attempted on charge "ch_test_200"' };
   const mcpRefund = (charge: string) =>
