@@ -1,5 +1,35 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.4.0
+
+FDRS-613 — reconcile the twins /v1 wire surface with the pome-cloud production
+truth, add a shared /v1 fixture corpus + parity test, and ship runnable `dist`
+JS/`.d.ts` so npm consumers (SDK / adapter) can vendor a published tarball
+(T10 / FDRS-585 / FDRS-612).
+
+### Added
+
+- `planTierSchema`: `hobby`, `team` tiers.
+- `sessionSchema.twins` (M3 authoritative twin list) + `MOUNTED_TWINS` const.
+- `createSessionRequestSchema`: permissive `seed` (`z.record`, ADR-015) +
+  `idempotency_key`.
+- `createSessionResponseSchema`: `session_token` + `per_twin{}` (required).
+- `submitResultRequestSchema.events_jsonl_url`.
+- `run.ts`: `correlatorKindSchema` + `correlator_kind`, `environment`,
+  `promoted_scenario_id`, `replay_run_id`, `state_archive_s3_key`, agent
+  telemetry rollup (`agent_tokens_in/out`, `agent_latency_p50/p95/max_ms`,
+  `agent_error_count`, `agent_telemetry_span_count`), `summary`.
+- `test/fixtures/v1/` shared JSON corpus + `test/v1-fixture-parity.test.ts`.
+- Build now emits `dist/` (JS + `.d.ts`); package `main`/`types`/`exports` point
+  at `dist`, `files` ships `dist`, `prepublishOnly` builds.
+
+### Changed
+
+- `usageResponseSchema.sessions_remaining`: `.int()` → `.int().min(0)` (matches
+  cloud's clamped live snapshot).
+- `run.ts` `events_jsonl_url`: relaxed from `.url()` to `z.string()` (persisted
+  values are storage keys, not URLs).
+
 ## Unreleased
 
 FDRS-480/481/482 — OpenTelemetry-native trace format (M1). Canonical home of the

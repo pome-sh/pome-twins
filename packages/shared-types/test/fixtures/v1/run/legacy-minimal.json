@@ -1,0 +1,19 @@
+{
+  "id": "run_legacy1",
+  "session_id": "ses_123",
+  "team_id": "tm_1",
+  "scenario_name": "github-issue-triage",
+  "scenario_hash": "sha256:abc",
+  "satisfaction_score": 100,
+  "criteria_results": [],
+  "trace_s3_key": null,
+  "state_s3_key": null,
+  "meta_s3_key": null,
+  "duration_ms": 4200,
+  "agent_model": "claude-sonnet-4-6",
+  "judge_model": "claude-haiku-4-5",
+  "judge_tokens_in": 120,
+  "judge_tokens_out": 60,
+  "created_at": "2026-07-02T12:00:00.000Z",
+  "finished_at": "2026-07-02T12:00:04.200Z"
+}

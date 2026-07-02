@@ -1,0 +1,27 @@
+{
+  "session_id": "ses_abc123",
+  "session_token": "ses_abc123",
+  "twin_url": "https://api.pome.sh/github/ses_abc123",
+  "expires_at": "2026-07-02T12:30:00.000Z",
+  "agent_token": "edt_eyJhbGciOiJIUzI1Ni9.fake.jwt",
+  "provider_credentials": {
+    "github": {
+      "token": "ghs_faketoken",
+      "header": "Authorization",
+      "scheme": "Bearer"
+    }
+  },
+  "openapi_url": "https://api.pome.sh/github/ses_abc123/openapi.json",
+  "per_twin": {
+    "github": {
+      "api_url": "https://api.pome.sh/github/ses_abc123",
+      "mcp_url": "https://mcp.pome.sh/github/ses_abc123",
+      "openapi_url": "https://api.pome.sh/github/ses_abc123/openapi.json"
+    },
+    "stripe": {
+      "api_url": "https://api.pome.sh/stripe/ses_abc123",
+      "mcp_url": "https://mcp.pome.sh/stripe/ses_abc123",
+      "openapi_url": "https://api.pome.sh/stripe/ses_abc123/openapi.json"
+    }
+  }
+}

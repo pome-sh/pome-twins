@@ -1,0 +1,9 @@
+{
+  "twins": ["github", "stripe"],
+  "scenario_id": "scn_multi",
+  "seed": {
+    "repositories": [{ "owner": "acme", "name": "web" }],
+    "future_unknown_field": { "kept": "verbatim" }
+  },
+  "idempotency_key": "3f1e9c2a-8b4d-4e6f-9a1c-2d3e4f5a6b7c"
+}
