@@ -48,7 +48,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@pome-sh/shared-types": "workspace:*",
-        "hono": "^4.10.7",
+        "hono": "^4.12.27",
         "zod": "^4.1.13",
       },
       "devDependencies": {
@@ -88,7 +88,7 @@
         "@hono/node-server": "^1.19.6",
         "@pome-sh/shared-types": "workspace:*",
         "better-sqlite3": "^12.5.0",
-        "hono": "^4.10.7",
+        "hono": "^4.12.27",
         "zod": "^4.1.13",
       },
       "devDependencies": {
@@ -112,7 +112,7 @@
         "@hono/node-server": "^1.19.6",
         "@pome-sh/shared-types": "workspace:*",
         "better-sqlite3": "^12.5.0",
-        "hono": "^4.10.7",
+        "hono": "^4.12.27",
         "zod": "^4.1.13",
       },
       "devDependencies": {
@@ -136,7 +136,7 @@
         "@hono/node-server": "^1.19.6",
         "@pome-sh/shared-types": "workspace:*",
         "better-sqlite3": "^12.5.0",
-        "hono": "^4.10.7",
+        "hono": "^4.12.27",
         "zod": "^4.1.13",
       },
       "devDependencies": {
@@ -148,6 +148,9 @@
         "vitest": "^4.0.15",
       },
     },
+  },
+  "overrides": {
+    "hono": "^4.12.27",
   },
   "packages": {
     "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.3.197", "", { "optionalDependencies": { "@anthropic-ai/claude-agent-sdk-darwin-arm64": "0.3.197", "@anthropic-ai/claude-agent-sdk-darwin-x64": "0.3.197", "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.197", "@anthropic-ai/claude-agent-sdk-linux-arm64-musl": "0.3.197", "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.197", "@anthropic-ai/claude-agent-sdk-linux-x64-musl": "0.3.197", "@anthropic-ai/claude-agent-sdk-win32-arm64": "0.3.197", "@anthropic-ai/claude-agent-sdk-win32-x64": "0.3.197" }, "peerDependencies": { "@anthropic-ai/sdk": ">=0.93.0", "@modelcontextprotocol/sdk": "^1.29.0", "zod": "^4.0.0" } }, "sha512-XNIi8W1tb+QfMkcK+5kepOC6BsxG8wtupd72H+pIPzIJypVQhHy7FoX+KBMtTRYwtl+5dsjKyABhjWXebeUilw=="],
@@ -512,7 +515,7 @@
 
     "hasown": ["hasown@2.0.3", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-ej4AhfhfL2Q2zpMmLo7U1Uv9+PyhIZpgQLGT1F9miIGmiCJIoCgSmczFdrc97mWT4kVY72KA+WnnhJ5pghSvSg=="],
 
-    "hono": ["hono@4.12.18", "", {}, "sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ=="],
+    "hono": ["hono@4.12.27", "", {}, "sha512-1yrb/+w6HWQJrUCLkJ2IF5jNIPvvFkblV5RNOYl6bV+OA6p9GLcMpHFFGTosSvHvcAUibuUukRqhlYI4z32C7Q=="],
 
     "html-escaper": ["html-escaper@2.0.2", "", {}, "sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg=="],
 

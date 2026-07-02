@@ -12,11 +12,11 @@ COPY package.json bun.lock ./
 COPY packages packages
 RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/twin-slack build
-# The runtime image should not include dev/test tooling from the workspace
-# install (for example Vitest/Vite). Reinstall production deps after the build
-# so the scanned/pushed image contains only runtime packages.
-RUN rm -rf node_modules \
-  && bun install --frozen-lockfile --production
+# The runtime image should not include dev/test tooling or unrelated workspace
+# deps. Reinstall only this twin's production graph after the build, hoisted to
+# the root node_modules layout used by the runtime stage.
+RUN rm -rf node_modules packages/*/node_modules \
+  && bun install --frozen-lockfile --production --omit=peer --filter @pome-sh/twin-slack --linker=hoisted
 
 FROM node:24-trixie-slim@sha256:9022946fb57e6fb6a2503931470deba4b49db02bfc8f587f93007fd33ef54415 AS runtime
 WORKDIR /repo

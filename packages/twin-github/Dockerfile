@@ -12,11 +12,11 @@ COPY package.json bun.lock ./
 COPY packages packages
 RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/twin-github build
-# The runtime image should not include dev/test tooling from the workspace
-# install (for example Vitest/Vite). Reinstall production deps after the build
-# so the scanned/pushed image contains only runtime packages.
-RUN rm -rf node_modules \
-  && bun install --frozen-lockfile --production
+# The runtime image should not include dev/test tooling or unrelated workspace
+# deps. Reinstall only this twin's production graph after the build, hoisted to
+# the root node_modules layout used by the runtime stage.
+RUN rm -rf node_modules packages/*/node_modules \
+  && bun install --frozen-lockfile --production --omit=peer --filter @pome-sh/twin-github --linker=hoisted
 
 # Runtime is node, not bun: better-sqlite3's native binding is not yet
 # supported under bun (https://github.com/oven-sh/bun/issues/4290), so the
