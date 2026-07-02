@@ -22,6 +22,9 @@ FROM node:24-trixie-slim@sha256:9022946fb57e6fb6a2503931470deba4b49db02bfc8f587f
 WORKDIR /repo
 ENV NODE_ENV=production
 ENV SLACK_CLONE_HOST=0.0.0.0
+# Runtime only executes `node`; npm/npx from the base image add unused packages
+# (and their CVE surface) to the scanned image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/packages/shared-types ./packages/shared-types
 COPY --from=build /repo/packages/twin-slack/package.json ./packages/twin-slack/package.json
