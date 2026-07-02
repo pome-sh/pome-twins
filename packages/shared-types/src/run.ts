@@ -44,20 +44,6 @@ export type Criterion = z.infer<typeof criterionSchema>;
 // without rejoining. Discriminate on `criterion.type` (no separate `kind` field).
 const baseCriterionResultSchema = z.object({
   criterion: criterionSchema,                  // full {type, text} object
-  // FDRS-591/611 unified outcome. ADDITIVE + OPTIONAL so this schema stays
-  // backward-compatible: pre-FDRS-618 producers omit it, and consumers derive
-  // it from passed/skipped. `skipped` remains true for BOTH `skipped` and
-  // `errored` outcomes, so existing denominator logic is unchanged.
-  //   passed  — evaluated + satisfied
-  //   failed  — evaluated + not satisfied
-  //   skipped — harness could not evaluate (no predicate / no judge)  [FDRS-611]
-  //   errored — judge/infra failure (LLM 429/5xx, exception)          [FDRS-591]
-  // A1 CAVEAT (FDRS-618, Part 2): the hosted judge (control-plane
-  // services/judge.ts) still computes passed/total on its own and does NOT yet
-  // implement the "skipped/errored excluded + A5 cannot-pass guard" semantics.
-  // Until FDRS-618 adopts them cloud-side, local (CLI) and hosted scores can
-  // differ for the same trace.
-  outcome: z.enum(["passed", "failed", "skipped", "errored"]).optional(),
   passed: z.boolean(),
   skipped: z.boolean(),                        // true if [D] fell back to [P] but [P] was unreachable, etc.
   reason: z.string(),                          // human-readable evidence
