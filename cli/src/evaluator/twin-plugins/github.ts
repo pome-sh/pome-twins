@@ -151,14 +151,25 @@ function evaluateGitHubCriterion(
     return result(criterion, calls.length === target, `${toolName} was called ${calls.length} time(s) (expected ${target})`);
   }
 
-  return result(criterion, false, "Pome does not know how to evaluate this deterministic criterion yet.");
+  return unmatched(criterion);
 }
 
 function result(criterion: Criterion, passed: boolean, reason: string): CriterionResult {
   return {
     criterion,
+    outcome: passed ? "passed" : "failed",
     passed,
     skipped: false,
     reason,
+  };
+}
+
+function unmatched(criterion: Criterion): CriterionResult {
+  return {
+    criterion,
+    outcome: "skipped",
+    passed: false,
+    skipped: true,
+    reason: "Pome does not know how to evaluate this deterministic GitHub criterion yet.",
   };
 }

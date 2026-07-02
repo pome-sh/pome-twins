@@ -91,6 +91,28 @@ describe("evaluator/deterministic — router integration", () => {
     expect(score.results[0]?.reason).toContain("postgres");
   });
 
+  it("returns skipped when a registered twin plugin cannot match the criterion wording", async () => {
+    const score = await evaluateScenario({
+      scenario: {
+        ...baseScenario,
+        criteria: [
+          { type: "D", text: "The weather on the moon is sunny" },
+        ],
+      },
+      initialState: { repositories: [{ full_name: "acme/server", labels: [], issues: [] }] },
+      finalState: { repositories: [{ full_name: "acme/server", labels: [], issues: [] }] },
+      events: [],
+      stdout: "",
+    });
+
+    expect(score.results).toHaveLength(1);
+    expect(score.results[0]?.passed).toBe(false);
+    expect(score.results[0]?.skipped).toBe(true);
+    expect(score.results[0]?.outcome).toBe("skipped");
+    expect(score.evaluated).toBe(false);
+    expect(score.can_pass).toBe(false);
+  });
+
   it("does not throw when finalState is the wrong shape for the configured twin (Stripe state under twins: github)", async () => {
     await expect(
       evaluateScenario({

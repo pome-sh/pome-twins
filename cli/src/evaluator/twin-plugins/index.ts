@@ -48,6 +48,9 @@ function skippedResult(criterion: Criterion, twinId: string): CriterionResult {
   return {
     criterion,
     passed: false,
+    // FDRS-611: no matching deterministic predicate is a harness gap, not an
+    // infra failure — `skipped`, never `errored`.
+    outcome: "skipped",
     skipped: true,
     reason: `no twin-plugin predicate matched '${criterion.text}' for twin ${twinId}`,
   };

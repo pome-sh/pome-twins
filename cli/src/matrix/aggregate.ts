@@ -112,8 +112,14 @@ export function cellPassed(
   satisfaction: number,
   agentErrored: boolean,
   passThreshold: number,
+  // A5 inflation guard (FDRS-611): a run where a required criterion was
+  // skipped/errored ("un-evaluated") can never pass, regardless of its
+  // headline satisfaction. Defaults true so legacy score.json (no `can_pass`
+  // field) keeps its old behavior.
+  canPass = true,
 ): boolean {
   if (agentErrored) return false;
+  if (!canPass) return false;
   return satisfaction >= passThreshold;
 }
 

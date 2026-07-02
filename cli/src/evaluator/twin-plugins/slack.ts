@@ -161,13 +161,15 @@ function evaluateSlackCriterion(
 }
 
 function unmatched(criterion: Criterion): CriterionResult {
-  return result(
+  return {
     criterion,
-    false,
-    "Pome does not know how to evaluate this deterministic Slack criterion yet (see slack.ts vocabulary).",
-  );
+    outcome: "skipped",
+    passed: false,
+    skipped: true,
+    reason: "Pome does not know how to evaluate this deterministic Slack criterion yet (see slack.ts vocabulary).",
+  };
 }
 
 function result(criterion: Criterion, passed: boolean, reason: string): CriterionResult {
-  return { criterion, passed, skipped: false, reason };
+  return { criterion, outcome: passed ? "passed" : "failed", passed, skipped: false, reason };
 }

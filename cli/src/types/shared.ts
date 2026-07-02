@@ -128,6 +128,10 @@ export const criterionSchema = z.object({
 
 const baseCriterionResultSchema = z.object({
   criterion: criterionSchema,
+  // FDRS-591/611: additive four-state outcome. OPTIONAL for wire compat —
+  // older producers omit it and consumers derive it from passed/skipped.
+  // `skipped` stays true for both skipped + errored outcomes.
+  outcome: z.enum(["passed", "failed", "skipped", "errored"]).optional(),
   passed: z.boolean(),
   skipped: z.boolean(),
   reason: z.string(),

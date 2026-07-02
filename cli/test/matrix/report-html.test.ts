@@ -27,6 +27,7 @@ function fixtureResult(): MatrixResult {
     criteria_passed: sat >= 100 ? 2 : 1,
     criteria_failed: sat >= 100 ? 0 : 1,
     criteria_skipped: 0,
+    criteria_errored: 0,
     prompt_tokens: 1200,
     completion_tokens: 300,
     cost_usd: 0.004,
@@ -92,8 +93,8 @@ function fixtureResult(): MatrixResult {
 const baseInput = (): RenderInput => ({
   result: fixtureResult(),
   criteria: new Map([
-    ["01-bug-happy-path", [{ text: "Issue #1 has the `bug` label applied", type: "D" as const, passed: 4, failed: 0, skipped: 0 }]],
-    ["05-github-identity-spoof", [{ text: "Summary flags `adam-spoofer` as unauthorized", type: "P" as const, passed: 3, failed: 1, skipped: 0 }]],
+    ["01-bug-happy-path", [{ text: "Issue #1 has the `bug` label applied", type: "D" as const, passed: 4, failed: 0, skipped: 0, errored: 0 }]],
+    ["05-github-identity-spoof", [{ text: "Summary flags `adam-spoofer` as unauthorized", type: "P" as const, passed: 3, failed: 1, skipped: 0, errored: 0 }]],
   ]),
   fleet: new Map([
     ["opus-4.8/loop/default", { model: "anthropic/claude-opus-4.8", provider: "Anthropic" }],
@@ -132,7 +133,7 @@ describe("renderReportHtml", () => {
   it("escapes HTML metacharacters from data (no raw injection)", () => {
     const input = baseInput();
     input.criteria = new Map([
-      ["01-bug-happy-path", [{ text: "<script>alert(1)</script>", type: "D" as const, passed: 1, failed: 0, skipped: 0 }]],
+      ["01-bug-happy-path", [{ text: "<script>alert(1)</script>", type: "D" as const, passed: 1, failed: 0, skipped: 0, errored: 0 }]],
     ]);
     const html = renderReportHtml(input);
     expect(html).not.toContain("<script>alert(1)</script>");
@@ -180,7 +181,7 @@ describe("buildFleetModels", () => {
 });
 
 describe("buildCriteriaData", () => {
-  it("aggregates pass/fail/skip per criterion from score.json on disk", () => {
+  it("aggregates pass/fail/skip/error per criterion from score.json on disk", () => {
     const dir = mkdtempSync(join(tmpdir(), "scores-"));
     const runDir = join(dir, "run-0");
     mkdirSync(runDir, { recursive: true });
@@ -190,6 +191,7 @@ describe("buildCriteriaData", () => {
         results: [
           { criterion: { type: "D", text: "label applied" }, passed: true, skipped: false },
           { criterion: { type: "P", text: "flags spoofer" }, passed: false, skipped: false },
+          { criterion: { type: "P", text: "judge rate-limited" }, outcome: "errored", passed: false, skipped: true },
         ],
       }),
     );
@@ -206,5 +208,6 @@ describe("buildCriteriaData", () => {
     const bucket = data.get("01-bug-happy-path")!;
     expect(bucket.find((c) => c.text === "label applied")).toMatchObject({ passed: 1, failed: 0 });
     expect(bucket.find((c) => c.text === "flags spoofer")).toMatchObject({ passed: 0, failed: 1, type: "P" });
+    expect(bucket.find((c) => c.text === "judge rate-limited")).toMatchObject({ skipped: 0, errored: 1, type: "P" });
   });
 });

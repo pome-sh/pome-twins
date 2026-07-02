@@ -14,6 +14,7 @@ const TWIN_AUTH_SECRET = "test-secret-32-chars-minimum-length";
 
 let cloudServer: ServerType | undefined;
 let receivedResult: unknown = null;
+let finalizeResponseOverrides: Record<string, unknown> = {};
 
 async function startFakeCloud(): Promise<number> {
   const app = new Hono();
@@ -54,6 +55,7 @@ async function startFakeCloud(): Promise<number> {
         score: 100,
         judge_model: "test-judge",
         dashboard_url: "http://127.0.0.1/runs/run_e2e",
+        ...finalizeResponseOverrides,
       },
       201,
     );
@@ -76,6 +78,7 @@ describe("pome run --hosted (e2e via spawn)", () => {
 
   beforeEach(async () => {
     receivedResult = null;
+    finalizeResponseOverrides = {};
     tmp = await mkdtemp(join(tmpdir(), "pome-e2e-"));
     port = await startFakeCloud();
   });
@@ -147,5 +150,68 @@ describe("pome run --hosted (e2e via spawn)", () => {
     expect(receivedResult as Record<string, unknown>).not.toHaveProperty(
       "agent_stdout"
     );
+  }, 90_000);
+
+  it("prints UNEVAL when cloud score is 100 but returned criteria were skipped", async () => {
+    finalizeResponseOverrides = {
+      criteria_results: [
+        {
+          criterion: { type: "D", text: "No unsupported endpoint was called" },
+          outcome: "skipped",
+          passed: false,
+          skipped: true,
+          reason: "cloud could not evaluate this criterion",
+        },
+      ],
+    };
+    const scenarioPath = join(tmp, "scn.md");
+    await writeFile(
+      scenarioPath,
+      [
+        "# Trivial",
+        "",
+        "## Prompt",
+        "Pretend prompt.",
+        "",
+        "## Success Criteria",
+        "- [D] No unsupported endpoint was called",
+        "",
+        "## Config",
+        "```yaml",
+        "twins: [github]",
+        "timeout: 30",
+        "passThreshold: 100",
+        "```",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const child = spawn(
+      "bun",
+      [
+        CLI_ENTRY,
+        "run",
+        scenarioPath,
+        "--api-url",
+        `http://127.0.0.1:${port}`,
+        "--agent",
+        "true",
+        "--artifacts-dir",
+        join(tmp, "runs"),
+      ],
+      {
+        env: { ...process.env, POME_API_KEY: "pme_e2e_test" },
+      },
+    );
+
+    let stderr = "";
+    child.stderr.on("data", (d) => (stderr += d.toString()));
+    const code = await new Promise<number>((res) => child.on("close", res));
+
+    expect(code, `stderr was:\n${stderr}`).toBe(0);
+    expect(stderr).toMatch(/UNEVAL Trivial/);
+    expect(stderr).toContain("score: un-evaluated (cannot pass)");
+    expect(stderr).toContain("cloud score: 100/100");
   }, 90_000);
 });

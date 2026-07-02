@@ -23,6 +23,7 @@ import {
 } from "../recorder/inspect.js";
 import { runScenario } from "../runner/runScenario.js";
 import { runScenarioHosted } from "../runner/runScenarioHosted.js";
+import { outcomeOf, scoreStatus } from "../evaluator/score.js";
 import { HostedUsageError, exitCodeFor } from "../hosted/errors.js";
 import { resolveCredentials, clearLocalCredentials } from "./credentials.js";
 import { loginWithClerk } from "./login.js";
@@ -72,6 +73,49 @@ import type { Score } from "../evaluator/score.js";
 const PACKAGE_VERSION = readPackageVersion();
 const SESSION_CREATE_FORMATS = new Set(["text", "json", "env"]);
 const DEFAULT_AGENT_COMMAND = "npx tsx examples/agents/scripted-triage-agent.ts";
+
+// FDRS-591/611 per-criterion marker: ✓ passed, ✗ failed, - skipped, ! errored.
+function markerFor(outcome: "passed" | "failed" | "skipped" | "errored"): string {
+  switch (outcome) {
+    case "passed":
+      return "✓";
+    case "failed":
+      return "✗";
+    case "errored":
+      return "!";
+    default:
+      return "-";
+  }
+}
+
+function scoreCountsSummary(score: Score): string {
+  return `${score.passed ?? 0} passed, ${score.failed ?? 0} failed, ${score.skipped ?? 0} skipped, ${score.errored ?? 0} errored`;
+}
+
+function runScoreLine(
+  score: Score,
+  passThreshold: number,
+  unevaluatedNumericLabel: string,
+): string {
+  const status = scoreStatus(score, passThreshold);
+  if (status === "unevaluated") {
+    return `score: un-evaluated (cannot pass) — ${scoreCountsSummary(score)}; ${unevaluatedNumericLabel}: ${score.satisfaction}/100`;
+  }
+  return `score: ${score.satisfaction}/100`;
+}
+
+function inspectScoreLine(score: Score): string {
+  // score.json does not persist the scenario threshold, so inspect only decides
+  // whether the A5 guard made the numeric score unsafe to render as a verdict.
+  if (score.evaluated === false || score.can_pass === false) {
+    return `Score: un-evaluated (cannot pass) — ${scoreCountsSummary(score)}; stored score: ${score.satisfaction}/100`;
+  }
+  const suffix =
+    (score.skipped ?? 0) > 0 || (score.errored ?? 0) > 0
+      ? ` (${score.skipped} skipped, ${score.errored ?? 0} errored — excluded)`
+      : "";
+  return `Score: ${score.satisfaction}/100${suffix}`;
+}
 
 function readPackageVersion(): string {
   try {
@@ -619,10 +663,14 @@ export function createProgram() {
                 // `--no-fix-prompt` sets `options.fixPrompt = false`.
                 skipFixPrompt: options.fixPrompt === false,
               });
-              const passed =
-                result.score.satisfaction >= result.scenario.config.passThreshold;
-              console.error(`${passed ? "PASS" : "FAIL"} ${result.scenario.title}`);
-              console.error(`  score: ${result.score.satisfaction}/100`);
+              const status = scoreStatus(
+                result.score,
+                result.scenario.config.passThreshold,
+              );
+              const label =
+                status === "pass" ? "PASS" : status === "fail" ? "FAIL" : "UNEVAL";
+              console.error(`${label} ${result.scenario.title}`);
+              console.error(`  ${runScoreLine(result.score, result.scenario.config.passThreshold, "cloud score")}`);
               console.error(`  local: ${result.artifacts.runDir}`);
               console.error(`  cloud: ${result.cloudDashboardUrl}`);
               if (result.exitCode !== 0) worstExit = result.exitCode;
@@ -653,10 +701,14 @@ export function createProgram() {
                 "  note: evaluation runs on Pome cloud — `pome login`, then re-run to score this scenario.",
               );
             } else {
-              console.error(
-                `${result.score.satisfaction >= result.scenario.config.passThreshold ? "PASS" : "FAIL"} ${result.scenario.title}`
+              const status = scoreStatus(
+                result.score,
+                result.scenario.config.passThreshold,
               );
-              console.error(`  score: ${result.score.satisfaction}/100`);
+              const label =
+                status === "pass" ? "PASS" : status === "fail" ? "FAIL" : "UNEVAL";
+              console.error(`${label} ${result.scenario.title}`);
+              console.error(`  ${runScoreLine(result.score, result.scenario.config.passThreshold, "numeric score")}`);
               console.error(`  run: ${result.artifacts.runDir}`);
             }
             if (result.exitCode !== 0) worstExit = result.exitCode;
@@ -789,9 +841,9 @@ export function createProgram() {
         console.log("Score: (score.json not found)");
         return;
       }
-      console.log(`Score: ${score.satisfaction}/100`);
+      console.log(inspectScoreLine(score));
       for (const result of score.results) {
-        const marker = result.skipped ? "-" : result.passed ? "✓" : "✗";
+        const marker = markerFor(outcomeOf(result));
         console.log(`${marker} [${result.criterion.type}] ${result.criterion.text}`);
         console.log(`  ${result.reason}`);
       }

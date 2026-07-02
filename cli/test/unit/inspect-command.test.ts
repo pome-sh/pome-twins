@@ -126,4 +126,51 @@ describe("pome inspect command", () => {
     expect(out).toContain("Events (2):");
     expect(out).toContain("Score: (score.json not found)");
   });
+
+  it("renders can_pass=false score files as un-evaluated instead of numeric PASS", async () => {
+    await writeFile(
+      join(runDir, "meta.json"),
+      JSON.stringify({ run_id: "run_abc", scenario: "scenario-x", twins: ["github"] }),
+    );
+    await writeFile(
+      join(runDir, "score.json"),
+      JSON.stringify({
+        satisfaction: 100,
+        passed: 1,
+        failed: 0,
+        skipped: 1,
+        errored: 0,
+        total_required: 1,
+        evaluated: true,
+        can_pass: false,
+        results: [
+          {
+            criterion: { type: "D", text: "No unsupported endpoint was called" },
+            outcome: "passed",
+            passed: true,
+            skipped: false,
+            reason: "ok",
+          },
+          {
+            criterion: { type: "D", text: "Unsupported deterministic wording" },
+            outcome: "skipped",
+            passed: false,
+            skipped: true,
+            reason: "no predicate matched",
+          },
+        ],
+        judge_model: null,
+        judge_tokens_in: null,
+        judge_tokens_out: null,
+      }),
+    );
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    await createProgram().parseAsync(["node", "pome", "inspect", runDir]);
+
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(out).toContain("Score: un-evaluated (cannot pass)");
+    expect(out).toContain("stored score: 100/100");
+    expect(out).toContain("- [D] Unsupported deterministic wording");
+  });
 });

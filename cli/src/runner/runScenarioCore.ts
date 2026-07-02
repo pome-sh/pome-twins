@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Scenario } from "../scenario/scenarioSchema.js";
 import type { Score } from "../evaluator/score.js";
+import { scenarioPassed } from "../evaluator/score.js";
 import { evaluateScenario } from "../evaluator/deterministic.js";
 import { writeRunArtifacts, writeRunArtifactsCore } from "../recorder/artifacts.js";
 import type { RecorderEvent } from "../twin/github/types.js";
@@ -48,11 +49,14 @@ export async function scoreAndWriteRun(input: ScoreAndWriteInput) {
   });
 
   // Map score + agent state → exit code: agent failure trumps a passing
-  // score; otherwise pass/fail against the scenario's threshold.
+  // score; otherwise pass/fail against the scenario's threshold. `scenarioPassed`
+  // encodes the A5 guard (FDRS-611) — an "un-evaluated" run (all criteria
+  // skipped/errored, or any required criterion not evaluated) is NEVER exit 0;
+  // it lands on 1 ("did not pass") rather than being read as a hard fail at 0%.
   const exitCode =
     input.agentExitCode !== 0 || input.agentTimedOut
       ? 3
-      : score.satisfaction >= input.scenario.config.passThreshold
+      : scenarioPassed(score, input.scenario.config.passThreshold)
         ? 0
         : 1;
 

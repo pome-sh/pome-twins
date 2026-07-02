@@ -80,12 +80,14 @@ type CriterionAgg = {
   passed: number;
   failed: number;
   skipped: number;
+  errored: number;
 };
 export type CriteriaByScenario = Map<string, CriterionAgg[]>;
 
 type ScoreJson = {
   results?: {
     criterion?: { type?: string; text?: string };
+    outcome?: "passed" | "failed" | "skipped" | "errored";
     passed?: boolean;
     skipped?: boolean;
   }[];
@@ -117,16 +119,34 @@ export function buildCriteriaData(result: MatrixResult): CriteriaByScenario {
         if (!text) continue;
         let agg = bucket.find((a) => a.text === text);
         if (!agg) {
-          agg = { text, type, passed: 0, failed: 0, skipped: 0 };
+          agg = { text, type, passed: 0, failed: 0, skipped: 0, errored: 0 };
           bucket.push(agg);
         }
-        if (r.skipped) agg.skipped += 1;
-        else if (r.passed) agg.passed += 1;
-        else agg.failed += 1;
+        switch (criterionOutcome(r)) {
+          case "passed":
+            agg.passed += 1;
+            break;
+          case "failed":
+            agg.failed += 1;
+            break;
+          case "errored":
+            agg.errored += 1;
+            break;
+          default:
+            agg.skipped += 1;
+        }
       }
     }
   }
   return byScenario;
+}
+
+function criterionOutcome(
+  result: NonNullable<ScoreJson["results"]>[number],
+): "passed" | "failed" | "skipped" | "errored" {
+  if (result.outcome) return result.outcome;
+  if (result.skipped) return "skipped";
+  return result.passed ? "passed" : "failed";
 }
 
 // ---- fleet model/provider lookup (agent_id → model slug, provider) ----
@@ -348,11 +368,16 @@ function criteriaSection(
       const rows = aggs
         .map((a) => {
           const total = a.passed + a.failed;
-          const rate = total === 0 ? 1 : a.passed / total;
+          const rate = total === 0 ? 0 : a.passed / total;
           const w = rate * 100;
           let cls = "crit-mid";
           let glyph = "◐";
-          if (total === 0 || rate >= 0.999) {
+          let val = pct(rate);
+          if (total === 0) {
+            cls = "crit-uneval";
+            glyph = a.errored > 0 ? "!" : "-";
+            val = "UNEVAL";
+          } else if (rate >= 0.999) {
             cls = "crit-ok";
             glyph = "✓";
           } else if (a.passed === 0) {
@@ -360,11 +385,15 @@ function criteriaSection(
             glyph = "✗";
           }
           const kind = a.type === "P" ? t.kindJudge : t.kindDeterministic;
+          const excluded = [
+            a.skipped > 0 ? `${a.skipped} skipped` : "",
+            a.errored > 0 ? `${a.errored} errored` : "",
+          ].filter(Boolean).join(", ");
           return `
             <div class="crit-row">
-              <div class="crit-text"><span class="crit-glyph ${cls}">${glyph}</span>${esc(a.text)} <span class="crit-kind">[${a.type}] ${esc(kind)}</span></div>
+              <div class="crit-text"><span class="crit-glyph ${cls}">${glyph}</span>${esc(a.text)} <span class="crit-kind">[${a.type}] ${esc(kind)}${excluded ? `; ${esc(excluded)}` : ""}</span></div>
               <div class="crit-track"><span class="crit-fill ${cls}" style="width:${w.toFixed(0)}%"></span></div>
-              <div class="crit-val num">${pct(rate)}</div>
+              <div class="crit-val num">${val}</div>
             </div>`;
         })
         .join("");
@@ -646,12 +675,14 @@ export const STYLES = `
   .crit-glyph.crit-ok { color: var(--success); }
   .crit-glyph.crit-mid { color: var(--warning); }
   .crit-glyph.crit-bad { color: var(--error); }
+  .crit-glyph.crit-uneval { color: var(--muted); }
   .crit-row { display: grid; grid-template-columns: 1fr 5rem 2.6rem; align-items: center; gap: .6rem; }
   .crit-track { height: 8px; background: var(--hairline-dark); border-radius: 9999px; overflow: hidden; }
   .crit-fill { display: block; height: 100%; border-radius: 9999px; }
   .crit-fill.crit-ok { background: var(--success); }
   .crit-fill.crit-mid { background: var(--warning); }
   .crit-fill.crit-bad { background: var(--error); }
+  .crit-fill.crit-uneval { background: var(--muted); }
   .crit-val { text-align: right; font-size: .78rem; }
 
   /* scenario explainers */

@@ -26,6 +26,7 @@ export const cellRunSchema = z.object({
   criteria_passed: z.number().int().min(0),
   criteria_failed: z.number().int().min(0),
   criteria_skipped: z.number().int().min(0),
+  criteria_errored: z.number().int().min(0),
   // best-effort resource metrics (any may be null — keyless scripted cells
   // emit no LlmCallEvents, so tokens/cost/latency are honestly null)
   prompt_tokens: z.number().int().min(0).nullable(),

@@ -250,7 +250,9 @@ export async function runMatrixCell(input: RunCellInput): Promise<RunCellOutput>
   const agentErrored = exitCode === 3;
   const satisfaction = score?.satisfaction ?? 0;
   const passThreshold = input.passThreshold ?? 100;
-  const passed = cellPassed(satisfaction, agentErrored, passThreshold);
+  // `can_pass` is absent on legacy score.json → default true (old behavior).
+  const canPass = score?.can_pass ?? true;
+  const passed = cellPassed(satisfaction, agentErrored, passThreshold, canPass);
 
   const run: CellRun = {
     run_index: input.runIndex,
@@ -263,6 +265,7 @@ export async function runMatrixCell(input: RunCellInput): Promise<RunCellOutput>
     criteria_passed: score?.passed ?? 0,
     criteria_failed: score?.failed ?? 0,
     criteria_skipped: score?.skipped ?? 0,
+    criteria_errored: score?.errored ?? 0,
     prompt_tokens: resources.prompt_tokens,
     completion_tokens: resources.completion_tokens,
     cost_usd: resources.cost_usd,
@@ -296,6 +299,7 @@ function erroredRun(
     criteria_passed: 0,
     criteria_failed: 0,
     criteria_skipped: 0,
+    criteria_errored: 0,
     prompt_tokens: null,
     completion_tokens: null,
     cost_usd: null,

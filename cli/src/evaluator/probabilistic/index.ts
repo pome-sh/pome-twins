@@ -21,6 +21,7 @@ export async function evaluateProbabilistic(
     return {
       criterion,
       passed: false,
+      outcome: "skipped",
       skipped: true,
       reason: message,
       confidence: 0,
@@ -36,6 +37,8 @@ export async function evaluateProbabilistic(
     return {
       criterion,
       passed: false,
+      // FDRS-611: no judge configured is a harness gap, not an infra failure.
+      outcome: "skipped",
       skipped: true,
       reason:
         "No LLM judge configured — set POME_LLM_API_KEY (with BASE_URL + MODEL), or OPENAI_API_KEY, or ANTHROPIC_API_KEY. Probabilistic criteria are skipped.",
@@ -55,6 +58,7 @@ export async function evaluateProbabilistic(
 
     return {
       criterion,
+      outcome: passed ? "passed" : "failed",
       passed,
       skipped: false,
       reason,
@@ -67,9 +71,20 @@ export async function evaluateProbabilistic(
   } catch (err) {
     if (err instanceof JudgeHttpError) {
       const reason = classifyJudgeError({ status: err.status, message: err.message });
+      // FDRS-591 vs FDRS-611 split:
+      //   errored — TRANSIENT infra failure the run could not control:
+      //     rate_limited (429), upstream_5xx (5xx), provider_error.
+      //   skipped — a SETUP / structural limit, like "no judge configured":
+      //     auth_error (401/403 — bad/absent key) and context_too_large (the
+      //     prompt structurally can't be judged by this model; author a [D]).
+      // Either way `skipped` stays true so both are excluded from the
+      // denominator and legacy cloud consumers are unaffected.
+      const outcome: "skipped" | "errored" =
+        reason === "auth_error" || reason === "context_too_large" ? "skipped" : "errored";
       return {
         criterion,
         passed: false,
+        outcome,
         skipped: true,
         reason: formatErrorReason(reason, err.message),
         confidence: 0,
@@ -83,6 +98,9 @@ export async function evaluateProbabilistic(
     return {
       criterion,
       passed: false,
+      // FDRS-591: an unexpected exception in the judge path is infra, not a
+      // harness gap.
+      outcome: "errored",
       skipped: true,
       reason: `judge call failed (unexpected): ${message}`,
       confidence: 0,

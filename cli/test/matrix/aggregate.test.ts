@@ -284,6 +284,10 @@ describe("cellPassed (gradient gate)", () => {
   it("a 0 threshold passes any non-errored run (the loosest gate)", () => {
     expect(cellPassed(0, false, 0)).toBe(true);
   });
+
+  it("fails when the A5 guard says the run cannot pass", () => {
+    expect(cellPassed(100, false, 100, false)).toBe(false);
+  });
 });
 
 describe("aggregateMatrix end-to-end", () => {
