@@ -173,10 +173,23 @@ describe("runSchema (new fields)", () => {
     expect(r.events_jsonl_url).toBeNull();
   });
 
-  it("rejects invalid events_jsonl_url (not a URL)", () => {
-    expect(() =>
-      runSchema.parse({ ...baseRun, events_jsonl_url: "not-a-url" })
-    ).toThrow();
+  it("accepts a storage-key events_jsonl_url (FDRS-613: relaxed from .url() to match pome-cloud)", () => {
+    const r = runSchema.parse({
+      ...baseRun,
+      events_jsonl_url: "team-tm_1/session-ses_123/events.jsonl",
+    });
+    expect(r.events_jsonl_url).toBe("team-tm_1/session-ses_123/events.jsonl");
+  });
+
+  it("defaults FDRS-613 reconciled fields (correlator_kind/environment/agent telemetry/summary)", () => {
+    const r = runSchema.parse(baseRun);
+    expect(r.correlator_kind).toBe("heuristic");
+    expect(r.environment).toBe("simulation");
+    expect(r.promoted_scenario_id).toBeNull();
+    expect(r.replay_run_id).toBeNull();
+    expect(r.state_archive_s3_key).toBeNull();
+    expect(r.agent_tokens_in).toBeNull();
+    expect(r.summary).toBeNull();
   });
 });
 

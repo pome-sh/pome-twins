@@ -3,29 +3,32 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server.ts"
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" }
   },
   "publishConfig": { "access": "public" },
   "files": [
-    "src",
-    "scripts",
+    "dist",
+    "vendor",
     "package.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "tsc -p tsconfig.build.json",
     "emit-fidelity": "tsx scripts/emit-fidelity.ts"
   },
+  "//shared-types": "FDRS-612: shared-types is not on npm, so `workspace:*` (unresolvable off-workspace) is replaced by the vendored, dist-shipping tarball. In-repo dev still resolves it via the bun workspace by package name; the `file:` spec + bundledDependencies only take effect off-workspace (npm pack/install), where scripts/pack-publishable.mjs rewrites main/types/exports to ./dist.",
   "dependencies": {
-    "@pome-sh/shared-types": "workspace:*",
+    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.4.0.tgz",
     "hono": "^4.12.27",
     "zod": "^4.1.13"
   },
+  "bundledDependencies": ["@pome-sh/shared-types"],
   "peerDependencies": {
     "@hono/node-server": "^1.19.6"
   },
