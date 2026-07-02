@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,6 +80,21 @@ describe("pome run --hosted (e2e via spawn)", () => {
     receivedResult = null;
     finalizeResponseOverrides = {};
     tmp = await mkdtemp(join(tmpdir(), "pome-e2e-"));
+    // FDRS-641 — `pome run` gates on the doctor preflight (config present,
+    // routing wired, egress floor; local twin boot is skipped on hosted
+    // runs). Make tmp a wired repo and spawn the CLI from it, matching what
+    // a real post-`pome install` project looks like.
+    await writeFile(
+      join(tmp, "pome.config.json"),
+      JSON.stringify({ agent: { command: "true" } }, null, 2),
+      "utf8"
+    );
+    await mkdir(join(tmp, "src"), { recursive: true });
+    await writeFile(
+      join(tmp, "src", "agent.ts"),
+      "const baseUrl = process.env.POME_GITHUB_REST_URL;\nexport { baseUrl };\n",
+      "utf8"
+    );
     port = await startFakeCloud();
   });
 
@@ -131,6 +146,7 @@ describe("pome run --hosted (e2e via spawn)", () => {
         join(tmp, "runs"),
       ],
       {
+        cwd: tmp,
         env: { ...process.env, POME_API_KEY: "pme_e2e_test" },
       }
     );
@@ -201,6 +217,7 @@ describe("pome run --hosted (e2e via spawn)", () => {
         join(tmp, "runs"),
       ],
       {
+        cwd: tmp,
         env: { ...process.env, POME_API_KEY: "pme_e2e_test" },
       },
     );

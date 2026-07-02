@@ -574,7 +574,9 @@ export function createProgram() {
       "--local",
       "Self-host: run against an in-process twin and capture a trace WITHOUT scoring. Evaluation (pass/fail) is a hosted feature — `pome login` and re-run to score on Pome cloud. See ADR-004.",
     )
-    .description("Run one or more Pome scenarios")
+    .description(
+      "Run one or more Pome scenarios. Refuses to start if the doctor wiring checks fail (see `pome doctor`); there is no --force.",
+    )
     .action(
       async (
         target: string,
@@ -631,6 +633,31 @@ export function createProgram() {
         } else if (options.hosted) {
           console.error("Note: --hosted is now the default; the flag is a deprecated no-op and will be removed in a future release.");
         }
+
+        // FDRS-641 — doctor preflight gate. A repo failing any applicable
+        // doctor check refuses to spawn the agent — BEFORE credentials are
+        // resolved and before any twin/session is provisioned. Local runs get
+        // the full engine (incl. local twin boot); hosted runs skip the local
+        // twin (the cloud provisions the session twin) but still gate on
+        // config, routing, and the egress floor. Deliberately no --force /
+        // --skip-checks escape: "never a false success" — pome will not run
+        // trials against a live API. (Design: CLI moments 03; engine:
+        // FDRS-634.)
+        {
+          const { runDoctorChecks } = await import("../doctor/checks.js");
+          const { renderDoctorReport } = await import("../doctor/render.js");
+          const doctorReport = await runDoctorChecks({ mode: useLocal ? "full" : "hosted" });
+          if (!doctorReport.ok) {
+            for (const line of renderDoctorReport(doctorReport)) console.error(line);
+            console.error("");
+            console.error(
+              "pome run: wiring check failed — refusing to spawn the agent. Fix the cause above and re-run (there is no --force).",
+            );
+            process.exitCode = 1;
+            return;
+          }
+        }
+
         try {
           hostedCreds = useLocal
             ? null
