@@ -1,0 +1,20 @@
+# Trivy ignore policy — twin image publish gate (FDRS-586)
+#
+# The twin-*-image workflows fail the publish on FIXABLE HIGH/CRITICAL CVEs
+# (severity HIGH,CRITICAL + ignore-unfixed: true). To ship past a specific CVE
+# you must add it here with a justification and a review date — this file IS
+# the audit trail. Rules:
+#
+#   1. Only add a CVE after a human has assessed it is not exploitable in our
+#      usage (e.g. the vulnerable code path is never reached by the twin).
+#   2. One CVE per line, prefixed with a comment: reason + who + review-by date.
+#   3. Re-review each entry by its date; delete it once the base image ships a
+#      fix (ignore-unfixed already suppresses vulns with no fix available, so
+#      entries here are deliberate exceptions to *fixable* findings).
+#
+# Format:
+#   # <reason> — <handle>, review by <YYYY-MM-DD>
+#   CVE-XXXX-YYYYY
+#
+# (No exceptions currently. Keep this list empty unless a fixable HIGH/CRITICAL
+# genuinely cannot be remediated in time and has been reviewed.)

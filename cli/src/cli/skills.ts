@@ -64,7 +64,7 @@ export async function runSkillsInstall(
       `Bundled skills directory missing from this pome install: ${sourceDir}`,
     );
     console.error(
-      "This is a packaging bug — please report at https://github.com/pome-sh/pome/issues.",
+      "This is a packaging bug — please report at https://github.com/pome-sh/pome-twins/issues.",
     );
     process.exitCode = 2;
     return;

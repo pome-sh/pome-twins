@@ -1,0 +1,91 @@
+name: quickstart-smoke
+# The clean-clone quickstart (README): `docker compose up` then the bundled
+# triage agent must locate the twin's auto-generated secret and reach the twin.
+# FDRS-604 broke exactly this (secret moved to a per-twin subdir); this gate
+# keeps it from silently re-breaking. FDRS-647.
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'examples/triage-agent/**'
+      - 'packages/twin-github/**'
+      - 'packages/shared-types/**'
+      - 'packages/adapter-claude-sdk/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'docker-compose.yml'
+      - '.github/workflows/quickstart-smoke.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: quickstart-smoke-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Fast, hermetic: the secret-path resolver probes the per-twin path.
+  unit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.10
+      # Root install first: the example's `file:` adapter dep resolves its own
+      # @anthropic-ai/claude-agent-sdk from the workspace node_modules, so the
+      # module import in the test succeeds.
+      - run: bun install --frozen-lockfile
+      - name: Secret-path unit test
+        working-directory: examples/triage-agent
+        run: |
+          bun install
+          bun test
+
+  # End-to-end: build the GitHub twin image from this checkout, compose it up,
+  # then run the agent in PREFLIGHT mode (POME_PREFLIGHT=1). The agent resolves
+  # the on-disk secret, mints a JWT, probes the twin's /tools with that token,
+  # and exits 0. That path never calls Claude, but the code asserts
+  # ANTHROPIC_API_KEY is set, so we pass a throwaway value.
+  smoke:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.10
+      # Root install so the example's adapter dep resolves (see the unit job).
+      - run: bun install --frozen-lockfile
+      - name: Build GitHub twin image for compose
+        run: docker build -t ghcr.io/pome-sh/twins:github -f packages/twin-github/Dockerfile .
+      - name: Start the GitHub twin
+        run: docker compose up --pull never -d twin-github
+      - name: Wait for the twin secret + health
+        run: |
+          for i in $(seq 1 60); do
+            if [ -f .pome-data/github/secret ] && curl -fsS http://127.0.0.1:3333/healthz >/dev/null 2>&1; then
+              echo "twin ready after ${i} tries"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::twin secret/health not ready within 120s"
+          docker compose logs twin-github
+          exit 1
+      - name: Quickstart preflight (resolve secret + reach twin)
+        working-directory: examples/triage-agent
+        env:
+          POME_PREFLIGHT: "1"
+          # preflight probes the twin only; it never calls Claude in this mode,
+          # but index.ts asserts the key is present, so a placeholder suffices.
+          ANTHROPIC_API_KEY: "sk-ant-preflight-not-used"
+        run: |
+          bun install
+          bun run start
+      - name: Twin logs on failure
+        if: failure()
+        run: docker compose logs twin-github

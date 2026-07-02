@@ -1,0 +1,8 @@
+{
+  "period_start": "2026-07-01T00:00:00.000Z",
+  "period_end": "2026-08-01T00:00:00.000Z",
+  "sessions_used": 3,
+  "sessions_quota": 5,
+  "sessions_remaining": 2,
+  "plan_tier": "free"
+}

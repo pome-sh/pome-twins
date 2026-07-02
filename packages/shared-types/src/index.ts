@@ -80,7 +80,17 @@ export const userSchema = z.object({
 });
 export type User = z.infer<typeof userSchema>;
 
-export const planTierSchema = z.enum(["free", "pro", "self_host_annual", "enterprise"]);
+// FDRS-613: reconciled to pome-cloud /v1 wire truth — `hobby` and `team` were
+// added cloud-side for the launch pricing tiers; adopted here so a cloud-issued
+// MeResponse / UsageResponse (plan_tier) parses under the twins schema.
+export const planTierSchema = z.enum([
+  "free",
+  "hobby",
+  "pro",
+  "team",
+  "self_host_annual",
+  "enterprise",
+]);
 export type PlanTier = z.infer<typeof planTierSchema>;
 
 export const teamSchema = z.object({
@@ -143,6 +153,14 @@ export type ApiKeyCreated = z.infer<typeof apiKeyCreatedSchema>;
 // 2. SESSIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Mounted twin set — the cloud control plane's allowlist for create-session.
+// V1 ships GitHub only end-to-end; Stripe/Slack are scaffolded in the OSS repo
+// and reachable through the multi-twin runtime. Distinct from `KNOWN_TWIN_IDS`
+// (re-exported from `./recorder-events.ts`) which serves dashboard-rendering
+// pattern-matching for arbitrary `RecorderEvent.twin` values. Mirrored from
+// pome-cloud shared-types (FDRS-613).
+export const MOUNTED_TWINS = ["github", "stripe", "slack"] as const;
+
 export const sessionStateSchema = z.enum([
   "provisioning",
   "ready",
@@ -154,11 +172,16 @@ export const sessionStateSchema = z.enum([
 export type SessionState = z.infer<typeof sessionStateSchema>;
 
 // Internal DB row shape — includes pod_id and api_key_id which are NOT exposed publicly.
+//
+// Multi-twin (M3): `twins[]` is the new authoritative field. `twin_type` is kept
+// populated as legacy = `twins[0]` for ≥1 OSS CLI release. FDRS-613: `twins`
+// adopted from pome-cloud so a cloud-issued Session / SessionPublic parses here.
 export const sessionSchema = z.object({
   id: z.string(),                              // ses_<nanoid>
   team_id: z.string(),
   api_key_id: z.string().nullable(),           // null if dashboard-launched
-  twin_type: z.string(),                       // 'github' for V1; open string aligns with RecorderEvent.twin
+  twin_type: z.string(),                       // legacy: equals twins[0] in M3+; kept for one CLI release
+  twins: z.array(z.string()).min(1),           // M3: authoritative list of mounted twins for this session
   state: sessionStateSchema,
   twin_url: z.string().url().nullable(),       // populated when state='ready'
   pod_id: z.string().nullable(),               // INTERNAL: which pool pod served — never on public API responses
@@ -361,7 +384,19 @@ export const createSessionRequestSchema = z
     twins: z.array(z.string()).min(1).default(["github"]),
     scenario_source: z.string().optional(),    // base64-encoded UTF-8 markdown
     scenario_id: z.string().optional(),        // alternative: stored scenario
-    seed: seedStateSchema.optional(),          // optional override
+    // FDRS-580 / ADR-015 (adopted from pome-cloud, FDRS-613): the seed override
+    // is a PERMISSIVE, shape-blind boundary. The twin pod's own `parseSeed` is
+    // the sole authority on the seed's domain shape; the cloud forwards it
+    // verbatim. `z.record` keeps the one invariant that is the boundary's
+    // business — "the seed is a JSON object" — while forwarding every domain
+    // field, known or not, untouched. Do NOT re-narrow to `seedStateSchema`
+    // here: a narrow `.object()` strips unknown keys, which is how PR-based
+    // scenarios lost their `users` / `pull_requests` / `files`.
+    seed: z.record(z.string(), z.unknown()).optional(), // optional override
+    // M3: client-supplied UUID v4 used for 30s server-side dedupe of
+    // POST /v1/sessions. The dashboard generates one per Start-button click;
+    // legacy clients work without it.
+    idempotency_key: z.string().uuid().optional(),
   })
   .refine(
     (v) => Boolean(v.scenario_source) !== Boolean(v.scenario_id),
@@ -369,9 +404,17 @@ export const createSessionRequestSchema = z
   );
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
+// M3 response shape: one session, N twins, one set of URLs per twin under
+// `per_twin{}`. Legacy single-twin fields `twin_url` + `openapi_url` continue
+// to be populated as `per_twin[twins[0]].api_url` / `.openapi_url` for ≥1 OSS
+// CLI release. `session_token` is the public token used in URLs — same value as
+// `session_id` in V1, but named separately so URL-shaped consumers stop reading
+// internal-id-shaped fields. Both `session_token` and `per_twin` reconciled
+// from pome-cloud /v1 wire truth (FDRS-613).
 export const createSessionResponseSchema = z.object({
   session_id: z.string(),
-  twin_url: z.string().url(),                  // https://twins.pome.sh/s/<sid>
+  session_token: z.string(),                   // = session_id in V1; public URL token
+  twin_url: z.string().url(),                  // legacy: = per_twin[twins[0]].api_url
   expires_at: z.string().datetime(),
   agent_token: z.string(),                     // edt_<jwt>; SENSITIVE — never log; CLI memory only; bearer scoped to session TTL
   provider_credentials: z
@@ -399,7 +442,15 @@ export const createSessionResponseSchema = z.object({
         .optional(),
     })
     .default({}),
-  openapi_url: z.string().url(),
+  openapi_url: z.string().url(),               // legacy: = per_twin[twins[0]].openapi_url
+  per_twin: z.record(
+    z.string(),
+    z.object({
+      api_url: z.string().url(),               // api.pome.sh/<twin>/<session_token>
+      mcp_url: z.string().url(),               // mcp.pome.sh/<twin>/<session_token> (501 stub in V1)
+      openapi_url: z.string().url(),
+    }),
+  ),
 });
 export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 
@@ -428,6 +479,10 @@ export const submitResultRequestSchema = z.object({
   lanes: z.array(laneSchema).default([]),
   steps: z.array(stepSchema).default([]),
   fix_prompt: z.string().nullable().default(null),
+  // FDRS-357 (adopted from pome-cloud, FDRS-613): storage key (NOT URL) returned
+  // by POST /v1/sessions/:id/result-upload-url. Null on upload failure
+  // (best-effort), --no-upload opt-out, or pre-FDRS-357 CLI.
+  events_jsonl_url: z.string().nullable().default(null),
   // Trace blobs — safe to upload (HTTP between agent and twin, not LLM prompts):
   trace_jsonl_b64: z.string(),
   state_initial_json_b64: z.string(),
@@ -444,13 +499,16 @@ export const submitResultResponseSchema = z.object({
 });
 export type SubmitResultResponse = z.infer<typeof submitResultResponseSchema>;
 
-// GET /v1/usage — sessions/month, not minutes (per /plan-eng-review L5).
+// GET /v1/usage — live concurrent-session quota snapshot.
+// FDRS-613: `sessions_remaining` tightened to `.int().min(0)` to match the
+// pome-cloud /v1 wire truth (cloud clamps remaining at 0 rather than exposing
+// negative overage on this live snapshot).
 export const usageResponseSchema = z.object({
   period_start: z.string().datetime(),
   period_end: z.string().datetime(),
   sessions_used: z.number().int().min(0),
   sessions_quota: z.number().int().min(0),
-  sessions_remaining: z.number().int(),        // can be negative on overage
+  sessions_remaining: z.number().int().min(0),
   plan_tier: planTierSchema,
 });
 export type UsageResponse = z.infer<typeof usageResponseSchema>;

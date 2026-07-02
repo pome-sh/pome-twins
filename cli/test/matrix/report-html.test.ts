@@ -126,7 +126,7 @@ describe("renderReportHtml", () => {
   it("links every scenario to its source .md on GitHub", () => {
     const html = renderReportHtml(baseInput());
     for (const slug of ["01-bug-happy-path", "02-missing-label", "05-github-identity-spoof"]) {
-      expect(html).toContain(`https://github.com/pome-sh/pome/blob/main/cli/scenarios/${slug}.md`);
+      expect(html).toContain(`https://github.com/pome-sh/pome-twins/blob/main/cli/scenarios/${slug}.md`);
     }
   });
 

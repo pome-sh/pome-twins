@@ -29,12 +29,13 @@ x-twin-entrypoint: &twin-entrypoint
       mkdir -p /data
       if [ ! -f /data/secret ]; then
         node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))' > /data/secret
-        chmod 600 /data/secret
       fi
+      # Host-side quickstart agents read this bind-mounted secret to mint JWTs.
+      chmod 644 /data/secret
       TWIN_AUTH_SECRET=$$(cat /data/secret)
     fi
     export TWIN_AUTH_SECRET
-    exec node dist/src/server.js
+    exec node "packages/$${POME_TWIN_PACKAGE}/dist/src/server.js"
 
 services:
   twin-github:
@@ -47,6 +48,7 @@ services:
       GITHUB_CLONE_HOST: "0.0.0.0"
       GITHUB_CLONE_DB: /data/github_clone.db
       TWIN_AUTH_SECRET: "${TWIN_AUTH_SECRET:-}"
+      POME_TWIN_PACKAGE: twin-github
     command: *twin-entrypoint
     restart: unless-stopped
 
@@ -61,6 +63,7 @@ services:
       STRIPE_CLONE_HOST: "0.0.0.0"
       STRIPE_CLONE_DB: /data/stripe.db
       TWIN_AUTH_SECRET: "${TWIN_AUTH_SECRET:-}"
+      POME_TWIN_PACKAGE: twin-stripe
     command: *twin-entrypoint
     restart: unless-stopped
 
@@ -75,5 +78,6 @@ services:
       SLACK_CLONE_HOST: "0.0.0.0"
       SLACK_CLONE_DB: /data/slack.db
       TWIN_AUTH_SECRET: "${TWIN_AUTH_SECRET:-}"
+      POME_TWIN_PACKAGE: twin-slack
     command: *twin-entrypoint
     restart: unless-stopped

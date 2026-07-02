@@ -73,7 +73,7 @@ describe("renderEvalReportHtml", () => {
     expect(html).not.toContain("<link");
     expect(html).not.toMatch(/src="https?:\/\//);
     // The only http(s) refs allowed are the GitHub source links in the catalog.
-    expect(html).toContain("https://github.com/pome-sh/pome/blob/main/cli/scenarios");
+    expect(html).toContain("https://github.com/pome-sh/pome-twins/blob/main/cli/scenarios");
   });
 
   it("renders the scenario-18 action-failure matrix as the centerpiece", () => {

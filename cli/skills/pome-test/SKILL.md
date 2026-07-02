@@ -65,14 +65,19 @@ For every scenario path, run:
 pome run <path>
 ```
 
-Pome handles agent spawning, twin routing, recording, and scoring. The exit code tells you the result:
+Pome handles agent spawning, twin routing, recording, and scoring. A `--local`
+run is not scored, so its exit code only reflects whether the agent ran
+cleanly (`0`) or errored/timed out (`3`); exit `0` from `--local` means "trace
+captured," not "scenario passed." Do not gate CI on a `--local` exit code.
+
+The exit code tells you the result:
 
 | Exit code | Meaning |
 | --- | --- |
-| 0 | Scenario passed (score ≥ passThreshold) |
-| 1 | Scenario scored below threshold |
-| 2 | Runner / twin error (network, 5xx) |
-| 3 | Auth error — `pome login` again |
+| 0 | All scenarios passed (hosted/scored run), or trace captured (`--local`, not scored) |
+| 1 | At least one scenario scored below threshold |
+| 2 | Twin or runner error (network, 5xx, twin spawn failed) |
+| 3 | Auth error — `pome login` again; also a `--local` agent that failed to start or timed out |
 | 4 | Quota exceeded |
 | 5 | Usage error (bad flags, missing files) |
 

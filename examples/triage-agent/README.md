@@ -10,9 +10,9 @@ This is the example referenced in the README quickstart and the demo video
 
 ## Prerequisites
 
-- A running Pome twin on `http://127.0.0.1:3333` — the easiest way is the
-  repo-root `docker compose up` from `FDRS-248`. The twin auto-generates a
-  bearer secret at `<repo-root>/.pome-data/secret` on first run.
+- A running Pome twin on `http://127.0.0.1:3333` — the easiest way is
+  `docker compose up` from the repo root. The twin auto-generates a
+  bearer secret at `<repo-root>/.pome-data/github/secret` on first run.
 - `bun >= 1.3.0` and `node >= 20`.
 - An Anthropic API key for the agent loop. BYOK via `ANTHROPIC_API_KEY`.
 
@@ -38,7 +38,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 bun run start
 ```
 
-The agent reads the secret from `<repo-root>/.pome-data/secret`, mints its
+The agent reads the secret from `<repo-root>/.pome-data/github/secret`, mints its
 own bearer JWT (`sid: "demo"`, matching the docker-compose `/s/demo` URL),
 then talks to the twin's MCP at `http://127.0.0.1:3333/s/demo/mcp`.
 
@@ -58,9 +58,9 @@ via env (`POME_GITHUB_MCP_URL`, `POME_AUTH_TOKEN`, `POME_TASK`):
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# from this directory, with the CLI repo checked out beside `pome`
-bun run --cwd ../../../cli dev -- run \
-  ../pome/examples/triage-agent/01-triage-acme-issues.md \
+# from this directory, with the CLI at ../../cli
+bun run --cwd ../../cli dev -- run \
+  ../examples/triage-agent/01-triage-acme-issues.md \
   --agent "bun run --cwd $(pwd) start"
 ```
 
@@ -90,4 +90,4 @@ All optional. Defaults match the repo-root `docker compose up`.
 | `POME_TWIN_SID` | `demo` | Used to derive the MCP URL when `POME_GITHUB_MCP_URL` is unset. |
 | `POME_REPO_OWNER` / `POME_REPO_NAME` | `acme` / `api` | Override the default repo named in the bundled task. |
 | `TWIN_AUTH_SECRET` | — | Override the on-disk secret when minting the JWT locally. |
-| `POME_DATA_SECRET_PATH` | `<repo-root>/.pome-data/secret` | Override where the agent looks for the on-disk secret. |
+| `POME_DATA_SECRET_PATH` | `<repo-root>/.pome-data/github/secret` | Override where the agent looks for the on-disk secret. |

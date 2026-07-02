@@ -6,6 +6,7 @@
   "description": "Bundled Pome example: a Claude Agent SDK agent that triages issues on the local GitHub twin.",
   "scripts": {
     "start": "bun run src/index.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

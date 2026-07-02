@@ -2,8 +2,80 @@ name: sdk publish
 on:
   release:
     types: [published]
+  pull_request:
+    paths:
+      - "packages/sdk/**"
+      - "packages/adapter-claude-sdk/**"
+      - "packages/shared-types/**"
+      - "scripts/pack-publishable.mjs"
+      - ".github/workflows/sdk-publish.yml"
+
+concurrency:
+  group: sdk-publish-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # T10 (FDRS-585 / FDRS-612): prove @pome-sh/sdk and @pome-sh/adapter-claude-sdk
+  # are importable from a published npm tarball — runnable dist JS, no
+  # unresolvable `workspace:` specs, and the sdk `./server` subpath resolves.
+  pack-smoke:
+    name: npm-pack clean-room import
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.10
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile
+
+      - name: Build publishable tarballs and check SDK vendor
+        run: node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs" --check-vendor
+
+      - name: Guard — no `workspace:` specs survive into any published manifest
+        run: |
+          set -euo pipefail
+          fail=0
+          for tgz in "$RUNNER_TEMP"/tarballs/*.tgz; do
+            dir="$(mktemp -d)"
+            tar -xzf "$tgz" -C "$dir"
+            if grep -q '"workspace:' "$dir/package/package.json" \
+               || grep -Eq '"[^"]*"[[:space:]]*:[[:space:]]*"workspace:' "$dir/package/package.json"; then
+              echo "✗ $(basename "$tgz") package.json still contains a workspace: spec"
+              grep -n "workspace:" "$dir/package/package.json" || true
+              fail=1
+            else
+              echo "✓ $(basename "$tgz") has no workspace: spec"
+            fi
+          done
+          exit $fail
+
+      - name: Clean-room import (sdk root + ./server, adapter)
+        run: |
+          set -euo pipefail
+          room="$(mktemp -d)"
+          cd "$room"
+          npm init -y >/dev/null 2>&1
+          npm install \
+            "$RUNNER_TEMP"/tarballs/pome-sh-sdk-*.tgz \
+            "$RUNNER_TEMP"/tarballs/pome-sh-adapter-claude-sdk-*.tgz \
+            --no-audit --no-fund
+          node --input-type=module -e '
+            const root = await import("@pome-sh/sdk");
+            const server = await import("@pome-sh/sdk/server");
+            const adapter = await import("@pome-sh/adapter-claude-sdk");
+            if (typeof root.recorderEventSchema?.parse !== "function") throw new Error("sdk root missing bundled shared-types runtime re-export");
+            if (typeof root.defineTwin !== "function") throw new Error("sdk root missing defineTwin");
+            if (typeof server.createApp !== "function") throw new Error("sdk/server subpath failed to resolve");
+            if (typeof adapter.flushPomeTelemetry !== "function") throw new Error("adapter export missing");
+            console.log("clean-room import OK: sdk root, sdk/server, adapter");
+          '
+
   publish:
     if: startsWith(github.event.release.tag_name, 'sdk-v')
     runs-on: ubuntu-latest

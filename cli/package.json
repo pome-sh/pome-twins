@@ -18,11 +18,11 @@
   "homepage": "https://pome.sh",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pome-sh/pome.git",
+    "url": "git+https://github.com/pome-sh/pome-twins.git",
     "directory": "cli"
   },
   "bugs": {
-    "url": "https://github.com/pome-sh/pome/issues"
+    "url": "https://github.com/pome-sh/pome-twins/issues"
   },
   "author": "Pome <founders@pome.sh> (https://pome.sh)",
   "license": "Apache-2.0",

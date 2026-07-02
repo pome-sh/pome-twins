@@ -250,7 +250,7 @@ export const SCENARIO_COPY: Record<string, ScenarioCopy> = {
 
 // Source slug for the GitHub link in the scenario catalog.
 export const GITHUB_SCENARIO_BASE =
-  "https://github.com/pome-sh/pome/blob/main/cli/scenarios";
+  "https://github.com/pome-sh/pome-twins/blob/main/cli/scenarios";
 
 // ---- scaffolds + judge prose ("what we tested" tables) ----
 

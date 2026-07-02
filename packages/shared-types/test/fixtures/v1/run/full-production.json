@@ -1,0 +1,49 @@
+{
+  "id": "run_prod1",
+  "session_id": "ses_prod",
+  "team_id": "tm_1",
+  "scenario_name": "stripe-refund-retry",
+  "scenario_hash": "sha256:def",
+  "satisfaction_score": 87,
+  "criteria_results": [
+    {
+      "criterion": { "type": "P", "text": "response is polite" },
+      "passed": true,
+      "skipped": false,
+      "reason": "tone is courteous",
+      "confidence": 0.92,
+      "judge_model": "google/gemini-2.5-flash"
+    }
+  ],
+  "trace_s3_key": "team-tm_1/session-ses_prod/trace.jsonl",
+  "state_s3_key": "team-tm_1/session-ses_prod/state_final.json",
+  "meta_s3_key": "team-tm_1/session-ses_prod/meta.json",
+  "duration_ms": 8300,
+  "agent_model": "claude-sonnet-4-6",
+  "judge_model": "google/gemini-2.5-flash",
+  "judge_tokens_in": 900,
+  "judge_tokens_out": 120,
+  "agent_tokens_in": 4200,
+  "agent_tokens_out": 810,
+  "agent_latency_p50_ms": 640,
+  "agent_latency_p95_ms": 1900,
+  "agent_latency_max_ms": 2400,
+  "agent_error_count": 0,
+  "agent_telemetry_span_count": 37,
+  "correlator_kind": "span_context",
+  "environment": "production",
+  "promoted_scenario_id": "scn_promoted1",
+  "replay_run_id": "run_replay1",
+  "state_archive_s3_key": "team-tm_1/session-ses_prod/state_archive.tar.zst",
+  "lanes": [
+    { "id": "ln_1", "step_id": "stp_1", "twin": "stripe", "label": "POST /v1/refunds (2 calls)", "request_ids": ["req_1", "req_2"] }
+  ],
+  "steps": [
+    { "id": "stp_1", "started_at": "2026-07-02T12:00:00.000Z", "ended_at": "2026-07-02T12:00:03.000Z", "label": "issue refund", "lane_ids": ["ln_1"] }
+  ],
+  "summary": "Agent retried the refund with an idempotency key after the first 409.",
+  "fix_prompt": "## Suggested fix\nAlways set an Idempotency-Key header on refund POSTs.",
+  "events_jsonl_url": "team-tm_1/session-ses_prod/events.jsonl",
+  "created_at": "2026-07-02T12:00:00.000Z",
+  "finished_at": "2026-07-02T12:00:08.300Z"
+}

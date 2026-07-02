@@ -28,8 +28,8 @@ Install the `pome` command before running scenarios or hosted twins. Until the
 first npm registry release ships, install from the GitHub source checkout.
 
 ```bash
-git clone --depth 1 https://github.com/pome-sh/pome.git
-cd pome/cli
+git clone --depth 1 https://github.com/pome-sh/pome-twins.git
+cd pome-twins/cli
 npm install
 npm install -g .
 pome --help
@@ -53,7 +53,7 @@ Prerequisites: [Docker](https://docs.docker.com/get-docker/), [Bun ≥ 1.3](http
 and an [Anthropic API key](https://console.anthropic.com/) for the bundled example agent.
 
 ```bash
-git clone https://github.com/pome-sh/pome.git && cd pome
+git clone https://github.com/pome-sh/pome-twins.git && cd pome-twins
 docker compose up -d                       # GitHub twin on :3333
 curl http://127.0.0.1:3333/healthz
 

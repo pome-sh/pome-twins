@@ -9,8 +9,8 @@ Install the `pome` command first. Until the first npm registry release ships,
 install from the GitHub source checkout.
 
 ```bash
-git clone --depth 1 https://github.com/pome-sh/pome.git
-cd pome/cli
+git clone --depth 1 https://github.com/pome-sh/pome-twins.git
+cd pome-twins/cli
 npm install
 npm install -g .
 pome --help
@@ -252,10 +252,23 @@ Or set `POME_API_KEY=pme_...` for CI.
 
 ## Exit codes
 
-- `0`: success / all scenarios passed threshold.
-- `1`: scenario below threshold or partial failure.
-- `2`: invalid input, parse error, hosted client error.
-- `3`: hosted auth, session, or agent timeout failure (where applicable).
+A `--local` run is **not scored**, so its exit code only reflects whether the
+agent ran cleanly (`0`) or errored/timed out (`3`) — exit `0` from `--local`
+means "trace captured," not "scenario passed." Do not gate CI on a `--local`
+exit code.
+
+| Code | Meaning |
+| --- | --- |
+| `0` | All scenarios passed (hosted/scored run), or trace captured (`--local`, not scored). |
+| `1` | At least one scenario scored below threshold. |
+| `2` | Twin or runner error (network, 5xx, twin spawn failed). |
+| `3` | Auth error (401/403) — re-run `pome login`; also a `--local` agent that failed to start or timed out (see the note above). |
+| `4` | Quota exceeded. |
+| `5` | Usage error (bad flags, missing files). |
+
+This table is the source-of-truth contract, mapped in
+[`cli/src/hosted/errors.ts`](./src/hosted/errors.ts) (`exitCodeFor`) and mirrored
+in the [hosted CLI docs](https://docs.pome.sh/docs/cli#exit-codes).
 
 ## Development
 

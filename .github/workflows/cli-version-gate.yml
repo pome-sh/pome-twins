@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'cli/src/**'
+      - 'cli/vendor/**'
       - 'cli/package.json'
       - 'cli/.changeset/**'
       - 'scripts/check-cli-version-bump.sh'
@@ -14,6 +15,10 @@ concurrency:
 
 jobs:
   check:
+    # NB: keep this job name stable — GitHub matches required status checks by
+    # check-run name, so renaming it silently unbinds the gate from any branch
+    # protection that lists the old name. The vendor coverage lives in the
+    # trigger paths + check-cli-version-bump.sh, not this display string.
     name: cli/src/** must bump version or add a changeset
     runs-on: ubuntu-latest
     permissions:
