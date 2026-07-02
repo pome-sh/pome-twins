@@ -12,6 +12,11 @@ COPY package.json bun.lock ./
 COPY packages packages
 RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/twin-stripe build
+# The runtime image should not include dev/test tooling or unrelated workspace
+# deps. Reinstall only this twin's production graph after the build, hoisted to
+# the root node_modules layout used by the runtime stage.
+RUN rm -rf node_modules packages/*/node_modules \
+  && bun install --frozen-lockfile --production --omit=peer --filter @pome-sh/twin-stripe --linker=hoisted
 
 # Runtime is node, not bun: better-sqlite3's native binding is not yet
 # supported under bun (https://github.com/oven-sh/bun/issues/4290), so the
@@ -21,6 +26,9 @@ FROM node:24-trixie-slim@sha256:9022946fb57e6fb6a2503931470deba4b49db02bfc8f587f
 WORKDIR /repo
 ENV NODE_ENV=production
 ENV STRIPE_CLONE_HOST=0.0.0.0
+# Runtime only executes `node`; npm/npx from the base image add unused packages
+# (and their CVE surface) to the scanned image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/packages/shared-types ./packages/shared-types
 COPY --from=build /repo/packages/twin-stripe/package.json ./packages/twin-stripe/package.json
