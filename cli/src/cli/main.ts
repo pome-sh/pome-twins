@@ -734,6 +734,19 @@ export function createProgram() {
     );
 
   program
+    .command("doctor")
+    .description(
+      "Check the agent↔twin wiring: pome.config.json present + valid, twin reachable, requests routed to the twin (not a hardcoded production host), egress floor active. On failure prints one named cause (file:line where knowable) + one concrete fix and exits non-zero.",
+    )
+    .action(async () => {
+      const { runDoctorChecks } = await import("../doctor/checks.js");
+      const { renderDoctorReport } = await import("../doctor/render.js");
+      const report = await runDoctorChecks();
+      for (const line of renderDoctorReport(report)) console.error(line);
+      if (!report.ok) process.exitCode = 1;
+    });
+
+  program
     .command("matrix")
     .description(
       "Run a fleet of agents across many scenarios (agents × scenarios × runs) and aggregate into outcome-level reports (matrix.json + report.md)",
