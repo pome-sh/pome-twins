@@ -37,7 +37,6 @@
     "scenarios",
     "skills",
     "vendor",
-    "GUIDE.md",
     "LICENSE",
     "package.json",
     "README.md"
@@ -55,6 +54,7 @@
     "test": "vitest run",
     "test:e2e": "vitest run test/e2e",
     "verify:vendor": "node scripts/verify-vendor.mjs",
+    "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish"
@@ -66,7 +66,6 @@
     "@anthropic-ai/sdk": "^0.109.0",
     "@hono/node-server": "^2.0.6",
     "@openrouter/ai-sdk-provider": "^2.9.0",
-    "@pome-sh/correlator": "file:./vendor/pome-sh-correlator-0.1.0.tgz",
     "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.3.0.tgz",
     "@pome-sh/twin-stripe": "file:./vendor/pome-sh-twin-stripe-0.1.0.tgz",
     "ai": "^6.0.193",
@@ -91,7 +90,6 @@
     "node": ">=20"
   },
   "bundleDependencies": [
-    "@pome-sh/correlator",
     "@pome-sh/shared-types",
     "@pome-sh/twin-stripe"
   ]

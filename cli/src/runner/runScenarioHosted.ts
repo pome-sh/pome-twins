@@ -4,8 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runAgentCommand } from "./agentRunner.js";
-import { correlateRun } from "./correlateRun.js";
-import { toTwinHttpEvent, writeRunArtifactsCore, writeScoreJson } from "../recorder/artifacts.js";
+import { toTwinHttpEvent, writeRunArtifactsCore } from "../recorder/artifacts.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { createHostedClient, type HostedClient } from "../hosted/client.js";
@@ -22,7 +21,7 @@ import {
 import type { CriterionDef, RecorderEvent } from "../types/shared.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "../twin/github/types.js";
 import type { Scenario } from "../scenario/scenarioSchema.js";
-import type { Score } from "../evaluator/score.js";
+import type { Score } from "../score/view.js";
 import type { RunArtifacts } from "../recorder/artifacts.js";
 
 export interface RunScenarioHostedOptions {
@@ -216,13 +215,10 @@ export async function runScenarioHosted(
       stateFinal,
     });
 
-    // 6. Correlate via @pome-sh/correlator. Adapter-rich path when the agent
-    //    emitted ≥1 valid signal to POME_ADAPTER_SIGNALS_PATH; heuristic path
-    //    otherwise. Either path produces non-empty lanes/steps for non-empty
-    //    event streams (FDRS-356). Reserved for future submitResult shim
-    //    callers / dashboard-side correlator handoff; /finalize does not
-    //    consume these fields directly.
-    void (await correlateRun(signalsPath, events));
+    // 6. FDRS-657 — NO local correlation. Correlation (like scoring/judging)
+    //    is a cloud responsibility; the OSS CLI only captures the raw trace.
+    //    Cloud correlates the uploaded events/signals server-side. The events
+    //    are uploaded exactly as captured (no local step_id back-fill).
 
     // 7. Upload events.jsonl + state blobs + adapter signals.jsonl to cloud
     //    storage in parallel. /finalize defaults the trace storage key to
@@ -312,12 +308,13 @@ export async function runScenarioHosted(
       signalsStorageKey: signalsKey ?? undefined,
     });
 
-    // 9. Synthesize a Score shape backed by the cloud-authoritative
-    //    satisfaction, then drop score.json. Synthesis (incl. the F0-3 / L5
+    // 9. Synthesize the cloud verdict for EPHEMERAL terminal display + the
+    //    exit code. FDRS-657: local artifacts stay trace-only — the verdict is
+    //    NOT persisted (no score.json). It lives in the cloud; the CLI prints
+    //    it and points at the dashboard. Synthesis (incl. the F0-3 / L5
     //    criteria_results handling and the A1/FDRS-618 caveat) lives in
     //    scoreFromFinalizeResponse — shared with `pome eval` (FDRS-656).
     const score: Score = scoreFromFinalizeResponse(finalized);
-    await writeScoreJson(artifacts.runDir, score);
 
     // 10. Map cloud score → exit code. F18 / F0-5: the old policy
     //     ("agent failure trumps a passing score") collapsed an agent

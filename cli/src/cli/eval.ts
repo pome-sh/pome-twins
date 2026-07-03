@@ -38,16 +38,22 @@ import {
   uploadRunBlobs,
   type UploadClient,
 } from "../hosted/uploadAndFinalize.js";
-import { readLatestRun, toTwinHttpEvent, writeScoreJson } from "../recorder/artifacts.js";
+import { readLatestRun, toTwinHttpEvent } from "../recorder/artifacts.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
-import { outcomeOf, scoreStatus, type Score } from "../evaluator/score.js";
+import {
+  markerFor,
+  outcomeOf,
+  runScoreLine,
+  scoreCountsSummary,
+  scoreStatus,
+  type Score,
+} from "../score/view.js";
 import { resolveCredentials } from "./credentials.js";
 import {
   normalizeConfigAgentSdk,
   readProjectConfig,
   type ProjectConfig,
 } from "./project-config.js";
-import { markerFor, runScoreLine, scoreCountsSummary } from "./render.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "../twin/github/types.js";
 import type { FinalizeResponse } from "../types/shared.js";
 
@@ -490,20 +496,10 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
     finalized = await uploadAndFinalize(sessionId);
   }
 
-  // Persist the cloud-authoritative score next to the trace, like hosted
-  // `pome run` does, so `pome inspect` renders the same verdict. Best-effort:
-  // a read-only run dir must not turn a fully successful (and paid) eval
-  // into an error after /finalize already returned.
+  // FDRS-657 — the cloud verdict is EPHEMERAL: printed to the terminal below,
+  // never persisted next to the trace. Local artifacts stay trace-only (no
+  // score.json), and the verdict lives in the cloud (see the dashboard URL).
   const score = scoreFromFinalizeResponse(finalized);
-  try {
-    await writeScoreJson(runDir, score);
-  } catch (err) {
-    console.warn(
-      `[pome] score.json write skipped (${
-        err instanceof Error ? err.message : String(err)
-      }); the cloud verdict below is unaffected`,
-    );
-  }
 
   // Exit-code policy — DELIBERATE DIVERGENCE from hosted `pome run`
   // (FDRS-618): `pome run` maps the raw cloud score (score >= threshold →

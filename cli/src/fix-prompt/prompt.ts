@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
+//
+// Assembles the paste-into-IDE fix prompt for a failed run (FDRS-657).
+//
+// CAPTURE-ONLY: the OSS CLI does NOT call an LLM here. `pome fix-prompt`
+// assembles a self-contained prompt — system instructions + the scenario's
+// criteria + the raw captured trace — and prints it so the developer can paste
+// it into THEIR own coding assistant (Cursor / Claude Code). The former BYOK
+// local-judge call that generated the handoff CLI-side was removed under
+// FDRS-657 (no local LLM/judge anywhere in the OSS CLI). This module was also
+// relocated out of the deleted `src/evaluator/` tree.
+
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { RecorderEvent } from "../../types/shared.js";
-import type { CriterionResult } from "../score.js";
-import type { Scenario } from "../../scenario/scenarioSchema.js";
-import { redactEvent, redactSecrets } from "../../recorder/redaction.js";
+import type { RecorderEvent } from "../types/shared.js";
+import type { Criterion, Scenario } from "../scenario/scenarioSchema.js";
+import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 
 export const FIX_PROMPT_TEMPLATE_VERSION = "v1";
 
@@ -14,9 +24,10 @@ const BODY_CHAR_LIMIT = 800;
 
 function loadSystemPrompt(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  // Source layout: src/evaluator/fix-prompt/prompts/fix-prompt-v1.md
-  // Compiled layout (tsc): dist/src/evaluator/fix-prompt/prompts/fix-prompt-v1.md
-  // tsconfig.build.json must copy the prompts/ folder; assert presence here.
+  // Source layout:   src/fix-prompt/prompts/fix-prompt-v1.md
+  // Compiled layout: dist/src/fix-prompt/prompts/fix-prompt-v1.md
+  // tsconfig.build.json (via scripts/copy-prompts.mjs) copies the prompts/
+  // folder; assert presence here.
   const path = join(here, "prompts", `fix-prompt-${FIX_PROMPT_TEMPLATE_VERSION}.md`);
   return readFileSync(path, "utf8");
 }
@@ -40,7 +51,6 @@ export function escapeTagContent(text: string): string {
 
 export interface FixPromptContext {
   events: RecorderEvent[];
-  criteriaResults: CriterionResult[];
   scenario: Scenario;
 }
 
@@ -79,22 +89,18 @@ function renderEvents(events: RecorderEvent[]): string {
   return lines.join("\n");
 }
 
-function renderFailedCriteria(results: CriterionResult[]): string {
-  const failed = results.filter((r) => !r.passed && !r.skipped);
-  if (failed.length === 0) return "(no failed criteria)";
-  return failed
-    .map((r, idx) => {
-      const conf =
-        typeof r.confidence === "number"
-          ? ` (judge confidence ${r.confidence.toFixed(2)})`
-          : "";
-      return `${idx + 1}. [${r.criterion.type}] ${r.criterion.text}\n   reason: ${r.reason}${conf}`;
-    })
+// The OSS CLI holds NO local verdict (evaluation is cloud-only), so the prompt
+// lists every criterion the run had to satisfy and lets the developer's own
+// assistant diagnose against the trace. No pass/fail is claimed here.
+function renderCriteria(criteria: Criterion[]): string {
+  if (criteria.length === 0) return "(no criteria declared)";
+  return criteria
+    .map((c, idx) => `${idx + 1}. [${c.type}] ${c.text}`)
     .join("\n");
 }
 
 export function buildFixUserPrompt(ctx: FixPromptContext): string {
-  const failures = redactSecrets(renderFailedCriteria(ctx.criteriaResults)) as string;
+  const criteria = redactSecrets(renderCriteria(ctx.scenario.criteria)) as string;
   const trace = renderEvents(ctx.events.map((event) => redactEvent(event)));
   const scenarioTitle = redactSecrets(ctx.scenario.title) as string;
   const scenarioPrompt = redactSecrets(ctx.scenario.prompt) as string;
@@ -105,8 +111,8 @@ ${scenarioTitle}
 ## Scenario prompt (what the agent was told to do)
 ${scenarioPrompt}
 
-## Failed criteria
-${escapeTagContent(failures)}
+## Criteria the run had to satisfy
+${escapeTagContent(criteria)}
 
 ## Trace (HTTP calls the agent made)
 <agent-trace>

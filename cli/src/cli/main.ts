@@ -11,8 +11,6 @@ import { sign } from "hono/jwt";
 import {
   readLatestRun,
   readMetaSummary,
-  readScore,
-  readScoreOrNull,
 } from "../recorder/artifacts.js";
 import {
   LEGACY_EVENTS_MESSAGE,
@@ -23,18 +21,14 @@ import {
 } from "../recorder/inspect.js";
 import { runScenario } from "../runner/runScenario.js";
 import { runScenarioHosted } from "../runner/runScenarioHosted.js";
-import { outcomeOf, scoreStatus } from "../evaluator/score.js";
+import { runScoreLine, scoreStatus } from "../score/view.js";
 import { HostedUsageError, exitCodeFor } from "../hosted/errors.js";
 import { resolveCredentials, clearLocalCredentials } from "./credentials.js";
 import { loginWithClerk } from "./login.js";
 import { runDocsCommand } from "./docs.js";
 import { runCompileSeeds } from "./compile-seeds.js";
 import { runScenariosCommand } from "./scenarios.js";
-import { runMatrixCommand, type MatrixCommandOptions } from "./matrix.js";
-import { runMatrixHtmlCommand, type MatrixHtmlOptions } from "./matrix-html.js";
-import { runEvalReportCommand, type EvalReportOptions } from "./eval-report.js";
 import { runEvalCommand } from "./eval.js";
-import { markerFor, runScoreLine, scoreCountsSummary } from "./render.js";
 import { runSkillsInstall } from "./skills.js";
 import {
   findTwin,
@@ -67,27 +61,13 @@ import {
 } from "./project-config.js";
 import { createGitHubCloneApp, openGitHubCloneDatabase, seedGitHubCloneDatabase } from "../twin/githubCloneAdapter.js";
 import { resolveAuthSecret } from "../twin-github/auth.js";
-import { generateFixPrompt } from "../evaluator/fix-prompt/index.js";
+import { buildFixPrompt } from "../fix-prompt/index.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import type { RecorderEvent } from "../types/shared.js";
-import type { Score } from "../evaluator/score.js";
 
 const PACKAGE_VERSION = readPackageVersion();
 const SESSION_CREATE_FORMATS = new Set(["text", "json", "env"]);
 const DEFAULT_AGENT_COMMAND = "npx tsx examples/agents/scripted-triage-agent.ts";
-
-function inspectScoreLine(score: Score): string {
-  // score.json does not persist the scenario threshold, so inspect only decides
-  // whether the A5 guard made the numeric score unsafe to render as a verdict.
-  if (score.evaluated === false || score.can_pass === false) {
-    return `Score: un-evaluated (cannot pass) — ${scoreCountsSummary(score)}; stored score: ${score.satisfaction}/100`;
-  }
-  const suffix =
-    (score.skipped ?? 0) > 0 || (score.errored ?? 0) > 0
-      ? ` (${score.skipped} skipped, ${score.errored ?? 0} errored — excluded)`
-      : "";
-  return `Score: ${score.satisfaction}/100${suffix}`;
-}
 
 function readPackageVersion(): string {
   try {
@@ -544,7 +524,7 @@ export function createProgram() {
     )
     .option(
       "--local",
-      "Self-host: run against an in-process twin and capture a trace WITHOUT scoring. Evaluation (pass/fail) is a hosted feature — `pome login` and re-run to score on Pome cloud. See ADR-004.",
+      "Self-host: run against an in-process twin and CAPTURE a raw trace only (an audit log — no score, no verdict, no judge). A verdict comes from the cloud: run `pome eval <run-dir>` on the captured trace, or `pome login` and run against Pome cloud.",
     )
     .description("Run one or more Pome scenarios")
     .action(
@@ -589,13 +569,12 @@ export function createProgram() {
         let worstExit = 0;
 
         // Hosted is the default. Self-host runs against an in-process twin via
-        // `--local` (documented) or POME_LOCAL=1 (the internal escape hatch
-        // `pome matrix` uses). ADR-004: `--local` captures a trace WITHOUT
-        // scoring (evaluation is hosted); POME_LOCAL=1 still scores locally so
-        // the matrix harness keeps working. The --hosted flag is a deprecated
-        // no-op kept for one release.
+        // `--local` (documented) or POME_LOCAL=1 (an internal escape hatch).
+        // FDRS-657: self-host is CAPTURE-ONLY — it records the raw trace and
+        // never scores/judges/correlates. A verdict comes only from the cloud
+        // (`pome eval <dir>`, or a hosted `pome run`). The --hosted flag is a
+        // deprecated no-op kept for one release.
         const useLocal = options.local === true || process.env.POME_LOCAL === "1";
-        const localNoScore = options.local === true;
         if (options.hosted && useLocal) {
           console.error(
             "Warning: --hosted is a no-op; running against a local twin (--local / POME_LOCAL=1). Drop it to record runs to the cloud.",
@@ -612,7 +591,7 @@ export function createProgram() {
           console.error(err instanceof Error ? err.message : String(err));
           if (code === 3) {
             console.error(
-              "Tip: `pome login` to score on Pome cloud, or `pome run --local <path>` to run a self-hosted twin and capture a trace without scoring.",
+              "Tip: `pome login` to run against Pome cloud (which returns a verdict), or `pome run --local <path>` to run a self-hosted twin and capture a trace only.",
             );
           }
           process.exitCode = code;
@@ -653,36 +632,22 @@ export function createProgram() {
               if (code > worstExit) worstExit = code;
             }
           } else {
-            // Self-host path: preserve pre-PR-C behavior — let exceptions
-            // (file-not-found, parse errors, agent failures) propagate to
-            // Commander's top-level handler.
+            // Self-host path (FDRS-657): CAPTURE-ONLY. Record the raw trace;
+            // no score, no verdict, no judge. Let exceptions (file-not-found,
+            // parse errors, agent failures) propagate to Commander's top-level
+            // handler.
             const result = await runScenario({
               scenarioPath: file,
               agentCommand,
               artifactsDir: options.artifactsDir,
               // Commander negates --no-* flags: `--no-capture` → `capture: false`.
               noCapture: options.capture === false,
-              // ADR-004: `--local` captures a trace without scoring; POME_LOCAL=1
-              // (matrix) keeps scoring. evaluate=false ⇒ result.score is null.
-              evaluate: !localNoScore,
             });
-            if (result.score === null) {
-              console.error(`TRACE ${result.scenario.title}`);
-              console.error(`  run:  ${result.artifacts.runDir}`);
-              console.error(
-                "  note: evaluation runs on Pome cloud — `pome login`, then re-run to score this scenario.",
-              );
-            } else {
-              const status = scoreStatus(
-                result.score,
-                result.scenario.config.passThreshold,
-              );
-              const label =
-                status === "pass" ? "PASS" : status === "fail" ? "FAIL" : "UNEVAL";
-              console.error(`${label} ${result.scenario.title}`);
-              console.error(`  ${runScoreLine(result.score, result.scenario.config.passThreshold, "numeric score")}`);
-              console.error(`  run: ${result.artifacts.runDir}`);
-            }
+            console.error(`TRACE ${result.scenario.title}`);
+            console.error(`  run:  ${result.artifacts.runDir}`);
+            console.error(
+              `  captured; run \`pome eval ${result.artifacts.runDir}\` for a cloud verdict.`,
+            );
             if (result.exitCode !== 0) worstExit = result.exitCode;
           }
         }
@@ -727,87 +692,13 @@ export function createProgram() {
       },
     );
 
-  program
-    .command("matrix")
-    .description(
-      "Run a fleet of agents across many scenarios (agents × scenarios × runs) and aggregate into outcome-level reports (matrix.json + report.md)",
-    )
-    .requiredOption(
-      "--agents <file>",
-      "Agents fleet config (YAML) that you provide — model/prompt/scaffold per agent. No fleet config ships in the OSS repo; author your own or copy one from the research workspace.",
-    )
-    .option(
-      "--scenarios <glob>",
-      "Scenario .md file, directory, or single-dir glob (e.g. 'scenarios/0*.md').",
-      "scenarios",
-    )
-    .option("--runs <n>", "Repeat each cell N times for flakiness measurement.", "3")
-    .option(
-      "--concurrency <n>",
-      "Max cell runs in flight. Lower it (e.g. 1) to stay under a provider's rate limit.",
-      "4",
-    )
-    .option(
-      "--artifacts-dir <dir>",
-      "Directory for per-cell run artifacts.",
-      "matrix-results",
-    )
-    .option(
-      "--pass-threshold <n>",
-      "Satisfaction (0–100) a run must clear to count as passed. Default 100 (binary gate); lower it to credit partial runs.",
-    )
-    .option(
-      "--judge-model <slug>",
-      "LLM-judge model for [P] criteria (e.g. anthropic/claude-haiku-4-5). Routes via AI_GATEWAY_API_KEY when set, else OPENAI_API_KEY. Without it, [P] criteria skip.",
-    )
-    .option(
-      "--dry-run",
-      "Resolve and print the cell grid without executing any cells.",
-      false,
-    )
-    .action(async (options: MatrixCommandOptions) => {
-      await runMatrixCommand(options);
-    });
-
-  program
-    .command("matrix-html")
-    .description(
-      "Render a finished matrix run into a self-contained English HTML dashboard (report.html) next to its matrix.json.",
-    )
-    .argument(
-      "[results-dir]",
-      "Results dir containing matrix.json. Defaults to the newest run under --artifacts-dir.",
-    )
-    .option(
-      "--artifacts-dir <dir>",
-      "Directory the matrix wrote run dirs into.",
-      "matrix-results",
-    )
-    .option(
-      "--judge-model <slug>",
-      "Judge slug to display when matrix.json did not record one (informational).",
-    )
-    .action(async (resultsDir: string | undefined, options: MatrixHtmlOptions) => {
-      await runMatrixHtmlCommand(resultsDir, options);
-    });
-
-  program
-    .command("eval-report")
-    .description(
-      "Render a curated eval-report aggregate (evalReportSchema; a research-workspace artifact, not raw `pome matrix` output) into a self-contained internal HTML view.",
-    )
-    .argument(
-      "<data-file>",
-      "Path to a curated eval-report aggregate JSON (required; produced by the research-workspace aggregate scripts).",
-    )
-    .option(
-      "--out <file>",
-      "Output HTML path.",
-      "eval-report.html",
-    )
-    .action(async (dataFile: string | undefined, options: EvalReportOptions) => {
-      await runEvalReportCommand(dataFile, options);
-    });
+  // NOTE (FDRS-657): `matrix` / `matrix-html` / `eval-report` were removed.
+  // They were a pure LOCAL-scoring orchestrator — they shelled out to
+  // `pome run` with POME_LOCAL=1 and aggregated the local score.json each
+  // child wrote. With local evaluation gone (the OSS CLI is capture-only),
+  // that path cannot produce a verdict, so the whole subsystem was retired
+  // rather than left as a broken command. Fleet evaluation lives in the
+  // cloud/research workspace.
 
   program
     .command("inspect")
@@ -843,66 +734,33 @@ export function createProgram() {
         for (const line of renderTraceHealth(health)) console.log(line);
         for (const line of renderEvents(eventsResult.events)) console.log(line);
       }
-
-      const score = await readScoreOrNull(runDir);
-      if (score === null) {
-        console.log("Score: (score.json not found)");
-        return;
-      }
-      console.log(inspectScoreLine(score));
-      for (const result of score.results) {
-        const marker = markerFor(outcomeOf(result));
-        console.log(`${marker} [${result.criterion.type}] ${result.criterion.text}`);
-        console.log(`  ${result.reason}`);
-      }
+      // FDRS-657 — `pome inspect` shows ONLY trace/audit content. There is no
+      // local verdict: score.json is never written (local artifacts are
+      // trace-only). A verdict comes from the cloud — run `pome eval <dir>`
+      // (or a hosted `pome run`) and read it on the terminal / dashboard.
     });
 
   program
     .command("fix-prompt")
-    .argument("<events>", "Path to events.jsonl (recorder output)")
-    .argument("<score>", "Path to score.json (evaluator output)")
+    .argument("<events>", "Path to events.jsonl (captured trace)")
     .argument("<scenario>", "Path to scenario.md")
-    .description("Generate a paste-into-IDE fix prompt for a failed run (BYOK, CLI-side LLM)")
-    .action(async (eventsPath: string, scorePath: string, scenarioPath: string) => {
-      const [eventsRaw, scoreRaw, scenario] = await Promise.all([
+    .description(
+      "Assemble a paste-into-IDE fix prompt from the captured trace + the scenario's criteria (no LLM call — paste the output into your own coding assistant)",
+    )
+    .action(async (eventsPath: string, scenarioPath: string) => {
+      const [eventsRaw, scenario] = await Promise.all([
         readFile(resolve(eventsPath), "utf8"),
-        readFile(resolve(scorePath), "utf8"),
-        parseScenarioFile(resolve(scenarioPath))
+        parseScenarioFile(resolve(scenarioPath)),
       ]);
       const events: RecorderEvent[] = eventsRaw
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line.length > 0)
         .map((line) => JSON.parse(line) as RecorderEvent);
-      const score = JSON.parse(scoreRaw) as Score;
-      // F0-3 / L5 — Session A populates `score.results` from /finalize's
-      // `criteria_results[]`, so the F0-3 workaround that bailed on empty
-      // results is gone. If the cloud hasn't deployed yet (results still
-      // []), keep a one-liner pointer so users on the rollout window
-      // window don't see the misleading "no failures" template output.
-      if (score.results.length === 0) {
-        console.error(
-          "fix-prompt: this run has no per-criterion verdicts in score.json.",
-        );
-        console.error(
-          "  Re-run against a cloud build that returns `criteria_results` on /finalize,",
-        );
-        console.error(
-          "  or re-run with POME_LOCAL=1 to use the local judge.",
-        );
-        process.exitCode = 2;
-        return;
-      }
-      const fixPrompt = await generateFixPrompt({
-        events,
-        criteriaResults: score.results,
-        scenario
-      });
-      if (fixPrompt === null) {
-        process.exitCode = 1;
-        return;
-      }
-      console.log(fixPrompt);
+      // CAPTURE-ONLY (FDRS-657): build the prompt from the raw trace + the
+      // scenario's declared criteria. No local judge, no cloud round-trip —
+      // the developer's own assistant produces the fix from this prompt.
+      console.log(buildFixPrompt({ events, scenario }));
     });
 
   const twin = program.command("twin").description("Manage local twins");

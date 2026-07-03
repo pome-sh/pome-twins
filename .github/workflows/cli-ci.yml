@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: 20
       - run: node scripts/verify-vendor.mjs
+      # FDRS-657 — fail fast if local evaluation (scoring / judge / correlator)
+      # is reintroduced into the capture-only OSS CLI.
+      - run: node scripts/no-eval-in-oss.mjs
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run build
