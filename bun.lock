@@ -47,7 +47,7 @@
       "name": "@pome-sh/sdk",
       "version": "0.1.0",
       "dependencies": {
-        "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.4.0.tgz",
+        "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.5.0.tgz",
         "hono": "^4.12.27",
         "zod": "^4.1.13",
       },
@@ -67,7 +67,7 @@
     },
     "packages/shared-types": {
       "name": "@pome-sh/shared-types",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "devDependencies": {
         "@types/node": "^25.0.3",
         "typescript": "^5.9.3",
@@ -773,7 +773,7 @@
 
     "zod-to-json-schema": ["zod-to-json-schema@3.25.2", "", { "peerDependencies": { "zod": "^3.25.28 || ^4" } }, "sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA=="],
 
-    "@pome-sh/sdk/@pome-sh/shared-types": ["@pome-sh/shared-types@./vendor/pome-sh-shared-types-0.4.0.tgz", { "peerDependencies": { "zod": "^4.1.13" } }, "sha512-2+3vxrwLbazQQcqqi4N7DmkCEAVJE9HLi4XPpRhvB9zmj2PSL9GCSfmIHXVMux3Q9otuij064UtlfpisgzzX6Q=="],
+    "@pome-sh/sdk/@pome-sh/shared-types": ["@pome-sh/shared-types@./vendor/pome-sh-shared-types-0.5.0.tgz", { "peerDependencies": { "zod": "^4.1.13" } }, "sha512-Yr8yEOs+YxzFhcHPWYMngKGtQPmaxvihVkgI3r4pKwWZnIFEAGiBdQRvaCduDbduvBxR+R2u3FmkUmGAiK8LIA=="],
 
     "body-parser/content-type": ["content-type@2.0.0", "", {}, "sha512-j/O/d7GcZCyNl7/hwZAb606rzqkyvaDctLmckbxLzHvFBzTJHuGEdodATcP3yIRoDrLHkIATJuvzbFlp/ki2cQ=="],
 

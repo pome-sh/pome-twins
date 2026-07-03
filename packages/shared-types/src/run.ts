@@ -16,6 +16,7 @@
 
 import { z } from "zod";
 import { twinIdSchema } from "./recorder-events.js";
+import { normalizeTaskVocabKeys } from "./task-vocab.js";
 
 // Judge model is a free-form string (BYOK Flavor #1, OpenAI-compatible endpoint
 // passes through); not constrained at the schema level because the customer's
@@ -33,24 +34,42 @@ export const correlatorKindSchema = z.enum([
 ]);
 export type CorrelatorKind = z.infer<typeof correlatorKindSchema>;
 
+// Criterion kind — W3 vocab (FDRS-653): `code` = deterministic/code-checked
+// predicate (formerly `D`), `model` = LLM-judged (formerly `P`). The canonical
+// enum is `code | model`; the INPUT schema below additionally accepts the
+// 0.3.0-era `D` / `P` spellings and normalizes them at parse time (tolerant
+// reader — shipped CLIs vendor 0.3.0 and keep sending D/P).
+export const CRITERION_KINDS = ["code", "model"] as const;
+export const criterionKindSchema = z.enum(CRITERION_KINDS);
+export type CriterionKind = z.infer<typeof criterionKindSchema>;
+
+const criterionKindInputSchema = z
+  .enum(["D", "P", "code", "model"])
+  .transform((kind): CriterionKind =>
+    kind === "D" ? "code" : kind === "P" ? "model" : kind,
+  );
+
 export const criterionSchema = z.object({
-  type: z.enum(["D", "P"]),                    // D=deterministic SQL predicate, P=LLM judge
+  // Accepts D | P | code | model; parsed output is always code | model.
+  type: criterionKindInputSchema,
   text: z.string().min(1),
 });
 export type Criterion = z.infer<typeof criterionSchema>;
 
 // CriterionResult shape matches OSS evaluator's emit. The full Criterion is
 // included by reference (not just text) so consumers render type-aware UI
-// without rejoining. Discriminate on `criterion.type` (no separate `kind` field).
+// without rejoining. Discriminate on `criterion.type` (no separate `kind`
+// field) — normalized to `code` / `model` (0.3.0 artifacts carrying `D` / `P`
+// parse and normalize).
 const baseCriterionResultSchema = z.object({
   criterion: criterionSchema,                  // full {type, text} object
   passed: z.boolean(),
-  skipped: z.boolean(),                        // true if [D] fell back to [P] but [P] was unreachable, etc.
+  skipped: z.boolean(),                        // true if [code] fell back to [model] but the judge was unreachable, etc.
   reason: z.string(),                          // human-readable evidence
 });
 
 export const deterministicCriterionResultSchema = baseCriterionResultSchema.extend({
-  // [D] adds nothing further; criterion.type === "D" identifies it.
+  // [code] adds nothing further; criterion.type === "code" identifies it.
 });
 export type DeterministicCriterionResult = z.infer<typeof deterministicCriterionResultSchema>;
 
@@ -62,10 +81,10 @@ export type ProbabilisticCriterionResult = z.infer<typeof probabilisticCriterion
 
 // Probabilistic FIRST: it's the strict superset (requires confidence +
 // judge_model). z.union tries branches in order and picks the first match.
-// If deterministic were first, [P] payloads would parse cleanly but
-// .extend({}) would silently strip the [P]-only fields — we'd persist them as
-// null in runs.criteria_results JSON, breaking dashboard rendering of
-// confidence + per-criterion judge_model. [D] payloads (no confidence /
+// If deterministic were first, [model] payloads would parse cleanly but
+// .extend({}) would silently strip the [model]-only fields — we'd persist them
+// as null in runs.criteria_results JSON, breaking dashboard rendering of
+// confidence + per-criterion judge_model. [code] payloads (no confidence /
 // judge_model) fail probabilistic on the required fields and fall through.
 export const criterionResultSchema = z.union([
   probabilisticCriterionResultSchema,
@@ -99,12 +118,17 @@ export const laneSchema = z.object({
 });
 export type Lane = z.infer<typeof laneSchema>;
 
-export const runSchema = z.object({
+// Canonical Run row. W3 vocab (FDRS-653): `task_name` / `task_hash` /
+// `promoted_task_id` are the canonical wire keys (cloud DB: `tasks` table,
+// `runs.task_name`). The exported `runSchema` below wraps this object in the
+// tolerant-reader preprocess so 0.3.0-era rows carrying `scenario_name` /
+// `scenario_hash` / `promoted_scenario_id` parse and normalize.
+const runObjectSchema = z.object({
   id: z.string(),                              // run_<nanoid>
   session_id: z.string(),
   team_id: z.string(),
-  scenario_name: z.string(),
-  scenario_hash: z.string(),                   // sha256 of source markdown
+  task_name: z.string(),                       // 0.3.0 alias: scenario_name
+  task_hash: z.string(),                       // sha256 of source markdown; 0.3.0 alias: scenario_hash
   satisfaction_score: z.number().int().min(0).max(100),  // CLI-computed (BYOK Flavor #1)
   criteria_results: z.array(criterionResultSchema),
   trace_s3_key: z.string().nullable(),         // s3 key for tool_calls.jsonl (hosted only)
@@ -133,8 +157,9 @@ export const runSchema = z.object({
   // CLI/staging scenario run (default for every legacy row); 'production' = an
   // ingested OTLP production trace (M2).
   environment: z.enum(["production", "simulation"]).default("simulation"),
-  // M0.5 (FDRS-512) — replay loop linkage (prod-run → scenario → replay-run).
-  promoted_scenario_id: z.string().nullable().default(null),
+  // M0.5 (FDRS-512) — replay loop linkage (prod-run → task → replay-run).
+  // W3 vocab: canonical key; 0.3.0 alias: promoted_scenario_id.
+  promoted_task_id: z.string().nullable().default(null),
   replay_run_id: z.string().nullable().default(null),
   // Storage key for the tar-and-upload state archive the replay engine seeds a
   // sandbox from. Null when no archive was captured.
@@ -156,4 +181,9 @@ export const runSchema = z.object({
   created_at: z.string().datetime(),
   finished_at: z.string().datetime().nullable(),
 });
+
+// Tolerant reader (FDRS-653): accepts both the 0.3.0 `scenario_*` and the
+// canonical `task_*` keys and normalizes to the new vocabulary. When both are
+// present, the canonical key wins. The parsed output carries `task_*` only.
+export const runSchema = z.preprocess(normalizeTaskVocabKeys, runObjectSchema);
 export type Run = z.infer<typeof runSchema>;

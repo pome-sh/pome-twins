@@ -12,15 +12,29 @@ still accepts.
 One directory per `/v1` schema. The directory name is the schema key:
 
 ```
-planTier/               → planTierSchema
-createSessionRequest/   → createSessionRequestSchema  (POST /v1/sessions)
-createSessionResponse/  → createSessionResponseSchema (POST /v1/sessions)
-usage/                  → usageResponseSchema         (GET  /v1/usage)
-run/                    → runSchema                   (Run row / GET /v1/runs/:id)
+planTier/                        → planTierSchema
+createSessionRequest/            → createSessionRequestSchema  (POST /v1/sessions; 0.3.0-era scenario_* vocab)
+createSessionRequestTaskVocab/   → createSessionRequestSchema  (W3 task_* vocab, FDRS-653)
+createSessionResponse/           → createSessionResponseSchema (POST /v1/sessions)
+usage/                           → usageResponseSchema         (GET  /v1/usage)
+run/                             → runSchema                   (Run row; 0.3.0-era scenario_* vocab)
+runTaskVocab/                    → runSchema                   (W3 task_* vocab, FDRS-653)
 ```
 
 Each `*.json` file is a single wire value: an object, or (for `planTier`) a
 bare JSON string. Every fixture MUST parse successfully under the mapped schema.
+
+### The two vocabularies (FDRS-653)
+
+Shared-types 0.5.0 renamed everything "scenario" to "task" on the wire (and
+criterion kinds `D`/`P` to `code`/`model`) behind a tolerant reader. The
+original dirs deliberately KEEP their 0.3.0-era payloads: they are the proof
+that 0.3.0 artifacts (and shipped CLIs vendoring shared-types 0.3.0) still
+parse. The `*TaskVocab` dirs hold new-vocabulary payloads. The cloud-side
+parity map gains the `*TaskVocab` dirs at the FDRS-654 consumer swap (its
+schema is 0.3.0-era until then and iterates only its own dir list, so the new
+dirs are invisible to it in the meantime — do NOT add new-vocab payloads to
+the original dirs before FDRS-654 lands).
 
 ## Scope
 

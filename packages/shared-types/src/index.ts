@@ -46,6 +46,21 @@
  *   - Either founder changing a shape requires a PR + both signoffs.
  *   - npm version pinned in both repos; CI alerts on bump mismatch.
  *   - 4-week lock target before any breaking change.
+ *
+ * v0.5.0 — W3 wire vocabulary + tolerant-reader window (FDRS-653):
+ *   - Everything "scenario" is now "task" on the wire (`task_name`,
+ *     `task_hash`, `task_source`, `task_id`, `promoted_task_id`,
+ *     `task_step_id`), and criterion kinds `D` / `P` are now `code` / `model`.
+ *     Canonical schemas + types use the NEW vocabulary only.
+ *   - TOLERANT READER: every reader accepts BOTH the 0.3.0-era keys and the
+ *     new ones and normalizes to the new vocabulary at parse time. Nothing a
+ *     0.3.0-era artifact (or a shipped CLI that vendors shared-types 0.3.0)
+ *     sends becomes invalid. See `./task-vocab.ts` for the key map and the
+ *     window's closing conditions.
+ *   - Deprecated `scenario*`-named EXPORTS (`scenarioSchema`, `Scenario`,
+ *     `scenarioConfigSchema`, `persistedScenarioSchema`, …) remain as aliases
+ *     of the canonical `task*` exports for one release train (FDRS-654 swaps
+ *     the consumers).
  */
 
 import { z } from "zod";
@@ -56,11 +71,13 @@ import {
   laneSchema,
   stepSchema,
 } from "./run.js";
+import { normalizeTaskVocabKeys } from "./task-vocab.js";
 
 // Barrel re-exports — consumers `import { ... } from "@pome-sh/shared-types"`
 // regardless of which leaf file owns the type.
 export * from "./recorder-events.js";
 export * from "./run.js";
+export * from "./task-vocab.js";
 export * from "./github-access-control.js";
 // OpenTelemetry-native trace surface (M1 / FDRS-480-482): OtelSpanEvent schema,
 // GenAI/HTTP span mapper, legacy→span shim, pinned semconv, otelEventSchema.
@@ -202,31 +219,61 @@ export const sessionPublicSchema = sessionSchema.omit({
 export type SessionPublic = z.infer<typeof sessionPublicSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. SCENARIOS — adopted verbatim from oslo/pome/src/scenario/scenarioSchema.ts
+// 3. TASKS (formerly "scenarios") — originally adopted verbatim from
+//    oslo/pome/src/scenario/scenarioSchema.ts
+//
+// W3 vocab (FDRS-653): "task" is the canonical name; the `scenario*` exports
+// below are deprecated aliases kept for the 0.3.0 window (FDRS-654 swaps the
+// consumers).
 //
 // `criterionSchema` and `judgeModelSchema` were moved to `./run.ts` (2026-05-11
 // split) because CriterionResult depends on them; re-exported above via barrel.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const scenarioConfigSchema = z.object({
+export const taskConfigSchema = z.object({
   twins: z.array(z.string()).default(["github"]),
   timeout: z.number().int().positive().default(60),         // seconds
   runs: z.number().int().positive().default(1),
   passThreshold: z.number().min(0).max(100).default(100),
   judge: judgeModelSchema.default("claude-haiku-4-5"),       // CLI's BYOK config decides which endpoint serves this
 });
-export type ScenarioConfig = z.infer<typeof scenarioConfigSchema>;
+export type TaskConfig = z.infer<typeof taskConfigSchema>;
+
+/** @deprecated FDRS-653 — use `taskConfigSchema`. Removed after the 0.3.0 window. */
+export const scenarioConfigSchema = taskConfigSchema;
+/** @deprecated FDRS-653 — use `TaskConfig`. */
+export type ScenarioConfig = TaskConfig;
 
 // SeedState — adopted as-is from oslo (nested shape; matches OSS code).
 // Future twins (Linear, Slack) will add their own seed shapes; we union those
 // in here as the family grows.
+//
+// FDRS-653 (ported from pome-cloud): this schema used to model only the
+// issue-triage subset (repositories[].{issues,labels,collaborators}). Anywhere
+// it is used as a narrowing boundary, a field MISSING here is silently
+// zod-stripped before it reaches the twin pod's own parseSeed — which is
+// exactly how PR-based scenarios lost their `users`, `pull_requests`, and
+// `files` and booted into an empty repo (the agent saw `GET /pulls → []`).
+// The full GitHub world (top-level users, default_branch, files,
+// pull_requests with reviews/statuses) is modeled below, matching the
+// canonical twin-github seed shape.
 export const githubSeedStateSchema = z.object({
+  users: z
+    .array(
+      z.object({
+        login: z.string().min(1),
+        type: z.enum(["User", "Organization"]).default("User"),
+        name: z.string().default(""),
+      })
+    )
+    .optional(),
   repositories: z
     .array(
       z.object({
         owner: z.string().min(1),
         name: z.string().min(1),
         description: z.string().optional(),
+        default_branch: z.string().min(1).optional(),
         labels: z
           .array(
             z.object({
@@ -237,6 +284,15 @@ export const githubSeedStateSchema = z.object({
           )
           .default([]),
         collaborators: z.array(z.string().min(1)).default([]),
+        files: z
+          .array(
+            z.object({
+              path: z.string().min(1),
+              content: z.string(),
+              branch: z.string().optional(),
+            })
+          )
+          .optional(),
         issues: z
           .array(
             z.object({
@@ -249,6 +305,45 @@ export const githubSeedStateSchema = z.object({
             })
           )
           .default([]),
+        pull_requests: z
+          .array(
+            z.object({
+              number: z.number().int().positive().optional(),
+              title: z.string().min(1),
+              body: z.string().default(""),
+              head: z.string().min(1),
+              base: z.string().min(1).default("main"),
+              state: z.enum(["open", "closed"]).default("open"),
+              author: z.string().min(1).optional(),
+              // Reviews seeded on this PR. State mirrors GitHub's review state
+              // enum; author must exist in users or collaborators.
+              reviews: z
+                .array(
+                  z.object({
+                    author: z.string().min(1),
+                    state: z
+                      .enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
+                      .default("APPROVED"),
+                    body: z.string().default(""),
+                  })
+                )
+                .default([]),
+              // Commit statuses on the PR head SHA, wired into commit_statuses
+              // so get_pull_request_status and merge_pull_request see them.
+              statuses: z
+                .array(
+                  z.object({
+                    context: z.string().min(1).default("ci/build"),
+                    state: z
+                      .enum(["error", "failure", "pending", "success"])
+                      .default("success"),
+                    description: z.string().default(""),
+                  })
+                )
+                .default([]),
+            })
+          )
+          .optional(),
       })
     )
     .min(1),
@@ -341,20 +436,29 @@ export const providerScopedSeedStateSchema = z
 export const seedStateSchema = z.union([githubSeedStateSchema, providerScopedSeedStateSchema]);
 export type SeedState = z.infer<typeof seedStateSchema>;
 
-export const scenarioSchema = z.object({
+// The parsed task (formerly "scenario") markdown shape. Criterion kinds inside
+// `criteria` normalize D→code, P→model (tolerant reader, FDRS-653).
+export const taskSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
   setup: z.string().default(""),               // human-readable prose; ignored at runtime
   prompt: z.string().min(1),
   expectedBehavior: z.string().default(""),    // evaluator-only, NEVER sent to agent
   criteria: z.array(criterionSchema).min(1),
-  config: scenarioConfigSchema,
+  config: taskConfigSchema,
   seedState: seedStateSchema,
 });
-export type Scenario = z.infer<typeof scenarioSchema>;
+export type Task = z.infer<typeof taskSchema>;
 
-// Persisted Scenario row (dashboard upload path). Per 04-data-model.md.
-export const persistedScenarioSchema = z.object({
+/** @deprecated FDRS-653 — use `taskSchema`. Removed after the 0.3.0 window. */
+export const scenarioSchema = taskSchema;
+/** @deprecated FDRS-653 — use `Task`. */
+export type Scenario = Task;
+
+// Persisted Task row (dashboard upload path; cloud DB `tasks` table). Per
+// 04-data-model.md. Row ids keep the historical `scn_` prefix (persisted data;
+// renaming ids is a data migration, deliberately NOT part of FDRS-653).
+export const persistedTaskSchema = z.object({
   id: z.string(),                              // scn_<nanoid>
   team_id: z.string(),
   name: z.string(),
@@ -364,7 +468,12 @@ export const persistedScenarioSchema = z.object({
   created_at: z.string().datetime(),
   archived_at: z.string().datetime().nullable(),
 });
-export type PersistedScenario = z.infer<typeof persistedScenarioSchema>;
+export type PersistedTask = z.infer<typeof persistedTaskSchema>;
+
+/** @deprecated FDRS-653 — use `persistedTaskSchema`. Removed after the 0.3.0 window. */
+export const persistedScenarioSchema = persistedTaskSchema;
+/** @deprecated FDRS-653 — use `PersistedTask`. */
+export type PersistedScenario = PersistedTask;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. PUBLIC REST API (api.pome.sh/v1) request/response shapes
@@ -379,11 +488,15 @@ export const meResponseSchema = z.object({
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
 // POST /v1/sessions
-export const createSessionRequestSchema = z
+//
+// W3 vocab (FDRS-653): `task_source` / `task_id` are canonical; the exported
+// schema wraps this object in the tolerant-reader preprocess so 0.3.0 CLIs
+// sending `scenario_source` / `scenario_id` keep working unchanged.
+const createSessionRequestObjectSchema = z
   .object({
     twins: z.array(z.string()).min(1).default(["github"]),
-    scenario_source: z.string().optional(),    // base64-encoded UTF-8 markdown
-    scenario_id: z.string().optional(),        // alternative: stored scenario
+    task_source: z.string().optional(),        // base64-encoded UTF-8 markdown; 0.3.0 alias: scenario_source
+    task_id: z.string().optional(),            // alternative: stored task; 0.3.0 alias: scenario_id
     // FDRS-580 / ADR-015 (adopted from pome-cloud, FDRS-613): the seed override
     // is a PERMISSIVE, shape-blind boundary. The twin pod's own `parseSeed` is
     // the sole authority on the seed's domain shape; the cloud forwards it
@@ -399,9 +512,15 @@ export const createSessionRequestSchema = z
     idempotency_key: z.string().uuid().optional(),
   })
   .refine(
-    (v) => Boolean(v.scenario_source) !== Boolean(v.scenario_id),
-    { message: "Provide exactly one of scenario_source or scenario_id" }
+    (v) => Boolean(v.task_source) !== Boolean(v.task_id),
+    { message: "Provide exactly one of task_source or task_id (scenario_source / scenario_id are accepted 0.3.0 aliases)" }
   );
+
+// Tolerant reader (FDRS-653): accepts both vocabularies, normalizes to task_*.
+export const createSessionRequestSchema = z.preprocess(
+  normalizeTaskVocabKeys,
+  createSessionRequestObjectSchema,
+);
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
 // M3 response shape: one session, N twins, one set of URLs per twin under
@@ -460,9 +579,17 @@ export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 // never holds `agent_stdout` (which would contain the agent's prompts and
 // completions). Trace blobs (twin's HTTP request/response captures) ARE
 // uploaded — those are the agent's tool calls against the twin, not LLM data.
-export const submitResultRequestSchema = z.object({
-  scenario_name: z.string(),
-  scenario_hash: z.string(),
+//
+// (Cloud-side note: cloud V1 treats /result as a legacy shim — new CLIs upload
+// blobs via presigned URLs and call /finalize with ADR-013's managed judge.
+// The shape below stays the wire contract either way.)
+//
+// W3 vocab (FDRS-653): `task_name` / `task_hash` canonical; the exported
+// schema accepts 0.3.0 CLIs' `scenario_name` / `scenario_hash` and criterion
+// kinds D/P inside `criteria_results`, normalizing both.
+const submitResultRequestObjectSchema = z.object({
+  task_name: z.string(),                       // 0.3.0 alias: scenario_name
+  task_hash: z.string(),                       // 0.3.0 alias: scenario_hash
   duration_ms: z.number().int(),
   agent_model: z.string(),
   // CLI-computed scoring fields (server-trusted; under BYOK there's nothing
@@ -489,8 +616,14 @@ export const submitResultRequestSchema = z.object({
   state_final_json_b64: z.string(),
   // NOTE: agent_stdout is intentionally NOT in this request. Cloud never
   // receives the agent's prompts or completions. The CLI uses agent_stdout
-  // locally for [P] judge then discards it.
+  // locally for the [model] judge then discards it.
 });
+
+// Tolerant reader (FDRS-653): accepts both vocabularies, normalizes to task_*.
+export const submitResultRequestSchema = z.preprocess(
+  normalizeTaskVocabKeys,
+  submitResultRequestObjectSchema,
+);
 export type SubmitResultRequest = z.infer<typeof submitResultRequestSchema>;
 
 export const submitResultResponseSchema = z.object({
@@ -619,7 +752,8 @@ export interface EvaluatorHooks {
 // • agent_stdout is never uploaded to cloud (privacy posture).
 // • DB ID columns: users.id and teams.id use text prefixed nanoids.
 // • users.deleted_at and teams.deleted_at dropped (no soft-delete in V1).
-// • Quota unit: sessions/month, not session-minutes.
+// • Quota unit: concurrent sessions, not session-minutes (see usageResponseSchema,
+//   the live concurrent-session quota snapshot).
 // • API error enum: drop judge_cap_exceeded; add forbidden, conflict,
 //   session_expired.
 //

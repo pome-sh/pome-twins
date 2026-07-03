@@ -39,7 +39,18 @@ export type LegacyEventRecord = TwinHttpEvent | LlmCallEvent | ToolUseEvent;
 
 // How a fixture's attribute shape was sourced. Kept explicit so consumers never
 // mistake a documentation-derived example for a live capture.
-export type FixtureDerivedFrom = "documentation-derived" | "pome-internal" | "otel-spec";
+//
+// `"live-capture"` (ported from pome-cloud, FDRS-653) is reserved for shapes
+// captured from a REAL emitter run (creds + network egress required — the
+// capture tooling itself is cloud-owned, see FDRS-521). It is part of the
+// union so a future capture can set it without a type change; NO fixture in
+// this file uses it today — everything here is honestly
+// `"documentation-derived"`.
+export type FixtureDerivedFrom =
+  | "documentation-derived"
+  | "pome-internal"
+  | "otel-spec"
+  | "live-capture";
 
 // Mirror of the shim's option shape (kept structurally identical).
 export interface LegacyFixtureShimOptions {

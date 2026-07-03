@@ -54,16 +54,28 @@ export type StateDelta = z.infer<typeof stateDeltaSchema>;
 // `isLegacyEventRow` lets readers detect this shape during the rollout.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const recorderEventSchema = z.object({
+// Internal plain-object shape. Kept as a `ZodObject` so `twinHttpEventSchema`
+// can `.extend` it and stay a discriminated-union member; the exported
+// `recorderEventSchema` wraps it with the FDRS-653 task-vocab normalization.
+const recorderEventObjectSchema = z.object({
   ts: z.string().datetime(),
   run_id: z.string().min(1),
   twin: twinIdSchema,
   request_id: z.string().min(1),
   correlation_id: z.string().min(1).optional(),
-  // scenario_step_id is set by the scenario author in .yaml (static expectation:
+  // task_step_id is set by the task author in .yaml (static expectation:
   // "this HTTP call is expected at step 2"). step_id below is set post-hoc by
   // the correlator (dynamic grouping: "this event landed in Step stp_xyz").
   // 90% of events use only one; both can coexist.
+  //
+  // W3 vocab (FDRS-653): `task_step_id` is canonical; `scenario_step_id` is
+  // the 0.3.0-era spelling. BOTH stay in the schema for the tolerant-reader
+  // window — this row shape is the frozen v1 trace format and its emitters
+  // (twin runtimes, shipped CLIs on vendored 0.3.0) still write the old key.
+  // The exported reader schemas normalize: when only `scenario_step_id` is
+  // present, `task_step_id` is populated from it at parse time. New emitters
+  // write `task_step_id`.
+  task_step_id: z.string().min(1).nullable().optional(),
   scenario_step_id: z.string().min(1).nullable().optional(),
   step_id: z.string().nullable(),
   // tool_call_id is set by the `@pome-sh/adapter-claude-sdk` adapter when active.
@@ -86,6 +98,21 @@ export const recorderEventSchema = z.object({
   idempotency_dedupe: z.boolean().optional(),
   error: z.string().nullable(),
 });
+
+// FDRS-653 tolerant reader: populate the canonical `task_step_id` from the
+// 0.3.0-era `scenario_step_id` when only the old key was written. The old key
+// is preserved as-sent (additive normalization — a re-serialized row still
+// parses under a 0.3.0 reader, which treats both keys as optional).
+function normalizeTaskStepVocab<
+  T extends { task_step_id?: string | null; scenario_step_id?: string | null },
+>(event: T): T {
+  if (event.task_step_id == null && event.scenario_step_id != null) {
+    return { ...event, task_step_id: event.scenario_step_id };
+  }
+  return event;
+}
+
+export const recorderEventSchema = recorderEventObjectSchema.transform(normalizeTaskStepVocab);
 export type RecorderEvent = z.infer<typeof recorderEventSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,9 +150,11 @@ const eventBaseShape = {
 
 // `TwinHttpEvent` is the legacy RecorderEvent shape extended with the union
 // discriminator + parent-chain fields. `extend` keeps it in lockstep with
-// `recorderEventSchema` so updates to the underlying HTTP-call shape flow
-// through automatically.
-export const twinHttpEventSchema = recorderEventSchema.extend({
+// the RecorderEvent object shape so updates to the underlying HTTP-call shape
+// flow through automatically. NOTE: as a discriminated-union member this stays
+// a plain `ZodObject` — the FDRS-653 task-vocab normalization is applied by
+// the exported `recorderEventSchema` / `eventSchema` readers, not here.
+export const twinHttpEventSchema = recorderEventObjectSchema.extend({
   kind: z.literal("TwinHttpEvent"),
   event_id: z.string().min(1),
   parent_id: z.string().min(1).nullable(),
@@ -206,8 +235,10 @@ export const hookEventSchema = z.object({
 export type HookEvent = z.infer<typeof hookEventSchema>;
 
 // The unified event row. Discriminated on `kind` — adding a future variant
-// (e.g. `OtelSpanEvent` in v2) is a non-breaking extension.
-export const eventSchema = z.discriminatedUnion("kind", [
+// (e.g. `OtelSpanEvent` in v2) is a non-breaking extension. The exported
+// reader applies the FDRS-653 task-vocab normalization to `TwinHttpEvent`
+// rows (the only variant carrying the step-expectation key).
+const eventUnionSchema = z.discriminatedUnion("kind", [
   twinHttpEventSchema,
   llmCallEventSchema,
   toolUseEventSchema,
@@ -215,6 +246,9 @@ export const eventSchema = z.discriminatedUnion("kind", [
   subagentSpawnEventSchema,
   hookEventSchema,
 ]);
+export const eventSchema = eventUnionSchema.transform((event) =>
+  event.kind === "TwinHttpEvent" ? normalizeTaskStepVocab(event) : event,
+);
 export type Event = z.infer<typeof eventSchema>;
 
 // Detect a pre-FDRS-398 legacy row on disk. A new-shape row always carries a

@@ -84,14 +84,16 @@ describe("laneSchema", () => {
 });
 
 describe("criterionSchema + judgeModelSchema (moved from old scenarios section into run.ts)", () => {
-  it("criterionSchema parses {type: 'D', text}", () => {
+  // FDRS-653 (W3 vocab): 0.3.0-era D/P spellings stay accepted and normalize
+  // to the canonical code/model kinds. Full matrix in test/task-vocab.test.ts.
+  it("criterionSchema parses {type: 'D', text} and normalizes to 'code'", () => {
     const r = criterionSchema.parse({ type: "D", text: "label was added" });
-    expect(r.type).toBe("D");
+    expect(r.type).toBe("code");
   });
 
-  it("criterionSchema parses {type: 'P', text}", () => {
+  it("criterionSchema parses {type: 'P', text} and normalizes to 'model'", () => {
     const r = criterionSchema.parse({ type: "P", text: "response is polite" });
-    expect(r.type).toBe("P");
+    expect(r.type).toBe("model");
   });
 
   it("judgeModelSchema accepts any non-empty string", () => {
@@ -185,7 +187,7 @@ describe("runSchema (new fields)", () => {
     const r = runSchema.parse(baseRun);
     expect(r.correlator_kind).toBe("heuristic");
     expect(r.environment).toBe("simulation");
-    expect(r.promoted_scenario_id).toBeNull();
+    expect(r.promoted_task_id).toBeNull();
     expect(r.replay_run_id).toBeNull();
     expect(r.state_archive_s3_key).toBeNull();
     expect(r.agent_tokens_in).toBeNull();

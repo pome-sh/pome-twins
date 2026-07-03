@@ -1,5 +1,59 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.5.0
+
+FDRS-653 — reconcile the forked OTel surface (twins is the single canonical
+home; pome-cloud consumes), adopt the W3 "scenario → task" wire vocabulary
+behind a tolerant reader, and settle the `src/otel/` ownership banners. Also
+formally releases the previously-`Unreleased` FDRS-480/481/482 (OTel surface)
+and FDRS-398 (unified event union) sections below.
+
+### Added
+
+- `src/task-vocab.ts` — `LEGACY_TASK_VOCAB_KEY_MAP`, `normalizeTaskVocabKeys`,
+  `LEGACY_CRITERION_KIND_MAP` (exported from the barrel). The tolerant-reader
+  machinery for the 0.3.0 compatibility window.
+- W3 vocab, canonical everywhere: `Run.task_name` / `Run.task_hash` /
+  `Run.promoted_task_id`, `submitResultRequest.task_name` / `.task_hash`,
+  `createSessionRequest.task_source` / `.task_id`,
+  `RecorderEvent.task_step_id` (additive alongside the deprecated
+  `scenario_step_id`), criterion kind `code` / `model`
+  (+ `criterionKindSchema`, `CRITERION_KINDS`).
+- Canonical `task*` exports: `taskSchema` / `Task`, `taskConfigSchema` /
+  `TaskConfig`, `persistedTaskSchema` / `PersistedTask`. The `scenario*`
+  exports remain as deprecated aliases for one release train (FDRS-654).
+- `githubSeedStateSchema` (ported from pome-cloud): full GitHub world —
+  top-level `users`, `default_branch`, `files`, `pull_requests` with
+  `reviews` / `statuses`. Fixes the narrowing-boundary bug class where
+  PR-based seeds were silently zod-stripped to an empty repo.
+- `FixtureDerivedFrom` gains `"live-capture"` (ported from pome-cloud;
+  reserved — no in-repo fixture uses it).
+- New-vocab fixture dirs `test/fixtures/v1/runTaskVocab/` +
+  `test/fixtures/v1/createSessionRequestTaskVocab/`, plus task-vocab
+  normalization tests (`test/task-vocab.test.ts`) and ported seed-boundary /
+  slack seed tests.
+
+### Changed
+
+- TOLERANT READER (0.3.0 window): `runSchema`, `submitResultRequestSchema`,
+  `createSessionRequestSchema`, `recorderEventSchema`, `eventSchema` accept
+  BOTH the 0.3.0-era `scenario_*` keys / `D`|`P` criterion kinds and the new
+  vocabulary, normalizing to the new keys at parse time (new key wins when
+  both are present). Nothing a 0.3.0-era artifact contains becomes invalid;
+  shipped CLIs vendoring shared-types 0.3.0 keep working unchanged.
+- `src/otel/` ownership banners: format schemas (span-event, event-schema,
+  semconv, nano, project, map-span, legacy-shim, fixtures) are canonical HERE;
+  ingest-side utilities (OTLP decode, redaction/allowlist processors, storage
+  helpers, capture tooling) are cloud-owned consumers. The stale
+  "pome-cloud mirrors this directory verbatim" claims are removed.
+
+### Notes
+
+- pome-cloud's hand-mirrored `packages/shared-types` (0.3.0 + cloud-local otel
+  surface) is superseded by this package; the cloud consumer swap is FDRS-654.
+- The CLI's vendored shared-types tarball intentionally stays at 0.3.0 in this
+  release (separately version-gated; rides the FDRS-654/657 train).
+
 ## 0.4.0
 
 FDRS-613 — reconcile the twins /v1 wire surface with the pome-cloud production
