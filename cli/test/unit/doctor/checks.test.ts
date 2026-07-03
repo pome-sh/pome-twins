@@ -107,6 +107,21 @@ describe("runDoctorChecks", () => {
     expect(routing.fix).toContain("withPome");
   }, 30_000);
 
+  it("skips the local twin boot in hosted mode but still gates config/routing/egress", async () => {
+    const dir = await repo({
+      "pome.config.json": VALID_CONFIG,
+      "src/agent.ts": WIRED_AGENT,
+    });
+
+    const report = await runDoctorChecks({ cwd: dir, env: {}, mode: "hosted" });
+    expect(report.checks.map((c) => `${c.id}:${c.status}`)).toEqual([
+      "config:pass",
+      "routing:pass",
+      "egress:pass",
+    ]);
+    expect(report.ok).toBe(true);
+  });
+
   it("fails the egress check when a wildcard disables the floor", async () => {
     const dir = await repo({
       "pome.config.json": VALID_CONFIG,

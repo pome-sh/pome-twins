@@ -17,7 +17,6 @@ import { sign } from "hono/jwt";
 import { buildEgressAllowlist } from "../capture-server/egress.js";
 import { findProjectConfigPath, readProjectConfig } from "../cli/project-config.js";
 import { getAvailablePort } from "../runner/ports.js";
-import { bootTwin } from "../twin/twinHarness.js";
 import { scanAgentSources } from "./scan.js";
 
 export type DoctorCheckId = "config" | "twin" | "routing" | "egress";
@@ -41,6 +40,12 @@ export interface RunDoctorChecksOptions {
   // Injectable for tests; defaults to process.env. Read by the egress check
   // (floor wildcard) — NOT forwarded to any agent.
   env?: Record<string, string | undefined>;
+  // "full" (default, `pome doctor` + local-run gate) boots the local twin.
+  // "hosted" (the hosted-run gate, FDRS-641) skips the local twin boot: a
+  // hosted run never touches it — the cloud provisions the session twin —
+  // and the local boot needs better-sqlite3, unavailable under the Bun
+  // runtime hosted runs commonly use. Config/routing/egress still gate.
+  mode?: "full" | "hosted";
 }
 
 export async function runDoctorChecks(
@@ -48,10 +53,11 @@ export async function runDoctorChecks(
 ): Promise<DoctorReport> {
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
+  const mode = options.mode ?? "full";
 
   const checks: DoctorCheck[] = [];
   const steps: Array<(configDir: string) => Promise<DoctorCheck>> = [
-    (dir) => checkTwinReachable(dir),
+    ...(mode === "full" ? [(dir: string) => checkTwinReachable(dir)] : []),
     (dir) => checkRouting(dir),
     async (dir) => checkEgressFloor(env, dir),
   ];
@@ -133,6 +139,9 @@ async function checkTwinReachable(_configDir: string): Promise<DoctorCheck> {
 
   let harness;
   try {
+    // Dynamic import: the twin harness pulls in better-sqlite3, which the
+    // hosted-mode gate must never load (unavailable under the Bun runtime).
+    const { bootTwin } = await import("../twin/twinHarness.js");
     harness = await bootTwin({
       twin: "github",
       seedState: undefined,
