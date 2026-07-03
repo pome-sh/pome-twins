@@ -33,9 +33,6 @@ export interface RunScenarioHostedOptions {
   client?: HostedClient;
   /** Informational; passed through to `runs.agent_model`. Defaults to "unknown". */
   agentModel?: string;
-  /** Kept for CLI flag compatibility. Hosted runs use the server-side
-   *  managed judge handoff, so the CLI always submits `fix_prompt: null`. */
-  skipFixPrompt?: boolean;
 }
 
 export interface RunScenarioHostedResult {
@@ -195,11 +192,11 @@ export async function runScenarioHosted(
     // that signature here.
     const legacyEvents = events as unknown as LegacyGithubRecorderEvent[];
 
-    // 5. Write local artifacts WITHOUT computing a local score. ADR-013:
-    //    cloud is the authoritative judge for hosted runs, so a local score
-    //    here would be the same false signal that drove the dashboard/CLI
-    //    mismatch this PR fixes. score.json is written below once /finalize
-    //    returns the cloud-judged result.
+    // 5. Write local artifacts — RAW TRACE + state only. ADR-013 / FDRS-657:
+    //    the OSS CLI never scores locally, and local artifacts stay trace/audit
+    //    only (no score.json is ever written). Cloud is the authoritative
+    //    judge; the verdict from /finalize is printed to the terminal and
+    //    recorded to the dashboard, never persisted next to the trace.
     const completedAt = new Date().toISOString();
     const artifacts = await writeRunArtifactsCore({
       artifactsDir,

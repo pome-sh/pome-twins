@@ -64,6 +64,35 @@ describe("no-eval-in-oss gate", () => {
       expect(violations.some((v: string) => /correlator/.test(v))).toBe(true);
     });
 
+    it("catches a correlator reintroduced via require()", async () => {
+      await writeFile(
+        join(tmp, "src", "cli", "bad.ts"),
+        'const { correlateHeuristic } = require("@pome-sh/correlator");\n',
+      );
+      const violations = await findViolations(tmp);
+      expect(violations.some((v: string) => v.includes("bad.ts"))).toBe(true);
+      expect(violations.some((v: string) => /correlator/.test(v))).toBe(true);
+    });
+
+    it("catches a bare side-effect import of a forbidden module", async () => {
+      await writeFile(
+        join(tmp, "src", "cli", "bad.ts"),
+        'import "@pome-sh/correlator";\n',
+      );
+      const violations = await findViolations(tmp);
+      expect(violations.some((v: string) => /correlator/.test(v))).toBe(true);
+    });
+
+    it("catches eval logic reintroduced OUTSIDE src/ (in scripts/)", async () => {
+      await mkdir(join(tmp, "scripts"), { recursive: true });
+      await writeFile(
+        join(tmp, "scripts", "sneaky.mjs"),
+        'import { callJudge } from "../src/evaluator/probabilistic/client.js";\n',
+      );
+      const violations = await findViolations(tmp);
+      expect(violations.some((v: string) => v.includes("scripts/sneaky.mjs"))).toBe(true);
+    });
+
     it("catches a reappeared src/evaluator tree on disk", async () => {
       await mkdir(join(tmp, "src", "evaluator"), { recursive: true });
       await writeFile(join(tmp, "src", "evaluator", "score.ts"), "export const x = 1;\n");

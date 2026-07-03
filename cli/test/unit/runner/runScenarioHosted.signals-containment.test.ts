@@ -118,7 +118,6 @@ describe("runScenarioHosted signals redaction containment", () => {
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(result.cloudRunId).toBe("run_containment");

@@ -517,7 +517,6 @@ export function createProgram() {
       process.env.POME_API_URL ?? DEFAULT_CONTROL_PLANE_URL,
     )
     .option("--agent-model <name>", "Informational; recorded on the cloud run.", "unknown")
-    .option("--no-fix-prompt", "Skip CLI-side LLM fix-prompt generation (token saver). Submits fix_prompt: null.")
     .option(
       "--no-capture",
       "Self-host only: skip spawning the capture-server child and don't inject HTTP_PROXY/HTTPS_PROXY into the agent. Used by the CI overhead gate (FDRS-405) to baseline proxy-on-vs-off latency. No-op on hosted runs.",
@@ -537,7 +536,6 @@ export function createProgram() {
           local?: boolean;
           apiUrl: string;
           agentModel: string;
-          fixPrompt: boolean;
           capture: boolean;
         }
       ) => {
@@ -610,9 +608,6 @@ export function createProgram() {
                 artifactsDir: options.artifactsDir,
                 hosted: { baseUrl: hostedCreds.apiBaseUrl, apiKey: hostedCreds.apiKey },
                 agentModel: options.agentModel,
-                // Commander negates --no-* flags into a `<name>: false` field —
-                // `--no-fix-prompt` sets `options.fixPrompt = false`.
-                skipFixPrompt: options.fixPrompt === false,
               });
               const status = scoreStatus(
                 result.score,

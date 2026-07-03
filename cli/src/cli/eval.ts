@@ -617,6 +617,18 @@ export async function runEvalCommand(
       console.error(
         "Tip: `pome login` first — `pome eval` uploads the trace to Pome cloud for evaluation (ADR-013; there is no local scoring).",
       );
+    } else if (
+      err instanceof HostedOrchError &&
+      (err.status === 404 || err.status === 405)
+    ) {
+      // The upgrade hint promised at the client layer (createEvalSession):
+      // a 404/405 means this control plane predates `POST /v1/eval-sessions`
+      // (FDRS-655) — the exact release-gate scenario where the endpoint is on
+      // main but not yet deployed to prod. Point the user at the cause instead
+      // of a bare "Not Found".
+      console.error(
+        "Tip: this control plane does not serve `POST /v1/eval-sessions` yet — the Pome cloud eval path (FDRS-655) is not deployed. Upgrade the control plane (or wait for the deploy). In the meantime, a hosted `pome run` still returns a cloud verdict.",
+      );
     }
     process.exitCode = code;
   }

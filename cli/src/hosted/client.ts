@@ -82,8 +82,10 @@ export interface SubmitResultInput {
   // captured AND the heuristic correlator is unavailable.
   lanes: Lane[];
   steps: Step[];
-  // CLI-generated fix prompt (FDRS-323). Null when no LLM judge is configured,
-  // the LLM call failed, or the user passed --no-fix-prompt.
+  // Wire field for a CLI-supplied fix prompt (FDRS-323). FDRS-657: the OSS CLI
+  // is capture-only and never generates one CLI-side, so runners always submit
+  // `null` here — the cloud owns the managed judge/fix-prompt handoff. Kept on
+  // the finalize contract for compatibility.
   fixPrompt: string | null;
   // FDRS-357: storage key returned by requestEventsUploadUrl, or null if the
   // upload was skipped / failed. Cloud persists this into runs.events_jsonl_url.
