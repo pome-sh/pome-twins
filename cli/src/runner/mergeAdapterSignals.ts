@@ -4,15 +4,13 @@ import { eventSchema, type Event } from "../types/shared.js";
 import { redactEvent } from "../recorder/redaction.js";
 
 // Post-run merge of the adapter signals JSONL into the canonical events.jsonl
-// (FDRS-411 + FDRS-412). The canonical implementation of the pure ts-sort
-// step lives in `@pome-sh/correlator` as `mergeSignalsIntoEvents`; we mirror
-// it inline here to keep this IO wrapper independent of the vendored
-// correlator tarball.
+// (FDRS-411 + FDRS-412). This is a pure ts-sort/interleave step implemented
+// inline so the OSS capture path has no dependency on any correlator package.
 //
 // Three sources write events.jsonl during a self-host run:
 //   1. The capture-server child appends `LlmCallEvent` rows as each CONNECT
 //      tunnel closes (FDRS-399) — capture-close order, not ts-order.
-//   2. `scoreAndWriteRun` then appends `TwinHttpEvent` rows from the in-process
+//   2. The trace writer then appends `TwinHttpEvent` rows from the in-process
 //      twin recorder (FDRS-415).
 //   3. This helper reads `signals.jsonl` (HookEvent / ToolUseEvent /
 //      ToolResultEvent / SubagentSpawnEvent rows written by the agent
@@ -87,8 +85,7 @@ export async function mergeAdapterSignalsIntoEvents(
     }
   }
 
-  // Concat + stable sort by ts — mirrors `@pome-sh/correlator`'s
-  // `mergeSignalsIntoEvents`. ISO-8601 with `Z` sorts chronologically under
+  // Concat + stable sort by ts. ISO-8601 with `Z` sorts chronologically under
   // lexicographic compare.
   const merged = eventRows.concat(signalRows);
   merged.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));

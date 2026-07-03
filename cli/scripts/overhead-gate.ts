@@ -14,7 +14,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer as createNetServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -36,6 +36,49 @@ const AGENT_SCRIPT = process.env.OVERHEAD_BENCH_AGENT ?? "scripts/overhead-bench
 // `dist/src/cli/main.js` so both the parent and the spawned child run under
 // node with no transpiler in the loop.
 const POME_BIN = process.env.OVERHEAD_BENCH_POME ?? "node dist/src/cli/main.js";
+
+// The script is designed to run from `cli/`; resolve the scenario, agent, and
+// pome binary against that root so `pome run` can be spawned from an isolated
+// scaffold directory (see makeDoctorScaffold) with a different cwd.
+const CLI_ROOT = process.cwd();
+
+// FDRS-641 — `pome run` now hard-gates on the doctor wiring checks (config →
+// twin → routing → egress) with no --force. This synthetic benchmark used to
+// run in a bare `cli/` with no pome.config.json, so post-FDRS-641 it dies at
+// the config check before spawning the agent. We can't (and shouldn't) bypass
+// the gate, so instead we run `pome run` from a throwaway directory that holds
+// a valid pome.config.json plus a wiring-marker source that reads
+// POME_GITHUB_REST_URL — exactly what doctor's routing scan wants and nothing
+// that trips its hardcoded-host detection. The twin/egress checks pass against
+// the local github twin + deny-by-default floor the run already uses.
+async function makeDoctorScaffold(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "pome-overhead-scaffold-"));
+  await writeFile(
+    join(dir, "pome.config.json"),
+    `${JSON.stringify({ agent: { command: "bun agent.ts" } }, null, 2)}\n`,
+  );
+  await writeFile(
+    join(dir, "agent.ts"),
+    [
+      "// FDRS-641 doctor wiring marker. The benchmark's real agent is passed",
+      "// via --agent; this file exists only so `pome doctor`'s routing scan",
+      "// finds a POME_*_REST_URL read (and no hardcoded host) in the config dir.",
+      "const baseUrl = process.env.POME_GITHUB_REST_URL;",
+      "void baseUrl;",
+      "export {};",
+      "",
+    ].join("\n"),
+  );
+  return dir;
+}
+
+// Turn a path argument into an absolute path when it names an existing file
+// under CLI_ROOT (e.g. `dist/src/cli/main.js`), leaving flags untouched — so
+// the spawned `node …/main.js` resolves regardless of the child's cwd.
+function absIfFile(arg: string): string {
+  const abs = resolve(CLI_ROOT, arg);
+  return existsSync(abs) ? abs : arg;
+}
 
 interface RunResult {
   stdout: string;
@@ -59,6 +102,7 @@ async function main(): Promise<void> {
   // millisecond-level math that doesn't care about TLS.
   const echo = await startEchoServer();
   const target = `127.0.0.1:${echo.port}`;
+  const scaffold = await makeDoctorScaffold();
 
   console.log(`[overhead-gate] N=${N} budget=${BUDGET_MS}ms target=${target}`);
 
@@ -67,12 +111,12 @@ async function main(): Promise<void> {
     // pointing at the spawned capture-server child; per-iteration timings
     // include the CONNECT-tunnel hop.
     console.log("[overhead-gate] run A: capture enabled");
-    const withCapture = await runPome({ noCapture: false, target });
+    const withCapture = await runPome({ noCapture: false, target, scaffold });
 
     // RUN B — `--no-capture`. No proxy is spawned, HTTPS_PROXY is unset; the
     // agent makes direct TCP connections to the same upstream.
     console.log("[overhead-gate] run B: --no-capture");
-    const withoutCapture = await runPome({ noCapture: true, target });
+    const withoutCapture = await runPome({ noCapture: true, target, scaffold });
 
     const a = summarize(withCapture.samples);
     const b = summarize(withoutCapture.samples);
@@ -100,19 +144,24 @@ async function main(): Promise<void> {
     console.log("[overhead-gate] PASS");
   } finally {
     await echo.close();
+    await rm(scaffold, { recursive: true, force: true });
   }
 }
 
-async function runPome(input: { noCapture: boolean; target: string }): Promise<RunResult> {
+async function runPome(input: { noCapture: boolean; target: string; scaffold: string }): Promise<RunResult> {
   const artifactsDir = await mkdtemp(join(tmpdir(), `pome-overhead-${input.noCapture ? "off" : "on"}-`));
   const [pomeExec, ...pomeArgs] = POME_BIN.split(/\s+/);
   if (!pomeExec) fail("OVERHEAD_BENCH_POME is empty");
+  // Absolute scenario/agent/bin paths: `pome run` is spawned with cwd set to
+  // the doctor scaffold dir, so relative paths (resolved against cli/) would
+  // break. The pome bin must be absolute in particular because the
+  // capture-server child re-invokes `process.execPath process.argv[1]`.
   const args = [
-    ...pomeArgs,
+    ...pomeArgs.map(absIfFile),
     "run",
-    SCENARIO_PATH,
+    resolve(CLI_ROOT, SCENARIO_PATH),
     "--agent",
-    `bun ${AGENT_SCRIPT}`,
+    `bun ${resolve(CLI_ROOT, AGENT_SCRIPT)}`,
     "--artifacts-dir",
     artifactsDir,
   ];
@@ -130,7 +179,9 @@ async function runPome(input: { noCapture: boolean; target: string }): Promise<R
   // creds in macOS Keychain doesn't accidentally trigger a hosted run.
   env.POME_CLI_DISABLE_KEYCHAIN = "1";
 
-  const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env);
+  // cwd = scaffold dir so `pome run`'s FDRS-641 doctor preflight finds the
+  // scaffolded pome.config.json + wiring marker (and passes).
+  const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env, input.scaffold);
   if (exitCode !== 0) {
     process.stderr.write(stderr);
     fail(`pome run exited ${exitCode} (noCapture=${input.noCapture})`);
@@ -200,9 +251,10 @@ function runChild(
   cmd: string,
   args: string[],
   env: NodeJS.ProcessEnv,
+  cwd?: string,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((doResolve, doReject) => {
-    const child = spawn(cmd, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(cmd, args, { env, cwd, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (chunk) => {

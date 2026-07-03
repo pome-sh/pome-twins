@@ -4,11 +4,15 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runAgentCommand } from "./agentRunner.js";
-import { correlateRun } from "./correlateRun.js";
-import { toTwinHttpEvent, writeRunArtifactsCore, writeScoreJson } from "../recorder/artifacts.js";
+import { toTwinHttpEvent, writeRunArtifactsCore } from "../recorder/artifacts.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { createHostedClient, type HostedClient } from "../hosted/client.js";
+import {
+  redactJsonl,
+  scoreFromFinalizeResponse,
+  uploadRunBlobs,
+} from "../hosted/uploadAndFinalize.js";
 import {
   normalizeConfigAgentId,
   normalizeConfigAgentSdk,
@@ -17,8 +21,7 @@ import {
 import type { CriterionDef, RecorderEvent } from "../types/shared.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "../twin/github/types.js";
 import type { Scenario } from "../scenario/scenarioSchema.js";
-import type { Score } from "../evaluator/score.js";
-import { outcomeOf } from "../evaluator/score.js";
+import type { Score } from "../score/view.js";
 import type { RunArtifacts } from "../recorder/artifacts.js";
 
 export interface RunScenarioHostedOptions {
@@ -30,9 +33,6 @@ export interface RunScenarioHostedOptions {
   client?: HostedClient;
   /** Informational; passed through to `runs.agent_model`. Defaults to "unknown". */
   agentModel?: string;
-  /** Kept for CLI flag compatibility. Hosted runs use the server-side
-   *  managed judge handoff, so the CLI always submits `fix_prompt: null`. */
-  skipFixPrompt?: boolean;
 }
 
 export interface RunScenarioHostedResult {
@@ -192,11 +192,11 @@ export async function runScenarioHosted(
     // that signature here.
     const legacyEvents = events as unknown as LegacyGithubRecorderEvent[];
 
-    // 5. Write local artifacts WITHOUT computing a local score. ADR-013:
-    //    cloud is the authoritative judge for hosted runs, so a local score
-    //    here would be the same false signal that drove the dashboard/CLI
-    //    mismatch this PR fixes. score.json is written below once /finalize
-    //    returns the cloud-judged result.
+    // 5. Write local artifacts — RAW TRACE + state only. ADR-013 / FDRS-657:
+    //    the OSS CLI never scores locally, and local artifacts stay trace/audit
+    //    only (no score.json is ever written). Cloud is the authoritative
+    //    judge; the verdict from /finalize is printed to the terminal and
+    //    recorded to the dashboard, never persisted next to the trace.
     const completedAt = new Date().toISOString();
     const artifacts = await writeRunArtifactsCore({
       artifactsDir,
@@ -212,13 +212,10 @@ export async function runScenarioHosted(
       stateFinal,
     });
 
-    // 6. Correlate via @pome-sh/correlator. Adapter-rich path when the agent
-    //    emitted ≥1 valid signal to POME_ADAPTER_SIGNALS_PATH; heuristic path
-    //    otherwise. Either path produces non-empty lanes/steps for non-empty
-    //    event streams (FDRS-356). Reserved for future submitResult shim
-    //    callers / dashboard-side correlator handoff; /finalize does not
-    //    consume these fields directly.
-    void (await correlateRun(signalsPath, events));
+    // 6. FDRS-657 — NO local correlation. Correlation (like scoring/judging)
+    //    is a cloud responsibility; the OSS CLI only captures the raw trace.
+    //    Cloud correlates the uploaded events/signals server-side. The events
+    //    are uploaded exactly as captured (no local step_id back-fill).
 
     // 7. Upload events.jsonl + state blobs + adapter signals.jsonl to cloud
     //    storage in parallel. /finalize defaults the trace storage key to
@@ -240,119 +237,36 @@ export async function runScenarioHosted(
     const stateInitialJson = JSON.stringify(redactSecrets(stateInitial));
     const stateFinalJson = JSON.stringify(redactSecrets(stateFinal));
 
-    async function putBlob(
-      url: string,
-      body: string,
-      contentType: string,
-      label: string,
-    ): Promise<boolean> {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 30_000);
-      try {
-        const putRes = await fetch(url, {
-          method: "PUT",
-          headers: { "content-type": contentType },
-          body,
-          signal: ctrl.signal,
-        });
-        if (!putRes.ok) {
-          console.warn(
-            `[pome] ${label} upload PUT ${url} → ${putRes.status}; continuing with key=null`,
-          );
-          return false;
-        }
-        return true;
-      } finally {
-        clearTimeout(timer);
-      }
+    // Upload orchestration lives in ../hosted/uploadAndFinalize.ts (FDRS-656)
+    // so `pome eval` shares the exact best-effort semantics. Signals are
+    // read + redacted here (the tmp file is runner-owned); empty payloads
+    // skip the upload inside uploadRunBlobs. Read + redaction stay inside a
+    // guard so a redaction failure degrades to "signals skipped" — the
+    // pre-extraction contract — instead of aborting the whole hosted run.
+    let signalsJsonl = "";
+    try {
+      signalsJsonl = redactJsonl(
+        await readFile(signalsPath, "utf8").catch(() => ""),
+      );
+    } catch (err) {
+      console.warn(
+        `[pome] signals.jsonl upload skipped (${
+          err instanceof Error ? err.message : String(err)
+        }); continuing with signals_storage_key=null`,
+      );
     }
-
-    async function uploadEvents(): Promise<string | null> {
-      try {
-        const upload = await client.requestEventsUploadUrl(session.session_id);
-        const ok = await putBlob(
-          upload.url,
-          eventsJsonl,
-          "application/x-ndjson",
-          "events.jsonl",
-        );
-        return ok ? upload.key : null;
-      } catch (err) {
-        console.warn(
-          `[pome] events.jsonl upload skipped (${
-            err instanceof Error ? err.message : String(err)
-          }); continuing with events_jsonl_url=null`,
-        );
-        return null;
-      }
-    }
-
-    // F0-4 / L7 — upload adapter signals if the agent emitted any. When the
-    // file is empty (no withPome() wrap, or no hooks fired), skip the
-    // upload entirely so cloud doesn't allocate storage for "{}" payloads.
-    async function uploadSignals(): Promise<string | null> {
-      try {
-        const signalsBody = redactJsonl(await readFile(signalsPath, "utf8").catch(() => ""));
-        if (signalsBody.trim().length === 0) {
-          return null;
-        }
-        const upload = await client.requestSignalsUploadUrl(session.session_id);
-        const ok = await putBlob(
-          upload.url,
-          signalsBody,
-          "application/x-ndjson",
-          "signals.jsonl",
-        );
-        return ok ? upload.key : null;
-      } catch (err) {
-        console.warn(
-          `[pome] signals.jsonl upload skipped (${
-            err instanceof Error ? err.message : String(err)
-          }); continuing with signals_storage_key=null`,
-        );
-        return null;
-      }
-    }
-
-    async function uploadStates(): Promise<{
-      initialKey: string | null;
-      finalKey: string | null;
-    }> {
-      try {
-        const upload = await client.requestStateUploadUrl(session.session_id);
-        const [initialOk, finalOk] = await Promise.all([
-          putBlob(
-            upload.state_initial.url,
-            stateInitialJson,
-            "application/json",
-            "state_initial.json",
-          ),
-          putBlob(
-            upload.state_final.url,
-            stateFinalJson,
-            "application/json",
-            "state_final.json",
-          ),
-        ]);
-        return {
-          initialKey: initialOk ? upload.state_initial.key : null,
-          finalKey: finalOk ? upload.state_final.key : null,
-        };
-      } catch (err) {
-        console.warn(
-          `[pome] state blob upload skipped (${
-            err instanceof Error ? err.message : String(err)
-          }); continuing with state_*_storage_key=null`,
-        );
-        return { initialKey: null, finalKey: null };
-      }
-    }
-
-    const [eventsJsonlUrl, stateKeys, signalsKey] = await Promise.all([
-      uploadEvents(),
-      uploadStates(),
-      uploadSignals(),
-    ]);
+    const uploaded = await uploadRunBlobs(client, session.session_id, {
+      eventsJsonl,
+      stateInitialJson,
+      stateFinalJson,
+      signalsJsonl,
+    });
+    const eventsJsonlUrl = uploaded.eventsKey;
+    const stateKeys = {
+      initialKey: uploaded.stateInitialKey,
+      finalKey: uploaded.stateFinalKey,
+    };
+    const signalsKey = uploaded.signalsKey;
 
     // 8. Finalize the run on cloud (ADR-013). Cloud loads the trace from
     //    storage, calls the managed judge via AI Gateway, persists the run
@@ -391,46 +305,13 @@ export async function runScenarioHosted(
       signalsStorageKey: signalsKey ?? undefined,
     });
 
-    // 9. Synthesize a Score shape backed by the cloud-authoritative
-    //    satisfaction, then drop score.json. F0-3 / L5 — Session A added
-    //    `criteria_results[]` to /finalize so the CLI can now render
-    //    per-criterion verdicts on hosted runs (`pome inspect`,
-    //    `pome fix-prompt`) without a follow-up cloud round-trip. Older
-    //    cloud builds (pre-Session A) omit the field; default to an empty
-    //    array — the fix-prompt action still bails cleanly when results
-    //    are missing.
-    const hasCriteriaResults = finalized.criteria_results !== undefined;
-    const results = finalized.criteria_results ?? [];
-    const passed = results.filter((r) => outcomeOf(r) === "passed").length;
-    const failed = results.filter((r) => outcomeOf(r) === "failed").length;
-    const errored = results.filter((r) => outcomeOf(r) === "errored").length;
-    const skipped = results.filter((r) => outcomeOf(r) === "skipped").length;
-    const totalRequired = passed + failed;
-    // A1 CAVEAT (FDRS-618): `satisfaction` here is the CLOUD-authoritative
-    // score (`finalized.score`) — the hosted judge does NOT yet implement the
-    // FDRS-591/611 outcome semantics, so `evaluated`/`can_pass` are derived
-    // locally only when /finalize returns per-criterion results. Older cloud
-    // builds omit `criteria_results`; for those, preserve the cloud score as
-    // renderable instead of inventing an empty local A5 verdict. When results
-    // are present, local rendering (`pome run` / `pome inspect`) can still
-    // disagree with the cloud exit code until FDRS-618 adopts the same model
-    // cloud-side. The hosted exit-code decision below deliberately stays on the
-    // cloud score, not the local A5 guard.
-    const score: Score = {
-      satisfaction: finalized.score,
-      passed,
-      failed,
-      skipped,
-      errored,
-      total_required: totalRequired,
-      evaluated: hasCriteriaResults ? totalRequired > 0 : true,
-      can_pass: hasCriteriaResults ? totalRequired > 0 && skipped === 0 && errored === 0 : true,
-      results,
-      judge_model: finalized.judge_model ?? null,
-      judge_tokens_in: null,
-      judge_tokens_out: null,
-    };
-    await writeScoreJson(artifacts.runDir, score);
+    // 9. Synthesize the cloud verdict for EPHEMERAL terminal display + the
+    //    exit code. FDRS-657: local artifacts stay trace-only — the verdict is
+    //    NOT persisted (no score.json). It lives in the cloud; the CLI prints
+    //    it and points at the dashboard. Synthesis (incl. the F0-3 / L5
+    //    criteria_results handling and the A1/FDRS-618 caveat) lives in
+    //    scoreFromFinalizeResponse — shared with `pome eval` (FDRS-656).
+    const score: Score = scoreFromFinalizeResponse(finalized);
 
     // 10. Map cloud score → exit code. F18 / F0-5: the old policy
     //     ("agent failure trumps a passing score") collapsed an agent
@@ -465,18 +346,4 @@ export async function runScenarioHosted(
     await client.deleteSession(session.session_id).catch(() => undefined);
     await rm(signalsDir, { recursive: true, force: true }).catch(() => undefined);
   }
-}
-
-function redactJsonl(body: string): string {
-  const lines = body.split("\n");
-  const redacted = lines
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      try {
-        return JSON.stringify(redactSecrets(JSON.parse(line)));
-      } catch {
-        return redactSecrets(line);
-      }
-    });
-  return redacted.length > 0 ? `${redacted.join("\n")}\n` : "";
 }

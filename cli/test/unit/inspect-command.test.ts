@@ -115,62 +115,62 @@ describe("pome inspect command", () => {
 
     await createProgram().parseAsync(["node", "pome", "inspect", runDir]);
 
-    // No score.json was written — inspect must still succeed (hosted runs
-    // upload events first; score lands after /finalize). Exit code stays
-    // unset (treated as 0).
+    // FDRS-657 — inspect renders ONLY trace/audit content. It never prints a
+    // verdict (there is no local score). Exit code stays unset (treated as 0).
     expect(process.exitCode).toBeUndefined();
     const out = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(out).toContain("Trace health:");
     expect(out).toContain("proxy: 1/expected≥1");
     expect(out).toContain("twin: 1/expected≥1");
     expect(out).toContain("Events (2):");
-    expect(out).toContain("Score: (score.json not found)");
+    // No verdict rendered — capture-only.
+    expect(out).not.toContain("Score");
+    expect(out).not.toMatch(/\bPASS\b|\bFAIL\b|\bUNEVAL\b/);
   });
 
-  it("renders can_pass=false score files as un-evaluated instead of numeric PASS", async () => {
+  it("shows only trace/audit content — never a verdict, even if a stray score.json exists", async () => {
     await writeFile(
       join(runDir, "meta.json"),
       JSON.stringify({ run_id: "run_abc", scenario: "scenario-x", twins: ["github"] }),
     );
     await writeFile(
-      join(runDir, "score.json"),
+      join(runDir, "events.jsonl"),
       JSON.stringify({
-        satisfaction: 100,
-        passed: 1,
-        failed: 0,
-        skipped: 1,
-        errored: 0,
-        total_required: 1,
-        evaluated: true,
-        can_pass: false,
-        results: [
-          {
-            criterion: { type: "D", text: "No unsupported endpoint was called" },
-            outcome: "passed",
-            passed: true,
-            skipped: false,
-            reason: "ok",
-          },
-          {
-            criterion: { type: "D", text: "Unsupported deterministic wording" },
-            outcome: "skipped",
-            passed: false,
-            skipped: true,
-            reason: "no predicate matched",
-          },
-        ],
-        judge_model: null,
-        judge_tokens_in: null,
-        judge_tokens_out: null,
-      }),
+        kind: "TwinHttpEvent",
+        ts: "2026-05-26T00:00:01.000Z",
+        event_id: "evt_twin_1",
+        parent_id: null,
+        run_id: "run_abc",
+        twin: "github",
+        request_id: "req_1",
+        step_id: null,
+        tool_call_id: null,
+        method: "GET",
+        path: "/repos/acme/api",
+        request_body: null,
+        status: 200,
+        response_body: null,
+        latency_ms: 5,
+        fidelity: "semantic",
+        state_mutation: false,
+        state_delta: null,
+        error: null,
+      }) + "\n",
+    );
+    // A stray score.json (e.g. left over from an older CLI) must be IGNORED —
+    // inspect is trace/audit only; the verdict lives in the cloud.
+    await writeFile(
+      join(runDir, "score.json"),
+      JSON.stringify({ satisfaction: 100, passed: 1, results: [] }),
     );
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     await createProgram().parseAsync(["node", "pome", "inspect", runDir]);
 
     const out = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(out).toContain("Score: un-evaluated (cannot pass)");
-    expect(out).toContain("stored score: 100/100");
-    expect(out).toContain("- [D] Unsupported deterministic wording");
+    expect(out).toContain("Trace health:");
+    expect(out).toContain("Events (1):");
+    expect(out).not.toContain("Score");
+    expect(out).not.toMatch(/\bPASS\b|\bFAIL\b|\bUNEVAL\b/);
   });
 });

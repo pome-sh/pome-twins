@@ -95,6 +95,11 @@ function makeStubClient({
         provider_credentials: {},
       } as CreateSessionResponse;
     },
+    async createEvalSession() {
+      // FDRS-656 — never reached by runScenarioHosted; eval-command tests
+      // supply their own mock.
+      throw new HostedOrchError("no eval-session stubbed");
+    },
     async listSessions() {
       return [] as SessionPublic[];
     },
@@ -231,7 +236,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(result.cloudRunId).toBe(FAKE_RUN_ID);
@@ -277,7 +281,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     // Run must complete and return the cloud run id.
@@ -350,7 +353,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(result.cloudRunId).toBe(FAKE_RUN_ID);
@@ -395,7 +397,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(result.cloudRunId).toBe(FAKE_RUN_ID);
@@ -442,7 +443,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(result.cloudRunId).toBe(FAKE_RUN_ID);
@@ -474,7 +474,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     // Run must still complete.
@@ -511,7 +510,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     // Run must still complete.
@@ -551,7 +549,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     const sent = getCreateSessionInput() as { seed?: unknown };
@@ -594,7 +591,6 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(getCreateSessionInput()).toMatchObject({
@@ -662,7 +658,6 @@ describe("runScenarioHosted ADR-013 score reporting", () => {
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     // The CLI's printed `score:` line reads from result.score.satisfaction.
@@ -699,7 +694,6 @@ describe("runScenarioHosted ADR-013 score reporting", () => {
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     const sent = getFinalizeInput() as {
@@ -732,7 +726,6 @@ describe("runScenarioHosted ADR-013 score reporting", () => {
       artifactsDir: join(tmp, "runs"),
       hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
       client,
-      skipFixPrompt: true,
     });
 
     expect(result.score.satisfaction).toBe(75);

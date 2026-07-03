@@ -11,7 +11,7 @@ import { runAgentCommand } from "./agentRunner.js";
 import { egressArgs, spawnCaptureServerChild } from "./captureServerChild.js";
 import { buildEgressAllowlist, readBlockedEgress, type BlockedEgress } from "../capture-server/egress.js";
 import { mergeAdapterSignalsIntoEvents } from "./mergeAdapterSignals.js";
-import { scoreAndWriteRun, writeRunNoScore } from "./runScenarioCore.js";
+import { writeRunNoScore } from "./runScenarioCore.js";
 
 // Override for how `pome capture-server` is invoked as a child. Production
 // re-invokes process.argv[1] (the same compiled `pome` binary). Tests pass
@@ -36,12 +36,6 @@ export type RunScenarioOptions = {
   // Fired once the capture-server child is up and listening, with its pid.
   // Tests use this to assert no orphan after the run.
   onCaptureServerSpawned?: (pid: number) => void;
-  // ADR-004 — when false, capture the trace + state but DO NOT score. This is
-  // the `pome run --local` self-host path: evaluation (the `[D]`/`[P]` judge)
-  // is a hosted feature, so a self-hoster gets the recorded trace to observe
-  // locally and the verdict comes from Pome cloud. Defaults to true so the
-  // internal POME_LOCAL=1 path (used by `pome matrix`) keeps scoring locally.
-  evaluate?: boolean;
 };
 
 export async function runScenario(options: RunScenarioOptions) {
@@ -50,9 +44,9 @@ export async function runScenario(options: RunScenarioOptions) {
   const artifactsDir = options.artifactsDir ?? "runs";
   const startedAt = new Date().toISOString();
 
-  // ADR-004 — `--local` self-host runs capture the trace without scoring;
-  // every other caller (hosted, the POME_LOCAL=1 matrix path, tests) scores.
-  const writeRun = options.evaluate === false ? writeRunNoScore : scoreAndWriteRun;
+  // FDRS-657 — self-host is CAPTURE-ONLY: record the raw trace + state, never
+  // score/judge/correlate locally. A verdict comes only from the cloud.
+  const writeRun = writeRunNoScore;
 
   // FDRS-411: per-run signals file. Lives as a sibling of events.jsonl in the
   // run's artifact directory so adapters that import `@pome-sh/adapter-claude-sdk`
@@ -187,7 +181,7 @@ export async function runScenario(options: RunScenarioOptions) {
     });
     if (preflight.exitCode !== 0) {
       const stateFinal = await harness.exportState();
-      const { score, artifacts, exitCode } = await writeRun({
+      const { artifacts, exitCode } = await writeRun({
         artifactsDir,
         runId,
         scenario,
@@ -202,12 +196,10 @@ export async function runScenario(options: RunScenarioOptions) {
         stateFinal
       });
       await mergeAdapterSignalsIntoEvents(signalsPath, eventsJsonlPath);
-      // Preflight failure always exits 3 (matches prior behavior). scoreAndWriteRun's
-      // exitCode would already be 3 here because preflight.exitCode !== 0, but be
-      // explicit for clarity.
+      // Preflight failure always exits 3 (matches prior behavior).
       void exitCode;
       const blockedEgress = await collectBlockedEgress();
-      return { scenario, runId, artifacts, score, agent: preflight, exitCode: 3, blockedEgress };
+      return { scenario, runId, artifacts, agent: preflight, exitCode: 3, blockedEgress };
     }
 
     const agent = await runAgentCommand({
@@ -216,7 +208,7 @@ export async function runScenario(options: RunScenarioOptions) {
       timeoutSeconds: scenario.config.timeout
     });
     const stateFinal = await harness.exportState();
-    const { score, artifacts, exitCode } = await writeRun({
+    const { artifacts, exitCode } = await writeRun({
       artifactsDir,
       runId,
       scenario,
@@ -232,7 +224,7 @@ export async function runScenario(options: RunScenarioOptions) {
     });
     await mergeAdapterSignalsIntoEvents(signalsPath, eventsJsonlPath);
     const blockedEgress = await collectBlockedEgress();
-    return { scenario, runId, artifacts, score, agent, exitCode, blockedEgress };
+    return { scenario, runId, artifacts, agent, exitCode, blockedEgress };
   } finally {
     // Drain capture-server first so any in-flight LlmCallEvent rows land
     // in events.jsonl before we move on; THEN close the twin (which would

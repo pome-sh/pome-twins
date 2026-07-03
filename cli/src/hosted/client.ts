@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
+  createEvalSessionResponseSchema,
+  type CreateEvalSessionResponse,
   createSessionResponseSchema,
   type CreateSessionResponse,
   type CriterionDef,
@@ -43,6 +45,18 @@ export interface CreateSessionInput {
   seed?: unknown;
 }
 
+// FDRS-655/656 — `pome eval <run-dir>` capture/eval split. The cloud mints
+// a twin-less "eval session" scoped to an agent + task name; the existing
+// upload-url routes and /finalize then work unchanged on that session.
+export interface CreateEvalSessionInput {
+  /** Agent identity — the slug written by `pome register agent` (or the
+   *  agt_ id / `--agent` override). Server resolves it under the API key's
+   *  team. */
+  agent: string;
+  /** Human-meaningful task label, e.g. the run's scenario slug. */
+  taskName: string;
+}
+
 export interface FetchOnTwinInput {
   twinUrl: string;
   agentToken: string;
@@ -68,8 +82,10 @@ export interface SubmitResultInput {
   // captured AND the heuristic correlator is unavailable.
   lanes: Lane[];
   steps: Step[];
-  // CLI-generated fix prompt (FDRS-323). Null when no LLM judge is configured,
-  // the LLM call failed, or the user passed --no-fix-prompt.
+  // Wire field for a CLI-supplied fix prompt (FDRS-323). FDRS-657: the OSS CLI
+  // is capture-only and never generates one CLI-side, so runners always submit
+  // `null` here — the cloud owns the managed judge/fix-prompt handoff. Kept on
+  // the finalize contract for compatibility.
   fixPrompt: string | null;
   // FDRS-357: storage key returned by requestEventsUploadUrl, or null if the
   // upload was skipped / failed. Cloud persists this into runs.events_jsonl_url.
@@ -133,6 +149,12 @@ export interface FinalizeInput {
 
 export interface HostedClient {
   createSession(input: CreateSessionInput): Promise<CreateSessionResponse>;
+  /** FDRS-655/656 — POST /v1/eval-sessions. Mints a twin-less session for
+   *  uploading + finalizing an EXISTING raw trace directory (`pome eval`).
+   *  Requires a control plane that ships the FDRS-655 route. */
+  createEvalSession(
+    input: CreateEvalSessionInput,
+  ): Promise<CreateEvalSessionResponse>;
   listSessions(opts?: { limit?: number }): Promise<SessionPublic[]>;
   getSession(sessionId: string): Promise<SessionPublic>;
   fetchState(input: FetchOnTwinInput): Promise<unknown>;
@@ -189,7 +211,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       if (res.status === 402 || res.status === 429) {
         throw new HostedQuotaError(msg, reqId);
       }
-      throw new HostedOrchError(msg, reqId);
+      throw new HostedOrchError(msg, reqId, res.status);
     }
     try {
       return parse(json);
@@ -294,6 +316,17 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       }
       return postJson("/v1/sessions", body, (raw) =>
         createSessionResponseSchema.parse(raw),
+      );
+    },
+
+    async createEvalSession(input) {
+      // 404 from an older control plane surfaces as HostedOrchError with the
+      // cloud's own message; `pome eval` adds the upgrade hint at the CLI
+      // layer.
+      return postJson(
+        "/v1/eval-sessions",
+        { agent: input.agent, task_name: input.taskName },
+        (raw) => createEvalSessionResponseSchema.parse(raw),
       );
     },
 

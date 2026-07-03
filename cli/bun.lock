@@ -11,7 +11,6 @@
         "@anthropic-ai/sdk": "^0.109.0",
         "@hono/node-server": "^2.0.6",
         "@openrouter/ai-sdk-provider": "^2.9.0",
-        "@pome-sh/correlator": "file:./vendor/pome-sh-correlator-0.1.0.tgz",
         "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.3.0.tgz",
         "@pome-sh/twin-stripe": "file:./vendor/pome-sh-twin-stripe-0.1.0.tgz",
         "ai": "^6.0.193",
@@ -166,8 +165,6 @@
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.129.0", "", {}, "sha512-3oz8m3FGdr2nDXVqmFUw7jolKliC4MoyXYIG2c7gpjBnzUWQpUGIYcXYKxTdTi+N2jusvt610ckTMkxdwHkYEg=="],
-
-    "@pome-sh/correlator": ["@pome-sh/correlator@./vendor/pome-sh-correlator-0.1.0.tgz", { "dependencies": { "@pome-sh/shared-types": "0.3.0" }, "peerDependencies": { "zod": "^4.1.13" } }, "sha512-iAfXqmV4JePihtMpwMGO2OlfUmD8PcIp2Lvo7U7dGoVMmH4z5bCBWKfGiSLJr7RD56zJ8aEKNDU4lpj1VuIW3A=="],
 
     "@pome-sh/shared-types": ["@pome-sh/shared-types@./vendor/pome-sh-shared-types-0.3.0.tgz", { "peerDependencies": { "zod": "^4.1.13" } }, "sha512-DGJE0jDum9kc0EQBzrS9zdqOl6rmUUyfkF42KGp2mplpSb4DbPEbUQ9ltIrbUSwmYCxeRkiGJxr59+s2O6+xYQ=="],
 

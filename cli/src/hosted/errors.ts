@@ -31,7 +31,14 @@ export class HostedQuotaError extends Error {
 }
 
 export class HostedOrchError extends Error {
-  constructor(message: string, public readonly requestId?: string) {
+  /** `status` is the HTTP status that produced this error, when one exists
+   *  (network/parse failures leave it undefined). `pome eval` uses it to
+   *  scope its reaped-session retry to 404/410 only (FDRS-656 review). */
+  constructor(
+    message: string,
+    public readonly requestId?: string,
+    public readonly status?: number,
+  ) {
     super(message);
     this.name = "HostedOrchError";
   }

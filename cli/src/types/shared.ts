@@ -226,6 +226,20 @@ export const submitResultResponseSchema = z.object({
 });
 export type SubmitResultResponse = z.infer<typeof submitResultResponseSchema>;
 
+// POST /v1/eval-sessions — FDRS-655/656 capture/eval split (spec section 4).
+// Mints a twin-less session for `pome eval <run-dir>` so an EXISTING raw
+// trace can be uploaded via the unchanged upload-url routes and judged by
+// POST /v1/sessions/:id/finalize. `expires_at` is a plain string (not
+// `.datetime()`) for parity with `sessionPublicSchema` — the CLI never does
+// arithmetic on it.
+export const createEvalSessionResponseSchema = z.object({
+  session_id: z.string(),
+  expires_at: z.string(),
+});
+export type CreateEvalSessionResponse = z.infer<
+  typeof createEvalSessionResponseSchema
+>;
+
 // /v1/sessions/:id/finalize — ADR-013 successor to /result. Cloud judges
 // authoritatively via AI Gateway and returns the score the dashboard
 // records. Mirrors pome-cloud's `buildResponse()` in

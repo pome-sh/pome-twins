@@ -17,8 +17,8 @@ import { dirname, resolve } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = resolve(__dirname, "..");
 
-const SRC = "src/evaluator/fix-prompt/prompts";
-const DEST = "dist/src/evaluator/fix-prompt/prompts";
+const SRC = "src/fix-prompt/prompts";
+const DEST = "dist/src/fix-prompt/prompts";
 
 await rm(DEST, { recursive: true, force: true });
 await cp(SRC, DEST, { recursive: true });

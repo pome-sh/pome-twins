@@ -3,7 +3,6 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Scenario } from "../scenario/scenarioSchema.js";
-import type { Score } from "../evaluator/score.js";
 import type { RecorderEvent } from "../twin/github/types.js";
 import { redactEvent, redactSecrets } from "./redaction.js";
 
@@ -47,14 +46,11 @@ export type RunArtifactCoreInput = {
   stateFinal: unknown;
 };
 
-export type RunArtifactInput = RunArtifactCoreInput & {
-  score: Score;
-};
-
-// Hosted runs need to write traces + state before they know the score (cloud
-// judges authoritatively per ADR-013), then drop score.json once /finalize
-// returns. Self-host scores locally and writes everything in one shot. Both
-// converge through this core writer + `writeScoreJson` below.
+// FDRS-657 — the OSS CLI is CAPTURE-ONLY: it writes raw trace + state
+// artifacts and NEVER a score.json. Local artifacts are trace/audit only; a
+// verdict comes only from the cloud and is printed ephemerally to the
+// terminal (hosted `pome run`, `pome eval`) — never persisted next to the
+// trace. There is no `writeScoreJson`/`readScore` anymore.
 export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promise<RunArtifacts> {
   const runDir = join(input.artifactsDir, input.scenario.slug, input.runId);
   await mkdir(runDir, { recursive: true });
@@ -97,36 +93,10 @@ export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promis
   return { runId: input.runId, runDir };
 }
 
-export async function writeScoreJson(runDir: string, score: Score): Promise<void> {
-  await writeJson(join(runDir, "score.json"), score);
-}
-
-export async function writeRunArtifacts(input: RunArtifactInput): Promise<RunArtifacts> {
-  const out = await writeRunArtifactsCore(input);
-  await writeScoreJson(out.runDir, input.score);
-  return out;
-}
-
 export async function readLatestRun(artifactsDir: string) {
   const latestPath = join(artifactsDir, "latest.json");
   if (!existsSync(latestPath)) return undefined;
   return JSON.parse(await readFile(latestPath, "utf8")) as { run_id: string; scenario: string; run_dir: string };
-}
-
-export async function readScore(runDir: string) {
-  return JSON.parse(await readFile(join(runDir, "score.json"), "utf8")) as Score;
-}
-
-// `inspect` runs against hosted-mode runs whose score.json may not yet be
-// written (cloud /finalize hasn't returned) — in that case we still want to
-// render trace health + events, so this returns `null` instead of throwing.
-export async function readScoreOrNull(runDir: string): Promise<Score | null> {
-  try {
-    return await readScore(runDir);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw err;
-  }
 }
 
 export type RunMetaSummary = {

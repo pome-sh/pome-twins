@@ -31,7 +31,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer as createNetServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -49,6 +49,47 @@ const POME_BIN = process.env.CAS_ACCEPTANCE_POME ?? "node dist/src/cli/main.js";
 // for visual inspection. Optional — local runs leave it unset.
 const ARTIFACT_OUT = process.env.CAS_ACCEPTANCE_ARTIFACT_OUT ?? null;
 
+// The script is designed to run from `cli/`; resolve scenario/agent/bin
+// against that root so `pome run` can be spawned from an isolated scaffold dir.
+const CLI_ROOT = process.cwd();
+
+// FDRS-641 — `pome run` hard-gates on the doctor wiring checks (config → twin
+// → routing → egress) with no --force. This synthetic gate used to run in a
+// bare `cli/` with no pome.config.json, so post-FDRS-641 it dies at the config
+// check before spawning the agent. Rather than bypass the gate, run `pome run`
+// from a throwaway directory holding a valid pome.config.json + a wiring-marker
+// source that reads POME_GITHUB_REST_URL — what doctor's routing scan wants,
+// with no hardcoded host to trip it. Twin/egress pass against the local github
+// twin + deny-by-default floor the run already uses.
+async function makeDoctorScaffold(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "pome-cas-scaffold-"));
+  await writeFile(
+    join(dir, "pome.config.json"),
+    `${JSON.stringify({ agent: { command: "bun agent.ts" } }, null, 2)}\n`,
+  );
+  await writeFile(
+    join(dir, "agent.ts"),
+    [
+      "// FDRS-641 doctor wiring marker. The gate's real agent is passed via",
+      "// --agent; this file exists only so `pome doctor`'s routing scan finds",
+      "// a POME_*_REST_URL read (and no hardcoded host) in the config dir.",
+      "const baseUrl = process.env.POME_GITHUB_REST_URL;",
+      "void baseUrl;",
+      "export {};",
+      "",
+    ].join("\n"),
+  );
+  return dir;
+}
+
+// Turn a path argument into an absolute path when it names an existing file
+// under CLI_ROOT (e.g. `dist/src/cli/main.js`), leaving flags untouched — so
+// the spawned `node …/main.js` resolves regardless of the child's cwd.
+function absIfFile(arg: string): string {
+  const abs = resolve(CLI_ROOT, arg);
+  return existsSync(abs) ? abs : arg;
+}
+
 interface EventRow {
   kind: string;
   tool_call_id?: unknown;
@@ -63,10 +104,11 @@ async function main(): Promise<void> {
 
   const echo = await startEchoServer();
   const target = `127.0.0.1:${echo.port}`;
+  const scaffold = await makeDoctorScaffold();
   console.log(`[cas-acceptance] echo target=${target}`);
 
   try {
-    const runDir = await runPome({ target });
+    const runDir = await runPome({ target, scaffold });
     console.log(`[cas-acceptance] run dir: ${runDir}`);
 
     await assertEventsShape(runDir);
@@ -80,19 +122,24 @@ async function main(): Promise<void> {
     console.log("[cas-acceptance] PASS");
   } finally {
     await echo.close();
+    await rm(scaffold, { recursive: true, force: true });
   }
 }
 
-async function runPome(input: { target: string }): Promise<string> {
+async function runPome(input: { target: string; scaffold: string }): Promise<string> {
   const artifactsDir = await mkdtemp(join(tmpdir(), "pome-cas-acceptance-"));
   const [pomeExec, ...pomeArgs] = POME_BIN.split(/\s+/);
   if (!pomeExec) fail("CAS_ACCEPTANCE_POME is empty");
+  // Absolute scenario/agent/bin paths: `pome run` is spawned with cwd set to
+  // the doctor scaffold dir, so relative paths (resolved against cli/) would
+  // break. The pome bin must be absolute because the capture-server child
+  // re-invokes `process.execPath process.argv[1]`.
   const args = [
-    ...pomeArgs,
+    ...pomeArgs.map(absIfFile),
     "run",
-    SCENARIO_PATH,
+    resolve(CLI_ROOT, SCENARIO_PATH),
     "--agent",
-    `bun ${AGENT_FIXTURE}`,
+    `bun ${resolve(CLI_ROOT, AGENT_FIXTURE)}`,
     "--artifacts-dir",
     artifactsDir,
   ];
@@ -105,7 +152,9 @@ async function runPome(input: { target: string }): Promise<string> {
   };
   env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(process.env.POME_AGENT_ENV_ALLOWLIST, "POME_CAPTURE_TEST_TARGET");
 
-  const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env);
+  // cwd = scaffold dir so `pome run`'s FDRS-641 doctor preflight finds the
+  // scaffolded pome.config.json + wiring marker (and passes).
+  const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env, input.scaffold);
   if (exitCode !== 0) {
     process.stdout.write(stdout);
     process.stderr.write(stderr);
@@ -241,9 +290,10 @@ function runChild(
   cmd: string,
   args: string[],
   env: NodeJS.ProcessEnv,
+  cwd?: string,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((doResolve, doReject) => {
-    const child = spawn(cmd, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(cmd, args, { env, cwd, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (chunk) => {

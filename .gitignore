@@ -31,8 +31,11 @@ runs/
 matrix-results/
 .audit/
 
-# Tooling / agents
+# Tooling / agents — local-only, never committed to the OSS repo.
+# Agent config/skills/rules live in the pome-cloud repo, not here.
 .gstack/
+.claude/
+.cursor/
 
 # OS / editor
 .DS_Store
