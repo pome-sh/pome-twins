@@ -23,6 +23,16 @@ const DEST = "dist/src/fix-prompt/prompts";
 await rm(DEST, { recursive: true, force: true });
 await cp(SRC, DEST, { recursive: true });
 
+// FDRS-643 — the packaged demo task (markdown + hand-written seed sidecar)
+// resolves next to the compiled module (dist/src/demo/), so it must ride
+// along with the build. tsc only emits .ts → copy the assets explicitly.
+for (const asset of ["first-run-demo.md", "first-run-demo.seed.json"]) {
+  await cp(
+    resolve(CLI_ROOT, "src/demo", asset),
+    resolve(CLI_ROOT, "dist/src/demo", asset),
+  );
+}
+
 await writeBuildInfo();
 
 async function writeBuildInfo() {

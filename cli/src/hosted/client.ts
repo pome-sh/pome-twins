@@ -23,10 +23,18 @@ import {
 
 export interface HostedClientConfig {
   baseUrl: string;
+  /** Team API key (`pme_…`) — or, with `authScheme: "bearer"`, a
+   *  session-scoped JWT (demo_token / agent_token). */
   apiKey: string;
   /** Per-request timeout. Defaults to 30s; the cloud's own twin spawn is
    *  ~2s cold but we leave headroom for GHCR pulls.  */
   timeoutMs?: number;
+  /** FDRS-643 — how the credential travels. "x-api-key" (default) is the
+   *  team-key contract. "bearer" sends `Authorization: Bearer <apiKey>` for
+   *  the session-token surface (upload-url/finalize accept a sid-scoped JWT
+   *  via requireApiKeyOrSessionToken; `pome demo` authenticates each trial's
+   *  uploads with its demo_token this way). */
+  authScheme?: "x-api-key" | "bearer";
 }
 
 export interface CreateSessionInput {
@@ -185,6 +193,10 @@ export interface HostedClient {
 
 export function createHostedClient(config: HostedClientConfig): HostedClient {
   const timeoutMs = config.timeoutMs ?? 30_000;
+  const authHeaders: Record<string, string> =
+    config.authScheme === "bearer"
+      ? { authorization: `Bearer ${config.apiKey}` }
+      : { "x-api-key": config.apiKey };
 
   async function readResponse<T>(
     res: Response,
@@ -203,13 +215,19 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       // `{ message: "Forbidden", documentation_url: "" }`. Handle both.
       const cloudErr = (json as { error?: { type?: string; message?: string; request_id?: string } }).error;
       const twinErr = cloudErr ? null : (json as { message?: string });
+      const cloudDetails = (
+        cloudErr as { details?: Record<string, unknown> } | undefined
+      )?.details;
       const msg = cloudErr?.message ?? twinErr?.message ?? `HTTP ${res.status}`;
       const reqId = cloudErr?.request_id;
       if (res.status === 401 || res.status === 403) {
         throw new HostedAuthError(msg, reqId);
       }
       if (res.status === 402 || res.status === 429) {
-        throw new HostedQuotaError(msg, reqId);
+        // FDRS-643 — carry the machine-readable envelope details (e.g.
+        // `kind: "daily_judge_cap"`) so `pome demo` can render an honest
+        // labeled at-capacity state instead of a generic quota message.
+        throw new HostedQuotaError(msg, reqId, cloudDetails);
       }
       throw new HostedOrchError(msg, reqId, res.status);
     }
@@ -234,7 +252,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       res = await fetch(`${config.baseUrl}${path}`, {
         method: "POST",
         headers: {
-          "x-api-key": config.apiKey,
+          ...authHeaders,
           "content-type": "application/json",
         },
         body: JSON.stringify(body),
@@ -284,7 +302,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
     try {
       res = await fetch(`${config.baseUrl}${path}`, {
         method: "GET",
-        headers: { "x-api-key": config.apiKey },
+        headers: authHeaders,
         signal: ctrl.signal,
       });
     } catch (err) {

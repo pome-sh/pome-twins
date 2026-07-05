@@ -24,7 +24,15 @@ export class HostedAuthError extends Error {
 }
 
 export class HostedQuotaError extends Error {
-  constructor(message: string, public readonly requestId?: string) {
+  /** `details` mirrors the cloud error envelope's machine-readable details
+   *  (e.g. `{ kind: "daily_judge_cap" }`) so `pome demo` (FDRS-643/662) can
+   *  render honest labeled at-capacity states. Optional: older responses and
+   *  the twin-pod 401 shape carry none. */
+  constructor(
+    message: string,
+    public readonly requestId?: string,
+    public readonly details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "HostedQuotaError";
   }
