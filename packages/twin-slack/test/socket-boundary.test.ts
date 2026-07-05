@@ -32,7 +32,7 @@ import { toolDefinitions } from "../src/tools.js";
 import { unsupportedEnvelope } from "../src/unsupported-envelope.js";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken } from "./_authHelper.js";
 
-let server: ReturnType<typeof serve>;
+let server: ReturnType<typeof serve> | undefined;
 let baseUrl: string;
 let mcpUrl: string;
 let token: string;
@@ -57,10 +57,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // vitest runs afterAll even when beforeAll rejects before serve() assigns
+  // `server`; guard so the real failure isn't buried under a TypeError.
+  const s = server;
+  if (!s) return;
   await new Promise<void>((resolve, reject) => {
-    server.close((err) => (err ? reject(err) : resolve()));
+    s.close((err) => (err ? reject(err) : resolve()));
     // Undici keeps client sockets alive; drop them so close() can complete.
-    (server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
+    (s as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
   });
 });
 

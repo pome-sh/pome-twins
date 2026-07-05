@@ -32,7 +32,7 @@ import { TEST_AUTH_SECRET, TEST_SID, signTestToken } from "./_authHelper.js";
 
 const previousSecret = process.env.TWIN_AUTH_SECRET;
 
-let server: ReturnType<typeof serve>;
+let server: ReturnType<typeof serve> | undefined;
 let port: number;
 let baseUrl: string;
 let mcpUrl: string;
@@ -91,11 +91,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise<void>((resolve, reject) => {
-    server.close((err) => (err ? reject(err) : resolve()));
-    // Undici keeps client sockets alive; drop them so close() can complete.
-    (server as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
-  });
+  // vitest runs afterAll even when beforeAll rejects before serve() assigns
+  // `server`; guard so the real failure isn't buried under a TypeError.
+  const s = server;
+  if (s) {
+    await new Promise<void>((resolve, reject) => {
+      s.close((err) => (err ? reject(err) : resolve()));
+      // Undici keeps client sockets alive; drop them so close() can complete.
+      (s as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
+    });
+  }
   if (previousSecret === undefined) delete process.env.TWIN_AUTH_SECRET;
   else process.env.TWIN_AUTH_SECRET = previousSecret;
 });
