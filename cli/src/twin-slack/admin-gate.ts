@@ -50,6 +50,14 @@ function loadNodeGetConnInfo(): Promise<GetConnInfoFn | undefined> {
  * Explicitly record the peer address for this request. Alternate serving
  * bridges (or tests) call this from an upstream middleware so the gate never
  * reaches into runtime-private internals.
+ *
+ * SECURITY: the value passed here MUST be the transport-level peer address
+ * (the socket's remote address as reported by the serving bridge). It takes
+ * precedence over getConnInfo, so deriving it from any request-controlled
+ * input — X-Forwarded-For or any other client-supplied header — would make
+ * the loopback-only admin gate spoofable by whoever sets that header. If you
+ * are behind a reverse proxy, use TWIN_ADMIN_TOKEN instead of trying to
+ * recover the "real" client IP.
  */
 export function setClientIp(c: Context, ip: string): void {
   (c as Context<ClientIpEnv>).set(CLIENT_IP_VAR, ip);

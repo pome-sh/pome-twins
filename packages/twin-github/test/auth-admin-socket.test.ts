@@ -41,11 +41,23 @@ afterAll(async () => {
 });
 
 describe("admin gate over a real socket", () => {
-  it("returns 200 for POST /admin/reset from a loopback client", async () => {
-    const res = await fetch(`http://127.0.0.1:${port}/admin/reset`, { method: "POST" });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean };
-    expect(body.ok).toBe(true);
+  it("returns 200 for POST /admin/reset from a loopback client under NODE_ENV=production", async () => {
+    // Run the loopback case in production mode: prod disables the
+    // unknown-remote fail-open tier, so a 200 here proves the bridge really
+    // resolved the peer address as loopback. Under the default test env a
+    // silently broken getConnInfo integration (remote = undefined) would
+    // fail-open to 200 and this assertion could not tell the difference.
+    const prevNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/admin/reset`, { method: "POST" });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean };
+      expect(body.ok).toBe(true);
+    } finally {
+      if (prevNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevNodeEnv;
+    }
   });
 
   it.skipIf(!externalIp)(
