@@ -99,11 +99,16 @@ export function parseAllowCsv(csv: string | undefined): string[] {
 // Compute the allowlist for one run: default LLM providers + custom LLM
 // base-URL hosts + the POME_EGRESS_ALLOW valve + the twin URLs the runner is
 // about to inject (loopback in self-host; hosted twin domains future-proof).
+//
+// FDRS-643 — `extraHosts` is the demo-mode valve: `pome demo` adds the
+// POME_API_BASE host so the bundled agent's anonymous-gateway calls
+// (POST /v1/demo/sessions/:id/llm) survive the deny-by-default floor. Same
+// pattern rules as everything else (exact host or `*.suffix`).
 export function buildEgressAllowlist(
   env: Record<string, string | undefined>,
-  opts: { twinUrls?: readonly string[] } = {},
+  opts: { twinUrls?: readonly string[]; extraHosts?: readonly string[] } = {},
 ): string[] {
-  const patterns = [...DEFAULT_LLM_PROVIDER_HOSTS];
+  const patterns = [...DEFAULT_LLM_PROVIDER_HOSTS, ...(opts.extraHosts ?? [])];
 
   for (const key of BASE_URL_ENV_VARS) {
     const value = env[key]?.trim();

@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "handwritten",
+    "model": "handwritten",
+    "compiled_at": "2026-07-05T00:00:00.000Z"
+  },
+  "repositories": [
+    {
+      "owner": "acme",
+      "name": "api",
+      "description": "ACME API service",
+      "default_branch": "main",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a",
+          "description": "Something isn't working"
+        },
+        {
+          "name": "feature",
+          "color": "a2eeef",
+          "description": "New feature request"
+        },
+        {
+          "name": "question",
+          "color": "d876e3",
+          "description": "Further information is requested"
+        }
+      ],
+      "collaborators": ["alice", "bob"],
+      "issues": [
+        {
+          "number": 1,
+          "title": "500 error on POST /orders after deploy",
+          "body": "Started failing right after the 14:00 deploy. Stack trace points to OrderController#create.",
+          "state": "open",
+          "labels": [],
+          "assignee": null
+        },
+        {
+          "number": 2,
+          "title": "Add CSV export for the orders dashboard",
+          "body": "Finance wants to pull monthly order data into a spreadsheet without asking engineering.",
+          "state": "open",
+          "labels": [],
+          "assignee": null
+        },
+        {
+          "number": 3,
+          "title": "How do we rotate the staging API keys?",
+          "body": "The runbook mentions a rotation script but I can't find it in the repo.",
+          "state": "open",
+          "labels": [],
+          "assignee": null
+        }
+      ]
+    }
+  ]
+}

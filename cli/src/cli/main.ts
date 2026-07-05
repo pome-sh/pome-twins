@@ -715,6 +715,58 @@ export function createProgram() {
     );
 
   program
+    .command("demo")
+    .description(
+      "Zero-auth first-run demo: boots a local GitHub twin, runs the bundled demo agent for 5 isolated trials (model calls via pome's anonymous demo gateway), and prints per-trial verdicts evaluated in Pome cloud. No signup, no API keys; ends with a no-login preview link.",
+    )
+    .option(
+      "--api-url <url>",
+      "Control-plane base URL.",
+      process.env.POME_API_BASE ??
+        process.env.POME_API_URL ??
+        DEFAULT_CONTROL_PLANE_URL,
+    )
+    .option(
+      "--trials <n>",
+      "Number of isolated trials (default 5 per the packaged demo).",
+      "5",
+    )
+    .option("--artifacts-dir <dir>", "Directory for run artifacts", "runs")
+    .action(
+      async (opts: { apiUrl: string; trials: string; artifactsDir: string }) => {
+        const trials = Number.parseInt(opts.trials, 10);
+        if (!Number.isInteger(trials) || trials < 1 || trials > 10) {
+          console.error(`Invalid --trials "${opts.trials}" (expected 1-10).`);
+          process.exitCode = 5;
+          return;
+        }
+        // Dynamic import mirrors doctor/install: keep the demo dependency
+        // graph out of every other command's startup path.
+        const { runDemo } = await import("../demo/runDemo.js");
+        const result = await runDemo({
+          apiBase: opts.apiUrl.replace(/\/$/, ""),
+          dashboardBase:
+            process.env.POME_DASHBOARD_URL ?? DEFAULT_DASHBOARD_URL,
+          trials,
+          artifactsDir: opts.artifactsDir,
+        });
+        process.exitCode = result.exitCode;
+      },
+    );
+
+  // Hidden: the bundled demo agent `pome demo` spawns as its trial child
+  // through the real capture path (FDRS-643). Reads the POME_* env contract
+  // injected by runScenario plus POME_DEMO_* gateway coordinates.
+  program
+    .command("demo-agent", { hidden: true })
+    .description("Internal: the bundled demo agent process (spawned by `pome demo`).")
+    .action(async () => {
+      const { runDemoAgentCommand } = await import("../demo/agent.js");
+      const code = await runDemoAgentCommand();
+      if (code !== 0) process.exitCode = code;
+    });
+
+  program
     .command("doctor")
     .description(
       "Check the agent↔twin wiring: pome.config.json present + valid, twin reachable, requests routed to the twin (not a hardcoded production host), egress floor active. On failure prints one named cause (file:line where knowable) + one concrete fix and exits non-zero.",

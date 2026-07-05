@@ -36,6 +36,15 @@ export type RunScenarioOptions = {
   // Fired once the capture-server child is up and listening, with its pid.
   // Tests use this to assert no orphan after the run.
   onCaptureServerSpawned?: (pid: number) => void;
+  // FDRS-643 — extra env injected into the agent child on top of the POME_*
+  // contract vars. `pome demo` uses this to hand the bundled agent its
+  // anonymous-gateway coordinates (POME_DEMO_LLM_URL, POME_DEMO_TOKEN, …).
+  // Spread after the built-ins (a caller may deliberately override them) but
+  // BEFORE the proxy vars — the capture path is not overridable.
+  extraAgentEnv?: Record<string, string>;
+  // FDRS-643 — extra egress-floor allowlist patterns for this run (demo mode
+  // adds the POME_API_BASE host so gateway CONNECTs aren't refused).
+  egressExtraHosts?: readonly string[];
 };
 
 export async function runScenario(options: RunScenarioOptions) {
@@ -76,7 +85,9 @@ export async function runScenario(options: RunScenarioOptions) {
   // the self-host twin lives on loopback, which the floor always allows.
   // Refused CONNECTs land in the egress sidecar, read back after the run so
   // the CLI can name the blocked hosts.
-  const egressAllowHosts = buildEgressAllowlist(process.env);
+  const egressAllowHosts = buildEgressAllowlist(process.env, {
+    extraHosts: options.egressExtraHosts,
+  });
   const egressJsonlPath = join(runDir, "egress.jsonl");
   const captureServer = options.noCapture
     ? null
@@ -167,6 +178,7 @@ export async function runScenario(options: RunScenarioOptions) {
     POME_RUN_ID: runId,
     POME_ARTIFACTS_DIR: runDir,
     POME_ADAPTER_SIGNALS_PATH: signalsPathForEnv,
+    ...(options.extraAgentEnv ?? {}),
     ...proxyEnv,
   };
 
