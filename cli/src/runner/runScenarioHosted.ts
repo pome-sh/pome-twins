@@ -18,7 +18,12 @@ import {
   normalizeConfigAgentSdk,
   readProjectConfig,
 } from "../cli/project-config.js";
-import type { CriterionDef, RecorderEvent } from "../types/shared.js";
+import { HostedTrialError } from "../hosted/errors.js";
+import type {
+  CreateSessionResponse,
+  CriterionDef,
+  RecorderEvent,
+} from "../types/shared.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "../twin/github/types.js";
 import type { Scenario } from "../scenario/scenarioSchema.js";
 import type { Score } from "../score/view.js";
@@ -33,6 +38,20 @@ export interface RunScenarioHostedOptions {
   client?: HostedClient;
   /** Informational; passed through to `runs.agent_model`. Defaults to "unknown". */
   agentModel?: string;
+  /** FDRS-636 — a session minted by the caller (trial groups mint all k
+   *  upfront with one shared `group_id`). When set, the runner skips its own
+   *  POST /v1/sessions and runs against this session; the `finally` teardown
+   *  still DELETEs it (the trial owns its session either way). */
+  premintedSession?: CreateSessionResponse;
+  /** FDRS-636 — group-trial failure semantics. When true, an agent failure
+   *  (preflight failure / timeout / non-zero exit) or a machinery crash
+   *  ABANDONS the session (POST /:id/abandon with a machine error_code,
+   *  landing BEFORE the teardown DELETE so the code is recorded while the
+   *  row is still open) and throws HostedTrialError INSTEAD of finalizing —
+   *  an errored trial must never produce a judged run row. Default false:
+   *  today's single-run behavior (finalize even on agent timeout) is
+   *  unchanged. */
+  abandonOnFailure?: boolean;
 }
 
 export interface RunScenarioHostedResult {
@@ -43,6 +62,10 @@ export interface RunScenarioHostedResult {
   artifacts: RunArtifacts;
   score: Score;
   exitCode: number;
+  /** Wall time from run start to post-agent state capture — the same value
+   *  reported to /finalize as duration_ms. FDRS-636 renders it as the trial
+   *  row's duration. */
+  durationMs: number;
 }
 
 export async function runScenarioHosted(
@@ -80,17 +103,21 @@ export async function runScenarioHosted(
   // don't race the read in the empty case.
   await writeFile(signalsPath, "");
 
-  // 1. Spawn cloud session — fails fast on auth/quota/orch.
+  // 1. Spawn cloud session — fails fast on auth/quota/orch. FDRS-636 trial
+  // groups mint all k sessions upfront (one shared group_id) and pass each
+  // one in as `premintedSession`; the single-run path mints its own here.
   // Forward the resolved seed (sidecar -> inline JSON -> twin defaults, in that
   // precedence; see parseScenario.resolveSeedState) so the cloud doesn't need
   // to re-extract it from the markdown. Prose `## Seed State` sections have no
   // fenced JSON to extract — cloud would 422 with "no fenced code block".
-  const session = await client.createSession({
-    scenarioSource,
-    twins: scenario.config.twins,
-    agentId,
-    seed: scenario.seedState,
-  });
+  const session =
+    options.premintedSession ??
+    (await client.createSession({
+      scenarioSource,
+      twins: scenario.config.twins,
+      agentId,
+      seed: scenario.seedState,
+    }));
 
   // Use session_id as the local artifact-dir id. The cloud's run_id (assigned
   // at /result time) is reported separately to the caller.
@@ -176,6 +203,32 @@ export async function runScenarioHosted(
       });
     }
 
+    // FDRS-636 — group-trial failure semantics. An agent failure on a group
+    // trial ABANDONS the session with a machine error_code and throws,
+    // instead of finalizing: verdicts come from cloud evaluation only, and a
+    // crashed/timed-out trial must render as an errored row EXCLUDED from
+    // the fraction — never as a judged score over a garbage trace. Default
+    // (single-run) behavior below is untouched: it still finalizes so the
+    // run is visible on the dashboard.
+    if (
+      options.abandonOnFailure &&
+      (agentResult.timedOut || agentResult.exitCode !== 0)
+    ) {
+      const failure = agentResult.timedOut
+        ? {
+            errorCode: "agent_timeout",
+            reason: `agent timed out after ${scenario.config.timeout}s`,
+          }
+        : preflight.exitCode !== 0
+          ? { errorCode: "preflight_failed", reason: "agent preflight failed" }
+          : {
+              errorCode: "agent_exit_nonzero",
+              reason: `agent exited non-zero (exit ${agentResult.exitCode})`,
+            };
+      await abandonBestEffort(client, session.session_id, failure.errorCode);
+      throw new HostedTrialError(failure.reason, failure.errorCode);
+    }
+
     // 4. Capture final state + recorder events. Run in parallel for
     //    latency. If either rejects (e.g., twin pod restarted between
     //    preflight and now), the run fails before finalize fires —
@@ -198,6 +251,7 @@ export async function runScenarioHosted(
     //    judge; the verdict from /finalize is printed to the terminal and
     //    recorded to the dashboard, never persisted next to the trace.
     const completedAt = new Date().toISOString();
+    const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
     const artifacts = await writeRunArtifactsCore({
       artifactsDir,
       runId,
@@ -285,7 +339,7 @@ export async function runScenarioHosted(
     const finalized = await client.finalize(session.session_id, {
       stopReason,
       exitCode: agentResult.exitCode ?? 0,
-      durationMs: Date.parse(completedAt) - Date.parse(startedAt),
+      durationMs,
       agentModel: options.agentModel ?? "unknown",
       agentSdk,
       criteria: criteriaDefs,
@@ -339,11 +393,42 @@ export async function runScenarioHosted(
       artifacts,
       score,
       exitCode,
+      durationMs,
     };
+  } catch (err) {
+    // FDRS-636 — a machinery crash on a group trial (twin state fetch,
+    // upload orchestration, finalize itself) also abandons the session so
+    // the reliability page shows an errored slot with a cause instead of a
+    // session stuck open until the sweeper. Must run BEFORE the `finally`
+    // DELETE below: abandon only transitions OPEN sessions, and error_code
+    // is lost once the row is terminal. Agent failures threw
+    // HostedTrialError above and already abandoned with a sharper code.
+    if (options.abandonOnFailure && !(err instanceof HostedTrialError)) {
+      await abandonBestEffort(client, session.session_id, "trial_crashed");
+    }
+    throw err;
   } finally {
     // Best-effort teardown. TTL would reap anyway; explicit delete keeps
     // the dashboard sessions list tidy.
     await client.deleteSession(session.session_id).catch(() => undefined);
     await rm(signalsDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+/** Abandon is a bookkeeping signal — a failure to deliver it must never
+ *  mask the trial's own error. */
+async function abandonBestEffort(
+  client: HostedClient,
+  sessionId: string,
+  errorCode: string,
+): Promise<void> {
+  try {
+    await client.abandonSession(sessionId, { errorCode });
+  } catch (err) {
+    console.warn(
+      `[pome] session abandon skipped (${
+        err instanceof Error ? err.message : String(err)
+      }); the expiry sweeper will close ${sessionId}`,
+    );
   }
 }

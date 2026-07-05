@@ -15,6 +15,15 @@
 //   - F18: hosted sub-threshold runs sometimes returned exit 3 because
 //     `runScenarioHosted.ts` mapped any non-zero agent exit to exit 3,
 //     stealing the auth slot.
+//
+// FDRS-636 — trial groups (`pome run -n k`, k>1) map the WHOLE GROUP to one
+// exit code ([DECISION 2026-07-05]):
+//   0 — at least one trial completed AND every completed trial passed;
+//   1 — at least one completed trial failed its pass threshold;
+//   2 — no trial completed (every trial errored/was abandoned).
+// Errored trials are excluded from the verdict fraction and never lower a
+// passing group below 0 on their own. Single-run (k=1) semantics above are
+// untouched.
 
 export class HostedAuthError extends Error {
   constructor(message: string, public readonly requestId?: string) {
@@ -58,6 +67,18 @@ export class HostedUsageError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "HostedUsageError";
+  }
+}
+
+/** FDRS-636 — a group trial errored before a cloud verdict existed
+ *  (preflight failure, agent timeout, agent crash). The session was
+ *  abandoned (POST /v1/sessions/:id/abandon) with `errorCode`; the group
+ *  runner renders the trial as an errored row EXCLUDED from the verdict
+ *  fraction. `message` is the short human reason shown on that row. */
+export class HostedTrialError extends Error {
+  constructor(message: string, public readonly errorCode: string) {
+    super(message);
+    this.name = "HostedTrialError";
   }
 }
 

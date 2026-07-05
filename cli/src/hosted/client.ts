@@ -51,6 +51,25 @@ export interface CreateSessionInput {
    *  extracting JSON from the scenario markdown — required for the post-2026-05-22
    *  prose `## Seed State` shape, where the markdown has no fenced JSON block. */
   seed?: unknown;
+  /** FDRS-636 — trial-group identity (`grp_` + nanoid21). `pome run -n k`
+   *  (k>1) stamps ONE shared id on every mint of the invocation; the cloud
+   *  copies it onto `sessions.group_id` at mint and `runs.group_id` at
+   *  finalize, and the reliability page reads the group by it.
+   *  shared-types 0.6.0 adds the field server-side; an older cloud silently
+   *  strips it, so sending it is always safe. NEVER set for k=1 — a group
+   *  of 1 would flip the reliability page off its implicit latest-k
+   *  fallback. */
+  groupId?: string;
+}
+
+/** FDRS-636 — POST /v1/sessions/:id/abandon response. `abandoned: false`
+ *  means the session was already terminal and nothing was rewritten (the
+ *  idempotent no-op branch); `state` echoes the row's current state. */
+export interface AbandonSessionResponse {
+  session_id: string;
+  state: string;
+  error_code: string | null;
+  abandoned: boolean;
 }
 
 // FDRS-655/656 — `pome eval <run-dir>` capture/eval split. The cloud mints
@@ -181,6 +200,16 @@ export interface HostedClient {
     sessionId: string,
     input: SubmitResultInput,
   ): Promise<SubmitResultResponse>;
+  /** FDRS-636 — mark an errored trial's session failed NOW with a short
+   *  machine `error_code` (e.g. "agent_timeout"), instead of letting it sit
+   *  open until the expiry sweeper reaps it. Contract: pome-cloud
+   *  routes/abandon.ts — auth is the same surface as /finalize; an
+   *  already-terminal session is an idempotent no-op (`abandoned: false`);
+   *  a finalized run's session is never clobbered. */
+  abandonSession(
+    sessionId: string,
+    input?: { errorCode?: string },
+  ): Promise<AbandonSessionResponse>;
   requestEventsUploadUrl(sessionId: string): Promise<EventsUploadUrlResponse>;
   requestStateUploadUrl(sessionId: string): Promise<StateUploadUrlResponse>;
   /** F0-4 / L7 — mint a signed PUT for `signals.jsonl` (adapter-emitted
@@ -332,8 +361,48 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       if (input.seed !== undefined) {
         body.seed = input.seed;
       }
+      if (input.groupId) {
+        body.group_id = input.groupId;
+      }
       return postJson("/v1/sessions", body, (raw) =>
         createSessionResponseSchema.parse(raw),
+      );
+    },
+
+    async abandonSession(sessionId, input) {
+      const body: Record<string, unknown> = {};
+      if (input?.errorCode) {
+        body.error_code = input.errorCode;
+      }
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/abandon`,
+        body,
+        (raw) => {
+          if (
+            typeof raw === "object" &&
+            raw !== null &&
+            typeof (raw as { session_id?: unknown }).session_id === "string" &&
+            typeof (raw as { state?: unknown }).state === "string" &&
+            typeof (raw as { abandoned?: unknown }).abandoned === "boolean"
+          ) {
+            const shaped = raw as {
+              session_id: string;
+              state: string;
+              error_code?: unknown;
+              abandoned: boolean;
+            };
+            return {
+              session_id: shaped.session_id,
+              state: shaped.state,
+              error_code:
+                typeof shaped.error_code === "string" ? shaped.error_code : null,
+              abandoned: shaped.abandoned,
+            } satisfies AbandonSessionResponse;
+          }
+          throw new HostedOrchError(
+            "POST /v1/sessions/:id/abandon returned unexpected shape",
+          );
+        },
       );
     },
 

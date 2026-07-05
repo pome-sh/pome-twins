@@ -141,6 +141,9 @@ function makeStubClient({
       (async () => {
         throw new HostedOrchError("no signals-upload-url stubbed");
       }),
+    async abandonSession() {
+      throw new HostedOrchError("no abandon stubbed (single-run path never calls it)");
+    },
     async deleteSession() {
       // no-op
     },

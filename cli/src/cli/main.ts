@@ -21,6 +21,7 @@ import {
 } from "../recorder/inspect.js";
 import { runScenario } from "../runner/runScenario.js";
 import { runScenarioHosted } from "../runner/runScenarioHosted.js";
+import { effectiveTrialCount, parseTrialsFlag } from "../runner/trialCount.js";
 import { runScoreLine, scoreStatus } from "../score/view.js";
 import { HostedUsageError, exitCodeFor } from "../hosted/errors.js";
 import { resolveCredentials, clearLocalCredentials } from "./credentials.js";
@@ -528,6 +529,14 @@ export function createProgram() {
     .command("run")
     .argument("<path>", "Scenario markdown file or directory")
     .option("--agent <command>", "Agent command to run")
+    .option(
+      "-n, --trials <count>",
+      "FDRS-636: run <count> isolated trials of the task as ONE trial group (integer 1-20; hosted only). " +
+        "Default is the scenario config's `runs` field (capped at 20). k>1 mints all sessions upfront with a shared group id, " +
+        "runs trials sequentially, prints the per-trial verdict table (numeric cloud-judge scores), and exits 0 iff at least one " +
+        "trial completed and every completed trial passed (1: a completed trial failed; 2: nothing completed). " +
+        "k=1 keeps today's single-run behavior exactly.",
+    )
     .option("--artifacts-dir <dir>", "Directory for run artifacts", "runs")
     // --hosted is now the default. The flag stays as a one-release no-op so
     // existing scripts and copy-pasted `pome docs` snippets don't break;
@@ -555,6 +564,7 @@ export function createProgram() {
         target: string,
         options: {
           agent?: string;
+          trials?: string;
           artifactsDir: string;
           hosted: boolean;
           local?: boolean;
@@ -571,6 +581,20 @@ export function createProgram() {
         // typed errors (HostedAuthError, HostedQuotaError,
         // HostedUsageError, HostedOrchError) here and map via
         // `exitCodeFor` so the documented contract holds.
+
+        // FDRS-636 — validate -n before anything runs (documented exit 5 on
+        // a bad value, same as any other usage error).
+        let trialsFlag: number | undefined;
+        if (options.trials !== undefined) {
+          try {
+            trialsFlag = parseTrialsFlag(options.trials);
+          } catch (err) {
+            console.error(err instanceof Error ? err.message : String(err));
+            process.exitCode = exitCodeFor(err);
+            return;
+          }
+        }
+
         let files: string[];
         let hostedCreds: { apiBaseUrl: string; apiKey: string } | null;
         try {
@@ -603,6 +627,17 @@ export function createProgram() {
           );
         } else if (options.hosted) {
           console.error("Note: --hosted is now the default; the flag is a deprecated no-op and will be removed in a future release.");
+        }
+
+        // FDRS-636 — trial groups are a hosted feature: the verdicts come
+        // from cloud evaluation, and self-host runs are capture-only. Reject
+        // the combination loudly instead of silently ignoring the flag.
+        if (trialsFlag !== undefined && useLocal) {
+          console.error(
+            "-n/--trials needs the hosted path (verdicts come from the cloud judge); --local runs capture a single trace. Drop --local or -n.",
+          );
+          process.exitCode = 5;
+          return;
         }
 
         // FDRS-641 — doctor preflight gate. A repo failing any applicable
@@ -651,6 +686,43 @@ export function createProgram() {
             // documented exit codes. Anything else falls through to Commander
             // (treated like self-host).
             try {
+              // FDRS-636 — effective trial count: -n wins, else the scenario
+              // config's `runs` field (both capped at 20). k>1 takes the
+              // trial-group path; k=1 stays EXACTLY the single-run path
+              // below (no group is ever stamped for it).
+              const scenarioForRuns = await parseScenarioFile(file);
+              const k = effectiveTrialCount(
+                trialsFlag,
+                scenarioForRuns.config.runs,
+              );
+              if (k > 1) {
+                const { runTrialGroup } = await import(
+                  "../runner/runTrialGroup.js"
+                );
+                const groupResult = await runTrialGroup({
+                  scenarioPath: file,
+                  agentCommand,
+                  agentCommandSource: options.agent
+                    ? "--agent"
+                    : configCommand
+                      ? "pome.config.json"
+                      : "built-in default",
+                  trials: k,
+                  artifactsDir: options.artifactsDir,
+                  hosted: {
+                    baseUrl: hostedCreds.apiBaseUrl,
+                    apiKey: hostedCreds.apiKey,
+                  },
+                  dashboardBaseUrl:
+                    process.env.POME_DASHBOARD_URL ?? DEFAULT_DASHBOARD_URL,
+                  agentModel: options.agentModel,
+                });
+                if (groupResult.exitCode > worstExit) {
+                  worstExit = groupResult.exitCode;
+                }
+                continue;
+              }
+
               const result = await runScenarioHosted({
                 scenarioPath: file,
                 agentCommand,
