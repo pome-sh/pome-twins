@@ -122,7 +122,13 @@ export function isLegacyEventRow(row: unknown): boolean {
 }
 
 export const criterionSchema = z.object({
-  type: z.enum(["D", "P"]),
+  // Tolerant reader across the naming unification (2026-07-02 [DECISION] /
+  // W3): legacy "D"/"P" and the unified "code"/"model" are the same two
+  // grader kinds. The post-W3 cloud judge emits "code"/"model" in finalize
+  // responses (pome-cloud services/judge.ts) — found live on the first
+  // `pome demo` round-trip (FDRS-643). Print-through is correct: the W3
+  // markers are `[code]`/`[model]`.
+  type: z.enum(["D", "P", "code", "model"]),
   text: z.string().min(1),
 });
 

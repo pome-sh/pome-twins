@@ -14,7 +14,14 @@
 // under FDRS-657; only the pure display model survives, moved out of the
 // `evaluator/` tree so the `no-eval-in-oss` gate can assert that tree is gone.
 
-import type { Criterion } from "../scenario/scenarioSchema.js";
+// Wire-side criterion, NOT the scenario-markdown one: cloud responses carry
+// the unified "code"/"model" vocabulary (legacy "D"/"P" tolerated) while
+// scenario files still parse [D]/[P] markers. This module renders CLOUD
+// verdicts, so it takes the wide wire shape (FDRS-643 live-run finding).
+import type { z } from "zod";
+import type { criterionSchema } from "../types/shared.js";
+
+type WireCriterion = z.infer<typeof criterionSchema>;
 
 // FDRS-591 + FDRS-611 — unified per-criterion outcome model as reported by the
 // cloud judge.
@@ -30,7 +37,7 @@ import type { Criterion } from "../scenario/scenarioSchema.js";
 export type CriterionOutcome = "passed" | "failed" | "skipped" | "errored";
 
 export type CriterionResult = {
-  criterion: Criterion;
+  criterion: WireCriterion;
   // FDRS-591/611: explicit four-state outcome. ADDITIVE + OPTIONAL — when
   // absent (older cloud producers) it is derived from `passed`/`skipped` via
   // `outcomeOf`.

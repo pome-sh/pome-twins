@@ -819,3 +819,79 @@ describe("HostedClient.deleteSession", () => {
     await expect(client.deleteSession("ses_missing", false)).rejects.toBeInstanceOf(HostedOrchError);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FDRS-643 live-run regressions (first real cloud round-trip, 2026-07-05)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("FDRS-643 live-run regressions", () => {
+  it("parses a finalize response whose criteria_results use the code/model vocabulary (post-W3 cloud)", async () => {
+    // The cloud judge emits the unified vocabulary (criterion.type
+    // "code"/"model") since shared-types 0.5.0; the response reader must
+    // tolerate BOTH vocabularies (found live: every demo trial errored
+    // "unexpected response shape: invalid_union").
+    mockFetch(async () =>
+      new Response(
+        JSON.stringify({
+          run_id: "run_w3",
+          score: 100,
+          judge_model: "google/gemini-2.5-flash",
+          dashboard_url: "https://app.pome.sh/runs/run_w3",
+          criteria_results: [
+            {
+              criterion: { type: "model", text: "labels applied correctly" },
+              passed: true,
+              skipped: false,
+              reason: "ok",
+              confidence: 0.9,
+              judge_model: "google/gemini-2.5-flash",
+            },
+            {
+              criterion: { type: "code", text: "no new labels created" },
+              passed: true,
+              skipped: false,
+              reason: "ok",
+            },
+          ],
+        }),
+        { status: 201, headers: { "content-type": "application/json" } },
+      ),
+    );
+    const client = createHostedClient({ baseUrl: BASE, apiKey: KEY });
+    const out = await client.finalize("ses_abc", {
+      stopReason: "agent_exit_0",
+      exitCode: 0,
+      durationMs: 4321,
+      agentModel: "unknown",
+      agentSdk: null,
+      criteria: [],
+      scenarioName: "first-run-demo",
+      scenarioHash: "a".repeat(64),
+      scenarioPrompt: "p",
+      expectedBehavior: "e",
+      traceStorageKey: "team-tm_x/session-ses_abc/events.jsonl",
+    });
+    expect(out.criteria_results).toHaveLength(2);
+    expect(out.criteria_results?.[0]?.criterion.type).toBe("model");
+    expect(out.criteria_results?.[1]?.criterion.type).toBe("code");
+  });
+
+  it("sends Authorization: Bearer on DELETE when authScheme is bearer (demo teardown)", async () => {
+    let sawAuth: string | null = null;
+    let sawApiKey: string | null = null;
+    mockFetch(async (_url, init) => {
+      const headers = new Headers(init?.headers);
+      sawAuth = headers.get("authorization");
+      sawApiKey = headers.get("x-api-key");
+      return new Response(null, { status: 204 });
+    });
+    const client = createHostedClient({
+      baseUrl: BASE,
+      apiKey: "eyJhbGciOiJIUzI1NiJ9.eyJzaWQiOiJ4In0.c2ln",
+      authScheme: "bearer",
+    });
+    await client.deleteSession("ses_abc", false);
+    expect(sawAuth).toBe("Bearer eyJhbGciOiJIUzI1NiJ9.eyJzaWQiOiJ4In0.c2ln");
+    expect(sawApiKey).toBeNull();
+  });
+});

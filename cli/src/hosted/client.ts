@@ -597,7 +597,11 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
           `${config.baseUrl}/v1/sessions/${encodeURIComponent(sessionId)}`,
           {
             method: "DELETE",
-            headers: { "x-api-key": config.apiKey },
+            // authHeaders, not a hardcoded x-api-key: demo teardown carries a
+            // bearer demo_token (FDRS-643 live-run finding — the hardcoded
+            // header made every demo DELETE an opaque 404, silently swallowed
+            // by best-effort).
+            headers: authHeaders,
             signal: ctrl.signal,
           }
         );
