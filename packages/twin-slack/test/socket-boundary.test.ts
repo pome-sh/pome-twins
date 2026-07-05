@@ -80,6 +80,10 @@ describe("socket boundary — real MCP SDK client over @hono/node-server", () =>
       expect(serverInfo?.name).toBe("twin-slack");
 
       const listResult = await client.listTools();
+      // Pin the catalog size independently of toolDefinitions so a silent
+      // catalog shrink cannot self-verify (both sides derive from the same
+      // array otherwise).
+      expect(toolDefinitions.length).toBe(8);
       expect(listResult.tools).toHaveLength(toolDefinitions.length);
       expect(listResult.tools.map((t) => t.name)).toEqual(toolDefinitions.map((t) => t.name));
     } finally {
