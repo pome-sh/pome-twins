@@ -24,7 +24,7 @@
   },
   "//shared-types": "FDRS-612: shared-types is not on npm, so `workspace:*` (unresolvable off-workspace) is replaced by the vendored, dist-shipping tarball. In-repo dev still resolves it via the bun workspace by package name; the `file:` spec + bundledDependencies only take effect off-workspace (npm pack/install), where scripts/pack-publishable.mjs rewrites main/types/exports to ./dist.",
   "dependencies": {
-    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.5.0.tgz",
+    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz",
     "hono": "^4.12.27",
     "zod": "^4.1.13"
   },
