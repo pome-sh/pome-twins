@@ -31,6 +31,11 @@ const SCENARIO =
   "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
 const FAST_TIMEOUT_SCENARIO =
   "# Slow\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 1\n```\n";
+// timeout (11) deliberately EXCEEDS the 10s preflight cap so the hung-preflight
+// test below can distinguish the quoted durations: the abandon reason must say
+// 10s (the cap that actually killed it), never 11s (the scenario timeout).
+const PREFLIGHT_HANG_SCENARIO =
+  "# Hang\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 11\n```\n";
 
 interface FakeCloud {
   port: number;
@@ -229,6 +234,37 @@ describe("runScenarioHosted trial seams (FDRS-636)", () => {
     expect(cloud.finalizeCalls()).toBe(0);
     expect(cloud.abandonBodies()).toEqual([{ error_code: "preflight_failed" }]);
   });
+
+  it("abandonOnFailure + preflight HANG past its cap → abandon(preflight_failed) quoting the 10s cap, not the scenario timeout", async () => {
+    cloud = await startFakeCloud();
+    const path = await scenarioPath(PREFLIGHT_HANG_SCENARIO);
+    // Preflight hangs forever (killed at the min(10, timeout)=10s cap); the
+    // real run would exit 0, but it must never be reached.
+    const agent = `node -e ${JSON.stringify(
+      "if (process.env.POME_PREFLIGHT) { setTimeout(() => {}, 60000); } else { process.exit(0); }",
+    )}`;
+
+    await expect(
+      runScenarioHosted({
+        scenarioPath: path,
+        agentCommand: agent,
+        artifactsDir: join(tmp!, "runs"),
+        hosted: { baseUrl: `http://127.0.0.1:${cloud.port}`, apiKey: "pme_test" },
+        premintedSession: await premintedFor(cloud.port),
+        abandonOnFailure: true,
+      }),
+    ).rejects.toMatchObject({
+      errorCode: "preflight_failed",
+      // The reason quotes the limit that actually killed the preflight (10s),
+      // NOT scenario.config.timeout (11s) — the errored trial card renders
+      // this cause verbatim.
+      message: "agent preflight timed out after 10s",
+    });
+
+    expect(cloud.finalizeCalls()).toBe(0);
+    expect(cloud.abandonBodies()).toEqual([{ error_code: "preflight_failed" }]);
+    expect(cloud.lifecycle()).toEqual(["abandon", "delete"]);
+  }, 30_000);
 
   it("abandonOnFailure + agent timeout → abandon(agent_timeout), no finalize", async () => {
     cloud = await startFakeCloud();

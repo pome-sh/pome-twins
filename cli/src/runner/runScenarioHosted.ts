@@ -187,10 +187,11 @@ export async function runScenarioHosted(
       POME_ADAPTER_SIGNALS_PATH: signalsPath,
     };
 
+    const preflightTimeoutSeconds = Math.min(10, scenario.config.timeout);
     const preflight = await runAgentCommand({
       command: options.agentCommand,
       env,
-      timeoutSeconds: Math.min(10, scenario.config.timeout),
+      timeoutSeconds: preflightTimeoutSeconds,
       preflight: true,
     });
 
@@ -214,17 +215,29 @@ export async function runScenarioHosted(
       options.abandonOnFailure &&
       (agentResult.timedOut || agentResult.exitCode !== 0)
     ) {
-      const failure = agentResult.timedOut
-        ? {
-            errorCode: "agent_timeout",
-            reason: `agent timed out after ${scenario.config.timeout}s`,
-          }
-        : preflight.exitCode !== 0
-          ? { errorCode: "preflight_failed", reason: "agent preflight failed" }
-          : {
-              errorCode: "agent_exit_nonzero",
-              reason: `agent exited non-zero (exit ${agentResult.exitCode})`,
-            };
+      // Classify PREFLIGHT failures first: when the preflight never passed
+      // (non-zero exit OR killed at its own min(10, timeout)s cap), the real
+      // run never happened, so the code is preflight_failed — and a hung
+      // preflight quotes the cap that actually killed it, never the full
+      // scenario timeout. Only a real-run failure classifies as
+      // agent_timeout / agent_exit_nonzero.
+      const failure =
+        preflight.exitCode !== 0
+          ? {
+              errorCode: "preflight_failed",
+              reason: preflight.timedOut
+                ? `agent preflight timed out after ${preflightTimeoutSeconds}s`
+                : "agent preflight failed",
+            }
+          : agentResult.timedOut
+            ? {
+                errorCode: "agent_timeout",
+                reason: `agent timed out after ${scenario.config.timeout}s`,
+              }
+            : {
+                errorCode: "agent_exit_nonzero",
+                reason: `agent exited non-zero (exit ${agentResult.exitCode})`,
+              };
       await abandonBestEffort(client, session.session_id, failure.errorCode);
       throw new HostedTrialError(failure.reason, failure.errorCode);
     }
