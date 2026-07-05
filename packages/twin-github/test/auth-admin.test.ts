@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-// Admin-gate coverage for twin-slack. Uses the setClientIp() seam from the
-// mirrored admin-gate module — no hand-built c.env.incoming mocks (FDRS-587).
+// FDRS-616: admin-gate coverage for twin-github (was the only twin without
+// an admin-token test). Modeled on packages/twin-slack/test/auth-admin.test.ts.
+// Uses the setClientIp() seam from the mirrored admin-gate module — no
+// hand-built c.env.incoming mocks (FDRS-587).
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import { requireAdminAuth } from "../src/auth.js";
@@ -29,8 +31,8 @@ describe("requireAdminAuth — token mode", () => {
     const app = mountWithRemote("127.0.0.1");
     const res = await app.request("/admin/reset", { method: "POST" });
     expect(res.status).toBe(403);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toBe("restricted_action");
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toBe("Forbidden");
   });
 
   it("rejects wrong X-Admin-Token", async () => {
@@ -70,8 +72,8 @@ describe("requireAdminAuth — fallback (no TWIN_ADMIN_TOKEN)", () => {
     const app = mountWithRemote("203.0.113.1");
     const res = await app.request("/admin/reset", { method: "POST" });
     expect(res.status).toBe(403);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toBe("restricted_action");
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toBe("Forbidden");
   });
 
   it("allows request when client ip is loopback", async () => {

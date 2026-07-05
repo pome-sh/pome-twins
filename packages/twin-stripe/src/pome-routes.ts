@@ -13,7 +13,7 @@
 // pre-snapshot and the agent harness hits /s/:sid/_pome/health post-spawn.
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { localhostOnly } from "./auth.js";
+import { requireAdminAuth } from "./auth.js";
 import { resetDatabase } from "./db.js";
 import type { FailureInjectionStore } from "./failure-injection.js";
 import type { Recorder, ResolvedSession, TwinStripeDatabase } from "./types.js";
@@ -73,7 +73,7 @@ export function mountRootPomeRoutes(
   );
 
   const admin = new Hono();
-  admin.use("*", localhostOnly());
+  admin.use("*", requireAdminAuth());
   admin.post("/reset", (c) => {
     resetDatabase(db);
     applySeed(db, defaultSeed(), failureInjection);

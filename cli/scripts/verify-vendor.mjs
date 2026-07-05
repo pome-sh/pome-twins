@@ -8,7 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const EXPECTED_SHA256 = new Map([
   ["vendor/pome-sh-shared-types-0.3.0.tgz", "284ef36d0b8c138a3d66998916655962da8452ccd6882b3f2dfaf461e5c7a1b9"],
-  ["vendor/pome-sh-twin-stripe-0.1.0.tgz", "cf77e6ac6e4df7fc37ec5fac68b61be3b0f4e6baf98c79f0a1852d41e9e2af19"],
+  ["vendor/pome-sh-twin-stripe-0.2.0.tgz", "bed2fdc0d6c92921079d21400fb60b0569897a124cf48e52fd9b0e1fbde76e5f"],
 ]);
 
 const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));

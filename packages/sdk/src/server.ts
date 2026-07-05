@@ -28,13 +28,19 @@ import {
   type ToolSpec,
   type TwinDefinition,
 } from "./index.js";
-import { bearerAuth, localhostOnly } from "./auth.js";
+import { bearerAuth, requireAdminAuth } from "./auth.js";
 import { createRecorderHandle, type RecorderStore } from "./recorder.js";
 import { TwinError } from "./errors.js";
 
 export { createRecorderHandle, createRecorderStore } from "./recorder.js";
 export type { RecorderStore, ErrorEnvelopeFn } from "./recorder.js";
-export { bearerAuth, localhostOnly, resolveAuthSecret } from "./auth.js";
+export { bearerAuth, requireAdminAuth, resolveAuthSecret } from "./auth.js";
+// Alternate serving bridges (anything that isn't @hono/node-server) must feed
+// the gate the transport-level peer address via setClientIp from an upstream
+// middleware; createAdminGate lets custom twins mount the gate with their own
+// 403 envelope. See the SECURITY note on setClientIp — never derive the value
+// from request headers.
+export { createAdminGate, setClientIp } from "./admin-gate.js";
 export { TwinError } from "./errors.js";
 
 /**
@@ -140,7 +146,7 @@ export function createApp<TDb, TSeed, TDomain>(
 
   // 7. Admin sub-app
   const adminApp = new Hono();
-  adminApp.use("*", localhostOnly());
+  adminApp.use("*", requireAdminAuth());
   adminApp.post(
     "/reset",
     recorder.handle({ mutation: true }, async () => {

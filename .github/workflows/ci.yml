@@ -20,6 +20,7 @@ jobs:
         with:
           bun-version: 1.3.10
       - run: node scripts/check-redaction-mirrors.mjs
+      - run: node scripts/check-admin-gate-mirrors.mjs
       - run: bun install --frozen-lockfile
       - run: bun run --filter '*' typecheck
       - run: bun run --filter '*' test

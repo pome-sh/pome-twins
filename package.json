@@ -10,7 +10,8 @@
     "test": "bun run --filter '*' test",
     "typecheck": "bun run --filter '*' typecheck",
     "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh",
-    "lint:redaction-mirrors": "node scripts/check-redaction-mirrors.mjs"
+    "lint:redaction-mirrors": "node scripts/check-redaction-mirrors.mjs",
+    "lint:admin-gate-mirrors": "node scripts/check-admin-gate-mirrors.mjs"
   },
   "engines": {
     "node": ">=20",

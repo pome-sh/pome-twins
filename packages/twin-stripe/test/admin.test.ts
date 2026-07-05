@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
+import { Hono } from "hono";
 import { createTwinStripeApp } from "../src/app.js";
+import { setClientIp } from "../src/admin-gate.js";
 import { openTwinStripeDatabase } from "../src/db.js";
 import { DEFAULT_API_KEY, applySeed, defaultSeed } from "../src/seed.js";
 
@@ -46,13 +48,17 @@ describe("/admin/* — localhost-only state controls", () => {
   });
 
   it("rejects non-localhost callers via remote address heuristic", async () => {
-    const app = createTwinStripeApp();
-    // Hono's request() bypass passes no socket info; simulate a remote
-    // address by constructing an env object Hono surfaces to middleware.
-    const res = await app.fetch(
-      new Request("http://localhost/admin/reset", { method: "POST" }),
-      { incoming: { socket: { remoteAddress: "203.0.113.4" } } } as unknown as object
-    );
+    // Feed the gate through the public setClientIp() seam instead of a
+    // hand-built c.env.incoming mock, so this test no longer depends on the
+    // node bridge's private env shape (FDRS-587).
+    const twin = createTwinStripeApp();
+    const app = new Hono();
+    app.use("*", async (c, next) => {
+      setClientIp(c, "203.0.113.4");
+      await next();
+    });
+    app.route("/", twin);
+    const res = await app.request("/admin/reset", { method: "POST" });
     expect(res.status).toBe(403);
   });
 });

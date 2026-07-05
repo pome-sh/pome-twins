@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export { createGitHubCloneApp } from "./app.js";
-export { bearerAuth, localhostOnly, resolveAuthSecret } from "./auth.js";
+export { bearerAuth, requireAdminAuth, resolveAuthSecret } from "./auth.js";
 export type { SessionClaims } from "./auth.js";
 export { openGitHubCloneDatabase, resetDatabase } from "./db.js";
 export { GitHubDomain } from "./domain.js";
