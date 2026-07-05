@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { z } from "zod";
 import type { StateDelta } from "../types/shared.js";
-import { bearerAuth, localhostOnly, type Session } from "./auth.js";
+import { bearerAuth, requireAdminAuth, type Session } from "./auth.js";
 import { openGitHubCloneDatabase } from "./db.js";
 import { GitHubDomain } from "./domain.js";
 import { githubError, TwinError, validationFailed } from "./errors.js";
@@ -67,7 +67,7 @@ export function createGitHubCloneApp(options: GitHubCloneAppOptions = {}) {
   );
 
   const adminApp = new Hono();
-  adminApp.use("*", localhostOnly());
+  adminApp.use("*", requireAdminAuth());
   adminApp.post("/reset", (c) => handle(c, recorder, runId, async () => {
     const { delta } = captureDelta((onDelta) => {
       domain.seed(defaultSeedState(), onDelta);

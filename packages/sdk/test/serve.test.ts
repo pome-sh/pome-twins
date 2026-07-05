@@ -77,7 +77,7 @@ describe("createApp boot guards", () => {
     expect(res.status).toBe(501);
   });
 
-  it("auto-mounts /admin/{reset,seed} with localhostOnly", async () => {
+  it("auto-mounts /admin/{reset,seed} behind requireAdminAuth", async () => {
     const app = createApp(toyTwin, { seed: { items: ["x"] } });
 
     const reset = await app.request("/admin/reset", { method: "POST" });

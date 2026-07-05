@@ -3,6 +3,7 @@ import type { MiddlewareHandler } from "hono";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { verify } from "hono/jwt";
 import { slackError } from "./serializers.js";
+import { createAdminGate } from "./admin-gate.js";
 
 export interface SessionClaims {
   sid: string;
@@ -168,57 +169,14 @@ function safeEqual(a: string, b: string) {
 }
 
 /**
- * Admin endpoint protection. Tiered policy:
- *   1. TWIN_ADMIN_TOKEN set → require X-Admin-Token to match (timing-safe).
- *   2. TWIN_ADMIN_TOKEN unset + remoteAddress known → allow only loopback.
- *   3. TWIN_ADMIN_TOKEN unset + remoteAddress unknown (test path) →
- *      allow only when NODE_ENV is not "production".
- *
- * The unknown-remote case is the gap that the legacy localhostOnly() fell
- * through. In production we now deny it explicitly; in tests we still allow
- * so the in-process Hono harness keeps working without env plumbing.
+ * Admin endpoint protection. Thin wrapper over the shared, mirrored
+ * admin-gate module (FDRS-587 / FDRS-616) with the Slack error envelope.
  */
 export function requireAdminAuth(): MiddlewareHandler {
-  return async (c, next) => {
-    const adminToken = process.env.TWIN_ADMIN_TOKEN;
-    if (adminToken && adminToken.length > 0) {
-      const provided = c.req.header("X-Admin-Token") ?? c.req.header("x-admin-token");
-      if (!provided) {
-        return Response.json(slackError("restricted_action"), { status: 403 });
-      }
-      const a = Buffer.from(provided);
-      const b = Buffer.from(adminToken);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) {
-        return Response.json(slackError("restricted_action"), { status: 403 });
-      }
-      await next();
-      return;
-    }
-    const remote: string | undefined = (
-      c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined
-    )?.incoming?.socket?.remoteAddress;
-    if (!remote) {
-      if (process.env.NODE_ENV === "production") {
-        return Response.json(slackError("restricted_action"), { status: 403 });
-      }
-      await next();
-      return;
-    }
-    const isLocal =
-      remote === "127.0.0.1" ||
-      remote === "::1" ||
-      remote === "::ffff:127.0.0.1" ||
-      remote === "localhost";
-    if (!isLocal) {
-      return Response.json(slackError("restricted_action"), { status: 403 });
-    }
-    await next();
-  };
+  return createAdminGate({
+    forbidden: () => Response.json(slackError("restricted_action"), { status: 403 }),
+  });
 }
-
-// Back-compat alias — existing imports of localhostOnly resolve to the new
-// tiered policy. New code should import requireAdminAuth directly.
-export const localhostOnly = requireAdminAuth;
 
 /**
  * Build a provider-shape Slack token. When `exp` is passed, emits the

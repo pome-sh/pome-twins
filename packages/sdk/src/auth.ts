@@ -6,7 +6,7 @@
 // from a localhost client.
 import type { MiddlewareHandler } from "hono";
 import { verify } from "hono/jwt";
-import { timingSafeEqual } from "node:crypto";
+import { createAdminGate } from "./admin-gate.js";
 
 export interface SessionClaims {
   sid: string;
@@ -66,41 +66,10 @@ export function bearerAuth(): MiddlewareHandler {
   };
 }
 
+/**
+ * Admin endpoint protection. Thin wrapper over the shared, mirrored
+ * admin-gate module (FDRS-587 / FDRS-616) using the default error envelope.
+ */
 export function requireAdminAuth(): MiddlewareHandler {
-  return async (c, next) => {
-    const adminToken = process.env.TWIN_ADMIN_TOKEN;
-    if (adminToken && adminToken.length > 0) {
-      const provided = c.req.header("X-Admin-Token") ?? c.req.header("x-admin-token");
-      if (!provided) {
-        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
-      }
-      const a = Buffer.from(provided);
-      const b = Buffer.from(adminToken);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) {
-        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
-      }
-      await next();
-      return;
-    }
-    const remote: string | undefined = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket
-      ?.remoteAddress;
-    if (!remote) {
-      if (process.env.NODE_ENV === "production") {
-        return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
-      }
-      await next();
-      return;
-    }
-    const isLocal =
-      remote === "127.0.0.1" ||
-      remote === "::1" ||
-      remote === "::ffff:127.0.0.1" ||
-      remote === "localhost";
-    if (!isLocal) {
-      return Response.json({ message: "Forbidden", documentation_url: "" }, { status: 403 });
-    }
-    await next();
-  };
+  return createAdminGate();
 }
-
-export const localhostOnly = requireAdminAuth;
