@@ -29,8 +29,8 @@ import {
   createSlackTwinApp,
   openSlackTwinDatabase,
   SlackDomain,
-} from "../twin-slack/index.js";
-import type { Recorder as SlackRecorder } from "../twin-slack/types.js";
+} from "@pome-sh/twin-slack";
+import type { Recorder as SlackRecorder } from "@pome-sh/twin-slack";
 import {
   applySeed as applyStripeSeed,
   createFailureInjectionStore,

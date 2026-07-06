@@ -42,6 +42,16 @@ export type SeedRepository = {
     base?: string;
     state?: "open" | "closed";
     author?: string;
+    reviews?: Array<{
+      author: string;
+      state?: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED";
+      body?: string;
+    }>;
+    statuses?: Array<{
+      context?: string;
+      state?: "error" | "failure" | "pending" | "success";
+      description?: string;
+    }>;
   }>;
 };
 

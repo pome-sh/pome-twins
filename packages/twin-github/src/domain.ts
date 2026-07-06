@@ -135,7 +135,45 @@ export class GitHubDomain {
           if (issue.state === "closed") this.updateIssue({ owner: repo.owner, repo: repo.name, issue_number: issue.number ?? created.number, state: "closed" });
         }
         for (const pull of repoSeed.pull_requests ?? []) {
-          this.createPullRequest({ owner: repo.owner, repo: repo.name, title: pull.title, body: pull.body ?? "", head: pull.head, base: pull.base ?? repo.default_branch, actor: pull.author });
+          const createdPr = this.createPullRequest({ owner: repo.owner, repo: repo.name, title: pull.title, body: pull.body ?? "", head: pull.head, base: pull.base ?? repo.default_branch, actor: pull.author });
+          const prNumber = (createdPr as { number: number }).number;
+          // Seed reviews directly into pull_request_reviews so we can record
+          // the author and state honestly. Going through createPullRequestReview
+          // would hardcode user_login = "pome-agent" and lose author identity.
+          for (const review of pull.reviews ?? []) {
+            users.add(review.author);
+            this.upsertUser(review.author, "User", review.author);
+            const prRow = this.requirePullRequest(repo.id, prNumber);
+            const headRepo = this.requireRepoById(prRow.head_repo_id);
+            const headSha = this.requireBranch(headRepo.id, prRow.head_ref).head_sha;
+            this.db.prepare("INSERT INTO pull_request_reviews (repo_id, pull_number, user_login, state, body, commit_sha, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+              repo.id,
+              prNumber,
+              review.author,
+              review.state,
+              review.body ?? "",
+              headSha,
+              nowIso()
+            );
+          }
+          // Seed commit statuses on the PR head SHA. Same shape as
+          // createStatus() so merge_pull_request's required-status check
+          // sees the seeded value.
+          if ((pull.statuses ?? []).length > 0) {
+            const prRow = this.requirePullRequest(repo.id, prNumber);
+            const headRepo = this.requireRepoById(prRow.head_repo_id);
+            const headSha = this.requireBranch(headRepo.id, prRow.head_ref).head_sha ?? "";
+            for (const status of pull.statuses ?? []) {
+              this.createStatus({
+                owner: headRepo.owner,
+                repo: headRepo.name,
+                sha: headSha,
+                state: status.state ?? "success",
+                context: status.context ?? "ci/build",
+                description: status.description ?? ""
+              });
+            }
+          }
         }
       }
       this.audit("seed", null, { repositories: seed.repositories.length });
@@ -171,7 +209,9 @@ export class GitHubDomain {
           files: this.listPullRequestFileRows(repo.id, pull.number),
           reviews: this.listPullRequestReviewRows(repo.id, pull.number),
           review_comments: this.listPullRequestReviewCommentRows(repo.id, pull.number)
-        }))
+        })),
+        commit_statuses: this.db.prepare("SELECT * FROM commit_statuses WHERE repo_id = ? ORDER BY id ASC").all(repo.id),
+        check_runs: this.db.prepare("SELECT * FROM check_runs WHERE repo_id = ? ORDER BY id ASC").all(repo.id)
       }))
     };
   }

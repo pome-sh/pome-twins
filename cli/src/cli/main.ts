@@ -68,7 +68,7 @@ import {
   type ProjectConfig,
 } from "./project-config.js";
 import { createGitHubCloneApp, openGitHubCloneDatabase, seedGitHubCloneDatabase } from "../twin/githubCloneAdapter.js";
-import { resolveAuthSecret } from "../twin-github/auth.js";
+import { resolveAuthSecret } from "@pome-sh/twin-github";
 import {
   buildFixPrompt,
   buildGroupFixPrompt,

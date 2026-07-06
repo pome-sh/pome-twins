@@ -4,7 +4,19 @@
   "description": "Deterministic Slack Web API twin for agent testing — REST + MCP, SQLite-backed state.",
   "private": true,
   "type": "module",
-  "main": "./dist/src/server.js",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./server": {
+      "types": "./dist/src/server.d.ts",
+      "default": "./dist/src/server.js"
+    },
+    "./*": "./dist/src/*.js"
+  },
   "bin": {
     "twin-slack": "./dist/src/server.js"
   },
@@ -22,6 +34,7 @@
     "verify:cloud-token": "tsx scripts/verify-cloud-token.ts",
     "agent:claude": "tsx examples/claude-slack-agent.ts",
     "start": "node dist/src/server.js",
+    "prepack": "bun run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit"
