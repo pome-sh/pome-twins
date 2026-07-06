@@ -83,7 +83,7 @@ export const DOCS_TOPICS: DocsTopic[] = [
     id: "cli-run",
     title: "pome run",
     path: "/docs/cli/run",
-    keywords: ["run", "scenario", "agent", "flags", "artifacts"],
+    keywords: ["run", "scenario", "agent", "flags", "artifacts", "default", "demo task", "run yours"],
   },
   {
     id: "cli-session",

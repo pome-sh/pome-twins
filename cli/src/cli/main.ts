@@ -32,6 +32,13 @@ import { runScenariosCommand } from "./scenarios.js";
 import { runEvalCommand } from "./eval.js";
 import { runSkillsInstall } from "./skills.js";
 import {
+  copyAnnounceLine,
+  ensureDefaultTask,
+  runYoursFrameLines,
+  trialsPinFallbackLine,
+  type DefaultTaskResolution,
+} from "./default-task.js";
+import {
   findTwin,
   runnableScenarios,
 } from "./scenarios-catalog.js";
@@ -527,7 +534,10 @@ export function createProgram() {
 
   program
     .command("run")
-    .argument("<path>", "Scenario markdown file or directory")
+    .argument(
+      "[path]",
+      'Task markdown file or directory. Omit to run the demo task ("that was ours, run yours"): scenarios/first-run-demo.md is dropped into your project on first use with runs: 5 pinned.',
+    )
     .option("--agent <command>", "Agent command to run")
     .option(
       "-n, --trials <count>",
@@ -557,11 +567,11 @@ export function createProgram() {
       "Self-host: run against an in-process twin and CAPTURE a raw trace only (an audit log — no score, no verdict, no judge). A verdict comes from the cloud: run `pome eval <run-dir>` on the captured trace, or `pome login` and run against Pome cloud.",
     )
     .description(
-      "Run one or more Pome scenarios. Refuses to start if the doctor wiring checks fail (see `pome doctor`); there is no --force.",
+      'Run one or more Pome tasks. With no path, runs the demo task (scenarios/first-run-demo.md, copied into your project on first use — "that was ours, run yours"). Refuses to start if the doctor wiring checks fail (see `pome doctor`); there is no --force.',
     )
     .action(
       async (
-        target: string,
+        target: string | undefined,
         options: {
           agent?: string;
           trials?: string;
@@ -593,6 +603,25 @@ export function createProgram() {
             process.exitCode = exitCodeFor(err);
             return;
           }
+        }
+
+        // FDRS-645 — "run yours": bare `pome run` defaults to the demo task
+        // via a user-visible copy (scenarios/first-run-demo.md, dropped on
+        // first use; its Config pins runs: 5 so an explicit -n still wins).
+        // The moment-05 frame prints later, once the doctor + credential
+        // gates have passed.
+        let defaultTask: DefaultTaskResolution | null = null;
+        if (target === undefined) {
+          try {
+            defaultTask = await ensureDefaultTask();
+          } catch (err) {
+            console.error(err instanceof Error ? err.message : String(err));
+            process.exitCode = exitCodeFor(err);
+            return;
+          }
+          if (defaultTask.copied) console.error(copyAnnounceLine(defaultTask));
+          if (!defaultTask.trialsApplied) console.error(trialsPinFallbackLine());
+          target = defaultTask.path;
         }
 
         let files: string[];
@@ -678,6 +707,12 @@ export function createProgram() {
           }
           process.exitCode = code;
           return;
+        }
+
+        // FDRS-645 — the moment-05 frame, only for the bare-run default and
+        // only once every gate that could refuse the run has passed.
+        if (defaultTask) {
+          for (const line of runYoursFrameLines()) console.error(line);
         }
 
         for (const file of files) {
