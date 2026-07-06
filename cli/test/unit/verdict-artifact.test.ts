@@ -83,6 +83,35 @@ describe("verdict artifact (FDRS-644)", () => {
     expect(await readVerdictArtifact(join(tmp, "scn", "nope"))).toBeNull();
   });
 
+  it("rejects half-recognizable files instead of crashing downstream (adversarial fix)", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "verdict-hostile-"));
+    const base = verdict({});
+
+    // finalized_at missing → groupRunSets would crash sorting on it.
+    const noFinalized = join(tmp, "scn", "h1");
+    await mkdir(noFinalized, { recursive: true });
+    const { finalized_at: _f, ...rest } = base;
+    await writeFile(join(noFinalized, "verdict.json"), JSON.stringify(rest), "utf8");
+    expect(await readVerdictArtifact(noFinalized)).toBeNull();
+
+    // criteria_results elements must be shaped — [null] and [{}] crash
+    // prompt assembly if let through.
+    for (const [name, results] of [
+      ["h2", [null]],
+      ["h3", [{}]],
+      ["h4", [{ criterion: { text: 42 }, reason: "x", passed: true, skipped: false }]],
+    ] as const) {
+      const dir = join(tmp, "scn", name);
+      await mkdir(dir, { recursive: true });
+      await writeFile(
+        join(dir, "verdict.json"),
+        JSON.stringify({ ...base, criteria_results: results }),
+        "utf8",
+      );
+      expect(await readVerdictArtifact(dir)).toBeNull();
+    }
+  });
+
   it("scan walks exactly <root>/<slug>/<runId>/verdict.json and skips junk", async () => {
     const tmp = await mkdtemp(join(tmpdir(), "verdict-scan-"));
     await writeTrial(tmp, "scn", "ses_1", {});
@@ -168,5 +197,16 @@ describe("verdict artifact (FDRS-644)", () => {
     const events = await loadTrialEvents(tmp);
     expect(events).toHaveLength(2);
     expect(await loadTrialEvents(join(tmp, "missing"))).toEqual([]);
+  });
+
+  it("loadTrialEvents drops valid-JSON non-object rows (null, numbers, strings)", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "verdict-events2-"));
+    await writeFile(
+      join(tmp, "events.jsonl"),
+      'null\n3\n"x"\n{"kind":"twin_http","path":"/a"}\n',
+      "utf8",
+    );
+    const events = await loadTrialEvents(tmp);
+    expect(events).toHaveLength(1);
   });
 });

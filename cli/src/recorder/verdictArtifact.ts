@@ -67,6 +67,36 @@ export async function writeVerdictArtifact(
 /** Read one trial's verdict.json. Returns null when absent or when the file
  *  isn't a recognizable verdict artifact (foreign/corrupt files are skipped,
  *  never thrown on — fix-prompt discovery must survive a messy runs/). */
+/** Every field the fix-prompt pipeline dereferences must hold its declared
+ *  shape, or the FILE is rejected — discovery treats a half-recognizable
+ *  verdict.json as foreign rather than crashing downstream on it. */
+function isVerdictArtifact(parsed: unknown): parsed is VerdictArtifact {
+  if (typeof parsed !== "object" || parsed === null) return false;
+  const v = parsed as Record<string, unknown>;
+  if (v.source !== "cloud-finalize") return false;
+  if (typeof v.session_id !== "string") return false;
+  if (typeof v.task_name !== "string") return false;
+  if (typeof v.scenario_path !== "string") return false;
+  if (v.group_id !== null && typeof v.group_id !== "string") return false;
+  if (typeof v.finalized_at !== "string") return false;
+  if (typeof v.passed !== "boolean") return false;
+  if (typeof v.score !== "number") return false;
+  if (!Array.isArray(v.criteria_results)) return false;
+  return v.criteria_results.every((r) => {
+    if (typeof r !== "object" || r === null) return false;
+    const result = r as Record<string, unknown>;
+    const criterion = result.criterion as Record<string, unknown> | null;
+    return (
+      typeof criterion === "object" &&
+      criterion !== null &&
+      typeof criterion.text === "string" &&
+      typeof result.reason === "string" &&
+      typeof result.passed === "boolean" &&
+      typeof result.skipped === "boolean"
+    );
+  });
+}
+
 export async function readVerdictArtifact(
   runDir: string,
 ): Promise<TrialVerdict | null> {
@@ -78,15 +108,8 @@ export async function readVerdictArtifact(
     return null;
   }
   try {
-    const parsed = JSON.parse(raw) as VerdictArtifact;
-    if (
-      parsed.source !== "cloud-finalize" ||
-      typeof parsed.session_id !== "string" ||
-      typeof parsed.task_name !== "string" ||
-      !Array.isArray(parsed.criteria_results)
-    ) {
-      return null;
-    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!isVerdictArtifact(parsed)) return null;
     return { runDir, verdict: parsed };
   } catch {
     return null;
@@ -230,7 +253,10 @@ export async function loadTrialEvents(runDir: string): Promise<unknown[]> {
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      events.push(JSON.parse(trimmed));
+      const parsed: unknown = JSON.parse(trimmed);
+      // Valid JSON but not an event object (`null`, `3`, `"x"`) is corrupt
+      // for our purposes — renderEvent dereferences fields on it.
+      if (typeof parsed === "object" && parsed !== null) events.push(parsed);
     } catch {
       // skip corrupt row
     }

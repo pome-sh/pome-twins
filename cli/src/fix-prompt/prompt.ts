@@ -157,18 +157,31 @@ function failedResults(verdict: VerdictArtifact): CriterionResult[] {
   return verdict.criteria_results.filter((r) => outcomeOf(r) === "failed");
 }
 
+/** Judge reasons and criterion text are DATA rendered into prompt prose —
+ *  flatten to one line so a crafted (or just verbose) string can never open
+ *  a new markdown heading/section inside the prompt structure. */
+function flattenLine(text: string, max = 300): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
 /** Per-criterion failure signatures across the run set: criterion text →
- *  which trials failed it and what the judge said, failing-first. */
+ *  which trials failed it and what the judge said, failing-first. Criteria
+ *  that never failed split honestly: "passed everywhere" requires every
+ *  outcome to actually be `passed` — skipped/errored are named as such,
+ *  never counted as passes. */
 function renderGroupedSignatures(trials: TrialFixInput[]): string {
   const byCriterion = new Map<
     string,
     { marker: string; hits: Array<{ label: string; reason: string }> }
   >();
-  const passedEverywhere: string[] = [];
+  // Criterion text → the set of non-failed outcomes seen for it.
+  const outcomesSeen = new Map<string, Set<string>>();
   for (const trial of trials) {
     for (const result of trial.verdict.criteria_results) {
       const key = result.criterion.text;
-      if (outcomeOf(result) === "failed") {
+      const outcome = outcomeOf(result);
+      if (outcome === "failed") {
         const entry = byCriterion.get(key) ?? {
           marker: criterionMarker(result.criterion),
           hits: [],
@@ -176,30 +189,47 @@ function renderGroupedSignatures(trials: TrialFixInput[]): string {
         entry.hits.push({ label: trial.label, reason: result.reason });
         byCriterion.set(key, entry);
       }
+      const seen = outcomesSeen.get(key) ?? new Set<string>();
+      seen.add(outcome);
+      outcomesSeen.set(key, seen);
     }
   }
-  for (const trial of trials) {
-    for (const result of trial.verdict.criteria_results) {
-      const key = result.criterion.text;
-      if (!byCriterion.has(key) && !passedEverywhere.includes(key)) {
-        passedEverywhere.push(key);
-      }
-    }
+
+  const passedEverywhere: string[] = [];
+  const notUniformlyEvaluated: string[] = [];
+  for (const [key, seen] of outcomesSeen) {
+    if (byCriterion.has(key)) continue;
+    if (seen.size === 1 && seen.has("passed")) passedEverywhere.push(key);
+    else notUniformlyEvaluated.push(key);
   }
 
   const completed = trials.length;
   const blocks = [...byCriterion.entries()]
     .sort((a, b) => b[1].hits.length - a[1].hits.length)
     .map(([text, { marker, hits }], idx) => {
-      const lines = hits.map((h) => `   - ${h.label}: ${h.reason}`);
-      return `${idx + 1}. ${marker} ${text} — failed in ${hits.length} of ${completed} completed trials\n${lines.join("\n")}`;
+      const lines = hits.map(
+        (h) => `   - ${h.label}: ${flattenLine(h.reason)}`,
+      );
+      return `${idx + 1}. ${marker} ${flattenLine(text)} — failed in ${hits.length} of ${completed} completed trials\n${lines.join("\n")}`;
     });
-  if (blocks.length === 0) return "(no criterion failed in any completed trial)";
-  const passedNote =
-    passedEverywhere.length > 0
-      ? `\npassed in every completed trial: ${passedEverywhere.map((t) => `"${t}"`).join(" · ")}`
-      : "";
-  return blocks.join("\n") + passedNote;
+  if (blocks.length === 0 && passedEverywhere.length === 0 && notUniformlyEvaluated.length === 0) {
+    return "(no criteria recorded)";
+  }
+  const notes: string[] = [];
+  if (blocks.length === 0) {
+    notes.push("(no criterion failed in any completed trial)");
+  }
+  if (passedEverywhere.length > 0) {
+    notes.push(
+      `passed in every completed trial: ${passedEverywhere.map((t) => `"${flattenLine(t)}"`).join(" · ")}`,
+    );
+  }
+  if (notUniformlyEvaluated.length > 0) {
+    notes.push(
+      `not uniformly evaluated (skipped or errored in some trials — no pass is claimed for these): ${notUniformlyEvaluated.map((t) => `"${flattenLine(t)}"`).join(" · ")}`,
+    );
+  }
+  return [...blocks, ...notes].join("\n");
 }
 
 /** The failing trial with the most failed criteria — the representative
