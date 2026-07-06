@@ -4,9 +4,13 @@ import {
   defaultSeedState,
   GitHubDomain,
   openGitHubCloneDatabase as openBundledGitHubCloneDatabase,
-} from "../twin-github/index.js";
+} from "@pome-sh/twin-github";
 
-export async function createGitHubCloneApp(options?: Record<string, unknown>) {
+// Return type is pinned to `unknown` (every caller casts to its own view of the
+// app) so tsc does not try to name the bundled twin's Hono app type in this
+// module's emitted declarations — that inferred type references the vendored
+// `@pome-sh/twin-github` copy of hono and is not portable (TS2742).
+export async function createGitHubCloneApp(options?: Record<string, unknown>): Promise<unknown> {
   return createBundledGitHubCloneApp(options);
 }
 

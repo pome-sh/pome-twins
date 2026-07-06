@@ -8,8 +8,7 @@
  *
  * Throws if the twin rejects the seed; otherwise returns silently.
  */
-import { GitHubDomain } from "../twin-github/domain.js";
-import { openGitHubCloneDatabase } from "../twin-github/db.js";
+import { GitHubDomain, openGitHubCloneDatabase } from "@pome-sh/twin-github";
 
 export function verifySeedWithTwin(seed: unknown): void {
   // `:memory:` SQLite — torn down when this function returns and `db`

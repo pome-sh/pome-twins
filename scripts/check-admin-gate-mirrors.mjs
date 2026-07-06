@@ -9,8 +9,6 @@ const mirrors = [
   "packages/twin-github/src/admin-gate.ts",
   "packages/twin-slack/src/admin-gate.ts",
   "packages/twin-stripe/src/admin-gate.ts",
-  "cli/src/twin-github/admin-gate.ts",
-  "cli/src/twin-slack/admin-gate.ts",
 ];
 
 const canonicalText = await readFile(resolve(root, canonical), "utf8");

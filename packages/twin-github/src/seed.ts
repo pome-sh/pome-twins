@@ -51,7 +51,30 @@ export const seedSchema = z.object({
             head: z.string().min(1),
             base: z.string().min(1).default("main"),
             state: z.enum(["open", "closed"]).default("open"),
-            author: z.string().min(1).optional()
+            author: z.string().min(1).optional(),
+            // Reviews seeded on this PR. `state` mirrors GitHub's review
+            // state enum; `author` must exist in the user/collaborator set.
+            reviews: z
+              .array(
+                z.object({
+                  author: z.string().min(1),
+                  state: z.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"]).default("APPROVED"),
+                  body: z.string().default("")
+                })
+              )
+              .default([]),
+            // Commit statuses applied to this PR's head SHA. Wired into the
+            // commit_statuses table so get_pull_request_status and the merge
+            // path see them without needing a separate setup call.
+            statuses: z
+              .array(
+                z.object({
+                  context: z.string().min(1).default("ci/build"),
+                  state: z.enum(["error", "failure", "pending", "success"]).default("success"),
+                  description: z.string().default("")
+                })
+              )
+              .default([])
           })
         )
         .default([])

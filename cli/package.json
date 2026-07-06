@@ -66,7 +66,9 @@
     "@anthropic-ai/sdk": "^0.109.0",
     "@hono/node-server": "^2.0.6",
     "@openrouter/ai-sdk-provider": "^2.9.0",
-    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.3.0.tgz",
+    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz",
+    "@pome-sh/twin-github": "file:./vendor/pome-sh-twin-github-0.1.0.tgz",
+    "@pome-sh/twin-slack": "file:./vendor/pome-sh-twin-slack-0.1.0.tgz",
     "@pome-sh/twin-stripe": "file:./vendor/pome-sh-twin-stripe-0.2.0.tgz",
     "ai": "^6.0.193",
     "better-sqlite3": "^12.5.0",
@@ -76,7 +78,7 @@
     "zod": "^4.1.13"
   },
   "overrides": {
-    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.3.0.tgz"
+    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
@@ -91,6 +93,8 @@
   },
   "bundleDependencies": [
     "@pome-sh/shared-types",
+    "@pome-sh/twin-github",
+    "@pome-sh/twin-slack",
     "@pome-sh/twin-stripe"
   ]
 }
