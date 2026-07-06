@@ -5,6 +5,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runAgentCommand } from "./agentRunner.js";
 import { toTwinHttpEvent, writeRunArtifactsCore } from "../recorder/artifacts.js";
+import {
+  VERDICT_ARTIFACT_VERSION,
+  writeVerdictArtifact,
+} from "../recorder/verdictArtifact.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { createHostedClient, type HostedClient } from "../hosted/client.js";
@@ -52,6 +56,10 @@ export interface RunScenarioHostedOptions {
    *  today's single-run behavior (finalize even on agent timeout) is
    *  unchanged. */
   abandonOnFailure?: boolean;
+  /** FDRS-644 — the trial group's shared id, recorded into the trial's
+   *  verdict.json so `pome fix-prompt` can reassemble the run set from
+   *  local artifacts. Absent on single runs (verdict.json gets null). */
+  groupId?: string;
 }
 
 export interface RunScenarioHostedResult {
@@ -258,11 +266,12 @@ export async function runScenarioHosted(
     // that signature here.
     const legacyEvents = events as unknown as LegacyGithubRecorderEvent[];
 
-    // 5. Write local artifacts — RAW TRACE + state only. ADR-013 / FDRS-657:
-    //    the OSS CLI never scores locally, and local artifacts stay trace/audit
-    //    only (no score.json is ever written). Cloud is the authoritative
-    //    judge; the verdict from /finalize is printed to the terminal and
-    //    recorded to the dashboard, never persisted next to the trace.
+    // 5. Write local artifacts — RAW TRACE + state. ADR-013 / FDRS-657:
+    //    the OSS CLI never scores locally (no score.json is ever written).
+    //    Cloud is the authoritative judge; what /finalize returns is printed
+    //    to the terminal and — since FDRS-644 — also cached next to the
+    //    trace as a provenance-labeled verdict.json (step 11) so
+    //    `pome fix-prompt` can read the cloud's verdict offline.
     const completedAt = new Date().toISOString();
     const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
     const artifacts = await writeRunArtifactsCore({
@@ -372,12 +381,12 @@ export async function runScenarioHosted(
       signalsStorageKey: signalsKey ?? undefined,
     });
 
-    // 9. Synthesize the cloud verdict for EPHEMERAL terminal display + the
-    //    exit code. FDRS-657: local artifacts stay trace-only — the verdict is
-    //    NOT persisted (no score.json). It lives in the cloud; the CLI prints
-    //    it and points at the dashboard. Synthesis (incl. the F0-3 / L5
-    //    criteria_results handling and the A1/FDRS-618 caveat) lives in
-    //    scoreFromFinalizeResponse — shared with `pome eval` (FDRS-656).
+    // 9. Synthesize the cloud verdict for terminal display + the exit code.
+    //    FDRS-657: the CLI never computes a verdict — this is the CLOUD's,
+    //    reshaped. Synthesis (incl. the F0-3 / L5 criteria_results handling
+    //    and the A1/FDRS-618 caveat) lives in scoreFromFinalizeResponse —
+    //    shared with `pome eval` (FDRS-656). Step 11 caches it to
+    //    verdict.json (FDRS-644); score.json stays never-written.
     const score: Score = scoreFromFinalizeResponse(finalized);
 
     // 10. Map cloud score → exit code. F18 / F0-5: the old policy
@@ -397,6 +406,39 @@ export async function runScenarioHosted(
     //     HostedQuotaError / HostedOrchError and never reach this line.
     const exitCode =
       finalized.score >= scenario.config.passThreshold ? 0 : 1;
+
+    // 11. FDRS-644 — cache the CLOUD verdict payload next to the raw trace
+    //     (verdict.json, provenance-labeled `source: "cloud-finalize"`).
+    //     Not a local score: evaluation stayed in the cloud; this records
+    //     what /finalize returned so `pome fix-prompt` can hand grouped
+    //     failure signatures to the user's coding agent offline. Best
+    //     effort: a disk failure degrades to "fix-prompt won't see this
+    //     trial", never fails a finalized run.
+    try {
+      await writeVerdictArtifact(artifacts.runDir, {
+        version: VERDICT_ARTIFACT_VERSION,
+        source: "cloud-finalize",
+        task_name: scenario.slug,
+        scenario_path: options.scenarioPath,
+        group_id: options.groupId ?? null,
+        session_id: session.session_id,
+        cloud_run_id: finalized.run_id,
+        cloud_dashboard_url: finalized.dashboard_url,
+        judge_model: score.judge_model,
+        score: finalized.score,
+        pass_threshold: scenario.config.passThreshold,
+        passed: exitCode === 0,
+        criteria_results: score.results,
+        duration_ms: durationMs,
+        finalized_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn(
+        `[pome] verdict.json not written (${
+          err instanceof Error ? err.message : String(err)
+        }); pome fix-prompt won't see this trial`,
+      );
+    }
 
     return {
       scenario,

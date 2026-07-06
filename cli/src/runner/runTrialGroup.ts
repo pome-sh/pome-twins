@@ -39,6 +39,7 @@ import {
 } from "../cli/project-config.js";
 import { runScenarioHosted } from "./runScenarioHosted.js";
 import {
+  fixHandoffLines,
   flagHintLine,
   groupExitCode,
   groupSummaryLines,
@@ -71,6 +72,11 @@ export interface RunTrialGroupOptions {
   dashboardBaseUrl: string;
   /** Informational; forwarded to every trial's `runs.agent_model`. */
   agentModel?: string;
+  /** FDRS-644 — the literal command the fix handoff tells the user to
+   *  re-run after their coding agent applies a fix. The caller knows the
+   *  invocation shape (bare `pome run` vs an explicit path + -n); default
+   *  reconstructs it from scenarioPath + trials. */
+  rerunCommand?: string;
   out?: (line: string) => void;
   // ── test seams ─────────────────────────────────────────────────────────
   client?: HostedClient;
@@ -166,6 +172,9 @@ export async function runTrialGroup(
         agentModel: options.agentModel,
         premintedSession: session,
         abandonOnFailure: true,
+        // FDRS-644 — stamped into the trial's verdict.json so fix-prompt
+        // can reassemble this run set from local artifacts.
+        groupId,
       });
       const failing = result.score.results.filter(
         (r) => outcomeOf(r) === "failed",
@@ -213,6 +222,26 @@ export async function runTrialGroup(
     reliabilityUrl,
   })) {
     out(line);
+  }
+
+  // 4. FDRS-644 — the fix & green handoff, only when a COMPLETED trial
+  // failed. Errored trials are sandbox noise: the answer there is re-run,
+  // not a code fix, so an errored-only group gets no handoff.
+  const failedCompleted = rows.filter(
+    (r) => r.kind === "completed" && !r.passed,
+  ).length;
+  if (failedCompleted > 0) {
+    const artifactsDir = options.artifactsDir ?? "runs";
+    const fixPromptCommand =
+      artifactsDir === "runs"
+        ? "pome fix-prompt"
+        : `pome fix-prompt ${artifactsDir}`;
+    const rerunCommand =
+      options.rerunCommand ??
+      `pome run ${options.scenarioPath} -n ${options.trials}`;
+    for (const line of fixHandoffLines({ fixPromptCommand, rerunCommand })) {
+      out(line);
+    }
   }
 
   return { groupId, rows, exitCode: groupExitCode(rows), reliabilityUrl };

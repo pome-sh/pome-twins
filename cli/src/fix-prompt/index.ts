@@ -10,7 +10,9 @@
 import {
   FIX_PROMPT_SYSTEM_PROMPT,
   buildFixUserPrompt,
+  buildGroupFixUserPrompt,
   type FixPromptContext,
+  type GroupFixPromptContext,
 } from "./prompt.js";
 
 /**
@@ -26,9 +28,25 @@ export function buildFixPrompt(ctx: FixPromptContext): string {
   return `${FIX_PROMPT_SYSTEM_PROMPT}\n\n${buildFixUserPrompt(ctx)}`;
 }
 
+/**
+ * FDRS-644 — run-set mode: ONE prompt for a whole trial group, from the
+ * persisted cloud verdicts (grouped failure signatures) + raw traces.
+ * Still PURE: no network, no LLM, no local judging — the verdicts were the
+ * cloud's, cached at run time.
+ */
+export function buildGroupFixPrompt(ctx: GroupFixPromptContext): string {
+  return `${FIX_PROMPT_SYSTEM_PROMPT}\n\n${buildGroupFixUserPrompt(ctx)}`;
+}
+
 export {
   buildFixUserPrompt,
+  buildGroupFixUserPrompt,
+  representativeFailingTrial,
   FIX_PROMPT_SYSTEM_PROMPT,
   FIX_PROMPT_TEMPLATE_VERSION,
 } from "./prompt.js";
-export type { FixPromptContext } from "./prompt.js";
+export type {
+  FixPromptContext,
+  GroupFixPromptContext,
+  TrialFixInput,
+} from "./prompt.js";

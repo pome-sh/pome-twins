@@ -145,3 +145,21 @@ export function shortReason(reason: string): string {
   const flat = reason.replace(/\s+/g, " ").trim();
   return flat.length > 72 ? `${flat.slice(0, 69)}…` : flat;
 }
+
+/** FDRS-644 — the fix & green handoff, printed under the group summary when
+ *  at least one COMPLETED trial failed (errored trials are sandbox noise —
+ *  the answer there is re-run, not a code fix). Copy stays modest per the
+ *  north-star honesty note ("don't sell a 5-trial bump as proof"): a
+ *  greener set is a signal, the climb across re-runs is what to watch. */
+export function fixHandoffLines(input: {
+  fixPromptCommand: string;
+  rerunCommand: string;
+}): string[] {
+  return [
+    "",
+    "fix & green: hand the failure signatures to your coding agent —",
+    `  ${input.fixPromptCommand}`,
+    `after the fix lands, re-run the task:  ${input.rerunCommand}`,
+    "fresh trials, honestly counted — one greener set is a signal, not proof; the reliability page tracks the climb.",
+  ];
+}

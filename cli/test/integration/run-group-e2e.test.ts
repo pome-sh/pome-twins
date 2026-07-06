@@ -12,6 +12,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { runTrialGroup } from "../../src/runner/runTrialGroup.js";
+import {
+  discoverRunSet,
+  readVerdictArtifact,
+} from "../../src/recorder/verdictArtifact.js";
 
 const SCENARIO =
   "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
@@ -253,5 +257,32 @@ describe("pome run -n k end-to-end against a stub cloud (FDRS-636)", () => {
     // The completed trials' blobs were uploaded before finalize.
     expect(cloud.putKeys.filter((k) => k.includes("ses_1"))).toContain("/put/ses_1/events.jsonl");
     expect(cloud.putKeys.filter((k) => k.includes("ses_3"))).toContain("/put/ses_3/events.jsonl");
+
+    // FDRS-644 — completed trials cached the CLOUD verdict next to the raw
+    // trace; the abandoned trial has none (no verdict was ever produced).
+    const v1 = await readVerdictArtifact(join(tmp, "runs", "scn", "ses_1"));
+    const v3 = await readVerdictArtifact(join(tmp, "runs", "scn", "ses_3"));
+    expect(v1?.verdict).toMatchObject({
+      source: "cloud-finalize",
+      task_name: "scn",
+      group_id: result.groupId,
+      session_id: "ses_1",
+      passed: true,
+      score: 100,
+    });
+    expect(v3?.verdict.passed).toBe(false);
+    expect(v3?.verdict.criteria_results[0]?.reason).toBe("under-rated");
+    expect(await readVerdictArtifact(join(tmp, "runs", "scn", "ses_2"))).toBeNull();
+
+    // FDRS-644 — the fix & green handoff renders (a completed trial failed):
+    // artifacts-dir-aware fix-prompt command + the literal re-run command.
+    expect(text).toContain("fix & green: hand the failure signatures to your coding agent —");
+    expect(text).toContain(`pome fix-prompt ${join(tmp, "runs")}`);
+    expect(text).toContain(`after the fix lands, re-run the task:  pome run ${scenarioPath} -n 3`);
+
+    // And fix-prompt's discovery reassembles this exact run set from disk.
+    const discovery = await discoverRunSet(join(tmp, "runs"));
+    expect(discovery.set?.groupId).toBe(result.groupId);
+    expect(discovery.set?.trials.map((t) => t.verdict.session_id)).toEqual(["ses_1", "ses_3"]);
   }, 120_000);
 });

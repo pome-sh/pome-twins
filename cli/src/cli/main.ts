@@ -5,7 +5,7 @@ import { Command } from "commander";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sign } from "hono/jwt";
 import {
@@ -69,7 +69,16 @@ import {
 } from "./project-config.js";
 import { createGitHubCloneApp, openGitHubCloneDatabase, seedGitHubCloneDatabase } from "../twin/githubCloneAdapter.js";
 import { resolveAuthSecret } from "../twin-github/auth.js";
-import { buildFixPrompt } from "../fix-prompt/index.js";
+import {
+  buildFixPrompt,
+  buildGroupFixPrompt,
+  type TrialFixInput,
+} from "../fix-prompt/index.js";
+import {
+  discoverRunSet,
+  loadTrialEvents,
+} from "../recorder/verdictArtifact.js";
+import type { Scenario } from "../scenario/scenarioSchema.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import type { RecorderEvent } from "../types/shared.js";
 
@@ -734,6 +743,19 @@ export function createProgram() {
                 const { runTrialGroup } = await import(
                   "../runner/runTrialGroup.js"
                 );
+                // FDRS-644 — the literal re-run command the fix handoff
+                // prints: bare default-task runs re-run as bare `pome run`;
+                // explicit paths re-run by (cwd-relative) path + -n.
+                const fileForRerun = relative(process.cwd(), file);
+                const rerunCommand = defaultTask
+                  ? options.trials !== undefined
+                    ? `pome run -n ${k}`
+                    : "pome run"
+                  : `pome run ${
+                      fileForRerun && !fileForRerun.startsWith("..")
+                        ? fileForRerun
+                        : file
+                    } -n ${k}`;
                 const groupResult = await runTrialGroup({
                   scenarioPath: file,
                   agentCommand,
@@ -751,6 +773,7 @@ export function createProgram() {
                   dashboardBaseUrl:
                     process.env.POME_DASHBOARD_URL ?? DEFAULT_DASHBOARD_URL,
                   agentModel: options.agentModel,
+                  rerunCommand,
                 });
                 if (groupResult.exitCode > worstExit) {
                   worstExit = groupResult.exitCode;
@@ -972,25 +995,93 @@ export function createProgram() {
 
   program
     .command("fix-prompt")
-    .argument("<events>", "Path to events.jsonl (captured trace)")
-    .argument("<scenario>", "Path to scenario.md")
-    .description(
-      "Assemble a paste-into-IDE fix prompt from the captured trace + the scenario's criteria (no LLM call — paste the output into your own coding assistant)",
+    .argument(
+      "[target]",
+      "Artifacts root or a trial run dir (default: runs). Legacy form: a path to events.jsonl — then <scenario> is required.",
     )
-    .action(async (eventsPath: string, scenarioPath: string) => {
-      const [eventsRaw, scenario] = await Promise.all([
-        readFile(resolve(eventsPath), "utf8"),
-        parseScenarioFile(resolve(scenarioPath)),
-      ]);
-      const events: RecorderEvent[] = eventsRaw
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .map((line) => JSON.parse(line) as RecorderEvent);
-      // CAPTURE-ONLY (FDRS-657): build the prompt from the raw trace + the
-      // scenario's declared criteria. No local judge, no cloud round-trip —
-      // the developer's own assistant produces the fix from this prompt.
-      console.log(buildFixPrompt({ events, scenario }));
+    .argument(
+      "[scenario]",
+      "Path to scenario.md (only with an events.jsonl target)",
+    )
+    .description(
+      "Assemble a paste-into-IDE fix prompt (no LLM call, no network). With no args, reads the latest FAILED run set under ./runs: the persisted cloud verdicts (verdict.json) become grouped failure signatures over the raw traces, in one prompt. Point it at a trial run dir to target that set, or use the legacy `<events.jsonl> <scenario.md>` form for a single trace.",
+    )
+    .action(async (target?: string, scenarioArg?: string) => {
+      // Legacy 2-arg form: <events.jsonl> <scenario.md> — unchanged
+      // (CAPTURE-ONLY, FDRS-657: raw trace + declared criteria, no verdict).
+      if (target !== undefined && target.endsWith(".jsonl")) {
+        if (!scenarioArg) {
+          console.error(
+            "The events.jsonl form needs the scenario: pome fix-prompt <events.jsonl> <scenario.md>",
+          );
+          process.exitCode = 5;
+          return;
+        }
+        const [eventsRaw, scenario] = await Promise.all([
+          readFile(resolve(target), "utf8"),
+          parseScenarioFile(resolve(scenarioArg)),
+        ]);
+        const events: RecorderEvent[] = eventsRaw
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .map((line) => JSON.parse(line) as RecorderEvent);
+        console.log(buildFixPrompt({ events, scenario }));
+        return;
+      }
+      if (scenarioArg !== undefined) {
+        console.error(
+          "The second argument only applies to the events.jsonl form: pome fix-prompt <events.jsonl> <scenario.md>",
+        );
+        process.exitCode = 5;
+        return;
+      }
+
+      // FDRS-644 — run-set mode. Reassemble the run set from persisted
+      // CLOUD verdicts (verdict.json, written by hosted `pome run`) + raw
+      // traces, and emit ONE prompt with grouped failure signatures. Still
+      // no network and no local judging — the verdicts were the cloud's.
+      const root = target ?? "runs";
+      const discovery = await discoverRunSet(resolve(root));
+      if (discovery.totalSets === 0) {
+        console.error(
+          `No finalized run sets under ${root} — hosted \`pome run\` records a verdict.json per trial; run one first (or point fix-prompt at your artifacts dir).`,
+        );
+        process.exitCode = 5;
+        return;
+      }
+      if (!discovery.set) {
+        console.error(
+          `Nothing to fix: the latest run sets under ${root} all passed.`,
+        );
+        return;
+      }
+      const set = discovery.set;
+      let scenario: Scenario | null = null;
+      try {
+        scenario = await parseScenarioFile(resolve(set.scenarioPath));
+      } catch {
+        // Task file moved/edited since the run — the prompt degrades to the
+        // verdict-embedded criteria.
+        scenario = null;
+      }
+      const trials: TrialFixInput[] = [];
+      for (const [idx, t] of set.trials.entries()) {
+        trials.push({
+          label: `trial ${idx + 1} · ${t.verdict.session_id}`,
+          runDir: t.runDir,
+          verdict: t.verdict,
+          events: (await loadTrialEvents(t.runDir)) as RecorderEvent[],
+        });
+      }
+      console.log(
+        buildGroupFixPrompt({
+          taskName: set.taskName,
+          groupId: set.groupId,
+          scenario,
+          trials,
+        }),
+      );
     });
 
   const twin = program.command("twin").description("Manage local twins");
