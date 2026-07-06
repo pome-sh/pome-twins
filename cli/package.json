@@ -45,7 +45,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/copy-prompts.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-prompts.mjs && node -e \"fs.chmodSync('dist/src/cli/main.js', 0o755)\"",
     "dev": "tsx src/cli/main.ts",
     "pome": "node dist/src/cli/main.js",
     "prepare": "npm run build",
