@@ -100,6 +100,11 @@ const SAFE_PARENT_ENV = new Set([
 const DEFAULT_AGENT_ENV_ALLOWLIST = new Set([
   "AI_GATEWAY_API_KEY",
   "ANTHROPIC_API_KEY",
+  // FDRS-667 — Claude subscription auth (`claude setup-token`). Without
+  // this the Claude Agent SDK inside the agent subprocess only sees an API
+  // key, and subscription-only users fail auth under `pome run` while the
+  // same agent works when launched by hand.
+  "CLAUDE_CODE_OAUTH_TOKEN",
   "GOOGLE_API_KEY",
   "GOOGLE_GENERATIVE_AI_API_KEY",
   "OPENAI_API_KEY",

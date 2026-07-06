@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runAgentCommand } from "./agentRunner.js";
@@ -174,6 +174,12 @@ export async function runScenarioHosted(
       OTEL_RESOURCE_ATTRIBUTES: `pome.session_id=${session.session_id},pome.run_id=${runId}${
         agentId ? `,pome.agent_id=${agentId}` : ""
       }`,
+      // FDRS-667 — the twin base URL, same value the self-host docs teach
+      // agents to fall back on. Agent code written against the standalone
+      // docker twin reads POME_TWIN_BASE_URL with a 127.0.0.1:3333 fallback;
+      // without this injection that fallback fires on hosted runs and the
+      // agent probes a loopback port nothing listens on.
+      POME_TWIN_BASE_URL: session.twin_url,
       POME_GITHUB_REST_URL: session.twin_url,
       POME_GITHUB_MCP_URL: `${session.twin_url}/mcp`,
       POME_GITHUB_TOKEN: session.provider_credentials.github?.token ?? session.agent_token,
@@ -229,13 +235,21 @@ export async function runScenarioHosted(
       // preflight quotes the cap that actually killed it, never the full
       // scenario timeout. Only a real-run failure classifies as
       // agent_timeout / agent_exit_nonzero.
+      //
+      // FDRS-667 — name the cause. The errored trial row renders the reason
+      // verbatim, so a bare "agent preflight failed" leaves the user with
+      // zero forensics (the k=5 first-publish e2e died five times on the
+      // same swallowed stderr). Append the agent's last stderr line to the
+      // exit-shaped failures; timeouts already name what killed them.
+      const failed = preflight.exitCode !== 0 ? preflight : agentResult;
+      const cause = stderrTail(failed.stderr);
       const failure =
         preflight.exitCode !== 0
           ? {
               errorCode: "preflight_failed",
               reason: preflight.timedOut
                 ? `agent preflight timed out after ${preflightTimeoutSeconds}s`
-                : "agent preflight failed",
+                : `agent preflight failed${cause ? ` — ${cause}` : ""}`,
             }
           : agentResult.timedOut
             ? {
@@ -244,8 +258,21 @@ export async function runScenarioHosted(
               }
             : {
                 errorCode: "agent_exit_nonzero",
-                reason: `agent exited non-zero (exit ${agentResult.exitCode})`,
+                reason: `agent exited non-zero (exit ${agentResult.exitCode})${cause ? ` — ${cause}` : ""}`,
               };
+      // FDRS-667 — an abandoned trial never reaches the artifact write in
+      // step 5, so land the agent's output where a completed trial's would
+      // go (runs/<slug>/<session>/): stdout.txt + stderr.log, redacted like
+      // writeRunArtifactsCore's copies. Best effort — forensics must never
+      // mask the trial's own error.
+      try {
+        const runDir = join(artifactsDir, scenario.slug, runId);
+        await mkdir(runDir, { recursive: true });
+        await writeFile(join(runDir, "stdout.txt"), redactSecrets(failed.stdout) as string);
+        await writeFile(join(runDir, "stderr.log"), redactSecrets(failed.stderr) as string);
+      } catch {
+        // ignore — the thrown HostedTrialError below is the signal that matters
+      }
       await abandonBestEffort(client, session.session_id, failure.errorCode);
       throw new HostedTrialError(failure.reason, failure.errorCode);
     }
@@ -468,6 +495,20 @@ export async function runScenarioHosted(
     await client.deleteSession(session.session_id).catch(() => undefined);
     await rm(signalsDir, { recursive: true, force: true }).catch(() => undefined);
   }
+}
+
+/** FDRS-667 — the last non-empty stderr line, flattened and bounded, as the
+ *  one named cause an errored trial row can render inline. Redacted with the
+ *  same rules as the on-disk stderr.log copy. */
+function stderrTail(stderr: string): string | null {
+  const last = stderr
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .at(-1);
+  if (!last) return null;
+  const flat = (redactSecrets(last.replace(/\s+/g, " ")) as string).trim();
+  return flat.length > 160 ? `${flat.slice(0, 157)}…` : flat;
 }
 
 /** Abandon is a bookkeeping signal — a failure to deliver it must never

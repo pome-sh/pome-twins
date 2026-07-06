@@ -127,6 +127,35 @@ replaceOnce(
   "the MCP_URL env read",
 );
 
+// 5. The preflight's runner-mode gate (FDRS-667) → the unconditional probe
+// a pre-pome repo would have. The gate keys off POME_GITHUB_MCP_URL, which
+// must not survive unwiring.
+replaceOnce(
+  [
+    "  // Standalone mode only: probe the docker twin's root /healthz so \"docker",
+    "  // compose isn't up\" gets a direct message. When a pome runner injected",
+    "  // POME_GITHUB_MCP_URL there is no loopback twin — TWIN_BASE_URL falls back",
+    "  // to 127.0.0.1:3333 and hosted `pome run` died here probing it (FDRS-667).",
+    "  // The authenticated ${MCP_URL}/tools probe below already covers",
+    "  // reachability + auth in every mode.",
+    "  if (!process.env.POME_GITHUB_MCP_URL) {",
+    "    const healthUrl = `${TWIN_BASE_URL.replace(/\\/$/, \"\")}/healthz`;",
+    "    const res = await fetch(healthUrl).catch((err) => {",
+    "      throw new Error(`twin not reachable at ${healthUrl}: ${err instanceof Error ? err.message : String(err)}`);",
+    "    });",
+    "    if (!res.ok) throw new Error(`twin healthz returned ${res.status}`);",
+    "  }",
+  ].join("\n"),
+  [
+    "  const healthUrl = `${TWIN_BASE_URL.replace(/\\/$/, \"\")}/healthz`;",
+    "  const res = await fetch(healthUrl).catch((err) => {",
+    "    throw new Error(`twin not reachable at ${healthUrl}: ${err instanceof Error ? err.message : String(err)}`);",
+    "  });",
+    "  if (!res.ok) throw new Error(`twin healthz returned ${res.status}`);",
+  ].join("\n"),
+  "the preflight runner-mode healthz gate",
+);
+
 for (const leftover of ["withPome", "@pome-sh/adapter", "POME_TWIN_BASE_URL", "POME_GITHUB_MCP_URL"]) {
   if (index.includes(leftover)) {
     console.error(`make-unwired-fixture: "${leftover}" still present after unwiring — update this script.`);

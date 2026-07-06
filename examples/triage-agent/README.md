@@ -14,7 +14,9 @@ This is the example referenced in the README quickstart and the demo video
   `docker compose up` from the repo root. The twin auto-generates a
   bearer secret at `<repo-root>/.pome-data/github/secret` on first run.
 - `bun >= 1.3.0` and `node >= 20`.
-- An Anthropic API key for the agent loop. BYOK via `ANTHROPIC_API_KEY`.
+- Claude auth for the agent loop: BYOK via `ANTHROPIC_API_KEY`, or a Claude
+  subscription (`CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or a
+  stored `claude` login).
 
 ## Install
 
@@ -82,7 +84,7 @@ All optional. Defaults match the repo-root `docker compose up`.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | — (required) | Used by the Claude Agent SDK. |
+| `ANTHROPIC_API_KEY` | — | Claude API key for the Agent SDK. Alternatives: `CLAUDE_CODE_OAUTH_TOKEN`, or a stored `claude` subscription login. |
 | `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/demo/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
 | `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. Pome CLI sets this; otherwise the agent mints its own. |
 | `POME_TASK` | bundled triage prompt | Override the agent's task. Pome CLI sets this from the scenario file. |

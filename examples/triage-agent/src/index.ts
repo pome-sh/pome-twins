@@ -308,19 +308,37 @@ function readSecretFromDisk(): string {
 }
 
 async function preflight(token: string): Promise<void> {
-  const healthUrl = `${TWIN_BASE_URL.replace(/\/$/, "")}/healthz`;
-  const res = await fetch(healthUrl).catch((err) => {
-    throw new Error(`twin not reachable at ${healthUrl}: ${err instanceof Error ? err.message : String(err)}`);
-  });
-  if (!res.ok) throw new Error(`twin healthz returned ${res.status}`);
+  // Standalone mode only: probe the docker twin's root /healthz so "docker
+  // compose isn't up" gets a direct message. When a pome runner injected
+  // POME_GITHUB_MCP_URL there is no loopback twin — TWIN_BASE_URL falls back
+  // to 127.0.0.1:3333 and hosted `pome run` died here probing it (FDRS-667).
+  // The authenticated ${MCP_URL}/tools probe below already covers
+  // reachability + auth in every mode.
+  if (!process.env.POME_GITHUB_MCP_URL) {
+    const healthUrl = `${TWIN_BASE_URL.replace(/\/$/, "")}/healthz`;
+    const res = await fetch(healthUrl).catch((err) => {
+      throw new Error(`twin not reachable at ${healthUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    });
+    if (!res.ok) throw new Error(`twin healthz returned ${res.status}`);
+  }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set — the agent needs it to call Claude.");
+  // Claude auth: the Agent SDK takes an API key (ANTHROPIC_API_KEY), a
+  // subscription token (CLAUDE_CODE_OAUTH_TOKEN, from `claude setup-token`),
+  // or a `claude` login stored on this machine — that last one is invisible
+  // to env, so hard-failing here would block subscription users whose runs
+  // would succeed. Warn with both options instead of throwing (FDRS-667).
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    console.warn(
+      "warning: neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set — continuing, assuming a stored `claude` subscription login. " +
+        "If the run fails on auth: export ANTHROPIC_API_KEY=sk-ant-… (API key) or CLAUDE_CODE_OAUTH_TOKEN (run `claude setup-token`)."
+    );
   }
 
   // Sanity-check the bearer token by hitting a session-scoped endpoint.
   const probe = await fetch(`${trimSlash(MCP_URL)}/tools`, {
     headers: { authorization: `Bearer ${token}` }
+  }).catch((err) => {
+    throw new Error(`twin MCP not reachable at ${MCP_URL}/tools: ${err instanceof Error ? err.message : String(err)}`);
   });
   if (!probe.ok) throw new Error(`twin MCP probe failed: ${probe.status}`);
 

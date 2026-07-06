@@ -14,7 +14,7 @@
 //     finalizes (covered by runScenarioHosted.test.ts, re-asserted here).
 
 import { describe, it, expect, afterEach } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve, type ServerType } from "@hono/node-server";
@@ -215,10 +215,15 @@ describe("runScenarioHosted trial seams (FDRS-636)", () => {
     expect(cloud.lifecycle()).toEqual(["abandon", "delete"]);
   });
 
-  it("abandonOnFailure + preflight failure → abandon(preflight_failed), no finalize", async () => {
+  it("abandonOnFailure + preflight failure → abandon(preflight_failed), no finalize; reason names the stderr tail and forensics land in artifactsDir (FDRS-667)", async () => {
     cloud = await startFakeCloud();
     const path = await scenarioPath(SCENARIO);
-    const agent = `node -e ${JSON.stringify("process.exit(1)")}`;
+    // Mimics the first-publish e2e: the example's preflight throws its named
+    // cause to stderr and exits 1. That cause must surface in the errored
+    // trial row instead of a bare "agent preflight failed".
+    const agent = `node -e ${JSON.stringify(
+      "console.error('twin not reachable at http://127.0.0.1:3333/healthz: fetch failed'); process.exit(1)",
+    )}`;
 
     await expect(
       runScenarioHosted({
@@ -229,10 +234,46 @@ describe("runScenarioHosted trial seams (FDRS-636)", () => {
         premintedSession: await premintedFor(cloud.port),
         abandonOnFailure: true,
       }),
-    ).rejects.toMatchObject({ errorCode: "preflight_failed" });
+    ).rejects.toMatchObject({
+      errorCode: "preflight_failed",
+      message:
+        "agent preflight failed — twin not reachable at http://127.0.0.1:3333/healthz: fetch failed",
+    });
 
     expect(cloud.finalizeCalls()).toBe(0);
     expect(cloud.abandonBodies()).toEqual([{ error_code: "preflight_failed" }]);
+
+    // FDRS-667 — an abandoned trial still writes stdout.txt/stderr.log where
+    // a completed trial's artifacts would go, so `runs/` is never empty.
+    const files = await readdir(join(tmp!, "runs"), { recursive: true });
+    const stderrLog = files.find((f) => String(f).endsWith("stderr.log"));
+    expect(stderrLog, `runs/ contained: ${files.join(", ")}`).toBeDefined();
+    expect(
+      await readFile(join(tmp!, "runs", String(stderrLog)), "utf8"),
+    ).toContain("twin not reachable at http://127.0.0.1:3333/healthz");
+  });
+
+  it("injects POME_TWIN_BASE_URL = session twin_url so loopback-fallback agents pass hosted preflight (FDRS-667)", async () => {
+    cloud = await startFakeCloud();
+    const path = await scenarioPath(SCENARIO);
+    const expected = `http://127.0.0.1:${cloud.port}/s/${SESSION_ID}`;
+    // Exits 0 (both preflight and run) only when the env mirrors self-host.
+    const agent = `node -e ${JSON.stringify(
+      `process.exit(process.env.POME_TWIN_BASE_URL === '${expected}' ? 0 : 1)`,
+    )}`;
+
+    const result = await runScenarioHosted({
+      scenarioPath: path,
+      agentCommand: agent,
+      artifactsDir: join(tmp!, "runs"),
+      hosted: { baseUrl: `http://127.0.0.1:${cloud.port}`, apiKey: "pme_test" },
+      premintedSession: await premintedFor(cloud.port),
+      abandonOnFailure: true,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(cloud.finalizeCalls()).toBe(1);
+    expect(cloud.abandonBodies()).toEqual([]);
   });
 
   it("abandonOnFailure + preflight HANG past its cap → abandon(preflight_failed) quoting the 10s cap, not the scenario timeout", async () => {

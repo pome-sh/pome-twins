@@ -3,6 +3,7 @@ import { runAgentCommand } from "../../../src/runner/agentRunner.js";
 
 const SAVED_ENV: Record<string, string | undefined> = {};
 const ENV_KEYS = [
+  "CLAUDE_CODE_OAUTH_TOKEN",
   "OPENAI_API_KEY",
   "POME_INHERIT_AGENT_ENV",
   "POME_TRUST_AGENT_COMMAND",
@@ -46,10 +47,12 @@ describe("runAgentCommand", () => {
   it("forwards documented provider keys without inheriting unrelated secrets", async () => {
     saveEnv();
     process.env.OPENAI_API_KEY = "sk-test-provider";
+    // FDRS-667 — Claude subscription auth must reach the agent subprocess.
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "sk-ant-oat-test";
     process.env.SECRET_SHOULD_NOT_LEAK = "raw-secret";
 
     const result = await runAgentCommand({
-      command: `${process.execPath} -e "process.stdout.write(JSON.stringify({ openai: process.env.OPENAI_API_KEY || null, secret: process.env.SECRET_SHOULD_NOT_LEAK || null }))"`,
+      command: `${process.execPath} -e "process.stdout.write(JSON.stringify({ openai: process.env.OPENAI_API_KEY || null, oauth: process.env.CLAUDE_CODE_OAUTH_TOKEN || null, secret: process.env.SECRET_SHOULD_NOT_LEAK || null }))"`,
       env: {},
       timeoutSeconds: 5,
     });
@@ -57,6 +60,7 @@ describe("runAgentCommand", () => {
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       openai: "sk-test-provider",
+      oauth: "sk-ant-oat-test",
       secret: null,
     });
   });
