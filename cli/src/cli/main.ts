@@ -551,8 +551,9 @@ export function createProgram() {
     .option(
       "-n, --trials <count>",
       "FDRS-636: run <count> isolated trials of the task as ONE trial group (integer 1-20; hosted only). " +
-        "Default is the scenario config's `runs` field (capped at 20). k>1 mints all sessions upfront with a shared group id, " +
-        "runs trials sequentially, prints the per-trial verdict table (numeric cloud-judge scores), and exits 0 iff at least one " +
+        "Default is the scenario config's `runs` field (capped at 20). k>1 mints sessions with a shared group id up to your " +
+        "plan's concurrent-twin quota (FDRS-663: remaining trials reuse slots as earlier trials finish), runs trials at that " +
+        "concurrency, prints the per-trial verdict table (numeric cloud-judge scores), and exits 0 iff at least one " +
         "trial completed and every completed trial passed (1: a completed trial failed; 2: nothing completed). " +
         "k=1 keeps today's single-run behavior exactly.",
     )

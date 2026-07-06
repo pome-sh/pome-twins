@@ -113,6 +113,14 @@ export async function runInstall(options: InstallOptions): Promise<void> {
   // nothing, so an unclean tree shouldn't block it.
   const agent = detectAgent(process.env);
   if (!agent) {
+    // FDRS-669 — a previously-inited repo still gets its agent registered on
+    // the fallback path; a truly fresh repo has no config yet (the manual
+    // steps below start with `pome init`), so this is a silent no-op there.
+    await registerAgentStep({
+      apiBaseUrl: options.apiUrl,
+      cwd,
+      credentialsPath: options.credentialsPath,
+    });
     printManualFallback();
     return; // exit 0 — the designed no-agent outcome, not a failure.
   }
@@ -177,7 +185,19 @@ export async function runInstall(options: InstallOptions): Promise<void> {
     );
   }
 
-  // 6. The ending pome's terminal owns: doctor verify to green (moment 02).
+  // 6. FDRS-669 — register the agent (idempotent) now that the session has
+  // had its chance to create pome.config.json. Runs before the doctor verify
+  // so even a red-doctor install leaves the repo registered: the first bare
+  // `pome run` submits under this agent, and "Default agent" stays a
+  // migration-era state only (Reliability IA v1, decision 2).
+  console.error("");
+  await registerAgentStep({
+    apiBaseUrl: options.apiUrl,
+    cwd,
+    credentialsPath: options.credentialsPath,
+  });
+
+  // 7. The ending pome's terminal owns: doctor verify to green (moment 02).
   // Dynamic import keeps the twin harness out of the way until needed —
   // same pattern as the `doctor` and `run` commands.
   console.error("");
@@ -240,6 +260,39 @@ function findExecutableOnPath(
     }
   }
   return null;
+}
+
+/** FDRS-669 — the install-time registration bracket. Registration failing
+ *  must not fail the install (runs would just land under "Default agent"
+ *  until the user re-runs install or `pome register agent`), so every
+ *  outcome renders as a line, never an exit code. */
+async function registerAgentStep(input: {
+  apiBaseUrl: string;
+  cwd: string;
+  credentialsPath?: string;
+}): Promise<void> {
+  const { ensureAgentRegistered } = await import("./register.js");
+  try {
+    const result = await ensureAgentRegistered(input);
+    if (result.status === "registered") {
+      console.error(
+        `✓ registered agent (slug=${result.agentSlug}) — runs submit under it.`,
+      );
+    } else if (result.status === "already-registered") {
+      console.error(
+        `✓ agent already registered (${result.agentSlug ?? result.agentId}).`,
+      );
+    }
+    // no-config: silent — the session/manual steps own creating the config;
+    // registration happens on the next `pome install` once it exists.
+  } catch (err) {
+    console.error(
+      `couldn't register the agent: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    console.error(
+      "runs will record under \"Default agent\" until `pome register agent <name>` or a re-run of pome install succeeds.",
+    );
+  }
 }
 
 type WorkingTree = "clean" | "dirty" | "not-a-repo";

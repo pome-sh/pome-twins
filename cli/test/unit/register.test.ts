@@ -2,9 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { basename } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HostedOrchError } from "../../src/hosted/errors.js";
-import { runRegisterAgent } from "../../src/cli/register.js";
+import { ensureAgentRegistered, runRegisterAgent } from "../../src/cli/register.js";
 
 const originalCwd = process.cwd();
 const tempDirs: string[] = [];
@@ -174,5 +175,83 @@ describe("runRegisterAgent", () => {
       }),
     ).rejects.toThrow(/malformed agentId/);
     expect(existsSync("pome.config.json")).toBe(true);
+  });
+});
+
+// FDRS-669 — the `pome install` registration seam: same machinery as
+// `pome register agent`, but derives the name from the repo directory and
+// never errors on an already-registered repo (idempotent by design).
+describe("ensureAgentRegistered (FDRS-669)", () => {
+  it("registers a fresh repo under the config directory's name and writes agentId + agentSlug", async () => {
+    await writeConfig({ agent: { command: "node a.js" } });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({
+        id: "agt_123",
+        slug: "my-repo",
+        display_name: "my-repo",
+        judge_model: "google/gemini-2.5-flash",
+      }),
+    );
+
+    const result = await ensureAgentRegistered({
+      apiBaseUrl: "https://api.example.com",
+    });
+
+    expect(result).toEqual({
+      status: "registered",
+      agentId: "agt_123",
+      agentSlug: "my-repo",
+    });
+    // The server-side name is the repo directory's basename (vercel-link
+    // shape: identity defaults to where you ran it).
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.example.com/v1/agents");
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      name: basename(process.cwd()),
+    });
+    expect(readConfig()).toMatchObject({
+      agentId: "agt_123",
+      agentSlug: "my-repo",
+      agent: { command: "node a.js" },
+    });
+  });
+
+  it("is idempotent: an already-registered repo makes no request and keeps the same slug", async () => {
+    await writeConfig({
+      agentId: "agt_existing",
+      agentSlug: "existing-agent",
+      agent: { command: "node a.js" },
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const first = await ensureAgentRegistered({
+      apiBaseUrl: "https://api.example.com",
+    });
+    const second = await ensureAgentRegistered({
+      apiBaseUrl: "https://api.example.com",
+    });
+
+    expect(first).toEqual({
+      status: "already-registered",
+      agentId: "agt_existing",
+      agentSlug: "existing-agent",
+    });
+    expect(second).toEqual(first);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(readConfig()).toMatchObject({
+      agentId: "agt_existing",
+      agentSlug: "existing-agent",
+    });
+  });
+
+  it("returns no-config without fetching when pome.config.json is absent", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const result = await ensureAgentRegistered({
+      apiBaseUrl: "https://api.example.com",
+    });
+
+    expect(result).toEqual({ status: "no-config" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

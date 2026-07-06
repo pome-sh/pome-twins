@@ -41,9 +41,18 @@ export function flagHintLine(agentCommandSource: string): string {
   return `-n sets how many isolated trials to run · the agent command comes from ${agentCommandSource}`;
 }
 
-/** Printed once every session of the group is minted (the cloud provisions
- *  one isolated twin sandbox per session — ADR-012). */
-export function provisioningLine(k: number, twins: string[]): string {
+/** Printed once the upfront mints are done (the cloud provisions one
+ *  isolated twin sandbox per session — ADR-012). FDRS-663: when the plan's
+ *  concurrent-twin quota bounded the upfront mint below k, the bound is
+ *  named honestly — k stays the design default, the wall-clock stretches. */
+export function provisioningLine(
+  k: number,
+  twins: string[],
+  bound?: number,
+): string {
+  if (bound !== undefined && bound < k) {
+    return `provisioning ${bound} isolated ${twins.join("+")} twins … ready (plan concurrency ${bound} — ${k} trials reuse slots as they finish)`;
+  }
   return `provisioning ${k} isolated ${twins.join("+")} twins … ready`;
 }
 

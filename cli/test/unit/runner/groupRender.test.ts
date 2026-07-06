@@ -55,6 +55,17 @@ describe("group header lines (moment 04)", () => {
     );
   });
 
+  // FDRS-663 — the quota bound is named honestly, never silently absorbed.
+  it("names the plan-concurrency bound when the quota bounded the upfront mint", () => {
+    expect(provisioningLine(5, ["github"], 3)).toBe(
+      "provisioning 3 isolated github twins … ready (plan concurrency 3 — 5 trials reuse slots as they finish)",
+    );
+    // Bound == k means quota never pushed back: the classic line.
+    expect(provisioningLine(5, ["github"], 5)).toBe(
+      "provisioning 5 isolated github twins … ready",
+    );
+  });
+
   it("renders the spawning-agent line with the command and its source", () => {
     expect(
       spawningAgentLine("npx tsx examples/agents/triage-agent.ts", "pome.config.json"),

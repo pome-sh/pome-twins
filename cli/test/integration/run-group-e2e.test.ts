@@ -281,8 +281,12 @@ describe("pome run -n k end-to-end against a stub cloud (FDRS-636)", () => {
     expect(text).toContain(`after the fix lands, re-run the task:  pome run ${scenarioPath} -n 3`);
 
     // And fix-prompt's discovery reassembles this exact run set from disk.
+    // Membership, not order: FDRS-663 runs trials in parallel, so within-set
+    // order is finalized_at (completion) order and either trial can win.
     const discovery = await discoverRunSet(join(tmp, "runs"));
     expect(discovery.set?.groupId).toBe(result.groupId);
-    expect(discovery.set?.trials.map((t) => t.verdict.session_id)).toEqual(["ses_1", "ses_3"]);
+    expect(
+      discovery.set?.trials.map((t) => t.verdict.session_id).sort(),
+    ).toEqual(["ses_1", "ses_3"]);
   }, 120_000);
 });

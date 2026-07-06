@@ -86,6 +86,18 @@ export function normalizeConfigAgentId(config: ProjectConfig): string | undefine
   return trimmed;
 }
 
+/** FDRS-665 — the registered slug (written next to agentId by
+ *  `pome register agent` / `pome install`). Server-canonical; treated as
+ *  opaque here. Absent or malformed → undefined (the URL print falls back
+ *  to the legacy /runs/task shape). */
+export function normalizeConfigAgentSlug(
+  config: ProjectConfig,
+): string | undefined {
+  if (typeof config.agentSlug !== "string") return undefined;
+  const trimmed = config.agentSlug.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function normalizeConfigAgentSdk(config: ProjectConfig): string | null {
   const sdk = config.agent?.sdk;
   if (typeof sdk !== "string") return null;

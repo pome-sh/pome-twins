@@ -242,6 +242,103 @@ describe("pome install (FDRS-642)", () => {
     expect(process.exitCode).toBeFalsy();
   }, 60_000);
 
+  // FDRS-669 — install registers the agent after the session, idempotently.
+  it("registers the agent after the session so the first run submits under it", async () => {
+    const { binDir } = await fakeClaudeBin();
+    const home = await fakeHome();
+    const repo = await fixtureRepo(WIRED_SOURCE);
+    vi.stubEnv("PATH", binDir);
+    vi.stubEnv("HOME", home);
+    vi.stubEnv("POME_API_KEY", "pme_test");
+    vi.stubEnv("POME_CLI_DISABLE_KEYCHAIN", "1");
+    const realFetch = globalThis.fetch;
+    const agentPosts: unknown[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/v1/agents")) {
+        agentPosts.push(JSON.parse(String(init?.body)));
+        return new Response(
+          JSON.stringify({
+            id: "agt_fresh",
+            slug: "fixture-repo",
+            display_name: "fixture-repo",
+            judge_model: "google/gemini-2.5-flash",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return realFetch(input, init);
+    });
+
+    await runInstall({
+      apiUrl: API_URL,
+      dashboardUrl: DASHBOARD_URL,
+      stdinIsTTY: true,
+      cwd: repo,
+      confirm: async () => true,
+    });
+
+    expect(agentPosts).toHaveLength(1);
+    const config = JSON.parse(
+      await readFile(join(repo, "pome.config.json"), "utf8"),
+    ) as Record<string, unknown>;
+    expect(config.agentId).toBe("agt_fresh");
+    expect(config.agentSlug).toBe("fixture-repo");
+    const text = stderrText();
+    expect(text).toContain("registered agent");
+    expect(text).toContain("fixture-repo");
+    expect(process.exitCode).toBeFalsy();
+  }, 60_000);
+
+  it("re-running install on a registered repo is idempotent: no duplicate agent, same slug", async () => {
+    const { binDir } = await fakeClaudeBin();
+    const home = await fakeHome();
+    const repo = await fixtureRepo(WIRED_SOURCE);
+    await writeFile(
+      join(repo, "pome.config.json"),
+      JSON.stringify(
+        {
+          agent: { command: 'node -e "process.exit(0)"' },
+          agentId: "agt_existing",
+          agentSlug: "already-there",
+        },
+        null,
+        2,
+      ),
+    );
+    vi.stubEnv("PATH", binDir);
+    vi.stubEnv("HOME", home);
+    vi.stubEnv("POME_API_KEY", "pme_test");
+    vi.stubEnv("POME_CLI_DISABLE_KEYCHAIN", "1");
+    const realFetch = globalThis.fetch;
+    let agentPosts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/v1/agents")) {
+        agentPosts += 1;
+        throw new Error("must not re-register");
+      }
+      return realFetch(input, init);
+    });
+
+    await runInstall({
+      apiUrl: API_URL,
+      dashboardUrl: DASHBOARD_URL,
+      stdinIsTTY: true,
+      cwd: repo,
+      confirm: async () => true,
+    });
+
+    expect(agentPosts).toBe(0);
+    const config = JSON.parse(
+      await readFile(join(repo, "pome.config.json"), "utf8"),
+    ) as Record<string, unknown>;
+    expect(config.agentId).toBe("agt_existing");
+    expect(config.agentSlug).toBe("already-there");
+    expect(stderrText()).toContain("already-there");
+    expect(process.exitCode).toBeFalsy();
+  }, 60_000);
+
   it("ends red with doctor's named cause when the session leaves the repo unwired", async () => {
     const { binDir } = await fakeClaudeBin();
     const home = await fakeHome();

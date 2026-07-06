@@ -17,9 +17,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHostedClient, type HostedClient } from "../../../src/hosted/client.js";
-import { HostedOrchError, HostedTrialError } from "../../../src/hosted/errors.js";
+import {
+  HostedOrchError,
+  HostedQuotaError,
+  HostedTrialError,
+} from "../../../src/hosted/errors.js";
 import {
   GROUP_FINALIZE_TIMEOUT_MS,
+  LAZY_MINT_MAX_ATTEMPTS,
+  LAZY_MINT_RETRY_MS,
   runTrialGroup,
 } from "../../../src/runner/runTrialGroup.js";
 import type {
@@ -402,6 +408,282 @@ describe("runTrialGroup — errored trials (FDRS-636)", () => {
   });
 });
 
+// FDRS-663 — free-tier `concurrentTwins: 3` vs the k=5 default. Decided cut
+// (option A): bounded/lazy minting inside the group runner — mint ≤ the
+// team's concurrent quota (discovered adaptively from the mint-gate quota
+// error), run trials with that concurrency, and mint the remaining trials'
+// sessions lazily as slots free up. Resolves FDRS-636's deferred "bounded
+// trial parallelism (plan-quota semantics)" thread.
+interface QuotaCloud {
+  client: HostedClient;
+  /** Every createSession attempt, successful or quota-refused. */
+  attempts: number;
+  mints: Array<{ groupId?: string; idempotencyKey?: string }>;
+  active: number;
+  peakActive: number;
+  /** Simulates the slot freeing when a trial's session is deleted. */
+  release: (sessionId: string) => void;
+}
+
+function makeQuotaCloud(input: {
+  limit: number;
+  /** 1-based createSession attempt numbers that quota-fail regardless of
+   *  the limit — simulates delete-propagation lag on lazy mints. */
+  forcedQuotaAttempts?: number[];
+}): QuotaCloud {
+  const forced = new Set(input.forcedQuotaAttempts ?? []);
+  const released = new Set<string>();
+  const cloud: QuotaCloud = {
+    client: null as unknown as HostedClient,
+    attempts: 0,
+    mints: [],
+    active: 0,
+    peakActive: 0,
+    release: (sessionId) => {
+      if (released.has(sessionId)) return;
+      released.add(sessionId);
+      cloud.active -= 1;
+    },
+  };
+  const unused = () => {
+    throw new Error("not used");
+  };
+  cloud.client = {
+    async createSession(sessionInput) {
+      cloud.attempts += 1;
+      if (forced.has(cloud.attempts) || cloud.active >= input.limit) {
+        throw new HostedQuotaError("Concurrent twin quota exceeded for this team.");
+      }
+      cloud.active += 1;
+      cloud.peakActive = Math.max(cloud.peakActive, cloud.active);
+      cloud.mints.push({
+        groupId: sessionInput.groupId,
+        idempotencyKey: sessionInput.idempotencyKey,
+      });
+      const n = cloud.mints.length;
+      return {
+        session_id: `ses_${n}`,
+        twin_url: `https://twins.example/s/ses_${n}`,
+        expires_at: new Date(Date.now() + 600_000).toISOString(),
+        agent_token: `tok_${n}`,
+        provider_credentials: {},
+        openapi_url: "https://twins.example/openapi.json",
+      };
+    },
+    async deleteSession(sessionId) {
+      cloud.release(sessionId);
+    },
+    createEvalSession: unused,
+    listSessions: async () => [],
+    getSession: unused,
+    fetchState: async () => ({}),
+    fetchEvents: async () => [],
+    finalize: unused,
+    submitResult: unused,
+    requestEventsUploadUrl: unused,
+    requestStateUploadUrl: unused,
+    requestSignalsUploadUrl: unused,
+    abandonSession: async (sessionId) => ({
+      session_id: sessionId,
+      state: "failed",
+      error_code: null,
+      abandoned: true,
+    }),
+  };
+  return cloud;
+}
+
+describe("runTrialGroup — quota-bounded mint + bounded parallelism (FDRS-663)", () => {
+  it("a quota error mid-mint bounds the group instead of aborting: k=5 completes at concurrency 3", async () => {
+    const scenarioPath = await scenarioFixture();
+    const cloud = makeQuotaCloud({ limit: 3 });
+    const out: string[] = [];
+    let activeTrials = 0;
+    let peakTrials = 0;
+
+    const result = await runTrialGroup({
+      scenarioPath,
+      agentCommand: "node agent.js",
+      trials: 5,
+      hosted: { baseUrl: "https://api.example", apiKey: "pme_k" },
+      dashboardBaseUrl: "https://app.pome.sh",
+      out: (line) => out.push(line),
+      client: cloud.client,
+      sleepFn: async () => {},
+      runScenarioHostedFn: async (options) => {
+        activeTrials += 1;
+        peakTrials = Math.max(peakTrials, activeTrials);
+        await new Promise((r) => setTimeout(r, 10));
+        activeTrials -= 1;
+        // runScenarioHosted deletes its own session in its finally — that is
+        // what frees the quota slot for the next lazy mint.
+        cloud.release(options.premintedSession!.session_id);
+        return trialResult({
+          sessionId: options.premintedSession!.session_id,
+          satisfaction: 100,
+          exitCode: 0,
+          durationMs: 1000,
+        });
+      },
+    });
+
+    // All five trials completed without the group aborting on exit 4.
+    expect(result.rows).toHaveLength(5);
+    expect(result.rows.every((r) => r.kind === "completed")).toBe(true);
+    expect(result.exitCode).toBe(0);
+
+    // The cloud never saw more than the plan's concurrent quota, and the
+    // trials actually ran in parallel up to that bound.
+    expect(cloud.peakActive).toBe(3);
+    expect(peakTrials).toBe(3);
+
+    // 5 successful mints (3 upfront + 2 lazy), one shared group id, fresh
+    // idempotency keys throughout.
+    expect(cloud.mints).toHaveLength(5);
+    expect(new Set(cloud.mints.map((m) => m.groupId)).size).toBe(1);
+    expect(new Set(cloud.mints.map((m) => m.idempotencyKey)).size).toBe(5);
+
+    // Honest provisioning copy: the bound is named, not silently absorbed.
+    expect(out.join("\n")).toContain(
+      "provisioning 3 isolated github twins … ready (plan concurrency 3 — 5 trials reuse slots as they finish)",
+    );
+  });
+
+  it("a lazy mint that quota-fails on delete-propagation lag retries after a pause and completes", async () => {
+    const scenarioPath = await scenarioFixture();
+    // Attempts 1-2 mint, attempt 3 hits the limit (bound=2), attempt 4 is the
+    // first lazy mint — forced to fail once as if the freed slot hasn't
+    // propagated — and attempt 5 succeeds.
+    const cloud = makeQuotaCloud({ limit: 2, forcedQuotaAttempts: [4] });
+    const sleeps: number[] = [];
+
+    const result = await runTrialGroup({
+      scenarioPath,
+      agentCommand: "node agent.js",
+      trials: 3,
+      hosted: { baseUrl: "https://api.example", apiKey: "pme_k" },
+      dashboardBaseUrl: "https://app.pome.sh",
+      out: () => {},
+      client: cloud.client,
+      sleepFn: async (ms) => {
+        sleeps.push(ms);
+      },
+      runScenarioHostedFn: async (options) => {
+        await new Promise((r) => setTimeout(r, 5));
+        cloud.release(options.premintedSession!.session_id);
+        return trialResult({
+          sessionId: options.premintedSession!.session_id,
+          satisfaction: 100,
+          exitCode: 0,
+          durationMs: 1000,
+        });
+      },
+    });
+
+    expect(sleeps).toEqual([LAZY_MINT_RETRY_MS]);
+    expect(result.rows.every((r) => r.kind === "completed")).toBe(true);
+    expect(result.exitCode).toBe(0);
+    expect(cloud.mints).toHaveLength(3);
+  });
+
+  it("a lazy mint that never clears quota errors that trial (excluded) and the rest still count", async () => {
+    const scenarioPath = await scenarioFixture();
+    // Bound discovery at attempt 3; the lazy mint for trial 3 quota-fails on
+    // every one of its attempts.
+    const lazyAttempts = Array.from(
+      { length: LAZY_MINT_MAX_ATTEMPTS },
+      (_, i) => 4 + i,
+    );
+    const cloud = makeQuotaCloud({ limit: 2, forcedQuotaAttempts: lazyAttempts });
+    const out: string[] = [];
+
+    const result = await runTrialGroup({
+      scenarioPath,
+      agentCommand: "node agent.js",
+      trials: 3,
+      hosted: { baseUrl: "https://api.example", apiKey: "pme_k" },
+      dashboardBaseUrl: "https://app.pome.sh",
+      out: (line) => out.push(line),
+      client: cloud.client,
+      sleepFn: async () => {},
+      runScenarioHostedFn: async (options) => {
+        cloud.release(options.premintedSession!.session_id);
+        return trialResult({
+          sessionId: options.premintedSession!.session_id,
+          satisfaction: 100,
+          exitCode: 0,
+          durationMs: 1000,
+        });
+      },
+    });
+
+    const kinds = result.rows.map((r) => r.kind);
+    expect(kinds.filter((k) => k === "completed")).toHaveLength(2);
+    expect(kinds.filter((k) => k === "errored")).toHaveLength(1);
+    expect(out.join("\n")).toContain("2 of 2 passed · 1 errored, excluded from the fraction");
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("a quota error on the very first mint still aborts the group (nothing to bound)", async () => {
+    const scenarioPath = await scenarioFixture();
+    const cloud = makeQuotaCloud({ limit: 0 });
+    let trialsRun = 0;
+
+    await expect(
+      runTrialGroup({
+        scenarioPath,
+        agentCommand: "node agent.js",
+        trials: 3,
+        hosted: { baseUrl: "https://api.example", apiKey: "pme_k" },
+        dashboardBaseUrl: "https://app.pome.sh",
+        out: () => {},
+        client: cloud.client,
+        sleepFn: async () => {},
+        runScenarioHostedFn: async () => {
+          trialsRun += 1;
+          throw new Error("unreachable");
+        },
+      }),
+    ).rejects.toBeInstanceOf(HostedQuotaError);
+    expect(trialsRun).toBe(0);
+  });
+
+  it("trial rows render in trial order even when later trials finish first", async () => {
+    const scenarioPath = await scenarioFixture();
+    const cloud = makeQuotaCloud({ limit: 2 });
+    const out: string[] = [];
+
+    await runTrialGroup({
+      scenarioPath,
+      agentCommand: "node agent.js",
+      trials: 2,
+      hosted: { baseUrl: "https://api.example", apiKey: "pme_k" },
+      dashboardBaseUrl: "https://app.pome.sh",
+      out: (line) => out.push(line),
+      client: cloud.client,
+      sleepFn: async () => {},
+      runScenarioHostedFn: async (options) => {
+        const sid = options.premintedSession!.session_id;
+        // Trial 1 is slow; trial 2 finishes well before it.
+        await new Promise((r) => setTimeout(r, sid === "ses_1" ? 40 : 1));
+        cloud.release(sid);
+        return trialResult({
+          sessionId: sid,
+          satisfaction: sid === "ses_1" ? 100 : 96,
+          exitCode: 0,
+          durationMs: 1000,
+        });
+      },
+    });
+
+    const rowLines = out.filter((l) => l.startsWith("trial "));
+    expect(rowLines[0]).toContain("trial 1");
+    expect(rowLines[0]).toContain("100");
+    expect(rowLines[1]).toContain("trial 2");
+    expect(rowLines[1]).toContain("96");
+  });
+});
+
 describe("runTrialGroup — dashboard link + client construction", () => {
   it("derives the reliability link from the dashboard base + /runs/task/<taskName>", async () => {
     const scenarioPath = await scenarioFixture();
@@ -429,6 +711,52 @@ describe("runTrialGroup — dashboard link + client construction", () => {
     // fixture file is "scn". No double slash from the trailing base slash.
     expect(result.reliabilityUrl).toBe("https://app.pome.sh/runs/task/scn");
     expect(out.join("\n")).toContain("→ https://app.pome.sh/runs/task/scn");
+  });
+
+  // FDRS-665 — the handoff link carries the agent by construction: with a
+  // registered slug (written by `pome install` / `pome register agent`,
+  // FDRS-669) the CLI prints /agents/<slug>/tasks/<name>?group=grp_… — the
+  // run set's reliability view, never the agent-less empty state. ?group is
+  // forward-compat: the page honors it in M1.
+  it("prints /agents/<slug>/tasks/<name>?group=grp_… when pome.config.json carries the registered slug", async () => {
+    const scenarioPath = await scenarioFixture();
+    const dir = join(scenarioPath, "..");
+    await writeFile(
+      join(dir, "pome.config.json"),
+      JSON.stringify({
+        agentId: "agt_123",
+        agentSlug: "triage-bot",
+        agent: { command: "node agent.js" },
+      }),
+      "utf8",
+    );
+    const cloud = makeFakeClient();
+    const out: string[] = [];
+
+    const result = await runTrialGroup({
+      scenarioPath,
+      agentCommand: "node agent.js",
+      trials: 2,
+      hosted: { baseUrl: "https://api.example", apiKey: "pme_k" },
+      dashboardBaseUrl: "https://app.pome.sh",
+      out: (line) => out.push(line),
+      client: cloud.client,
+      groupId: "grp_C6ptcAyN31L5v58zfmYFq",
+      runScenarioHostedFn: async (options) =>
+        trialResult({
+          sessionId: options.premintedSession!.session_id,
+          satisfaction: 100,
+          exitCode: 0,
+          durationMs: 1000,
+        }),
+    });
+
+    expect(result.reliabilityUrl).toBe(
+      "https://app.pome.sh/agents/triage-bot/tasks/scn?group=grp_C6ptcAyN31L5v58zfmYFq",
+    );
+    expect(out.join("\n")).toContain(
+      "→ https://app.pome.sh/agents/triage-bot/tasks/scn?group=grp_C6ptcAyN31L5v58zfmYFq",
+    );
   });
 
   it("appends ?agent=<agentId> when pome.config.json pins one (page groups per agent)", async () => {
