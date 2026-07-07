@@ -33,8 +33,11 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
       # OIDC Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.
-      - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@latest
+      # Pinned (not @latest): npm 11.18.0 crashes with "Exit handler never
+      # called!" on the OIDC provenance publish path. 11.5.1 is the GA release
+      # for trusted publishing and publishes cleanly.
+      - name: Install npm with OIDC trusted publishing support
+        run: npm install -g npm@11.5.1
       - run: node scripts/verify-vendor.mjs
       - run: bun install --frozen-lockfile
       - name: Changesets — version PR or publish
