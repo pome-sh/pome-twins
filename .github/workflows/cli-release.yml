@@ -39,7 +39,11 @@ jobs:
       - name: Install npm with OIDC trusted publishing support
         run: npm install -g npm@11.5.1
       - run: node scripts/verify-vendor.mjs
-      - run: bun install --frozen-lockfile
+      # --backend=copyfile: bun's default Linux backend hardlinks packages into
+      # node_modules; npm publish then packs the bundleDependencies as hard-link
+      # tar entries, which the registry rejects (E415 "Hard link is not
+      # allowed"). copyfile makes them real files.
+      - run: bun install --frozen-lockfile --backend=copyfile
       - name: Changesets — version PR or publish
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
