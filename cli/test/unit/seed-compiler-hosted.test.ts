@@ -168,7 +168,7 @@ describe("compileSeedHosted", () => {
     mockFetchOnce(() =>
       json({
         ...validResponse,
-        seed: { repositories: [] } // empty repos violates seedStateSchema min(1)
+        seed: { repositories: [{ name: "api" }] } // missing owner violates seedSchema
       })
     );
     await expect(compileSeedHosted("prose", { apiBaseUrl: "https://api.pome.test" })).rejects.toThrow();

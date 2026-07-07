@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { randomUUID } from "node:crypto";
-import type { Recorder, RecorderEvent } from "../twin/github/types.js";
+import type { RecorderEvent } from "@pome-sh/shared-types";
+import type { Recorder } from "@pome-sh/twin-github";
 
 export function createRecorder(): Recorder {
   const items: RecorderEvent[] = [];

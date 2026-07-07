@@ -15,7 +15,8 @@
 import { z } from "zod";
 import { resolveCredentials } from "../cli/credentials.js";
 import { HostedAuthError, HostedOrchError, HostedQuotaError } from "../hosted/errors.js";
-import { seedStateSchema } from "../twin/github/domain/seed.js";
+import { parseGitHubSeedState } from "./githubSeedCompat.js";
+import { seedSchema as seedStateSchema } from "@pome-sh/twin-github";
 import type { CompileResult } from "./seed-compiler.js";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -103,7 +104,7 @@ export async function compileSeedHosted(prose: string, opts: CompileSeedHostedOp
 
   // Re-validate the seed locally with the CLI's own schema. Catches transport
   // corruption and the (unlikely) case where cloud and CLI drift on schema.
-  const seed = seedStateSchema.parse(parsed.seed);
+  const seed = parseGitHubSeedState(parsed.seed);
 
   return {
     seed,

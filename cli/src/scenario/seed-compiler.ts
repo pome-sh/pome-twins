@@ -13,7 +13,8 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { seedStateSchema } from "../twin/github/domain/seed.js";
+import { parseGitHubSeedState } from "./githubSeedCompat.js";
+import { seedSchema as seedStateSchema } from "@pome-sh/twin-github";
 
 export const COMPILER_MODEL = "claude-opus-4-7";
 
@@ -69,7 +70,7 @@ export async function compileSeed(prose: string, opts: { model?: string } = {}):
   // Re-validate locally to be safe — `parse()` already ran the schema, but
   // running it again here gives us a stable error site for tests + ensures
   // downstream code holds a `ParsedSeedState`-shaped value, not `unknown`.
-  const seed = seedStateSchema.parse(response.parsed_output);
+  const seed = parseGitHubSeedState(response.parsed_output);
 
   return {
     seed,

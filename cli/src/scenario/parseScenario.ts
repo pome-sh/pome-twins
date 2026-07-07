@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-import { defaultSeedState, parseSeedState } from "../twin/github/domain/seed.js";
+import { defaultSeedState, seedSchema } from "@pome-sh/twin-github";
+import { parseGitHubSeedState } from "./githubSeedCompat.js";
 import {
   scenarioConfigSchema,
   scenarioSchema,
@@ -148,7 +149,7 @@ function parseFencedYaml(input: string) {
 function parseSeedStateForScenario(input: unknown, config: ScenarioConfig): SeedState {
   if (isStripeOnly(config.twins)) return stripeSeedStateSchema.parse(input);
   if (isSlackOnly(config.twins)) return slackSeedStateSchema.parse(input);
-  return parseSeedState(input);
+  return parseGitHubSeedState(input);
 }
 
 function defaultSeedStateForConfig(twins: string[]): SeedState {
@@ -163,7 +164,7 @@ function defaultSeedStateForConfig(twins: string[]): SeedState {
     // schema-valid floor.
     return slackSeedStateSchema.parse({});
   }
-  return defaultSeedState();
+  return seedSchema.parse(defaultSeedState());
 }
 
 function isStripeOnly(twins: string[]): boolean {

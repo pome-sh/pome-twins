@@ -54,7 +54,7 @@ import {
   readProjectConfig,
   type ProjectConfig,
 } from "./project-config.js";
-import type { RecorderEvent as LegacyGithubRecorderEvent } from "../twin/github/types.js";
+import type { RecorderEvent as LegacyGithubRecorderEvent } from "@pome-sh/shared-types";
 import type { FinalizeResponse } from "../types/shared.js";
 
 const EVAL_SESSION_FILE = "eval-session.json";

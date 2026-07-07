@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import { seedSchema as githubSeedStateSchema } from "@pome-sh/twin-github";
 import { z } from "zod";
-import { seedStateSchema as githubSeedStateSchema } from "../twin/github/domain/seed.js";
 
 export const criterionSchema = z.object({
   type: z.enum(["D", "P"]),
