@@ -179,8 +179,16 @@ export class TwinManifestError extends Error {
   }
 }
 
+// Duck-typed on purpose: a twin's schemas may come from its own zod copy
+// (unhoisted workspace installs, community twins bundling zod) — a bare
+// `instanceof z.ZodType` would reject schemas from any zod instance other
+// than the SDK's own.
 const isZodType = (value: unknown): value is z.ZodType =>
-  value instanceof z.ZodType;
+  value instanceof z.ZodType ||
+  (typeof value === "object" &&
+    value !== null &&
+    typeof (value as z.ZodType).parse === "function" &&
+    typeof (value as z.ZodType).safeParse === "function");
 const isFunction = (value: unknown): value is Function =>
   typeof value === "function";
 

@@ -37,16 +37,20 @@
       },
       "devDependencies": {
         "@hono/node-server": "^1.19.6",
+        "@types/better-sqlite3": "^7.6.13",
         "@types/node": "^25.0.3",
+        "better-sqlite3": "^12.5.0",
         "tsx": "^4.21.0",
         "typescript": "^5.9.3",
         "vitest": "^4.0.15",
       },
       "peerDependencies": {
         "@hono/node-server": "^1.19.6",
+        "better-sqlite3": "^12.5.0",
       },
       "optionalPeers": [
         "@hono/node-server",
+        "better-sqlite3",
       ],
     },
     "packages/shared-types": {

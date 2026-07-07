@@ -46,6 +46,13 @@ export async function freePort() {
   return port;
 }
 
+// A twin descriptor may carry an `entry` (repo-root-relative) to boot an
+// alternate server entry — used by the sdk-boot proof suite (FDRS-681).
+// Default is the contract's own `dist/src/server.js`.
+function entryArgs(twin) {
+  return [twin.entry ? path.join(REPO_ROOT, twin.entry) : "dist/src/server.js"];
+}
+
 /**
  * Spawn a built twin exactly the way the cloud does: `node dist/src/server.js`
  * with cwd = the package root. Resolves once GET /healthz answers 200, which
@@ -56,7 +63,7 @@ export async function spawnTwin(twin, { env = {}, port: portIn, healthzDeadlineM
   const cwd = path.join(REPO_ROOT, twin.pkg);
   // Plain `node` from PATH, never process.execPath: the contract is the cloud's
   // CMD ["node", "dist/src/server.js"], and under `bun run` execPath is bun.
-  const child = spawn("node", ["dist/src/server.js"], {
+  const child = spawn("node", entryArgs(twin), {
     cwd,
     env: {
       ...process.env,
@@ -117,7 +124,7 @@ export async function spawnTwin(twin, { env = {}, port: portIn, healthzDeadlineM
  */
 export async function spawnTwinRaw(twin, env, timeoutMs = 5_000) {
   const cwd = path.join(REPO_ROOT, twin.pkg);
-  const child = spawn("node", ["dist/src/server.js"], {
+  const child = spawn("node", entryArgs(twin), {
     cwd,
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],

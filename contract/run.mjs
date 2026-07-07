@@ -38,7 +38,9 @@ function cleanRuntimeJs(dir) {
 
 let status = run("bun", ["run", "--filter", "@pome-sh/shared-types", "build:runtime"]);
 if (status === 0) status = run("bun", ["run", "--filter", "@pome-sh/twin-*", "build"]);
-if (status === 0) status = run("node", ["--test", "contract/contract.test.mjs"]);
+// The sdk build feeds the sdk-boot proof suite (FDRS-681).
+if (status === 0) status = run("bun", ["run", "--filter", "@pome-sh/sdk", "build"]);
+if (status === 0) status = run("node", ["--test", "contract/contract.test.mjs", "contract/sdk-boot.test.mjs"]);
 
 const removed = cleanRuntimeJs(SHARED_SRC);
 console.log(`[contract/run] cleaned ${removed} generated runtime .js file(s) from packages/shared-types/src`);
