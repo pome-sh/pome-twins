@@ -1,0 +1,50 @@
+name: cli-publish-smoke
+on:
+  pull_request:
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli-publish-smoke.yml'
+
+concurrency:
+  group: cli-publish-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pack-smoke:
+    name: npm-pack clean-room import (pome-sh)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.13
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: node scripts/verify-vendor.mjs
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: npm publish --dry-run (packs the real tarball)
+        run: npm publish --dry-run --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/pack.log"
+      - name: Pack and clean-room install
+        run: |
+          set -euo pipefail
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          tgz="$(ls "$RUNNER_TEMP"/pome-sh-*.tgz)"
+          room="$(mktemp -d)"
+          cd "$room"
+          npm init -y >/dev/null 2>&1
+          npm install "$tgz" --no-audit --no-fund --ignore-scripts
+          # bin resolves and dist entry is present:
+          test -f node_modules/pome-sh/dist/src/cli/main.js
+          # bundled twins made it into the tarball:
+          for t in shared-types twin-github twin-slack twin-stripe; do
+            ls node_modules/pome-sh/node_modules/@pome-sh/$t/package.json \
+              || { echo "MISSING bundled @pome-sh/$t in published tarball"; exit 1; }
+          done
+          echo "clean-room OK: bin + dist + bundled twins present"

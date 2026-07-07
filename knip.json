@@ -23,6 +23,7 @@
     "@openrouter/ai-sdk-provider",
     "ai",
     "@changesets/cli",
+    "@changesets/changelog-github",
     "tsx"
   ],
   "workspaces": {

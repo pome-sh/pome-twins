@@ -1,6 +1,6 @@
 {
   "name": "pome-sh",
-  "version": "0.6.7",
+  "version": "0.7.0",
   "description": "Digital-twin testing for AI agents — run scenarios against resettable local or hosted twins, record tool calls, and score the result.",
   "keywords": [
     "ai",
@@ -84,6 +84,7 @@
     "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.31.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.0.1",

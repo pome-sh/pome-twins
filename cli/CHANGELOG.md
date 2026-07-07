@@ -6,25 +6,73 @@ The full product changelog lives at https://docs.pome.sh/changelog. This file tr
 
 ## [Unreleased]
 
-### Security
-- Hosted-run `events.jsonl` upload now passes through the centralized redactor before leaving the machine. Previously only the local on-disk `events.jsonl` was redacted; the S3 blob the cloud judge reads was raw. Closes FDRS-401.
-- Redactor extended with regex scrubs for OpenAI/Anthropic `sk-…` keys, GitHub `ghp_…` PATs, AWS `AKIA…` keys, JWTs, and PEM blocks — so secrets leaking through OTLP attributes, ToolUseEvent args, or twin request/response bodies are caught even when the field name is benign. `authorization`, `x-api-key`, and `cookie` keys are hard-redacted unconditionally.
+## [0.7.0] — 2026-07-XX
 
-### Changed
-- **`pome inspect` now consumes the FDRS-398 unified `events.jsonl` schema.** Each event kind (TwinHttpEvent, LlmCallEvent, ToolUseEvent, ToolResultEvent, SubagentSpawnEvent, HookEvent) renders in its own section. A new "Trace health" report shows per-layer event counts (proxy / twin / CAS adapter) with expectation heuristics. Pre-M0 (legacy) recordings are detected and surfaced as a clear error with exit code 2 (`this run was produced by an older CLI version (pre-M0); rerun against current CLI to view`). Closes FDRS-403.
-- **`pome run` now defaults to the hosted control plane.** Runs record to `app.pome.sh` without needing the `--hosted` flag.
-- The `--hosted` flag is kept as a deprecated no-op for one release; passing it prints a one-line deprecation note and will be removed on the next minor bump.
-- Help text, `pome init` next-steps output, `pome login` follow-up hint, `pome scenarios <twin>` next-step hint, the `pome register agent` file-header comment, and the Claude-SDK scaffold no longer mention `--hosted`.
-- **Hosted runs now report the cloud's authoritative score on the `score:` line.** Per ADR-013 the cloud is the managed judge; the CLI no longer computes a local score for hosted runs and no longer POSTs to the deprecated `/v1/sessions/:id/result`. `pome run` now POSTs criteria definitions to `POST /v1/sessions/:id/finalize` and prints the score the cloud returns (the same number the dashboard displays).
+First public release of the `pome` CLI — a capture-only tool for testing AI
+agents against resettable digital twins. `pome run` records what your agent
+does; the verdict comes from Pome's hosted evaluation.
 
 ### Added
-- `POME_LOCAL=1` environment variable opts back into the local in-process twin (engineer-only escape hatch, undocumented in customer-facing surfaces).
-- `HostedClient.finalize(sessionId, input)` calls `POST /v1/sessions/:id/finalize` and returns `{ run_id, score, judge_model, dashboard_url }`. `HostedClient.submitResult` is retained as a `@deprecated` shim for one release.
-- `HostedClient.requestStateUploadUrl(sessionId)` calls `POST /v1/sessions/:id/state-upload-url` and returns signed PUT URLs for `state_initial.json` / `state_final.json`. `pome run` now uploads both twin-state blobs in parallel with `events.jsonl` and passes the resulting storage keys into `/finalize`, so the cloud judge sees real state instead of `"{}"` on state-sensitive criteria. Closes FDRS-395.
+- **`pome run`** records your agent against a digital twin. Runs hosted by
+  default; `--local` (or `POME_LOCAL=1`) boots an in-process twin and records a
+  raw trace offline.
+- **`pome run <task> -n <k>`** runs `k` isolated trials of one task as a group
+  and reports per-trial results plus a reliability summary.
+- **`pome init`** scaffolds a starter agent and `pome.config.json`; `--sdk claude`
+  scaffolds a Claude Agent SDK starter.
+- **`pome register agent <name>`** registers an agent so runs group under it.
+- **`pome demo`** — zero-signup cold start: boots a local GitHub twin, runs a
+  bundled demo agent, and prints a shareable preview link. No login required.
+- **`pome eval <run-dir>`** uploads an existing trace directory for scoring and
+  prints the result.
+- **`pome install`** wires Pome into your repo through your coding agent, showing
+  a full diff for approval before writing anything, then verifies the setup with
+  `pome doctor`.
+- **`pome doctor`** checks your wiring — config, twin reachability, request
+  routing, and the egress allowlist — and prints one named cause plus one
+  concrete fix on failure.
+- **`pome capture-server`** — a CONNECT-tunnel proxy that records one event per
+  outbound LLM call. No CA install; `pome run` starts it automatically.
+- **`pome inspect`** renders a recorded run — twin HTTP, LLM calls, tool calls,
+  subagents, and hooks — with a per-layer trace-health summary.
+- **`pome session`** — `create`, `list` (with a `--state` filter, default
+  `running`), and `stop`, with copy-pasteable URLs in the text output.
+- **`pome scenarios`** lists the bundled GitHub, Stripe, and Slack scenarios;
+  `--copy` writes them into your project.
+- **Agent telemetry** — hosted runs emit OpenTelemetry spans per LLM turn
+  (model, tokens, latency).
+
+### Changed
+- **Capture-only.** The CLI records traces; it no longer scores runs locally.
+  `pome fix-prompt` now assembles a ready-to-paste prompt from a recorded trace
+  instead of calling an LLM.
+- **Bundled twins.** The GitHub, Slack, and Stripe twins ship as packaged
+  dependencies, so local and Docker runs behave identically.
+- **Exit codes** follow a documented `0–5` contract across pre-flight and
+  post-run paths (see the README).
+- **`--api-url`** now takes effect as documented; a stored login URL no longer
+  overrides it.
+
+### Security
+- **Deny-by-default egress.** Outbound connections to non-allowlisted hosts are
+  refused and recorded. The allowlist covers your twins, LLM providers, and
+  loopback; extend it with `POME_EGRESS_ALLOW`.
+- **Secret redaction.** Recorded traces scrub common secret shapes before
+  anything is written to disk or uploaded — OpenAI/Anthropic keys, GitHub
+  tokens, AWS keys, JWTs, PEM blocks, and Stripe, Slack, and Google keys.
+  `authorization`, `x-api-key`, and `cookie` are always redacted.
+- **Twin admin endpoints** require a timing-safe token when configured and are
+  loopback-only otherwise.
 
 ### Fixed
-- Customer false-green discovered while testing the auto-merge-bot example in `pome-cloud`: `pome run scenarios/` silently defaulted to local, scoring 3/3 PASS 100/100 while the same scenarios produced 1 PASS + 2 FAIL on the hosted twin. Closes FDRS-384.
-- Hosted-run CLI/dashboard score divergence: stdout `score:` line could disagree with the dashboard for the same `run_id` because the CLI was printing a stale local-evaluator score while cloud judged authoritatively per ADR-013.
+- `npm install -g pome-sh` now installs a runnable `pome` with no manual `chmod`.
+- Various run-reliability fixes: correct upload format, environment parity
+  between local and hosted runs, friendlier capacity messages, and cleanup of
+  abandoned sessions on error.
+
+### Removed
+- Local scoring, the built-in judge, and the `pome matrix`, `pome matrix-html`,
+  and `pome eval-report` commands, superseded by the capture-only model.
 
 ## [0.5.1] — 2026-05-20
 
