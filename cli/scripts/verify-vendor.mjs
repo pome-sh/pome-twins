@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const EXPECTED_SHA256 = new Map([
-  ["vendor/pome-sh-shared-types-0.6.0.tgz", "81ac63582f8e27e86bfec0b72476b470f90b2ef894b3ea6b9df8c581d9b4eaf4"],
-  ["vendor/pome-sh-twin-github-0.1.0.tgz", "c0051ff8584c0d343909f6ef138f32ee56630b9f11e9b4c179532a7facac91e5"],
+  ["vendor/pome-sh-shared-types-0.6.0.tgz", "d13f4fa71a292ec6bc5cde9dac449c48c5f47bef13dc69c78c5f24cecd86c446"],
+  ["vendor/pome-sh-twin-github-0.1.0.tgz", "f8b92f423db633552a6525690c922b9cc3467c222c68fca814cf86d395f18a94"],
   ["vendor/pome-sh-twin-slack-0.1.0.tgz", "d212c6fb03c1de0f6f636018b0b643b273846d3bcf98e969b67bf6dd67eaf648"],
   ["vendor/pome-sh-twin-stripe-0.2.0.tgz", "bed2fdc0d6c92921079d21400fb60b0569897a124cf48e52fd9b0e1fbde76e5f"],
 ]);

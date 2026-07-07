@@ -82,8 +82,48 @@ export const seedSchema = z.object({
   )
 });
 
-export function parseSeed(input: unknown): GitHubStateSeed {
-  return seedSchema.parse(input);
+export type ParsedGitHubStateSeed = z.output<typeof seedSchema>;
+
+export function parseSeed(input: unknown): ParsedGitHubStateSeed {
+  const seed = seedSchema.parse(normalizeLegacyGitHubSeed(input));
+  if (seed.repositories.length === 0) {
+    throw new Error("GitHub seed must contain at least one repository");
+  }
+  return seed;
+}
+
+function normalizeLegacyGitHubSeed(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const seed = input as Record<string, unknown>;
+  if (!Array.isArray(seed.repositories)) return input;
+
+  return {
+    ...seed,
+    repositories: seed.repositories.map((repo) => {
+      if (!repo || typeof repo !== "object" || Array.isArray(repo)) return repo;
+      const record = repo as Record<string, unknown>;
+      if (!Array.isArray(record.issues)) return repo;
+      return {
+        ...record,
+        issues: record.issues.map((issue) => normalizeLegacyIssueAssignee(issue))
+      };
+    })
+  };
+}
+
+function normalizeLegacyIssueAssignee(issue: unknown): unknown {
+  if (!issue || typeof issue !== "object" || Array.isArray(issue)) return issue;
+  const record = issue as Record<string, unknown>;
+  if (!("assignee" in record) || "assignees" in record) return issue;
+
+  const { assignee, ...rest } = record;
+  if (assignee === null || assignee === undefined || assignee === "") {
+    return { ...rest, assignees: [] };
+  }
+  if (typeof assignee === "string") {
+    return { ...rest, assignees: [assignee] };
+  }
+  return issue;
 }
 
 /**
@@ -94,10 +134,10 @@ export function parseSeed(input: unknown): GitHubStateSeed {
  * deploy fails the twin server's healthz instead of silently booting
  * with the default world.
  */
-export function loadSeedFromEnv(env: NodeJS.ProcessEnv = process.env): GitHubStateSeed {
+export function loadSeedFromEnv(env: NodeJS.ProcessEnv = process.env): ParsedGitHubStateSeed {
   const raw = env.POME_SEED_JSON;
   if (raw === undefined || raw === "") {
-    return defaultSeedState();
+    return parseSeed(defaultSeedState());
   }
   let parsed: unknown;
   try {

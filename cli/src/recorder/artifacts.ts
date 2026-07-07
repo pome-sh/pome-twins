@@ -3,7 +3,7 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Scenario } from "../scenario/scenarioSchema.js";
-import type { RecorderEvent } from "../twin/github/types.js";
+import type { RecorderEvent } from "@pome-sh/shared-types";
 import { redactEvent, redactSecrets } from "./redaction.js";
 
 // FDRS-399 / FDRS-398 — wrap a legacy RecorderEvent (or pass through any row

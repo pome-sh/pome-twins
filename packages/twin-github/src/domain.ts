@@ -23,7 +23,7 @@ import type {
 } from "./types.js";
 import { conflict, notFound, validationFailed } from "./errors.js";
 import { fileSha, linesChanged, makeSha, nowIso, paginate, stableNumericId, treeSha } from "./util.js";
-import { defaultSeedState } from "./seed.js";
+import { defaultSeedState, parseSeed } from "./seed.js";
 import {
   authenticatedUserJson,
   branchJson,
@@ -84,23 +84,24 @@ export class GitHubDomain {
   constructor(readonly db: GitHubCloneDatabase) {}
 
   seed(seed: GitHubStateSeed = defaultSeedState(), onDelta?: StateDeltaCallback) {
+    const parsedSeed = parseSeed(seed);
     const before = this.summarizeRepositories();
     const tx = this.db.transaction(() => {
       resetDatabase(this.db);
-      const users = new Set(seed.users?.map((user) => user.login) ?? []);
-      for (const repo of seed.repositories) {
+      const users = new Set(parsedSeed.users?.map((user) => user.login) ?? []);
+      for (const repo of parsedSeed.repositories) {
         users.add(repo.owner);
         for (const login of repo.collaborators ?? []) users.add(login);
         for (const issue of repo.issues ?? []) for (const login of issue.assignees ?? []) users.add(login);
       }
       users.add("pome-agent");
-      for (const user of seed.users ?? []) {
+      for (const user of parsedSeed.users ?? []) {
         this.upsertUser(user.login, user.type ?? "User", user.name ?? "");
       }
       for (const login of users) {
         this.upsertUser(login, login === "acme" ? "Organization" : "User", login);
       }
-      for (const repoSeed of seed.repositories) {
+      for (const repoSeed of parsedSeed.repositories) {
         const repo = this.insertRepository({
           owner: repoSeed.owner,
           name: repoSeed.name,
@@ -179,7 +180,7 @@ export class GitHubDomain {
           }
         }
       }
-      this.audit("seed", null, { repositories: seed.repositories.length });
+      this.audit("seed", null, { repositories: parsedSeed.repositories.length });
     });
     tx();
     onDelta?.({

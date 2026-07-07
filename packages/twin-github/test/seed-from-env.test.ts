@@ -6,7 +6,7 @@
 // passes the env in; this side reads it).
 
 import { describe, expect, it } from "vitest";
-import { defaultSeedState, loadSeedFromEnv } from "../src/seed.js";
+import { defaultSeedState, loadSeedFromEnv, parseSeed } from "../src/seed.js";
 
 const SCENARIO_05_SEED = {
   users: [
@@ -50,7 +50,7 @@ describe("loadSeedFromEnv", () => {
 
   it("falls back to defaultSeedState when POME_SEED_JSON is absent", () => {
     const seed = loadSeedFromEnv({});
-    const def = defaultSeedState();
+    const def = parseSeed(defaultSeedState());
     expect(seed).toEqual(def);
   });
 
@@ -59,7 +59,7 @@ describe("loadSeedFromEnv", () => {
     // seed but the env-injection layer wrote "") must NOT throw — treat
     // it the same as "not set".
     const seed = loadSeedFromEnv({ POME_SEED_JSON: "" });
-    const def = defaultSeedState();
+    const def = parseSeed(defaultSeedState());
     expect(seed).toEqual(def);
   });
 
@@ -74,5 +74,25 @@ describe("loadSeedFromEnv", () => {
     expect(() =>
       loadSeedFromEnv({ POME_SEED_JSON: JSON.stringify({ foo: "bar" }) })
     ).toThrow();
+  });
+
+  it("maps legacy issue.assignee before schema validation", () => {
+    const seed = parseSeed({
+      repositories: [
+        {
+          owner: "acme",
+          name: "api",
+          issues: [{ number: 1, title: "bug", assignee: "alice" }]
+        }
+      ]
+    });
+
+    expect(seed.repositories[0]?.issues?.[0]?.assignees).toEqual(["alice"]);
+  });
+
+  it("rejects empty repository seeds", () => {
+    expect(() => parseSeed({ repositories: [] })).toThrow(
+      "GitHub seed must contain at least one repository"
+    );
   });
 });

@@ -18,7 +18,7 @@
 // shape is structurally shared via `@pome-sh/shared-types`; the `twin` field is
 // just a string, see `recorderEventSchema`). New twins slot in by adding a case.
 import { createRecorder } from "../recorder/recorder.js";
-import type { RecorderEvent } from "./github/types.js";
+import type { RecorderEvent } from "@pome-sh/shared-types";
 import {
   createGitHubCloneApp,
   exportGitHubCloneState,

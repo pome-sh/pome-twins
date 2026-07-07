@@ -262,15 +262,14 @@ upstream so a divergence that upstream "heals" becomes a tier-upgrade signal.
 ## How fidelity is verified
 
 Three independent checks back the tier classifications above. Each is a
-script you can run locally; CI runs the first two on every PR.
+script you can run locally; CI runs coverage on every PR.
 
-### 1. Captured fixture shape tests (`bun run verify:fixtures`)
+### 1. Captured fixture shape tests (`test/fixture-endpoints.test.ts`)
 
 The repository keeps sanitized response-shape fixtures captured from real
-GitHub via `gh api`. The verifier — driven by tests under
-`packages/twin-github/test/fixture-shape.test.ts` — boots the local twin,
-hits the equivalent local routes, and asserts the response shape matches
-the captured fixture (keys present, types compatible, optional vs required
+GitHub via `gh api`. Tests under `packages/twin-github/test/fixture-endpoints.test.ts`
+boot the local twin, hit the equivalent local routes, and assert the response
+shape matches the captured fixture (keys present, types compatible, optional vs required
 correct). Generated metadata (IDs, timestamps, URLs, SHAs) is allowed to
 differ; behavior-shape is not.
 

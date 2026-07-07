@@ -1,0 +1,57 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "exports": "off",
+    "types": "off",
+    "duplicates": "off",
+    "binaries": "off",
+    "unlisted": "off"
+  },
+  "ignore": ["**/*.d.ts", "**/upstream-coverage.types.ts"],
+  "ignoreBinaries": ["docker", "gh", "changeset", "security", "infisical"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": [
+    "better-sqlite3",
+    "@types/better-sqlite3",
+    "bun-types",
+    "@ai-sdk/anthropic",
+    "@ai-sdk/gateway",
+    "@ai-sdk/google",
+    "@ai-sdk/openai",
+    "@openrouter/ai-sdk-provider",
+    "ai",
+    "@changesets/cli",
+    "tsx"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.{mjs,sh}"],
+      "project": ["scripts/**/*.{mjs,sh}"]
+    },
+    "packages/*": {
+      "entry": ["src/index.ts", "src/server.ts", "scripts/**/*.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
+    },
+    "cli": {
+      "entry": [
+        "src/cli/main.ts",
+        "scripts/*.{mjs,ts}",
+        "examples/agents/*.ts",
+        "test/**/*.test.ts",
+        "test/fixtures/**/*.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "scripts/**/*.{mjs,ts}",
+        "examples/**/*.ts",
+        "test/**/*.ts"
+      ]
+    },
+    "examples/*": {
+      "entry": ["src/index.ts", "test/**/*.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    }
+  }
+}

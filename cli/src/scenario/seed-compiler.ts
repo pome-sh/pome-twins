@@ -13,7 +13,8 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { seedStateSchema } from "../twin/github/domain/seed.js";
+import { parseGitHubSeedState } from "./githubSeedCompat.js";
+import { seedSchema as seedStateSchema } from "@pome-sh/twin-github";
 
 export const COMPILER_MODEL = "claude-opus-4-7";
 
@@ -27,7 +28,7 @@ Rules:
 5. Do not invent entities not mentioned. If the prose describes one issue, output exactly one issue.
 6. Issue \`number\` is required and must be set (use #N if the prose says so, otherwise start at 1).
 7. PR \`number\` is optional; set it when the prose says "#N".
-8. Issue \`assignee\` is a single string or null — not an array.
+8. Issue \`assignees\` is an array of login strings; use [] when unassigned.
 9. Use fenced code blocks in the prose to indicate the exact content of \`files[].content\`. Preserve trailing newlines verbatim.`;
 
 export interface CompileResult {
@@ -69,7 +70,7 @@ export async function compileSeed(prose: string, opts: { model?: string } = {}):
   // Re-validate locally to be safe — `parse()` already ran the schema, but
   // running it again here gives us a stable error site for tests + ensures
   // downstream code holds a `ParsedSeedState`-shaped value, not `unknown`.
-  const seed = seedStateSchema.parse(response.parsed_output);
+  const seed = parseGitHubSeedState(response.parsed_output);
 
   return {
     seed,

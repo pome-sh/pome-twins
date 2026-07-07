@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": "."
   },
-  "//": "scripts/ is dev/CI tooling run via tsx on the .ts source (capture:fixtures, verify:fixtures, …), never imported by src and not shipped in dist. It is excluded from the build emit so verify-fixtures.ts can consume the cross-boundary tools/fidelity diff engine (FDRS-437) without pulling those out-of-rootDir files into the emitted output. Typecheck (tsconfig.json, --noEmit) still covers scripts/.",
+  "//": "scripts/ is dev/CI tooling run via tsx on the .ts source (capture:fixtures, fidelity:parity, …), never imported by src and not shipped in dist. Typecheck (tsconfig.json, --noEmit) still covers scripts/.",
   "include": ["src/**/*.ts", "examples/**/*.ts"],
   "exclude": ["dist", "node_modules", "test", "scripts"]
 }

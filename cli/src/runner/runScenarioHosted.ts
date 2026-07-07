@@ -28,7 +28,7 @@ import type {
   CriterionDef,
   RecorderEvent,
 } from "../types/shared.js";
-import type { RecorderEvent as LegacyGithubRecorderEvent } from "../twin/github/types.js";
+import type { RecorderEvent as LegacyGithubRecorderEvent } from "@pome-sh/shared-types";
 import type { Scenario } from "../scenario/scenarioSchema.js";
 import type { Score } from "../score/view.js";
 import type { RunArtifacts } from "../recorder/artifacts.js";

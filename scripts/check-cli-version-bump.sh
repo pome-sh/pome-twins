@@ -8,8 +8,7 @@
 # `pome --version` whether their install picked up the new code. See FDRS-396.
 #
 # `cli/vendor/**` is covered because the CLI bundles vendored tarballs
-# (@pome-sh/correlator, @pome-sh/shared-types, and — post-consolidation —
-# the twin packages) via `bundleDependencies`. Re-vendoring a tarball is a
+# (@pome-sh/shared-types and the twin packages) via `bundleDependencies`.
 # behavior change that ships to users, yet touches no file under cli/src/**;
 # without this the gate is silent on twin swaps. See FDRS-593.
 #

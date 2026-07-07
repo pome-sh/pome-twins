@@ -6,6 +6,7 @@
       "name": "pome-sh",
       "dependencies": {
         "@ai-sdk/anthropic": "^3.0.81",
+        "@ai-sdk/gateway": "^3.0.143",
         "@ai-sdk/google": "^3.0.80",
         "@ai-sdk/openai": "^3.0.67",
         "@anthropic-ai/sdk": "^0.109.0",
@@ -168,9 +169,9 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.138.0", "", {}, "sha512-1a7ZKmrRTCoN1XMZ4L0PyyqrMnrNlLyPuOkdSX2MZg7IiIGRUyurNhAm73ptDOraoBcIordsIGKNPKUzy3ZmfA=="],
 
-    "@pome-sh/shared-types": ["@pome-sh/shared-types@./vendor/pome-sh-shared-types-0.6.0.tgz", { "peerDependencies": { "zod": "^4.1.13" } }, "sha512-T+3E/mWhMh/aODhma3/N/8HRgZrpMnEcNSS3Y6tDEOrgHg0M3H3p0og6VCPv4A/Zf3/I2oB9/jZGtKb5My16Og=="],
+    "@pome-sh/shared-types": ["@pome-sh/shared-types@./vendor/pome-sh-shared-types-0.6.0.tgz", { "peerDependencies": { "zod": "^4.1.13" } }, "sha512-F3prwC8U7L5ZsDi6X351m16eAl+t1EB0LHaYTxZTbeSrfTzLSwOG2AUXEMwKQEmtuqSq/Z13E7QMvn+2Opbt9A=="],
 
-    "@pome-sh/twin-github": ["@pome-sh/twin-github@./vendor/pome-sh-twin-github-0.1.0.tgz", { "dependencies": { "@hono/node-server": "^1.19.6", "@pome-sh/shared-types": "workspace:*", "better-sqlite3": "^12.5.0", "hono": "^4.12.27", "zod": "^4.1.13" }, "bin": { "twin-github": "./dist/src/server.js" } }, "sha512-tZrJecFNvyKLDZ+bGMnqRdamA0MU39jo7aCcCWXSnSa/mcHkElJal4shAcYtq/mdu6Q1b3AR/pMcmP2Js3OvIw=="],
+    "@pome-sh/twin-github": ["@pome-sh/twin-github@./vendor/pome-sh-twin-github-0.1.0.tgz", { "dependencies": { "@hono/node-server": "^1.19.6", "@pome-sh/shared-types": "workspace:*", "better-sqlite3": "^12.5.0", "hono": "^4.12.27", "zod": "^4.1.13" }, "bin": { "twin-github": "./dist/src/server.js" } }, "sha512-aCvBlbkUvLz+XGwxfbvHfjkNf6qy9BWWBLMgS2sYqYmYzXfKn7RO9gLRfaIUPS0d60tLzWjYnYz8uEVYZY9Sbg=="],
 
     "@pome-sh/twin-slack": ["@pome-sh/twin-slack@./vendor/pome-sh-twin-slack-0.1.0.tgz", { "dependencies": { "@hono/node-server": "^1.19.6", "@pome-sh/shared-types": "workspace:*", "better-sqlite3": "^12.5.0", "hono": "^4.12.27", "zod": "^4.1.13" }, "bin": { "twin-slack": "./dist/src/server.js" } }, "sha512-dZeNTXuvYJ+95dnfl5IeeUFXn8ExdS1fCQHYSPmBYoeYMm5Rxd1+nGW+I6A0u0qygakXA8K0rXdAzLsBhfo3Ew=="],
 
