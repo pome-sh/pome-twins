@@ -6,8 +6,8 @@
 // namespace, matching twin-github / twin-stripe. Kept in this dependency-light
 // module — no sqlite, no http, no hono — so the cross-twin namespace lint
 // (tools/fidelity/lint-twin-namespace.ts) can import the real wire shape without
-// booting the app. `app.ts` builds its catch-all body from here, so the lint can
-// never drift from what ships.
+// booting the app. The twin manifest's `unsupported` hook (`twin.ts`) hands this
+// to the engine's 501 catch-all, so the lint can never drift from what ships.
 
 export const SUPPORTED_SURFACES = [
   "auth.test",

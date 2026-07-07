@@ -1,30 +1,39 @@
 // SPDX-License-Identifier: Apache-2.0
-import { serve } from "@hono/node-server";
-import { createSlackTwinApp } from "./app.js";
+//
+// Boot entry (frozen contract: `node dist/src/server.js`, cwd = package
+// root). Thin by design: read the env surface, open the db through the
+// engine driver, load the boot seed, hand everything to the engine's
+// `serve()`.
+
+import { TwinBootError, isLoopbackHost, serve } from "@pome-sh/sdk/server";
 import { openSlackTwinDatabase } from "./db.js";
-import { SlackDomain } from "./domain.js";
-import { createRecorder } from "./recorder.js";
 import { loadSeedFromEnv } from "./seed.js";
+import { slackTwinDefinition } from "./twin.js";
 
 const port = Number(process.env.PORT ?? process.env.SLACK_CLONE_PORT ?? 3333);
 const host = process.env.SLACK_CLONE_HOST ?? "127.0.0.1";
 const dbPath = process.env.SLACK_CLONE_DB ?? ".slack_clone/slack.db";
 
+// The engine's serve() enforces the same guard; checking here first keeps
+// the refused boot from touching the filesystem (no db file is created).
 if (!isLoopbackHost(host) && !process.env.TWIN_AUTH_SECRET) {
-  throw new Error("TWIN_AUTH_SECRET is required when Slack twin listens on a non-loopback host.");
+  throw new TwinBootError(
+    `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${host}).`
+  );
 }
 
 const db = openSlackTwinDatabase(dbPath);
-const domain = new SlackDomain(db);
-if (process.env.SLACK_CLONE_NO_SEED !== "1") {
-  domain.seed(loadSeedFromEnv());
-}
+// POME_SEED_JSON (FDRS-353) is strict-parsed: a malformed cloud seed fails
+// the boot loudly instead of silently serving the default world.
+const seed = process.env.SLACK_CLONE_NO_SEED === "1" ? undefined : loadSeedFromEnv();
 
-const recorder = createRecorder();
-const runId = process.env.POME_RUN_ID ?? "spawn";
-
-const app = createSlackTwinApp({ db, domain, recorder, runId });
-serve({ fetch: app.fetch, port, hostname: host });
+await serve(slackTwinDefinition, {
+  port,
+  hostname: host,
+  db,
+  seed,
+  runId: process.env.POME_RUN_ID ?? "spawn",
+});
 
 console.log(`Slack twin listening at http://${host}:${port}`);
 console.log(`REST: http://${host}:${port}`);
@@ -37,8 +46,4 @@ if (process.env.NODE_ENV === "production" && !process.env.TWIN_ADMIN_TOKEN) {
       "will reject all requests with unknown remoteAddress. Set TWIN_ADMIN_TOKEN " +
       "in Infisical to authorize external admin calls."
   );
-}
-
-function isLoopbackHost(value: string): boolean {
-  return value === "127.0.0.1" || value === "::1" || value === "localhost";
 }

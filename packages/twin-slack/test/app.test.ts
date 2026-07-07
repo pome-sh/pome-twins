@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createSlackTwinApp } from "../src/app.js";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
-import { createRecorder } from "../src/recorder.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_AUTH_SECRET, TEST_SID, withAuth } from "./_authHelper.js";
 
@@ -15,7 +15,7 @@ function freshApp() {
   const db = openSlackTwinDatabase(":memory:");
   const domain = new SlackDomain(db);
   domain.seed(defaultSeedState());
-  const recorder = createRecorder();
+  const recorder = createRecorderStore();
   const app = createSlackTwinApp({ db, domain, recorder, runId: "test" });
   return { db, domain, recorder, app };
 }

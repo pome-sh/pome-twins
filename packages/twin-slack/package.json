@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
+    "@pome-sh/sdk": "workspace:*",
     "@pome-sh/shared-types": "workspace:*",
     "better-sqlite3": "^12.5.0",
     "hono": "^4.12.27",

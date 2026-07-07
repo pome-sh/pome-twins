@@ -8,7 +8,6 @@ const canonical = "cli/src/recorder/redaction.ts";
 const mirrors = [
   "packages/adapter-claude-sdk/src/redaction.ts",
   "packages/twin-github/src/redaction.ts",
-  "packages/twin-slack/src/redaction.ts",
   "packages/twin-stripe/src/redaction.ts",
 ];
 

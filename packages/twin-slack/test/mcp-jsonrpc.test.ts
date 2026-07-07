@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createSlackTwinApp } from "../src/app.js";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
 import { defaultSeedState } from "../src/seed.js";

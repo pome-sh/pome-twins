@@ -3,10 +3,10 @@
 // conversations.list + chat.postMessage + conversations.history + MCP list +
 // MCP call, asserts envelope shapes, exits non-zero on any failure.
 import { sign } from "hono/jwt";
-import { createSlackTwinApp } from "../src/app.js";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
-import { createRecorder } from "../src/recorder.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { defaultSeedState } from "../src/seed.js";
 
 process.env.TWIN_AUTH_SECRET = process.env.TWIN_AUTH_SECRET ?? "smoke-secret-32-chars-minimum-length";
@@ -19,7 +19,7 @@ const LOGIN = "pome-agent";
 const db = openSlackTwinDatabase(":memory:");
 const domain = new SlackDomain(db);
 domain.seed(defaultSeedState());
-const recorder = createRecorder();
+const recorder = createRecorderStore();
 const app = createSlackTwinApp({ db, domain, recorder, runId: "smoke" });
 
 const exp = Math.floor(Date.now() / 1000) + 3600;

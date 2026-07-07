@@ -30,8 +30,7 @@
       "entry": [
         "scripts/*.{mjs,sh}",
         "contract/run.mjs",
-        "contract/*.test.mjs",
-        "contract/proof/*.mjs"
+        "contract/*.test.mjs"
       ],
       "project": ["scripts/**/*.{mjs,sh}", "contract/**/*.mjs"]
     },

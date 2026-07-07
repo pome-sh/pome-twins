@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// F-681 proof-of-harness suite: runs the IDENTICAL frozen FDRS-711 slack
-// assertions (contract/suite.mjs) against the slack twin booted through the
-// @pome-sh/sdk engine (contract/proof/slack-sdk-server.mjs) instead of the
-// twin's own dist/src/server.js. Green here means the engine reproduces the
-// twin's frozen control-plane wire behavior end-to-end — the acceptance
-// gate for the defineTwin() harness before the real ports (F-682/683/684).
+// sdk-boot suite (F-681 → F-683). Before the port this ran the frozen
+// FDRS-711 slack assertions against a proof entry (contract/proof/
+// slack-sdk-server.mjs) that assembled the twin on the @pome-sh/sdk engine.
+// Since F-683 the slack package's OWN entry (`node dist/src/server.js`, cwd
+// = package root — the frozen boot contract) boots through defineTwin(), so
+// the proof entry is superseded and deleted: this suite now spawns the real
+// package and keeps the same 11 frozen assertions running against the
+// sdk-booted twin, labeled distinctly from contract.test.mjs's run.
 //
 // Prerequisite: sdk + shared-types runtime + twin-slack builds (chained by
 // contract/run.mjs via the root `test:contract` script).
@@ -18,7 +20,6 @@ const slackViaSdk = {
   pkg: "packages/twin-slack",
   dbEnv: "SLACK_CLONE_DB",
   hostEnv: "SLACK_CLONE_HOST",
-  entry: "contract/proof/slack-sdk-server.mjs",
 };
 
 contractSuite(slackViaSdk, PER_TWIN.slack, "slack (sdk boot)");

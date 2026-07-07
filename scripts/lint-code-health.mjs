@@ -30,7 +30,6 @@ const FILE_SIZE_ALLOWLIST = new Set([
   "packages/twin-github/src/domain.ts",
   "packages/twin-github/src/serializers.ts",
   "packages/twin-github/src/tools.ts",
-  "packages/twin-slack/src/app.ts",
   "packages/twin-slack/src/domain.ts",
   "packages/twin-stripe/src/x402.ts",
 ]);

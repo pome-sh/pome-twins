@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// TwinError carries an HTTP status + Slack-shaped error code. The HTTP layer
-// in `app.ts` translates this into `{ok:false, error:<code>}` with the right
-// status. Common codes pulled from real Slack docs:
+// TwinError carries an HTTP status + Slack-shaped error code. The twin's
+// errorEnvelope hook (`twin.ts`, rendered by the engine's recorder) translates
+// this into `{ok:false, error:<code>}`. Common codes pulled from real Slack docs:
 //   - channel_not_found, user_not_found, message_not_found
 //   - not_in_channel, already_in_channel, cant_kick_self, cant_leave_general
 //   - is_archived, name_taken, restricted_action

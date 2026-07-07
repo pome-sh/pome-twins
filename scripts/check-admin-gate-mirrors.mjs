@@ -7,7 +7,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonical = "packages/sdk/src/admin-gate.ts";
 const mirrors = [
   "packages/twin-github/src/admin-gate.ts",
-  "packages/twin-slack/src/admin-gate.ts",
   "packages/twin-stripe/src/admin-gate.ts",
 ];
 

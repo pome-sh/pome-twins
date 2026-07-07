@@ -1297,7 +1297,13 @@ export class SlackDomain {
   }
 
   private allChannels(): ChannelRow[] {
-    return this.db.prepare(`SELECT * FROM channels ORDER BY created_at, id`).all() as ChannelRow[];
+    // Insertion order (rowid), not `created_at, id`: created_at has wall-clock
+    // millisecond precision, so ordering by it made the /_pome/state export
+    // nondeterministic — a channel created within the same ms as the seed rows
+    // tie-broke by id, while one created a ms later sorted last. rowid equals
+    // creation order (created_at is monotonic within a run), which is what the
+    // old ordering produced in every non-tie case (F-683 determinism check).
+    return this.db.prepare(`SELECT * FROM channels ORDER BY rowid`).all() as ChannelRow[];
   }
 
   private allocId(workspaceId: string, prefix: string): string {

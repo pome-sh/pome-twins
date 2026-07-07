@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import { randomUUID } from "node:crypto";
+//
+// Slack-domain helpers only (F-683): wall-clock audit stamps, Slack's
+// form-or-JSON body parsing, stringly-typed arg coercion, pagination
+// cursors, and the Slack `ts` format. Request-id stamping moved to the
+// engine's recorder with the port.
 import type { Context } from "hono";
 
 export function nowIso(): string {
@@ -8,10 +12,6 @@ export function nowIso(): string {
 
 export function nowUnix(): number {
   return Math.floor(Date.now() / 1000);
-}
-
-export function requestId(): string {
-  return `req_${randomUUID()}`;
 }
 
 /**

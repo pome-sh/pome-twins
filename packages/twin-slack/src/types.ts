@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import type Database from "better-sqlite3";
-import type { RecorderEvent } from "@pome-sh/shared-types";
+import type { TwinDatabase } from "@pome-sh/sdk";
 
 export type { RecorderEvent } from "@pome-sh/shared-types";
 
-export type SlackTwinDatabase = Database.Database;
+// The engine's driver wrapper is the only database surface a twin sees
+// (F-681/F-683): prepare/exec/pragma/transaction/close.
+export type SlackTwinDatabase = TwinDatabase;
 
 export type SeedTeam = {
   id?: string;
@@ -175,7 +176,3 @@ export type ScheduledMessageRow = {
   blocks_json: string;
 };
 
-export type Recorder = {
-  record(event: RecorderEvent): void;
-  events(): RecorderEvent[];
-};

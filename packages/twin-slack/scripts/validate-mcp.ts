@@ -21,10 +21,10 @@ import { serve } from "@hono/node-server";
 import { sign } from "hono/jwt";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createSlackTwinApp } from "../src/app.js";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
-import { createRecorder } from "../src/recorder.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { defaultSeedState } from "../src/seed.js";
 import { toolDefinitions } from "../src/tools.js";
 import type { RecorderEvent } from "@pome-sh/shared-types";
@@ -62,7 +62,7 @@ async function main() {
   const db = openSlackTwinDatabase(":memory:");
   const domain = new SlackDomain(db);
   domain.seed(defaultSeedState());
-  const recorder = createRecorder();
+  const recorder = createRecorderStore();
   const app = createSlackTwinApp({ db, domain, recorder, runId: "validate-mcp" });
   // Bind to an ephemeral port. serve() invokes the listener once bound.
   const { server, port } = await new Promise<{ server: ReturnType<typeof serve>; port: number }>(

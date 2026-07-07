@@ -12,12 +12,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ALLOWLIST = new Set([
   "packages/sdk/src/admin-gate.ts",
   "packages/twin-github/src/admin-gate.ts",
-  "packages/twin-slack/src/admin-gate.ts",
   "packages/twin-stripe/src/admin-gate.ts",
   "cli/src/recorder/redaction.ts",
   "packages/adapter-claude-sdk/src/redaction.ts",
   "packages/twin-github/src/redaction.ts",
-  "packages/twin-slack/src/redaction.ts",
   "packages/twin-stripe/src/redaction.ts",
   "packages/adapter-claude-sdk/src/signals.ts",
   "cli/src/types/shared.ts",

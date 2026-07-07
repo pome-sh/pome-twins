@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { signSlackProviderToken } from "../src/auth.js";
-import { createSlackTwinApp } from "../src/app.js";
+import { mintProviderToken } from "@pome-sh/sdk/server";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_AUTH_SECRET, TEST_SID, withAuth } from "./_authHelper.js";
+
+// Provider-token minting goes through the engine (F-712 row 10).
+const SLACK_TOKEN_SPEC = { provider: "slack", prefixes: ["xoxb-pome-", "xoxp-pome-"] } as const;
+function signSlackProviderToken(sid: string, secret: string, prefix: "xoxb" | "xoxp" = "xoxb") {
+  return mintProviderToken(SLACK_TOKEN_SPEC, { sid, secret, prefix: `${prefix}-pome-` });
+}
 
 const base = `/s/${TEST_SID}`;
 

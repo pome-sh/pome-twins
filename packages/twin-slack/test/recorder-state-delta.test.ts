@@ -1,11 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createSlackTwinApp } from "../src/app.js";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
-import { createRecorder } from "../src/recorder.js";
+import { createRecorderStore, type RecorderStore } from "@pome-sh/sdk/server";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_AUTH_SECRET, TEST_SID, withAuth } from "./_authHelper.js";
-import type { Recorder } from "../src/types.js";
 
 beforeAll(() => {
   process.env.TWIN_AUTH_SECRET = TEST_AUTH_SECRET;
@@ -14,7 +13,7 @@ beforeAll(() => {
 
 type Harness = {
   app: ReturnType<typeof createSlackTwinApp>;
-  recorder: Recorder;
+  recorder: RecorderStore;
   token: string;
 };
 
@@ -22,7 +21,7 @@ async function freshHarness(): Promise<Harness> {
   const db = openSlackTwinDatabase(":memory:");
   const domain = new SlackDomain(db);
   domain.seed(defaultSeedState());
-  const recorder = createRecorder();
+  const recorder = createRecorderStore();
   const app = createSlackTwinApp({ db, domain, recorder, runId: "delta-test" });
   const token = await signTestToken();
   return { app, recorder, token };

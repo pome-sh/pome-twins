@@ -1,11 +1,23 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { sign } from "hono/jwt";
-import { signSlackProviderToken } from "../src/auth.js";
-import { createSlackTwinApp } from "../src/app.js";
+import { mintProviderToken } from "@pome-sh/sdk/server";
+import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
 import { SlackDomain } from "../src/domain.js";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_AUTH_SECRET, TEST_SID } from "./_authHelper.js";
+
+// Token minting goes through the engine (F-712 row 10): the per-twin
+// signSlackProviderToken died with the F-683 port.
+const SLACK_TOKEN_SPEC = { provider: "slack", prefixes: ["xoxb-pome-", "xoxp-pome-"] } as const;
+function signSlackProviderToken(
+  sid: string,
+  secret: string,
+  prefix: "xoxb" | "xoxp" = "xoxb",
+  exp?: number
+) {
+  return mintProviderToken(SLACK_TOKEN_SPEC, { sid, secret, prefix: `${prefix}-pome-`, exp });
+}
 
 beforeAll(() => {
   process.env.TWIN_AUTH_SECRET = TEST_AUTH_SECRET;
