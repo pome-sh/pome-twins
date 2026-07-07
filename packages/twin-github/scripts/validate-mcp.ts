@@ -22,8 +22,8 @@ import { serve } from "@hono/node-server";
 import { sign } from "hono/jwt";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createGitHubCloneApp } from "../src/app.js";
-import { createRecorder } from "../src/recorder.js";
+import { createGitHubCloneApp } from "../src/twin.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { toolDefinitions } from "../src/tools.js";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import type { GitHubStateSeed } from "../src/types.js";
@@ -104,7 +104,7 @@ async function mintToken() {
 async function main() {
   process.env.TWIN_AUTH_SECRET = SECRET;
 
-  const recorder = createRecorder();
+  const recorder = createRecorderStore();
   const app = createGitHubCloneApp({
     seed: seedWithPullRequest(),
     recorder,

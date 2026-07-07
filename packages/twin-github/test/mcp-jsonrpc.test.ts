@@ -8,8 +8,8 @@
 // `scripts/validate-mcp.ts` validation script (booted via @hono/node-server).
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
-import { createRecorder } from "../src/recorder.js";
+import { createGitHubCloneApp } from "../src/twin.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { toolDefinitions } from "../src/tools.js";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
@@ -271,7 +271,7 @@ describe("MCP JSON-RPC — /s/:sid/mcp", () => {
 
 describe("MCP JSON-RPC — recorder parity with /mcp/call", () => {
   function setup() {
-    const recorder = createRecorder();
+    const recorder = createRecorderStore();
     const app = createGitHubCloneApp({
       recorder,
       runId: "run_mcp_jsonrpc_test",

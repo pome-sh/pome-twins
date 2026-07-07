@@ -22,7 +22,7 @@ export { recorderEventSchema, recorderFidelitySchema };
 export type { RecorderEvent, RecorderFidelity, TwinId };
 
 export { openTwinDatabase } from "./db.js";
-export type { OpenTwinDatabaseOptions, TwinDatabase, TwinStatement } from "./db.js";
+export type { OpenTwinDatabaseOptions, TwinDatabase, TwinRunResult, TwinStatement, TwinTransaction } from "./db.js";
 export { redactEvent, redactSecrets } from "./redaction.js";
 
 // FIDELITY.md uses three tiers (`semantic` | `shape` | `unsupported`); the
@@ -367,7 +367,6 @@ const twinMeta = z.object({
     .optional(),
   pomeHealth: z.custom<Function>(isFunction).optional(),
   unsupported: z.custom<Function>(isFunction).optional(),
-  pomeHealth: z.custom<Function>(isFunction).optional(),
   pomeRoutes: z.record(z.string(), z.custom<Function>(isFunction)).optional(),
   stampToolCallId: z.boolean().optional(),
   mcpUnknownTool: z.custom<Function>(isFunction).optional(),

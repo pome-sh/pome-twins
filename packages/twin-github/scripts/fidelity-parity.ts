@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { sign } from "hono/jwt";
-import { createGitHubCloneApp } from "../src/app.js";
+import { createGitHubCloneApp } from "../src/twin.js";
 import { listTools } from "../src/tools.js";
 
 type HarnessState = { pullNumber?: number };

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import Database from "better-sqlite3";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+//
+// GitHub twin schema — DDL + reset only (domain). The sqlite driver and the
+// pome pragma set live in the engine (`openTwinDatabase`, F-681); twins
+// never import a sqlite driver directly.
+import { openTwinDatabase } from "@pome-sh/sdk";
 import type { GitHubCloneDatabase } from "./types.js";
 
 const MIGRATION_SQL = `
@@ -303,19 +305,10 @@ DELETE FROM users;
 `;
 
 export function openGitHubCloneDatabase(path = process.env.GITHUB_CLONE_DB ?? ":memory:"): GitHubCloneDatabase {
-  if (path !== ":memory:") {
-    mkdirSync(dirname(path), { recursive: true });
-  }
-
-  const db = new Database(path);
-  migrate(db);
-  return db;
+  return openTwinDatabase(path, { migrate });
 }
 
 export function migrate(db: GitHubCloneDatabase) {
-  db.pragma("busy_timeout = 5000");
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
   db.exec(MIGRATION_SQL);
   ensureColumn(db, "repositories", "entity_counter", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(db, "pull_requests", "head_sha", "TEXT");

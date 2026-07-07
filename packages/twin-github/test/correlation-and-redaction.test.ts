@@ -8,8 +8,8 @@
 //      before persisting, so events.jsonl never contains `Authorization`,
 //      `token`, `api_key`, etc. payloads.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
-import { createRecorder } from "../src/recorder.js";
+import { createGitHubCloneApp } from "../src/twin.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
 
@@ -29,7 +29,7 @@ const base = `/s/${TEST_SID}`;
 const mcp = `${base}/mcp`;
 
 function setupApp() {
-  const recorder = createRecorder();
+  const recorder = createRecorderStore();
   const app = createGitHubCloneApp({ recorder, runId: "run_fdrs402" });
   return { app, recorder };
 }
