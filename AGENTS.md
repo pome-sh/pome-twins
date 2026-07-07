@@ -49,8 +49,7 @@ section in the same PR.
 | bun only | root `preinstall` checks `npm_config_user_agent` for Bun |
 | CLI capture-only (no local eval/scoring) | `cli/scripts/no-eval-in-oss.mjs` in [`.github/workflows/cli-ci.yml`](.github/workflows/cli-ci.yml) |
 | No cloud imports in OSS packages | [`scripts/lint-no-cloud-imports.sh`](scripts/lint-no-cloud-imports.sh) |
-| Mirror byte parity (until M6) | [`scripts/check-redaction-mirrors.mjs`](scripts/check-redaction-mirrors.mjs), [`scripts/check-admin-gate-mirrors.mjs`](scripts/check-admin-gate-mirrors.mjs) |
-| No new cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (allowlist shrinks in M6) |
+| No cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (empty allowlist) |
 | Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `bun run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | Package barrels + file-size hygiene | [`scripts/lint-code-health.mjs`](scripts/lint-code-health.mjs) |
 
