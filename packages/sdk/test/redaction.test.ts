@@ -245,6 +245,46 @@ describe("redactSecrets — F-716 adversarial inputs stay linear", () => {
     expect(redactSecrets(input)).toBe("[REDACTED]\n".repeat(20_000));
     expect(performance.now() - started).toBeLessThan(1_000);
   });
+
+// Provider secret shapes previously guarded by the per-twin mirror copies
+// (FDRS-588 / FDRS-608). The stripe copy died in F-684; its distinctive
+// cases live here so engine-level coverage can't regress them.
+describe("redactSecrets — stripe provider shapes (ex twin-stripe mirror)", () => {
+  it("redacts the 12-char-body Stripe seed key sk_test_pome_default", () => {
+    const key = "sk_test_pome_default";
+    const out = redactSecrets({ note: `secret ${key}` }) as { note: string };
+    expect(out.note).not.toContain(key);
+    expect(out.note).toContain("[REDACTED]");
+  });
+
+  it("redacts short Pome Stripe secret and restricted seed keys", () => {
+    const out = redactSecrets("sk_test_pome_a rk_test_pome_default") as string;
+    expect(out).toBe("[REDACTED] [REDACTED]");
+  });
+
+  it("redacts live Stripe secret keys", () => {
+    const key = "sk_live_" + "51H".repeat(8);
+    expect(redactSecrets(key)).toBe("[REDACTED]");
+  });
+
+  it("fires inside nested tool_use / JSON shapes", () => {
+    const key = "sk_test_pome_default";
+    const out = redactSecrets({
+      type: "tool_use",
+      input: { headers: { authorization: "Bearer x" }, body: `k=${key}` },
+    });
+    expect(JSON.stringify(out)).not.toContain(key);
+    expect(JSON.stringify(out)).toContain("[REDACTED]");
+  });
+
+  it("does not over-redact benign lookalikes", () => {
+    expect(redactSecrets({ msg: "task_test_pipeline_default" })).toEqual({
+      msg: "task_test_pipeline_default",
+    });
+    expect(redactSecrets("The sky is blue and skills matter.")).toBe(
+      "The sky is blue and skills matter."
+    );
+  });
 });
 
 // Slack-shape coverage lives HERE (F-683): the twin-slack package no longer

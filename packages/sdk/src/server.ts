@@ -52,6 +52,19 @@ export type { AdminGateOptions } from "./admin-gate.js";
 export { TwinError, UnknownToolError } from "./errors.js";
 export { redactEvent, redactSecrets } from "./redaction.js";
 export {
+  FAILURE_INJECTION_OVERRIDE_KEY,
+  createFailureInjectionStore,
+  failureInjectionMiddleware,
+  failureInjectionRuleSchema,
+} from "./failure-injection.js";
+export type {
+  FailureInjectionMiddlewareOptions,
+  FailureInjectionMode,
+  FailureInjectionOverride,
+  FailureInjectionRule,
+  FailureInjectionStore,
+} from "./failure-injection.js";
+export {
   PROVIDER_SHAPED_TEAM_ID,
   formTokenResolver,
   mintProviderToken,
@@ -246,9 +259,14 @@ export function createApp<TDb, TSeed, TDomain>(
     definition.middleware(session, { domain, recorder, runId, twin: definition.id });
   }
 
-  session.get("/healthz", (c) => c.json({ ok: true, sid: c.req.param("sid") }));
+  // Per-session healthz is contract-frozen per twin: github/slack answer
+  // 200 {ok, sid}; stripe has NO such route (falls to the 501 catch-all).
+  if (definition.sessionHealthz !== false) {
+    session.get("/healthz", (c) => c.json({ ok: true, sid: c.req.param("sid") }));
+  }
   // `pomeHealth` extras replace the default {version, fidelity} for twins
-  // with a frozen per-session health shape (github, F-682).
+  // with a frozen per-session health shape (slack: bare {ok, twin};
+  // github: no version; stripe adds recorder counters).
   const pomeHealthExtras =
     definition.pomeHealth ??
     (() => ({ version: definition.version, fidelity: definition.fidelity.default }));
@@ -262,12 +280,13 @@ export function createApp<TDb, TSeed, TDomain>(
   // NOT recorder-wrapped: no pre-port twin recorded /_pome/state fetches on
   // the tape (F-683 review pin) — the export is a read-side probe, and
   // recording it would embed the full state as an event response_body.
-  session.get("/_pome/state", async (c) => {
+  session.get("/_pome/state", async (c: Context) => {
     try {
       if (!definition.state) {
         throw new TwinError("state introspection is not configured for this twin", 501);
       }
-      const state = await definition.state({ domain });
+      const session = c.get("session") as import("./auth.js").SessionValue | undefined;
+      const state = await definition.state({ domain, session });
       // Central redaction: the state export feeds cloud-side scoring and the
       // CLI trace; a twin must not be able to leak secrets by omission.
       return c.json(redactSecrets(state) as never);
@@ -385,6 +404,15 @@ export function createApp<TDb, TSeed, TDomain>(
   );
 
   root.route("/s/:sid", session);
+
+  // 11b. SDK-compat root mount (stripe F3, F-684): the same session router
+  //      answers at the root path. Root /healthz + /admin/* were registered
+  //      first and stay first-match; unknown root paths hit the twin's auth
+  //      wall (bearerAuth answers 401 before the 501 catch-all). Pair with
+  //      `auth.requirePathSid: false` so the bearer alone resolves the sid.
+  if (definition.mountSessionAtRoot) {
+    root.route("/", session);
+  }
 
   // 12. Footgun warning: clean-state-per-test workflows rely on
   //     /admin/reset. Warn loudly if a twin ships without it so authors

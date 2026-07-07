@@ -183,9 +183,14 @@ export interface TwinDefinition<
   /**
    * Optional state introspection for `GET /s/:sid/_pome/state`. If absent,
    * the route returns a 501 envelope so consumers fail loudly instead of
-   * silently reading an empty state.
+   * silently reading an empty state. `session` is the bearer-resolved
+   * session for the request, so account-scoped twins (stripe) can export
+   * only the calling session's slice (F-684).
    */
-  state?: (ctx: { domain: TDomain }) => unknown | Promise<unknown>;
+  state?: (ctx: {
+    domain: TDomain;
+    session?: import("./auth.js").SessionValue;
+  }) => unknown | Promise<unknown>;
   /**
    * Optional admin handlers for `/admin/reset` and `/admin/seed`. If absent,
    * the routes still mount (with the localhost guard) and return a 501
@@ -287,6 +292,22 @@ export interface TwinDefinition<
    */
   mcpUnknownTool?: (name: string) => unknown;
   /**
+   * Whether the engine mounts `GET /s/:sid/healthz` (200 `{ok, sid}`).
+   * Default true. Stripe pins false — its frozen contract has NO
+   * per-session healthz; the path falls to the 501 catch-all. Flipping a
+   * twin is a contract change (CONTRACT.md + suite in one PR).
+   */
+  sessionHealthz?: boolean;
+  /**
+   * Also mount the session router at the root path. Stripe's frozen F3
+   * SDK-compat surface: real `stripe-node`/`stripe-python` build URLs like
+   * `/v1/payment_intents` with no way to inject a `/s/:sid` prefix, so the
+   * bearer alone resolves the session (pair with `auth.requirePathSid:
+   * false`). Root `/healthz` and `/admin/*` are registered first and stay
+   * first-match. Default false.
+   */
+  mountSessionAtRoot?: boolean;
+  /**
    * Per-twin auth declarations (F-712): token shape, error envelopes, extra
    * token locations, raw-bearer / sid-mismatch pins, credential lookup.
    * Mechanism lives in the engine's `bearerAuth`; this is pure shape.
@@ -370,6 +391,8 @@ const twinMeta = z.object({
   pomeRoutes: z.record(z.string(), z.custom<Function>(isFunction)).optional(),
   stampToolCallId: z.boolean().optional(),
   mcpUnknownTool: z.custom<Function>(isFunction).optional(),
+  sessionHealthz: z.boolean().optional(),
+  mountSessionAtRoot: z.boolean().optional(),
   auth: z
     .custom<object>((value) => typeof value === "object" && value !== null, "auth must be an options object")
     .optional(),

@@ -1,38 +1,49 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// FDRS-339 — scenario-level failure injection.
+// Scenario-level failure injection (FDRS-339), graduated from twin-stripe
+// into the engine by the F-684 port ruling: making a twin fail on attempt N
+// of a (method, path) tuple is a generic twin capability — any provider
+// double needs "the server processed it but the client never saw the
+// response" to reproduce lost-response retry bugs. Only the rule *payloads*
+// (status + error envelope) are twin-domain; they ride in via the seed.
 //
-// In-memory rule store + Hono middleware that fires for `(method, path,
-// attempt)` matches. Two modes:
+// Two modes:
 //
 //   - `before_handler` → the matched request never reaches the route
 //     handler; the middleware returns the configured envelope directly and
 //     records a `state_mutation: false`, `state_delta: null` event.
 //   - `after_handler` → the handler is invoked normally (state mutation
-//     and `state_delta` capture proceed). The middleware then overrides
-//     the response status + body with the configured envelope before it
-//     leaves the wire. This models a "server processed but response
-//     delivery failed" failure — required to reproduce the FDRS-316 hero
-//     scenario.
+//     and `state_delta` capture proceed). The middleware parks the override
+//     on the context under `FAILURE_INJECTION_OVERRIDE_KEY`; the twin's
+//     response path substitutes status + body on the way out, so the
+//     recorded event and the wire agree. This models a "server processed
+//     but response delivery failed" failure — required to reproduce the
+//     FDRS-316 hero scenario.
 //
 // Counters live per `(account_id, method, path)` so successive POSTs from
 // the same account to the same path resolve to `attempt: 1`, `attempt: 2`,
 // …, deterministically. Other routes don't influence the counter — only
 // requests to a tuple that has at least one registered rule are counted.
 
+import { randomUUID } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import { z } from "zod";
-import type {
-  FailureInjectionMode,
-  FailureInjectionRule,
-  Recorder,
-  ResolvedSession,
-} from "./types.js";
-import { requestId } from "./util.js";
+import type { RecorderEvent } from "@pome-sh/shared-types";
 
 export const FAILURE_INJECTION_OVERRIDE_KEY = "failureInjectionOverride";
 
 export type FailureInjectionOverride = {
+  status: number;
+  body: unknown;
+};
+
+export type FailureInjectionMode = "before_handler" | "after_handler";
+
+export type FailureInjectionRule = {
+  method: string;
+  path: string;
+  attempt: number;
+  mode: FailureInjectionMode;
   status: number;
   body: unknown;
 };
@@ -108,29 +119,37 @@ export function createFailureInjectionStore(): FailureInjectionStore {
   };
 }
 
+export interface FailureInjectionMiddlewareOptions {
+  /** Sink for before_handler events. Optional — a recorderless app still injects. */
+  recorder?: { record(event: RecorderEvent): void };
+  runId: string;
+  twin: string;
+}
+
 export function failureInjectionMiddleware(
   store: FailureInjectionStore,
-  recorder: Recorder | undefined,
-  runId: string
+  options: FailureInjectionMiddlewareOptions
 ): MiddlewareHandler {
   return async (c, next) => {
-    const session = c.get("session") as ResolvedSession | undefined;
+    const session = c.get("session") as { account_id?: unknown; sid?: unknown } | undefined;
     // Auth runs first; if it failed there's no session and we shouldn't
     // shadow that with a manufactured failure.
     if (!session) {
       await next();
       return;
     }
+    const accountId =
+      typeof session.account_id === "string" ? session.account_id : String(session.sid ?? "_anon");
 
     const method = c.req.method.toUpperCase();
     const rawPath = new URL(c.req.url).pathname;
-    // Rules are written against the canonical Stripe-API path
+    // Rules are written against the canonical provider path
     // (e.g., "/v1/refunds"). Strip the session prefix when present so
     // path-mounted (`/s/:sid/v1/refunds`) and root-mounted (`/v1/refunds`,
-    // F3 SDK compat) requests both match.
+    // stripe F3 SDK compat) requests both match.
     const path = stripSessionPrefix(rawPath);
 
-    const rule = store.matchAndConsume(session.account_id, method, path);
+    const rule = store.matchAndConsume(accountId, method, path);
     if (!rule) {
       await next();
       return;
@@ -144,14 +163,16 @@ export function failureInjectionMiddleware(
       } catch {
         requestBody = null;
       }
-      const reqId = requestId();
-      recorder?.record({
+      const requestId = `req_${randomUUID()}`;
+      const stepId = c.req.header("x-pome-scenario-step-id") ?? null;
+      options.recorder?.record({
         ts: new Date().toISOString(),
-        run_id: runId,
-        twin: "stripe",
-        request_id: reqId,
-        correlation_id: reqId,
-        scenario_step_id: c.req.header("x-pome-scenario-step-id") ?? null,
+        run_id: options.runId,
+        twin: options.twin,
+        request_id: requestId,
+        correlation_id: c.req.header("x-pome-correlation-id") ?? requestId,
+        task_step_id: stepId,
+        scenario_step_id: stepId,
         step_id: null,
         tool_call_id: null,
         method,
@@ -168,9 +189,9 @@ export function failureInjectionMiddleware(
       return c.json(rule.body as never, rule.status as never);
     }
 
-    // after_handler: let the handler run, but stash the override so respond()
-    // can substitute status + body on the way out. state_mutation +
-    // state_delta keep the real-handler truth.
+    // after_handler: let the handler run, but stash the override so the
+    // twin's response path can substitute status + body on the way out.
+    // state_mutation + state_delta keep the real-handler truth.
     const override: FailureInjectionOverride = { status: rule.status, body: rule.body };
     c.set(FAILURE_INJECTION_OVERRIDE_KEY as never, override as never);
     await next();
