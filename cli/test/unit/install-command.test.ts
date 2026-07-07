@@ -20,6 +20,7 @@ import type { AgentSdkQueryFn } from "../../src/cli/agent-sdk.js";
 import {
   detectAgent,
   KICKOFF_PROMPT,
+  lockfilePackageManager,
   PASTE_PROMPT,
   runInstall,
 } from "../../src/cli/install.js";
@@ -461,5 +462,14 @@ describe("pome install (FDRS-642)", () => {
   it("registers the --interactive flag on the install command", () => {
     const install = createProgram().commands.find((c) => c.name() === "install");
     expect(install!.options.map((o) => o.long)).toContain("--interactive");
+  });
+
+  it("names the package manager from the lockfile, per directory", async () => {
+    const dir = await tempDir("pome-install-lock-");
+    expect(lockfilePackageManager(dir)).toBeNull();
+    await writeFile(join(dir, "pnpm-lock.yaml"), "");
+    expect(lockfilePackageManager(dir)).toBe("pnpm");
+    await writeFile(join(dir, "bun.lock"), "");
+    expect(lockfilePackageManager(dir)).toBe("bun"); // bun wins over pnpm
   });
 });

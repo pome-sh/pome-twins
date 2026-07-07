@@ -411,16 +411,31 @@ async function acquireAgentSdkWithConsent(
   return sdk;
 }
 
+/** The package manager a lockfile in `dir` names, or null. Exported for tests. */
+export function lockfilePackageManager(dir: string): "bun" | "pnpm" | "yarn" | "npm" | null {
+  if (existsSync(join(dir, "bun.lock")) || existsSync(join(dir, "bun.lockb"))) return "bun";
+  if (existsSync(join(dir, "pnpm-lock.yaml"))) return "pnpm";
+  if (existsSync(join(dir, "yarn.lock"))) return "yarn";
+  if (existsSync(join(dir, "package-lock.json"))) return "npm";
+  return null;
+}
+
 /** Install dependencies the staged diff added to package.json, with the
- *  repo's own package manager (lockfile tells us which). */
+ *  repo's own package manager. The lockfile names it — checked in `cwd`
+ *  first, then up the ancestor chain, because in a workspace the lockfile
+ *  lives at the workspace root, not the package being wired. The install
+ *  itself still runs in `cwd`; every manager resolves its own workspace
+ *  root upward from there. */
 async function runPackageInstall(cwd: string): Promise<void> {
-  const pm = existsSync(join(cwd, "bun.lock")) || existsSync(join(cwd, "bun.lockb"))
-    ? "bun"
-    : existsSync(join(cwd, "pnpm-lock.yaml"))
-      ? "pnpm"
-      : existsSync(join(cwd, "yarn.lock"))
-        ? "yarn"
-        : "npm";
+  let pm: "bun" | "pnpm" | "yarn" | "npm" | null = null;
+  for (let dir = cwd; ; ) {
+    pm = lockfilePackageManager(dir);
+    if (pm) break;
+    const parent = join(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  pm ??= "npm";
   console.error("");
   console.error(`package.json changed — running ${pm} install …`);
   const exit = await new Promise<number>((resolvePromise, rejectPromise) => {
