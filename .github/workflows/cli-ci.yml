@@ -47,7 +47,7 @@ jobs:
       # FDRS-657 — fail fast if local evaluation (scoring / judge / correlator)
       # is reintroduced into the capture-only OSS CLI.
       - run: node scripts/no-eval-in-oss.mjs
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --omit optional
       - run: bun run typecheck
       - run: bun run build
       - run: bun run test

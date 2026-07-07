@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --omit optional
 
       - name: Build publishable tarballs and check SDK vendor
         run: node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs" --check-vendor
@@ -90,7 +90,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --omit optional
       - run: bun run --filter '@pome-sh/sdk' typecheck
       - run: bun run --filter '@pome-sh/sdk' test
       - run: bun run --filter '@pome-sh/sdk' build
