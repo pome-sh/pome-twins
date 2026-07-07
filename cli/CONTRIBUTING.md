@@ -1,6 +1,6 @@
 # Contributing to `pome` CLI
 
-Thanks for your interest! This document covers the developer workflow for the `pome-sh/cli` repository. For the broader product, see https://pome.sh.
+Thanks for your interest! This document covers the developer workflow for the `pome` CLI in the [pome-twins](https://github.com/pome-sh/pome-twins) monorepo. For the broader product, see https://pome.sh.
 
 ## Prerequisites
 
@@ -10,8 +10,8 @@ Thanks for your interest! This document covers the developer workflow for the `p
 ## Setup
 
 ```bash
-git clone https://github.com/pome-sh/cli.git
-cd cli
+git clone https://github.com/pome-sh/pome-twins.git
+cd pome-twins/cli
 bun install
 bun run build      # produces dist/
 ```
@@ -46,10 +46,8 @@ CI runs typecheck, build, tests, and vendor verification. PRs are gated on green
 - `src/cli/`: command surface (Commander.js entry points).
 - `src/runner/`: scenario execution (local + hosted).
 - `src/hosted/`: control-plane HTTP client.
-- `src/evaluator/`: deterministic + probabilistic scoring.
-- `src/twin/`: local twin boot harness.
-- `src/twin-github/` and `src/twin-slack/`: local twin mirrors not yet consolidated.
-- `vendor/`: tarballs bundled into the published CLI, including the packaged Stripe twin. After changing `packages/twin-stripe/**`, rebuild the package tarball, replace `vendor/pome-sh-twin-stripe-0.1.0.tgz`, and update `scripts/verify-vendor.mjs`.
+- `src/twin/`: local twin boot harness (`githubCloneAdapter.ts` wraps vendored twins).
+- `vendor/`: tarballs bundled into the published CLI (`@pome-sh/twin-*`, `@pome-sh/shared-types`). After changing a twin package, rebuild its tarball, replace the matching file under `vendor/`, and update `scripts/verify-vendor.mjs`.
 - `scenarios/`: bundled starter scenarios shipped with the package.
 - `examples/`: example agent implementations.
 - `scripts/`: build-only helpers (not published).
