@@ -231,7 +231,6 @@ The example captures the PR number returned by `create_pull_request` and reuses 
 bun run typecheck
 bun test
 bun run smoke
-bun run verify:fixtures
 bun run fidelity:parity
 bun run validate:mcp # rewrites scripts/validate-mcp.output.txt
 bun run review:harness

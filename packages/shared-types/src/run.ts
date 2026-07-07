@@ -4,7 +4,7 @@
  *
  * Consumed by:
  *   - `@pome-sh/evaluator` — produces CriterionResult, satisfaction_score
- *   - `@pome-sh/correlator` — produces `{ lanes, steps }` from RecorderEvent[]
+ *   - `pome-cloud` correlator — produces `{ lanes, steps }` from RecorderEvent[]
  *   - `pome-cloud` `runs` table writer — persists the full Run row
  *   - dashboard `/runs/:id` — renders lane-timeline + state-inspector + handoff card
  *

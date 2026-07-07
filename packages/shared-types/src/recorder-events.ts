@@ -6,7 +6,7 @@
  * its recorder ring buffer. Consumed by:
  *   - twin runtimes (`@pome-sh/twin-github`, `@pome-sh/twin-stripe`) — emit shape
  *   - `@pome-sh/sdk` — read shape for post-run analysis
- *   - `@pome-sh/correlator` — input to `correlateAdapterRich` / `correlateHeuristic`
+ *   - `pome-cloud` correlator — input to trace correlation on ingest
  *   - `pome-cloud` recorder writers — persisted shape for events.jsonl S3 blob
  *
  * v1.0 freeze of the twin runtime trace format. Breaking changes go through a

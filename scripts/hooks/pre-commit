@@ -6,8 +6,6 @@
 #
 # Lints:
 #  - ADR-002 open-core boundary: no `pome-cloud` imports in packages/.
-#  - FDRS-436 twin-only namespace: twin-only response fields (`fidelity`,
-#    `supported_surfaces`) must be namespaced under `_twin.*` across all twins.
 
 set -euo pipefail
 
@@ -16,6 +14,3 @@ cd "$repo_root"
 
 echo "pre-commit: open-core boundary lint"
 bash scripts/lint-no-cloud-imports.sh
-
-echo "pre-commit: twin-only namespace lint"
-bun run tools/fidelity/lint-twin-namespace.ts

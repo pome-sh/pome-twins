@@ -20,7 +20,6 @@ Each directory above has its own README with images, ports, and the shared contr
 | --- | --- | --- |
 | [`shared-types/`](./shared-types/) | `@pome-sh/shared-types` | Zod schemas, recorder/scenario types |
 | [`sdk/`](./sdk/) | `@pome-sh/sdk` | Twin authoring SDK |
-| [`correlator/`](./correlator/) | `@pome-sh/correlator` | Trace correlation |
 | [`adapter-claude-sdk/`](./adapter-claude-sdk/) | `@pome-sh/adapter-claude-sdk` | Claude Agent SDK adapter |
 
 The end-user **`pome` CLI** lives at repo root [`cli/`](../cli/), not under `packages/`.
