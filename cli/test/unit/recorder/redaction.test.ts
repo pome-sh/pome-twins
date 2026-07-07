@@ -154,6 +154,171 @@ describe("redactEvent — provider secret shapes (FDRS-588 / FDRS-608)", () => {
   });
 });
 
+// F-716 boundary pinning. These tests freeze the exact JWT / PEM scrub
+// behavior of the pre-F-716 backtracking regexes: they were run green against
+// the old patterns before the linear-time rewrite landed, and must stay green
+// after. Any diff here is a redaction behavior change, not a refactor.
+describe("redactEvent — F-716 JWT scrub boundary pinning", () => {
+  it("redacts a JWT glued mid-base64url-run from the eyJ onward", () => {
+    expect(redactEvent({ v: "AAAAeyJab.cd.ef" })).toEqual({ v: "AAAA[REDACTED]" });
+  });
+
+  it("redacts a dot-prefixed JWT, leaving the leading dot", () => {
+    expect(redactEvent({ v: ".eyJab.cd.ef" })).toEqual({ v: ".[REDACTED]" });
+  });
+
+  it("consumes an embedded eyJ inside the header segment", () => {
+    expect(redactEvent({ v: "eyJa.eyJb.c" })).toEqual({ v: "[REDACTED]" });
+  });
+
+  it("does not fire when the header segment is empty", () => {
+    expect(redactEvent({ v: "eyJ..x" })).toEqual({ v: "eyJ..x" });
+    expect(redactEvent({ v: "eyJ.a.b" })).toEqual({ v: "eyJ.a.b" });
+  });
+
+  it("does not fire on two-segment shapes", () => {
+    expect(redactEvent({ v: "eyJab.cd" })).toEqual({ v: "eyJab.cd" });
+  });
+
+  it("consumes the trailing dot when the signature segment is empty", () => {
+    expect(redactEvent({ v: "eyJa.b." })).toEqual({ v: "[REDACTED]" });
+  });
+
+  it("stops the signature segment at the first non-base64url char", () => {
+    expect(redactEvent({ v: "eyJa.b.c.d" })).toEqual({ v: "[REDACTED].d" });
+    expect(redactEvent({ v: "eyJa.b.ceyJ" })).toEqual({ v: "[REDACTED]" });
+  });
+
+  it("redacts multiple JWTs in one string", () => {
+    expect(redactEvent({ v: "eyJa.b.c and eyJd.e.f" })).toEqual({
+      v: "[REDACTED] and [REDACTED]",
+    });
+  });
+});
+
+describe("redactEvent — F-716 PEM scrub boundary pinning", () => {
+  it("redacts a complete block as one unit", () => {
+    expect(
+      redactEvent({ v: "-----BEGIN PRIVATE KEY-----\nMIIB\n-----END PRIVATE KEY-----" }),
+    ).toEqual({ v: "[REDACTED]" });
+  });
+
+  it("redacts only the header of an unterminated block", () => {
+    expect(redactEvent({ v: "-----BEGIN RSA PRIVATE KEY-----\nMIIB" })).toEqual({
+      v: "[REDACTED]\nMIIB",
+    });
+  });
+
+  it("redacts a nested block through the first valid END", () => {
+    expect(
+      redactEvent({ v: "-----BEGIN A-----\nx-----BEGIN B-----\ny\n-----END B-----\ntail" }),
+    ).toEqual({ v: "[REDACTED]\ntail" });
+  });
+
+  it("leaves an END without a BEGIN untouched", () => {
+    expect(redactEvent({ v: "data -----END A----- data" })).toEqual({
+      v: "data -----END A----- data",
+    });
+  });
+
+  it("ignores an END with an empty label, then redacts the dangling header", () => {
+    expect(redactEvent({ v: "-----BEGIN A-----x-----END -----" })).toEqual({
+      v: "[REDACTED]x-----END -----",
+    });
+  });
+
+  it("consumes exactly five closing dashes", () => {
+    expect(redactEvent({ v: "-----BEGIN A-----x-----END A------" })).toEqual({
+      v: "[REDACTED]-",
+    });
+  });
+
+  it("redacts a glued header whose closing dashes open the next header", () => {
+    expect(redactEvent({ v: "-----BEGIN A-----BEGIN B-----" })).toEqual({
+      v: "[REDACTED]BEGIN B-----",
+    });
+  });
+
+  it("redacts two complete blocks separately", () => {
+    expect(
+      redactEvent({
+        v: "-----BEGIN A-----x-----END A----- mid -----BEGIN B-----y-----END B-----",
+      }),
+    ).toEqual({ v: "[REDACTED] mid [REDACTED]" });
+  });
+
+  it("redacts a space-only label header", () => {
+    expect(redactEvent({ v: "-----BEGIN  -----" })).toEqual({ v: "[REDACTED]" });
+  });
+
+  it("redacts a whole block whose body contains a JWT", () => {
+    expect(redactEvent({ v: "-----BEGIN K-----\neyJa.b.c\n-----END K-----" })).toEqual({
+      v: "[REDACTED]",
+    });
+  });
+});
+
+describe("redactEvent — F-716 differential fuzz vs the legacy patterns", () => {
+  // The exact pre-F-716 scrub pipeline, kept verbatim as the behavior oracle.
+  // Only run on short fuzz strings, where its quadratic worst case is harmless.
+  const LEGACY_SCRUB_PATTERNS: RegExp[] = [
+    /redaction_fixture_secret_[A-Za-z0-9_-]{8,}/g,
+    /\bsk-[A-Za-z0-9_-]{20,}/g,
+    /\b[rs]k_(?:test|live)_[A-Za-z0-9_]{4,}/g,
+    /ghp_[A-Za-z0-9]{36}/g,
+    /github_pat_[A-Za-z0-9_]{20,}/g,
+    /xox[aboprs]-[A-Za-z0-9-]{20,}/g,
+    /xapp-[A-Za-z0-9-]{10,}/g,
+    /(?:pme|pk|rk)_[A-Za-z0-9_-]{20,}/g,
+    /AIza[0-9A-Za-z_-]{20,}/g,
+    /AKIA[0-9A-Z]{16}/g,
+    /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g,
+    /-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g,
+    /-----BEGIN [A-Z ]+-----/g,
+  ];
+
+  function legacyScrub(value: string): string {
+    let out = value;
+    for (const pattern of LEGACY_SCRUB_PATTERNS) {
+      out = out.replace(pattern, "[REDACTED]");
+    }
+    return out;
+  }
+
+  const PIECES = [
+    "eyJ",
+    ".",
+    "a",
+    "B9",
+    "_",
+    "-",
+    " ",
+    "\n",
+    "-----BEGIN ",
+    "-----END ",
+    "-----",
+    "AB C",
+    "!",
+    "ey",
+    "J",
+  ];
+
+  it("matches the legacy scrub on 2000 seeded fuzz strings", () => {
+    let seed = 0xf716;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed;
+    };
+    for (let round = 0; round < 2000; round += 1) {
+      const parts: string[] = [];
+      const length = next() % 24;
+      for (let p = 0; p < length; p += 1) parts.push(PIECES[next() % PIECES.length]!);
+      const input = parts.join("");
+      expect(redactEvent({ v: input })).toEqual({ v: legacyScrub(input) });
+    }
+  });
+});
+
 describe("redactEvent — benign content untouched", () => {
   it("leaves plain strings alone", () => {
     expect(redactEvent({ msg: "hello world" })).toEqual({ msg: "hello world" });
