@@ -228,6 +228,25 @@ describe("redactSecrets — F-716 differential fuzz vs the legacy patterns", () 
   });
 });
 
+describe("redactSecrets — F-716 adversarial inputs stay linear", () => {
+  // Both inputs drive the pre-F-716 regexes into quadratic backtracking
+  // (minutes of CPU); the linear scanners handle them in milliseconds. The
+  // 1s bound leaves two orders of magnitude of CI headroom.
+  it("survives a 150 KB dotless eyJ run", () => {
+    const input = "eyJ".repeat(50_000);
+    const started = performance.now();
+    expect(redactSecrets(input)).toBe(input);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
+  it("survives 20k unterminated PEM headers", () => {
+    const input = "-----BEGIN AAAA-----\n".repeat(20_000);
+    const started = performance.now();
+    expect(redactSecrets(input)).toBe("[REDACTED]\n".repeat(20_000));
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+});
+
 describe("recorder redacts every emitted event", () => {
   it("scrubs request_body and response_body at emit time", async () => {
     const store = createRecorderStore();
