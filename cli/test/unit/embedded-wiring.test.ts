@@ -270,6 +270,30 @@ describe("runEmbeddedWiring (FDRS-661)", () => {
     expect(outcome).toEqual({ kind: "applied", files: 1, packageJsonChanged: true });
   });
 
+  it("flags a nested package.json too (workspace wiring)", async () => {
+    const repo = await fixtureRepo();
+    await mkdir(join(repo, "packages", "app"), { recursive: true });
+    await writeFile(join(repo, "packages", "app", "package.json"), '{ "name": "app" }\n');
+    const skill = await fakeSkillDir();
+    const h = harness();
+
+    const outcome = await runEmbeddedWiring({
+      cwd: repo,
+      claudePath: "/fake/claude",
+      skillSourceDir: skill,
+      confirm: h.confirm(true),
+      log: h.log,
+      query: scriptedQuery({}, async (shadow) => {
+        await writeFile(
+          join(shadow, "packages", "app", "package.json"),
+          '{ "name": "app", "dependencies": { "@pome-sh/adapter-claude-sdk": "^0.1.0" } }\n',
+        );
+      }),
+    });
+
+    expect(outcome).toEqual({ kind: "applied", files: 1, packageJsonChanged: true });
+  });
+
   it("respects .gitignore when the repo is a git repo (secrets never reach the shadow)", async () => {
     const repo = await fixtureRepo();
     await writeFile(join(repo, ".gitignore"), ".env\n");

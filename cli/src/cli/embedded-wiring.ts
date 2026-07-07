@@ -163,7 +163,11 @@ export async function runEmbeddedWiring(
     return {
       kind: "applied",
       files: changes.length,
-      packageJsonChanged: changes.some((c) => c.path === "package.json"),
+      // Any package.json in the tree, not just the root — in a workspace the
+      // wiring may add the adapter to a nested package's manifest.
+      packageJsonChanged: changes.some(
+        (c) => c.path === "package.json" || c.path.endsWith("/package.json"),
+      ),
     };
   } finally {
     await rm(shadow, { recursive: true, force: true });
