@@ -57,11 +57,11 @@ jobs:
       # (adapter-claude-sdk, twin-github, shared-types) plus their devDeps
       # (notably @anthropic-ai/claude-agent-sdk) so the FDRS-413 fixture can
       # resolve `withPome()` + the SDK's `tool()` at runtime.
-      - run: bun install --frozen-lockfile --omit optional
+      - run: bun install --frozen-lockfile --ignore-scripts
       - name: Install + build CLI
         working-directory: cli
         run: |
-          bun install --frozen-lockfile --omit optional
+          bun install --frozen-lockfile --ignore-scripts
           bun run build
       - name: Run agent-trace overhead gate (PR/FAQ #1)
         working-directory: cli

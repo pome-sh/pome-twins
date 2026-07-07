@@ -37,7 +37,7 @@ jobs:
       # Root install first: the example's `file:` adapter dep resolves its own
       # @anthropic-ai/claude-agent-sdk from the workspace node_modules, so the
       # module import in the test succeeds.
-      - run: bun install --frozen-lockfile --omit optional
+      - run: bun install --frozen-lockfile --ignore-scripts
       # FDRS-658 — build the adapter's dist BEFORE the example installs. The
       # adapter is dist-only (`files: [dist]`, `exports: ./dist/index.js`, no
       # `src`) and the example consumes it via a `file:` dep that bun COPIES on
@@ -67,7 +67,7 @@ jobs:
         with:
           bun-version: 1.3.13
       # Root install so the example's adapter dep resolves (see the unit job).
-      - run: bun install --frozen-lockfile --omit optional
+      - run: bun install --frozen-lockfile --ignore-scripts
       # FDRS-658 — build the adapter's dist before the example installs it (see
       # the unit job). `bun run start` imports the same dist-only module, so the
       # copied `file:` dep must contain a built dist/.
