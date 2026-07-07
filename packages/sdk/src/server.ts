@@ -29,8 +29,11 @@ import {
   type TwinDefinition,
 } from "./index.js";
 import { bearerAuth, requireAdminAuth } from "./auth.js";
+import { twinBuildInfo } from "./build-info.js";
+import { handleMcpJsonRpc, mcpMethodNotAllowed } from "./mcp-jsonrpc.js";
 import { createRecorderHandle, type RecorderStore } from "./recorder.js";
-import { TwinError } from "./errors.js";
+import { redactSecrets } from "./redaction.js";
+import { TwinError, UnknownToolError } from "./errors.js";
 
 export { createRecorderHandle, createRecorderStore } from "./recorder.js";
 export type { RecorderStore, ErrorEnvelopeFn } from "./recorder.js";
@@ -41,7 +44,27 @@ export { bearerAuth, requireAdminAuth, resolveAuthSecret } from "./auth.js";
 // 403 envelope. See the SECURITY note on setClientIp — never derive the value
 // from request headers.
 export { createAdminGate, setClientIp } from "./admin-gate.js";
-export { TwinError } from "./errors.js";
+export { TwinError, UnknownToolError } from "./errors.js";
+export { redactEvent, redactSecrets } from "./redaction.js";
+export {
+  PROVIDER_SHAPED_TEAM_ID,
+  formTokenResolver,
+  mintProviderToken,
+  queryTokenResolver,
+  verifyProviderToken,
+} from "./auth.js";
+export type {
+  AuthEnvelope,
+  BearerAuthOptions,
+  MintProviderTokenOptions,
+  ProviderTokenSpec,
+  SessionClaims,
+  SessionValue,
+  TokenResolver,
+  UnauthorizedKind,
+} from "./auth.js";
+export { twinBuildInfo } from "./build-info.js";
+export type { TwinBuildInfo } from "./build-info.js";
 
 /**
  * Convenience helper for `recorder.handle` inner functions. Returns a
@@ -134,13 +157,20 @@ export function createApp<TDb, TSeed, TDomain>(
   // 6. Build root app
   const root = new Hono();
 
+  // Contract core: {ok, twin, implementation, tools, runtime}. Extras
+  // default to the pre-F-681 fields; a twin with a frozen healthz shape
+  // supplies its own (possibly empty) extras via `definition.healthz`.
+  const healthzExtras =
+    definition.healthz ??
+    (() => ({ version: definition.version, fidelity: definition.fidelity.default }));
   root.get("/healthz", (c) =>
     c.json({
       ok: true,
       twin: definition.id,
-      version: definition.version,
-      fidelity: definition.fidelity.default,
+      implementation: definition.implementation ?? `${definition.id}_clone`,
       tools: definition.tools.length,
+      runtime: twinBuildInfo(definition.packageName ?? `@pome-sh/twin-${definition.id}`),
+      ...healthzExtras(),
     })
   );
 
@@ -177,9 +207,10 @@ export function createApp<TDb, TSeed, TDomain>(
   );
   root.route("/admin", adminApp);
 
-  // 8. Session sub-app
+  // 8. Session sub-app. Auth mechanism is the engine's; the twin's declared
+  //    shape (F-712) rides in via `definition.auth`.
   const session = new Hono();
-  session.use("*", bearerAuth());
+  session.use("*", bearerAuth(definition.auth));
 
   session.get("/healthz", (c) => c.json({ ok: true, sid: c.req.param("sid") }));
   session.get("/_pome/health", (c) =>
@@ -200,12 +231,19 @@ export function createApp<TDb, TSeed, TDomain>(
         );
       }
       const state = await definition.state({ domain });
-      return { status: 200, body: state };
+      // Central redaction: the state export feeds cloud-side scoring and the
+      // CLI trace; a twin must not be able to leak secrets by omission.
+      return { status: 200, body: redactSecrets(state) };
     })
   );
   session.get("/_pome/events", (c) => c.json(recorder.events()));
 
-  // 9. MCP routes from tool registry
+  // 9. MCP routes from tool registry. `/mcp` is the streamable-HTTP
+  //    JSON-RPC endpoint (stateless — GET/DELETE answer 405); `/mcp/tools`,
+  //    `/mcp/tools/:name`, `/mcp/call` are the legacy dispatch surface.
+  session.post("/mcp", (c) => handleMcpJsonRpc(c, { definition, domain, recorder, runId }));
+  session.get("/mcp", (c) => mcpMethodNotAllowed(c));
+  session.delete("/mcp", (c) => mcpMethodNotAllowed(c));
   session.get("/mcp/tools", (c) =>
     c.json({
       tools: definition.tools.map((tool) => ({
@@ -252,15 +290,19 @@ export function createApp<TDb, TSeed, TDomain>(
   //     gaps in the trace.
   session.all(
     "*",
-    recorder.handle({ mutation: false, fidelity: "unsupported" }, async (c) => ({
-      status: 501,
-      body: {
-        message: `Endpoint not modeled by twin "${definition.id}".`,
-        fidelity: "unsupported",
-        method: c.req.method,
-        path: new URL(c.req.url).pathname,
-      },
-    }))
+    recorder.handle({ mutation: false, fidelity: "unsupported" }, async (c) => {
+      const ctx = { method: c.req.method, path: new URL(c.req.url).pathname };
+      if (definition.unsupported) return definition.unsupported(ctx);
+      return {
+        status: 501,
+        body: {
+          message: `Endpoint not modeled by twin "${definition.id}".`,
+          fidelity: "unsupported",
+          method: ctx.method,
+          path: ctx.path,
+        },
+      };
+    })
   );
 
   root.route("/s/:sid", session);
@@ -295,15 +337,29 @@ export async function serve<TDb, TSeed, TDomain>(
   definition: TwinDefinition<TDb, TSeed, TDomain>,
   options: ServeOptions<TDb, TSeed> = {}
 ): Promise<ServeResult> {
+  const hostname = options.hostname ?? "127.0.0.1";
+  // Contract boot guard: a twin must refuse to serve real traffic with the
+  // dev fallback secret. Checked before the app is built so the process
+  // exits non-zero without ever listening.
+  if (options.port !== undefined && !isLoopbackHost(hostname) && !process.env.TWIN_AUTH_SECRET) {
+    throw new TwinBootError(
+      `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${hostname}).`
+    );
+  }
   const app = createApp(definition, options);
   if (options.port === undefined) {
     return { app, close: async () => undefined };
   }
   const { serve: nodeServe } = await import("@hono/node-server");
-  const server = nodeServe({
-    fetch: app.fetch,
-    port: options.port,
-    hostname: options.hostname ?? "127.0.0.1",
+  const server = await new Promise<ReturnType<typeof nodeServe>>((resolve) => {
+    const bound = nodeServe(
+      {
+        fetch: app.fetch,
+        port: options.port,
+        hostname,
+      },
+      () => resolve(bound)
+    );
   });
   return {
     app,
@@ -315,6 +371,11 @@ export async function serve<TDb, TSeed, TDomain>(
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Hostnames the boot guard treats as loopback binds. */
+export function isLoopbackHost(value: string): boolean {
+  return value === "127.0.0.1" || value === "::1" || value === "localhost";
+}
 
 function shadowedPrefix(routePath: string): string | null {
   for (const prefix of RESERVED_SESSION_PREFIXES) {
@@ -342,7 +403,7 @@ function findTool<TDb, TSeed, TDomain>(
 ): ToolSpec<TDomain> {
   const tool = definition.tools.find((t) => t.name === name);
   if (!tool) {
-    throw new TwinError(`Unknown tool: ${name}`, 404);
+    throw new UnknownToolError(name);
   }
   return tool;
 }

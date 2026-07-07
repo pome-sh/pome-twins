@@ -30,13 +30,17 @@
   },
   "bundledDependencies": ["@pome-sh/shared-types"],
   "peerDependencies": {
-    "@hono/node-server": "^1.19.6"
+    "@hono/node-server": "^1.19.6",
+    "better-sqlite3": "^12.5.0"
   },
   "peerDependenciesMeta": {
-    "@hono/node-server": { "optional": true }
+    "@hono/node-server": { "optional": true },
+    "better-sqlite3": { "optional": true }
   },
   "devDependencies": {
     "@hono/node-server": "^1.19.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.5.0",
     "@types/node": "^25.0.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

@@ -21,6 +21,10 @@ import {
 export { recorderEventSchema, recorderFidelitySchema };
 export type { RecorderEvent, RecorderFidelity, TwinId };
 
+export { openTwinDatabase } from "./db.js";
+export type { OpenTwinDatabaseOptions, TwinDatabase, TwinStatement } from "./db.js";
+export { redactEvent, redactSecrets } from "./redaction.js";
+
 // FIDELITY.md uses three tiers (`semantic` | `shape` | `unsupported`); the
 // recording-spec.md v1.0 per-event enum is closed at two (`semantic` |
 // `unsupported`). They serve different purposes — the FIDELITY tier is a
@@ -70,6 +74,11 @@ export interface RecorderHandlerResult {
    * flag (different per call) into the recorder event.
    */
   mutation?: boolean;
+  /**
+   * Optional state delta recorded on the event (`state_delta`). Routes that
+   * know exactly what they changed surface it here; defaults to null.
+   */
+  delta?: RecorderEvent["state_delta"];
 }
 
 export interface RecorderHandle {
@@ -128,6 +137,37 @@ export interface TwinDefinition<
    * envelope.
    */
   errorEnvelope?: (err: unknown) => { status: number; body: unknown };
+  /**
+   * `/healthz` `implementation` field (runtime contract). Defaults to
+   * `"<id>_clone"`.
+   */
+  implementation?: string;
+  /**
+   * npm package name reported in the `/healthz` `runtime` block. Defaults
+   * to `"@pome-sh/twin-<id>"`.
+   */
+  packageName?: string;
+  /**
+   * Extra `/healthz` fields merged over the contract core
+   * `{ok, twin, implementation, tools, runtime}`. When absent the engine
+   * adds `{version, fidelity}`; a twin with a frozen healthz shape supplies
+   * its own extras (possibly `{}` to omit both).
+   */
+  healthz?: () => Record<string, unknown>;
+  /**
+   * The twin's 501 loud-unsupported envelope for unknown session routes.
+   * Defaults to the generic `{message, fidelity, method, path}` body.
+   */
+  unsupported?: (ctx: { method: string; path: string }) => {
+    status: number;
+    body: unknown;
+  };
+  /**
+   * Per-twin auth declarations (F-712): token shape, error envelopes, extra
+   * token locations, raw-bearer / sid-mismatch pins, credential lookup.
+   * Mechanism lives in the engine's `bearerAuth`; this is pure shape.
+   */
+  auth?: import("./auth.js").BearerAuthOptions;
 }
 
 // ─── Meta-validation ────────────────────────────────────────────────────────
@@ -178,6 +218,13 @@ const twinMeta = z.object({
   state: z.custom<Function>(isFunction).optional(),
   admin: adminMeta.optional(),
   errorEnvelope: z.custom<Function>(isFunction).optional(),
+  implementation: z.string().min(1).optional(),
+  packageName: z.string().min(1).optional(),
+  healthz: z.custom<Function>(isFunction).optional(),
+  unsupported: z.custom<Function>(isFunction).optional(),
+  auth: z
+    .custom<object>((value) => typeof value === "object" && value !== null, "auth must be an options object")
+    .optional(),
 });
 
 /**

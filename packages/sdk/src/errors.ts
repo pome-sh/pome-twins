@@ -18,6 +18,20 @@ export class TwinError extends Error {
   }
 }
 
+/**
+ * Thrown by the SDK's tool dispatch routes (`/mcp/call`,
+ * `/mcp/tools/:name`, JSON-RPC `tools/call`) when the named tool is not in
+ * the registry. A distinct class so a twin's `errorEnvelope` hook can shape
+ * the frozen per-twin wire format (slack 404 `unknown_tool`, stripe 400
+ * `tool_unknown`, …) without string-matching messages.
+ */
+export class UnknownToolError extends TwinError {
+  constructor(readonly tool: string, status = 404) {
+    super(`Unknown tool: ${tool}`, status);
+    this.name = "UnknownToolError";
+  }
+}
+
 export interface ErrorEnvelope {
   status: number;
   body: { message: string; errors?: unknown[] };

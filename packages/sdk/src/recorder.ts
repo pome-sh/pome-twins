@@ -18,6 +18,7 @@ import type { Context } from "hono";
 import type { RecorderEvent, TwinId } from "@pome-sh/shared-types";
 import type { RecorderHandle, RecorderHandlerResult } from "./index.js";
 import { envelopeFor } from "./errors.js";
+import { redactEvent } from "./redaction.js";
 
 /**
  * Projects a thrown error into the `{ status, body }` shape a route returns.
@@ -70,7 +71,9 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     fidelity: "semantic" | "unsupported",
     error: string | null
   ) {
-    store.record({
+    // Redaction is unconditional at the engine layer (F-681): every event
+    // that reaches any store — including custom stores — is already scrubbed.
+    store.record(redactEvent({
       ts: new Date().toISOString(),
       run_id: options.runId,
       twin: options.twin,
@@ -85,14 +88,14 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
       latency_ms: Date.now() - started,
       fidelity,
       state_mutation: mutation,
-      state_delta: null,
+      state_delta: result.delta ?? null,
       error,
-    });
+    }));
   }
 
   return {
     record(event) {
-      store.record(event);
+      store.record(redactEvent(event));
     },
     events() {
       return store.events();
