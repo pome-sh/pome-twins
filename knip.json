@@ -21,7 +21,9 @@
     "@ai-sdk/google",
     "@ai-sdk/openai",
     "@openrouter/ai-sdk-provider",
-    "ai"
+    "ai",
+    "@changesets/cli",
+    "tsx"
   ],
   "workspaces": {
     ".": {
@@ -37,7 +39,7 @@
         "src/cli/main.ts",
         "scripts/*.{mjs,ts}",
         "examples/agents/*.ts",
-        "test/e2e/**/*.test.ts",
+        "test/**/*.test.ts",
         "test/fixtures/**/*.ts"
       ],
       "project": [
