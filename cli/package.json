@@ -1,6 +1,6 @@
 {
   "name": "pome-sh",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "Digital-twin testing for AI agents — run scenarios against resettable local or hosted twins, record tool calls, and score the result.",
   "keywords": [
     "ai",
@@ -27,7 +27,9 @@
   "author": "Pome <founders@pome.sh> (https://pome.sh)",
   "license": "Apache-2.0",
   "type": "module",
-  "workspaces": ["."],
+  "workspaces": [
+    "."
+  ],
   "bin": {
     "pome": "./dist/src/cli/main.js"
   },
