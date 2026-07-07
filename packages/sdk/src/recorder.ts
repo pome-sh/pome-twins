@@ -71,13 +71,24 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     fidelity: "semantic" | "unsupported",
     error: string | null
   ) {
+    const requestId = `req_${randomUUID()}`;
+    // FDRS-402 / FDRS-653 stamping (F-683: engine parity with the per-twin
+    // recorders it replaces): correlation_id persists the adapter's
+    // x-pome-correlation-id (falling back to the request id), and the task
+    // author's x-pome-scenario-step-id lands as the canonical task_step_id
+    // plus the legacy scenario_step_id key (frozen v1 trace format —
+    // preserve semantics, tolerant readers accept either).
+    const stepId = c.req.header("x-pome-scenario-step-id") ?? null;
     // Redaction is unconditional at the engine layer (F-681): every event
     // that reaches any store — including custom stores — is already scrubbed.
     store.record(redactEvent({
       ts: new Date().toISOString(),
       run_id: options.runId,
       twin: options.twin,
-      request_id: `req_${randomUUID()}`,
+      request_id: requestId,
+      correlation_id: c.req.header("x-pome-correlation-id") ?? requestId,
+      task_step_id: stepId,
+      scenario_step_id: stepId,
       step_id: null,
       tool_call_id: null,
       method: c.req.method,
@@ -108,7 +119,7 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
           requestBody =
             c.req.method === "GET" || c.req.method === "HEAD"
               ? null
-              : await c.req.raw.clone().json().catch(() => null);
+              : await readRequestJson(c);
           const result = await fn(c);
           const effectiveMutation = result.mutation ?? mutation;
           const errorMsg =
@@ -137,6 +148,17 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
       };
     },
   };
+}
+
+// `clone()` throws synchronously once the body stream is disturbed — e.g.
+// after the form token resolver's parseBody() read a form-encoded POST
+// (F-683). A consumed or non-JSON body records as null, never a 500.
+async function readRequestJson(c: Context): Promise<unknown> {
+  try {
+    return await c.req.raw.clone().json();
+  } catch {
+    return null;
+  }
 }
 
 function extractMessage(body: unknown): string | undefined {

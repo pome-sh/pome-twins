@@ -20,15 +20,18 @@
 // `/s/:sid/*`. The SDK refuses to boot if any user route shadows the
 // `/_pome/*` or `/mcp/*` prefixes (OQ-B6 invariant).
 
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import {
   RESERVED_SESSION_PREFIXES,
+  toolInputSchema,
   type RecorderHandle,
   type ToolSpec,
   type TwinDefinition,
 } from "./index.js";
 import { bearerAuth, requireAdminAuth } from "./auth.js";
+import { createAdminGate } from "./admin-gate.js";
+import { makeToolCallContext } from "./tool-context.js";
 import { twinBuildInfo } from "./build-info.js";
 import { handleMcpJsonRpc, mcpMethodNotAllowed } from "./mcp-jsonrpc.js";
 import { createRecorderHandle, type RecorderStore } from "./recorder.js";
@@ -175,9 +178,21 @@ export function createApp<TDb, TSeed, TDomain>(
     })
   );
 
-  // 7. Admin sub-app
+  // 7. Admin sub-app. Gate mechanism is the engine's; a twin with a frozen
+  //    403 body declares it via `admin.forbidden` (F-683).
+  const adminForbidden = definition.admin?.forbidden;
   const adminApp = new Hono();
-  adminApp.use("*", requireAdminAuth());
+  adminApp.use(
+    "*",
+    adminForbidden
+      ? createAdminGate({
+          forbidden: () => {
+            const envelope = adminForbidden();
+            return Response.json(envelope.body, { status: envelope.status });
+          },
+        })
+      : requireAdminAuth()
+  );
   adminApp.post(
     "/reset",
     recorder.handle({ mutation: true }, async () => {
@@ -250,7 +265,8 @@ export function createApp<TDb, TSeed, TDomain>(
       tools: definition.tools.map((tool) => ({
         name: tool.name,
         description: tool.description,
-        input_schema: z.toJSONSchema(tool.schema),
+        input_schema: toolInputSchema(tool),
+        ...(tool.annotations ? { annotations: tool.annotations } : {}),
       })),
     })
   );
@@ -261,8 +277,9 @@ export function createApp<TDb, TSeed, TDomain>(
       const tool = findTool(definition, name);
       const args = await readJson(c.req.raw);
       const parsed = tool.schema.parse(args ?? {});
-      const result = await tool.handler(domain, parsed);
-      return { status: 200, body: result, mutation: tool.mutation };
+      const call = makeToolCallContext(c);
+      const result = await tool.handler(domain, parsed, call.ctx);
+      return { status: 200, body: result, mutation: tool.mutation, delta: call.delta() };
     })
   );
   session.post(
@@ -274,8 +291,9 @@ export function createApp<TDb, TSeed, TDomain>(
         .parse(raw);
       const tool = findTool(definition, call.tool);
       const parsed = tool.schema.parse(call.arguments);
-      const result = await tool.handler(domain, parsed);
-      return { status: 200, body: result, mutation: tool.mutation };
+      const toolCall = makeToolCallContext(c);
+      const result = await tool.handler(domain, parsed, toolCall.ctx);
+      return { status: 200, body: result, mutation: tool.mutation, delta: toolCall.delta() };
     })
   );
 

@@ -6,13 +6,13 @@ export const TEST_SID = "test-session";
 export const TEST_TEAM = "tm_test";
 
 export async function signTestToken(
-  overrides: { sid?: string; team_id?: string; expSeconds?: number } = {}
+  overrides: { sid?: string; team_id?: string; expSeconds?: number; extra?: Record<string, unknown> } = {}
 ) {
   const sid = overrides.sid ?? TEST_SID;
   const team_id = overrides.team_id ?? TEST_TEAM;
   const expSeconds = overrides.expSeconds ?? 3600;
   return sign(
-    { sid, team_id, exp: Math.floor(Date.now() / 1000) + expSeconds },
+    { sid, team_id, exp: Math.floor(Date.now() / 1000) + expSeconds, ...(overrides.extra ?? {}) },
     TEST_AUTH_SECRET
   );
 }

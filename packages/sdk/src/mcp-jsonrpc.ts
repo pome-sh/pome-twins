@@ -7,9 +7,9 @@
 
 import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
-import { z } from "zod";
-import type { RecorderHandle, ToolSpec, TwinDefinition } from "./index.js";
+import { toolInputSchema, type RecorderEvent, type RecorderHandle, type ToolSpec, type TwinDefinition } from "./index.js";
 import { UnknownToolError, envelopeFor } from "./errors.js";
+import { makeToolCallContext } from "./tool-context.js";
 
 const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;
@@ -104,7 +104,8 @@ async function dispatch<TDb, TSeed, TDomain>(
             tools: deps.definition.tools.map((tool) => ({
               name: tool.name,
               description: tool.description,
-              inputSchema: z.toJSONSchema(tool.schema),
+              inputSchema: toolInputSchema(tool),
+              ...(tool.annotations ? { annotations: tool.annotations } : {}),
             })),
           },
         };
@@ -153,6 +154,7 @@ async function handleToolsCall<TDb, TSeed, TDomain>(
   const tool = deps.definition.tools.find((t): t is ToolSpec<TDomain> => t.name === name);
 
   const started = Date.now();
+  const call = makeToolCallContext(c);
   let status: number;
   let responseBody: unknown;
   let toolError: string | null = null;
@@ -168,7 +170,7 @@ async function handleToolsCall<TDb, TSeed, TDomain>(
   } else {
     try {
       const parsed = tool.schema.parse(args);
-      const value = await tool.handler(deps.domain, parsed);
+      const value = await tool.handler(deps.domain, parsed, call.ctx);
       status = 200;
       responseBody = value;
       mutation = tool.mutation;
@@ -189,6 +191,7 @@ async function handleToolsCall<TDb, TSeed, TDomain>(
       requestBody: { tool: name, arguments: args },
       responseBody,
       mutation: status < 400 && mutation,
+      delta: status < 400 ? call.delta() : null,
       error: toolError,
     })
   );
@@ -205,14 +208,21 @@ function buildEventCore<TDb, TSeed, TDomain>(
     requestBody: unknown;
     responseBody: unknown;
     mutation: boolean;
+    delta: RecorderEvent["state_delta"];
     error: string | null;
   }
 ) {
+  const requestId = `req_${randomUUID()}`;
+  // Same stamping as recorder.ts emit() — see the comment there (F-683).
+  const stepId = c.req.header("x-pome-scenario-step-id") ?? null;
   return {
     ts: new Date().toISOString(),
     run_id: deps.runId,
     twin: deps.definition.id,
-    request_id: `req_${randomUUID()}`,
+    request_id: requestId,
+    correlation_id: c.req.header("x-pome-correlation-id") ?? requestId,
+    task_step_id: stepId,
+    scenario_step_id: stepId,
     step_id: null,
     tool_call_id: null,
     method: c.req.method,
@@ -223,7 +233,7 @@ function buildEventCore<TDb, TSeed, TDomain>(
     latency_ms: Date.now() - fields.started,
     fidelity: "semantic" as const,
     state_mutation: fields.mutation,
-    state_delta: null,
+    state_delta: fields.delta,
     error: fields.error,
   };
 }

@@ -39,13 +39,44 @@ export interface ToolFidelityMetadata {
   deviations?: string;
 }
 
+/**
+ * Per-call context handed to tool handlers by every MCP dispatch surface
+ * (JSON-RPC `tools/call`, legacy `/mcp/tools/:name` + `/mcp/call`). Carries
+ * the authenticated session (actor identity) and a `reportDelta` sink so
+ * MCP-dispatched mutations surface `state_delta` on the recorded event —
+ * the two facilities the per-twin mcp.ts modules had before F-683.
+ */
+export interface ToolCallContext {
+  /** The session set by the engine's bearerAuth for this request. */
+  session?: import("./auth.js").SessionValue;
+  /** Report the row-level before/after recorded as this event's `state_delta`. */
+  reportDelta: (delta: RecorderEvent["state_delta"]) => void;
+}
+
 export interface ToolSpec<TDomain = unknown, TInput = unknown, TOutput = unknown> {
   name: string;
   description: string;
   schema: z.ZodType<TInput>;
-  handler: (domain: TDomain, args: TInput) => TOutput | Promise<TOutput>;
+  handler: (domain: TDomain, args: TInput, ctx: ToolCallContext) => TOutput | Promise<TOutput>;
   mutation: boolean;
   fidelity?: ToolFidelityMetadata;
+  /**
+   * MCP tool-list annotations (e.g. `{ readOnlyHint: true }`), emitted
+   * verbatim on both tool-list surfaces when present.
+   */
+  annotations?: Record<string, unknown>;
+  /**
+   * Literal JSON-Schema override for the tool listings. Twins with a frozen
+   * schema wire shape (e.g. slack's forced draft-7
+   * `additionalProperties:false` form) supply it here; defaults to
+   * `z.toJSONSchema(schema)`.
+   */
+  inputSchema?: Record<string, unknown>;
+}
+
+/** The JSON-Schema a tool advertises: the declared override, else zod-derived. */
+export function toolInputSchema(tool: Pick<ToolSpec, "schema" | "inputSchema">): Record<string, unknown> {
+  return tool.inputSchema ?? (z.toJSONSchema(tool.schema) as Record<string, unknown>);
 }
 
 export interface TwinFidelity {
@@ -101,6 +132,14 @@ export interface AdminHandlers<TDomain = unknown, TSeed = unknown> {
   reset?: (ctx: { domain: TDomain }) => unknown | Promise<unknown>;
   /** Implements POST /admin/seed. The seed body is Zod-parsed via `definition.seed` first. */
   seed?: (ctx: { domain: TDomain; seed: TSeed }) => unknown | Promise<unknown>;
+  /**
+   * The twin's admin-gate 403 envelope (slack pins
+   * `{ok:false, error:"restricted_action"}`). Gate mechanism —
+   * TWIN_ADMIN_TOKEN mode, loopback socket check — stays in the engine
+   * (`packages/sdk/src/admin-gate.ts`); this is pure shape. Defaults to the
+   * generic `{message: "Forbidden"}` envelope.
+   */
+  forbidden?: () => { status: number; body: unknown };
 }
 
 export interface TwinDefinition<
@@ -208,11 +247,14 @@ const toolMeta = z.object({
   handler: z.custom<Function>(isFunction, "tool.handler must be a function"),
   mutation: z.boolean(),
   fidelity: toolFidelityMeta.optional(),
+  annotations: z.record(z.string(), z.unknown()).optional(),
+  inputSchema: z.record(z.string(), z.unknown()).optional(),
 });
 
 const adminMeta = z.object({
   reset: z.custom<Function>(isFunction).optional(),
   seed: z.custom<Function>(isFunction).optional(),
+  forbidden: z.custom<Function>(isFunction).optional(),
 });
 
 const twinMeta = z.object({

@@ -247,6 +247,45 @@ describe("redactSecrets — F-716 adversarial inputs stay linear", () => {
   });
 });
 
+// Slack-shape coverage lives HERE (F-683): the twin-slack package no longer
+// carries a redaction mirror or its own copy of these assertions.
+describe("slack token / webhook shapes", () => {
+  it("scrubs bot and user session tokens (xoxb-/xoxp-)", () => {
+    const bot = `xoxb-pome-${"a".repeat(24)}`;
+    const user = `xoxp-pome-${"b".repeat(24)}`;
+    expect(redactSecrets(`${bot} and ${user}`)).toBe("[REDACTED] and [REDACTED]");
+  });
+
+  it("scrubs Slack app-level tokens (xapp-...)", () => {
+    const key = "xapp-1-A01B2C3D4E5-" + "1".repeat(20) + "-deadbeef";
+    expect(redactSecrets(key)).toBe("[REDACTED]");
+  });
+
+  it("hard-redacts webhook_secret fields regardless of value", () => {
+    const out = redactSecrets({ webhook_secret: "hooks.slack.com/services/T0/B0/x", name: "ok" }) as Record<
+      string,
+      unknown
+    >;
+    expect(out.webhook_secret).toBe("[REDACTED]");
+    expect(out.name).toBe("ok");
+  });
+
+  it("fires inside nested twin request/response bodies", () => {
+    const token = `xoxb-${"c".repeat(24)}`;
+    const out = redactSecrets({
+      type: "tool_use",
+      input: { headers: { authorization: "Bearer x" }, body: `token=${token}` },
+    });
+    expect(JSON.stringify(out)).not.toContain(token);
+    expect(JSON.stringify(out)).toContain("[REDACTED]");
+  });
+
+  it("does not over-redact benign lookalikes", () => {
+    expect(redactSecrets("The sky is blue and skills matter.")).toBe("The sky is blue and skills matter.");
+    expect(redactSecrets({ msg: "xox-not-a-token" })).toEqual({ msg: "xox-not-a-token" });
+  });
+});
+
 describe("recorder redacts every emitted event", () => {
   it("scrubs request_body and response_body at emit time", async () => {
     const store = createRecorderStore();
