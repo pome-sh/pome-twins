@@ -23,7 +23,7 @@ jobs:
       - run: node scripts/check-admin-gate-mirrors.mjs
       - run: node scripts/check-copy-markers.mjs
       - run: node scripts/lint-code-health.mjs
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --filter '*'
       - run: bun run lint:dead-code
       - run: bun run --filter '*' typecheck
       - run: bun run --filter '*' test

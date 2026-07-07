@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --filter @pome-sh/sdk --filter @pome-sh/adapter-claude-sdk --filter @pome-sh/shared-types
 
       - name: Build publishable tarballs and check SDK vendor
         run: node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs" --check-vendor
@@ -90,7 +90,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --filter @pome-sh/sdk --filter @pome-sh/adapter-claude-sdk --filter @pome-sh/shared-types
       - run: bun run --filter '@pome-sh/sdk' typecheck
       - run: bun run --filter '@pome-sh/sdk' test
       - run: bun run --filter '@pome-sh/sdk' build
