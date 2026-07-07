@@ -60,7 +60,8 @@ does; the verdict comes from Pome's hosted evaluation.
 - **Secret redaction.** Recorded traces scrub common secret shapes before
   anything is written to disk or uploaded — OpenAI/Anthropic keys, GitHub
   tokens, AWS keys, JWTs, PEM blocks, and Stripe, Slack, and Google keys.
-  `authorization`, `x-api-key`, and `cookie` are always redacted.
+  `authorization`, `x-api-key`, and `cookie` are always redacted. The JWT and
+  PEM scrubs run in linear time (ReDoS-safe).
 - **Twin admin endpoints** require a timing-safe token when configured and are
   loopback-only otherwise.
 
