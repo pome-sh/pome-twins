@@ -8,6 +8,7 @@
     "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if (!ua.includes('bun/')) { console.error('Use bun install (this repo is bun-only).'); process.exit(1); }\"",
     "build": "bun run --filter '*' build",
     "test": "bun run --filter '*' test",
+    "test:contract": "node contract/run.mjs",
     "typecheck": "bun run --filter '*' typecheck",
     "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh",
     "lint:redaction-mirrors": "node scripts/check-redaction-mirrors.mjs",

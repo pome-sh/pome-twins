@@ -27,8 +27,8 @@
   ],
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.{mjs,sh}"],
-      "project": ["scripts/**/*.{mjs,sh}"]
+      "entry": ["scripts/*.{mjs,sh}", "contract/run.mjs", "contract/contract.test.mjs"],
+      "project": ["scripts/**/*.{mjs,sh}", "contract/**/*.mjs"]
     },
     "packages/*": {
       "entry": ["src/index.ts", "src/server.ts", "scripts/**/*.ts"],
