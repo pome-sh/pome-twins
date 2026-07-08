@@ -25,6 +25,7 @@
     "test/fixtures/v1/createSessionRequestTaskVocab/stored-task.json",
     "test/fixtures/v1/createSessionRequestTaskVocab/task-source-github.json",
     "test/fixtures/v1/createSessionResponse/full-multi-twin.json",
+    "test/fixtures/v1/createSessionResponse/legacy-single-twin.json",
     "test/fixtures/v1/planTier/enterprise.json",
     "test/fixtures/v1/planTier/free.json",
     "test/fixtures/v1/planTier/hobby.json",

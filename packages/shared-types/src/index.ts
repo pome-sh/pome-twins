@@ -484,7 +484,7 @@ export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 // from pome-cloud /v1 wire truth (FDRS-613).
 export const createSessionResponseSchema = z.object({
   session_id: z.string(),
-  session_token: z.string(),                   // = session_id in V1; public URL token
+  session_token: z.string().optional(),        // = session_id in V1; public URL token; optional for legacy single-twin responses
   twin_url: z.string().url(),                  // legacy: = per_twin[twins[0]].api_url
   expires_at: z.string().datetime(),
   agent_token: z.string(),                     // edt_<jwt>; SENSITIVE — never log; CLI memory only; bearer scoped to session TTL
@@ -521,7 +521,7 @@ export const createSessionResponseSchema = z.object({
       mcp_url: z.string().url(),               // mcp.pome.sh/<twin>/<session_token> (501 stub in V1)
       openapi_url: z.string().url(),
     }),
-  ),
+  ).optional(),
 });
 export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 
