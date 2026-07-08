@@ -62,7 +62,10 @@ if [[ -z "$RUN_DIR" ]]; then
 
   ARTIFACTS_DIR="$(mktemp -d)"
   SCAFFOLD_DIR="$(mktemp -d)"
-  trap 'rm -rf "$SCAFFOLD_DIR"' EXIT
+  # Both dirs are mktemp'd by THIS branch (no run dir was passed), so clean
+  # both on exit. When $1 supplied a run dir we never enter here, so a
+  # caller-owned artifacts dir is never removed.
+  trap 'rm -rf "$SCAFFOLD_DIR" "$ARTIFACTS_DIR"' EXIT
 
   # FDRS-641 — `pome run`'s doctor preflight requires a pome.config.json
   # (agent.command is enough) plus a routing-scan-friendly source in the cwd.

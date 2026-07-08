@@ -108,6 +108,23 @@ describe("no-eval-in-oss gate (repo-wide)", () => {
       expect(violations.some((v: string) => v.includes("cli/scripts/sneaky.mjs"))).toBe(true);
     });
 
+    it("catches eval logic reintroduced in repo-root scripts/ (name + import)", async () => {
+      await mkdir(join(tmp, "scripts"), { recursive: true });
+      // Name-stem violation: basename starts with the denied `judge` stem.
+      await writeFile(
+        join(tmp, "scripts", "judge-local.mjs"),
+        "export const x = 1;\n",
+      );
+      // Import violation under a non-denied name.
+      await writeFile(
+        join(tmp, "scripts", "sneaky.mjs"),
+        'import { callJudge } from "../cli/src/evaluator/probabilistic/client.js";\n',
+      );
+      const violations = await findViolations(tmp);
+      expect(violations.some((v: string) => v.includes("scripts/judge-local.mjs"))).toBe(true);
+      expect(violations.some((v: string) => v.includes("scripts/sneaky.mjs"))).toBe(true);
+    });
+
     it("catches a reappeared cli/src/evaluator tree on disk", async () => {
       await mkdir(join(tmp, "cli", "src", "evaluator"), { recursive: true });
       await writeFile(join(tmp, "cli", "src", "evaluator", "score.ts"), "export const x = 1;\n");

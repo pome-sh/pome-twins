@@ -447,7 +447,12 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
     ),
     signalsJsonl: redactJsonl(artifacts.signalsJsonl ?? ""),
     // D18.1 — already validated as parseable JSON in readRunDirArtifacts.
-    metaJson: JSON.stringify(redactSecrets(JSON.parse(artifacts.metaJson))),
+    // Re-serialize with the SAME formatting writeRunArtifactsCore's writeJson
+    // uses (2-space indent + trailing newline) so the bytes `pome eval`
+    // uploads are byte-identical to what the hosted/demo paths upload (they
+    // PUT the on-disk meta.json verbatim) — keeps checksum/provenance
+    // comparisons across the two ingest paths stable.
+    metaJson: `${JSON.stringify(redactSecrets(JSON.parse(artifacts.metaJson)), null, 2)}\n`,
   };
 
   let reusedSession = false;

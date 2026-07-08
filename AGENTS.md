@@ -47,7 +47,7 @@ section in the same PR.
 | Invariant | Enforced by |
 | --- | --- |
 | bun only | root `preinstall` checks `npm_config_user_agent` for Bun |
-| Capture is open, evaluation is the product — no local eval/scoring/judging/correlation anywhere in `cli/src/**`, `cli/scripts/**`, or `packages/**` | [`scripts/no-eval-in-oss.mjs`](scripts/no-eval-in-oss.mjs) (`bun run gate:no-eval`) in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — repo-wide, path + module-name + import denylist, empty file allowlist |
+| Capture is open, evaluation is the product — no local eval/scoring/judging/correlation anywhere in `cli/src/**`, `cli/scripts/**`, `packages/**`, or repo-root `scripts/**` | [`scripts/no-eval-in-oss.mjs`](scripts/no-eval-in-oss.mjs) (`bun run gate:no-eval`) in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — repo-wide, path + module-name + import denylist, empty file allowlist. The module-name rule is a **prefix** match (`correlate*`/`score*`/`judge*`/`verdict*`); an infix like `runScorer.ts` relies on the import rule instead — accepted policy, not a gap. |
 | No cloud imports in OSS packages | [`scripts/lint-no-cloud-imports.sh`](scripts/lint-no-cloud-imports.sh) |
 | No cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (empty allowlist) |
 | Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `bun run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |

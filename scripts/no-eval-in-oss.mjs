@@ -41,7 +41,11 @@
 // `__fixtures__/`, or `fixtures/` directories (at any depth) — those
 // legitimately embed forbidden strings as gate FIXTURES (this file's own
 // unit test does exactly that in a tmp dir; several packages ship
-// `fixtures/` dirs of their own).
+// `fixtures/` dirs of their own). The NAME rule is a PREFIX match only —
+// `basename.startsWith(stem)` — so `scoreRun.ts` / `judgeOutput.ts` trip it
+// but an infix like `runScorer.ts` or `myJudgeHelper.ts` does not; those rely
+// on the import rule instead. This narrowness is accepted policy for the OSS
+// gate (allowlist discipline over broad heuristics), not an oversight.
 
 import { readdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -99,8 +103,17 @@ const IMPORT_SPECIFIER_RES = [
   /(?:^|[^.\w])import\s+["']([^"']+)["']/g, // bare side-effect `import "x"`
 ];
 
-// Which directories to scan (relative to the repo root).
-const SCAN_DIRS = ["cli/src", "cli/scripts", "packages"];
+// Which directories to scan (relative to the repo root). Repo-root `scripts/`
+// is included so eval logic reintroduced as e.g. `scripts/local-judge.mjs`
+// (alongside the other build/CI scripts) is walked too — same coverage the
+// deleted `scripts/no-correlator-in-oss.mjs` had. This gate's OWN file lives
+// there; it is self-excluded from the walk (see SELF_FILE below) so its
+// denylist source strings and fixtures don't self-trip.
+const SCAN_DIRS = ["cli/src", "cli/scripts", "packages", "scripts"];
+
+// This gate's own absolute path — skipped during the walk so scanning
+// repo-root `scripts/` doesn't flag the denylist literals in this file.
+const SELF_FILE = resolve(fileURLToPath(import.meta.url));
 
 // File extensions to scan — TS + JS module flavors, so a reintroduced import in
 // a .mjs build/CI script is caught too.
@@ -146,6 +159,7 @@ async function walk(dir, root, violations) {
       if (SKIP_DIR_NAMES.has(entry.name)) continue;
       await walk(full, root, violations);
     } else if (entry.isFile() && SCANNED_EXT_RE.test(entry.name)) {
+      if (resolve(full) === SELF_FILE) continue; // don't self-scan the gate
       scanFileName(full, root, violations);
       await scanFileImports(full, root, violations);
     }
