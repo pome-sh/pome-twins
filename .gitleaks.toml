@@ -1,0 +1,10 @@
+[allowlist]
+description = "Synthetic credentials used by tests and public documentation examples"
+paths = [
+  '''^cli/test/''',
+  '''^contract/''',
+  '''^packages/.*/test/''',
+  '''^packages/.*/README\.md$''',
+  '''^packages/.*/FIDELITY\.md$''',
+  '''^CONTRACT\.md$''',
+]
