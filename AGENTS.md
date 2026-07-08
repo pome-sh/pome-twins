@@ -53,6 +53,21 @@ section in the same PR.
 | Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `bun run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | Package barrels + file-size hygiene | [`scripts/lint-code-health.mjs`](scripts/lint-code-health.mjs) |
 
+## Public Repo Guardrails
+
+The public `main` branch requires reviewed PRs and green required checks before
+merge. Direct pushes are reserved for release automation only.
+
+Secret scanning runs in CI via [`.github/workflows/secret-scan.yml`](.github/workflows/secret-scan.yml)
+with both gitleaks and TruffleHog. Install the local hook with
+`bash scripts/hooks/install.sh`; staged changes are blocked unless the same
+boundary gates pass and installed secret scanners find no verified secrets.
+
+Twin images publish only after package tests and Trivy scans pass. Published
+GHCR digests are cosign-signed with GitHub OIDC, and each digest receives an
+SPDX SBOM attestation. Downstream cloud snapshot promotion must pin and verify
+those signed digests before rebuilding runtime snapshots.
+
 Everything else — architecture, per-package details, and the CI gotchas
 (changeset gate, no-cloud-imports, twin Docker build) — is documented at
 https://docs.pome.sh.

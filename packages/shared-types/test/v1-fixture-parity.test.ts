@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// FDRS-613 — /v1 wire fixture-corpus parity.
+// FDRS-613 / M8 — canonical /v1 wire fixture corpus.
 //
 // Every JSON fixture under `test/fixtures/v1/<schema>/` MUST parse successfully
-// under the twins schema keyed by its directory name. The SAME corpus is fetched
-// and parsed by pome-cloud's `shared-types-v1-parity` CI job against the cloud
-// schema. This is intentionally parse-only: it catches represented required
-// fields, enum narrowing, and other fixture-level wire incompatibilities, but it
-// is not a proof of whole-schema equality.
+// under the twins schema keyed by its directory name. pome-twins is the source
+// of truth for this corpus; cloud consumers validate against the published
+// package contract instead of mirroring source bytes. This is intentionally
+// parse-only: it catches represented required fields, enum narrowing, and other
+// fixture-level wire incompatibilities, but it is not a proof of whole-schema
+// equality.
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -24,15 +25,12 @@ import { runSchema } from "../src/run.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const corpusRoot = join(here, "fixtures", "v1");
 
-// Directory name → schema. Keep in lockstep with fixtures/v1/README.md and the
-// cloud-side schema map.
+// Directory name → schema. Keep in lockstep with fixtures/v1/README.md.
 //
 // The `*TaskVocab` dirs (FDRS-653) hold NEW-vocabulary payloads (task_name /
 // task_source / criterion code|model). They are twins-only until the FDRS-654
-// consumer swap adds them to the cloud-side map — the cloud parity gate
-// iterates its own dir list, so the extra dirs are ignored there until then.
-// The original dirs keep their 0.3.0-era (scenario_*) payloads on purpose:
-// they now double as tolerant-reader proof.
+// consumer swap. The original dirs keep their 0.3.0-era (scenario_*) payloads
+// on purpose: they now double as tolerant-reader proof.
 const SCHEMA_BY_DIR: Record<string, ZodTypeAny> = {
   planTier: planTierSchema,
   createSessionRequest: createSessionRequestSchema,

@@ -24,12 +24,12 @@ The bar Pome aims for is: **agents written against real GitHub run unchanged
 against the local twin for the surfaces below**, and trip a loud failure for
 anything outside them.
 
-For the build / runtime / cross-repo invariants the hosted snapshot build
+For the build / runtime / cloud consumer invariants the hosted snapshot build
 depends on (port `:3333`, `/healthz`, `GITHUB_CLONE_HOST`, `npm install`-able
 package, `node dist/src/server.js`), see
 [Runtime contract (for snapshot consumers)](README.md#runtime-contract-for-snapshot-consumers)
 in the package README. Changing any of those is a breaking change for
-`pome-cloud` and goes via a cross-repo PR.
+`pome-cloud` and requires a matching cloud consumer PR.
 
 ## MCP Tools
 

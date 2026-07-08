@@ -5,7 +5,7 @@
 // assertions can run against any built twin artifact AND the sdk-booted
 // proof entry (contract/sdk-boot.test.mjs). Changing any asserted status or
 // shape here is a contract change: update CONTRACT.md in the same PR and
-// coordinate the cross-repo pome-cloud PR per the contract doc.
+// coordinate the pome-cloud consumer PR per the contract doc.
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
