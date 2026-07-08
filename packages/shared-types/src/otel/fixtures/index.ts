@@ -5,7 +5,7 @@
  *
  * Stable import path for every consuming milestone (M1.2, M2–M6):
  *
- *   import { getLegacyFixtures, getEmitterFixtures } from "@pome/shared-types/otel-fixtures";
+ *   import { getLegacyFixtures, getEmitterFixtures } from "@pome-sh/shared-types/otel/fixtures";
  *
  * The corpus itself is static data in `./data`; this module is the documented,
  * typed entry point. Keep all access going through these accessors so a future

@@ -475,6 +475,49 @@ export const createSessionRequestSchema = z.preprocess(
 );
 export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
+function normalizeCreateSessionResponse(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.session_id !== "string" ||
+    typeof record.twin_url !== "string" ||
+    typeof record.openapi_url !== "string"
+  ) {
+    return value;
+  }
+
+  let twin = "github";
+  try {
+    const [, parsedTwin] = new URL(record.twin_url).pathname.split("/");
+    if (parsedTwin !== undefined && parsedTwin.length > 0) twin = parsedTwin;
+  } catch {
+    // Schema validation below will report the invalid URL.
+  }
+
+  const apiUrl = record.twin_url;
+  const mcpUrl =
+    typeof apiUrl === "string" && apiUrl.startsWith("https://api.pome.sh/")
+      ? apiUrl.replace("https://api.pome.sh/", "https://mcp.pome.sh/")
+      : apiUrl;
+
+  return {
+    ...record,
+    session_token: record.session_token ?? record.session_id,
+    per_twin:
+      record.per_twin ??
+      {
+        [twin]: {
+          api_url: apiUrl,
+          mcp_url: mcpUrl,
+          openapi_url: record.openapi_url,
+        },
+      },
+  };
+}
+
 // M3 response shape: one session, N twins, one set of URLs per twin under
 // `per_twin{}`. Legacy single-twin fields `twin_url` + `openapi_url` continue
 // to be populated as `per_twin[twins[0]].api_url` / `.openapi_url` for ≥1 OSS
@@ -482,9 +525,9 @@ export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 // `session_id` in V1, but named separately so URL-shaped consumers stop reading
 // internal-id-shaped fields. Both `session_token` and `per_twin` reconciled
 // from pome-cloud /v1 wire truth (FDRS-613).
-export const createSessionResponseSchema = z.object({
+export const createSessionResponseSchema = z.preprocess(normalizeCreateSessionResponse, z.object({
   session_id: z.string(),
-  session_token: z.string().optional(),        // = session_id in V1; public URL token; optional for legacy single-twin responses
+  session_token: z.string(),                   // = session_id in V1; public URL token
   twin_url: z.string().url(),                  // legacy: = per_twin[twins[0]].api_url
   expires_at: z.string().datetime(),
   agent_token: z.string(),                     // edt_<jwt>; SENSITIVE — never log; CLI memory only; bearer scoped to session TTL
@@ -521,8 +564,8 @@ export const createSessionResponseSchema = z.object({
       mcp_url: z.string().url(),               // mcp.pome.sh/<twin>/<session_token> (501 stub in V1)
       openapi_url: z.string().url(),
     }),
-  ).optional(),
-});
+  ),
+}));
 export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 
 // POST /v1/sessions/{id}/result — SYNCHRONOUS. CLI scores locally (BYOK Flavor #1) then POSTs.
