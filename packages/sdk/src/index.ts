@@ -122,16 +122,34 @@ export interface RecorderHandle {
    * `RecorderEvent` and returns `c.json(body, status)`.
    */
   handle(
-    opts: { mutation: boolean; fidelity?: RecorderFidelity },
+    opts: {
+      mutation: boolean;
+      fidelity?: RecorderFidelity;
+      /** Per-surface error projection override (admin routes have their own frozen envelope on some twins). */
+      errorEnvelope?: (err: unknown) => { status: number; body: unknown };
+    },
     fn: (c: Context) => Promise<RecorderHandlerResult> | RecorderHandlerResult
   ): (c: Context) => Promise<Response>;
 }
 
 export interface AdminHandlers<TDomain = unknown, TSeed = unknown> {
-  /** Implements POST /admin/reset. */
-  reset?: (ctx: { domain: TDomain }) => unknown | Promise<unknown>;
-  /** Implements POST /admin/seed. The seed body is Zod-parsed via `definition.seed` first. */
-  seed?: (ctx: { domain: TDomain; seed: TSeed }) => unknown | Promise<unknown>;
+  /**
+   * Implements POST /admin/reset. `reportDelta` stamps the recorder event's
+   * `state_delta` (slack's frozen tape records row-level admin deltas).
+   */
+  reset?: (ctx: { domain: TDomain; reportDelta: (delta: unknown) => void }) => unknown | Promise<unknown>;
+  /**
+   * Implements POST /admin/seed. The seed body is Zod-parsed via
+   * `definition.seed` first; `reportDelta` stamps the event's `state_delta`.
+   */
+  seed?: (ctx: { domain: TDomain; seed: TSeed; reportDelta: (delta: unknown) => void }) => unknown | Promise<unknown>;
+  /**
+   * Per-surface error projection for /admin/reset|seed. Pre-port slack's
+   * admin handlers answered EVERY thrown error with 500
+   * {ok:false, error:"internal_error", warning} — bypassing the session
+   * envelope. Defaults to the twin's `errorEnvelope`.
+   */
+  errorEnvelope?: (err: unknown) => { status: number; body: unknown };
   /**
    * The twin's admin-gate 403 envelope (slack pins
    * `{ok:false, error:"restricted_action"}`). Gate mechanism —
@@ -202,6 +220,40 @@ export interface TwinDefinition<
     body: unknown;
   };
   /**
+   * Per-twin request-body reader for the engine-owned JSON surfaces
+   * (`/admin/seed`, legacy `/mcp/call`, `/mcp/tools/:name`). Defaults to
+   * strict JSON — malformed bodies throw `SyntaxError` into the twin's
+   * `errorEnvelope`. Twins with frozen tolerant/form parsing pass their
+   * pre-port reader (slack `parseFormOrJson`, stripe form-or-JSON).
+   */
+  bodyReader?: (c: import("hono").Context) => Promise<unknown>;
+  /**
+   * Session-wide middleware slot mounted immediately after bearer auth and
+   * BEFORE the engine's MCP / `/_pome/*` routes — the pre-port
+   * `session.use("*")` position (stripe registers failure-injection and
+   * idempotency here so they cover MCP dispatch too). Register `use()`
+   * middleware only; routes belong in `routes`.
+   */
+  middleware?: RouteRegistrar<TDomain>;
+  /**
+   * Legacy `POST /mcp/call` dispatch pins (F-683 review): slack's frozen
+   * surface accepts `{name}`/`{params}` as aliases of `{tool}`/`{arguments}`
+   * and answers a body naming no tool with its own envelope instead of the
+   * strict-parse error.
+   */
+  legacyMcp?: {
+    aliases?: boolean;
+    missingTool?: () => { status: number; body: unknown };
+  };
+  /**
+   * Extra `GET /s/:sid/_pome/health` fields merged over the frozen core
+   * `{ok, twin}`. Defaults to `{version, fidelity}` (the pre-F-681 sdk
+   * shape); twins with a frozen _pome/health shape supply their own extras
+   * (slack: `{}`; github: implementation/fidelity/runtime; stripe adds
+   * recorder counters).
+   */
+  pomeHealth?: (ctx: { recorder: RecorderHandle }) => Record<string, unknown>;
+  /**
    * Per-twin auth declarations (F-712): token shape, error envelopes, extra
    * token locations, raw-bearer / sid-mismatch pins, credential lookup.
    * Mechanism lives in the engine's `bearerAuth`; this is pure shape.
@@ -254,6 +306,7 @@ const toolMeta = z.object({
 const adminMeta = z.object({
   reset: z.custom<Function>(isFunction).optional(),
   seed: z.custom<Function>(isFunction).optional(),
+  errorEnvelope: z.custom<Function>(isFunction).optional(),
   forbidden: z.custom<Function>(isFunction).optional(),
 });
 
@@ -271,6 +324,15 @@ const twinMeta = z.object({
   implementation: z.string().min(1).optional(),
   packageName: z.string().min(1).optional(),
   healthz: z.custom<Function>(isFunction).optional(),
+  bodyReader: z.custom<Function>(isFunction).optional(),
+  middleware: z.custom<Function>(isFunction).optional(),
+  legacyMcp: z
+    .object({
+      aliases: z.boolean().optional(),
+      missingTool: z.custom<Function>(isFunction).optional(),
+    })
+    .optional(),
+  pomeHealth: z.custom<Function>(isFunction).optional(),
   unsupported: z.custom<Function>(isFunction).optional(),
   auth: z
     .custom<object>((value) => typeof value === "object" && value !== null, "auth must be an options object")

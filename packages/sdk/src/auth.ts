@@ -76,7 +76,21 @@ export function mintProviderToken(
   }
   const secret = options.secret ?? resolveAuthSecret();
   const encoded = Buffer.from(options.sid, "utf8").toString("base64url");
-  if (options.exp !== undefined && Number.isSafeInteger(options.exp)) {
+  if (options.exp !== undefined) {
+    // Mint/verify symmetry: a non-integer exp used to silently mint the
+    // NEVER-expiring legacy shape, and a millisecond-scale exp minted a
+    // token verifyProviderToken can never accept. Both are caller bugs —
+    // fail at mint time.
+    if (!Number.isSafeInteger(options.exp) || options.exp <= 0) {
+      throw new Error(
+        `mintProviderToken: exp must be a positive integer unix timestamp in seconds (got ${String(options.exp)})`
+      );
+    }
+    if (options.exp >= 1e12) {
+      throw new Error(
+        `mintProviderToken: exp ${options.exp} looks like milliseconds — pass a unix timestamp in SECONDS`
+      );
+    }
     return `${prefix}${encoded}_${options.exp}_${signProviderExp(spec.provider, options.sid, options.exp, secret)}`;
   }
   return `${prefix}${encoded}_${signProvider(spec.provider, options.sid, secret)}`;

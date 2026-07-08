@@ -30,6 +30,17 @@ export const PER_TWIN = {
     expired: { status: 401, check: (b) => b.message === "Bad credentials" },
     rawToken: { status: 401 },
     mcpCallUnknown: { status: 422, check: (b) => b.message === "Validation Failed" },
+    // Body-parsing corners (F-683 review pins, probed 2026-07-08): github is
+    // strict JSON everywhere — form-encoded and malformed bodies answer the
+    // GitHub wire error; {name}/{params} aliases are not accepted.
+    aliasTool: "list_repos",
+    adminSeedForm: { status: 400, check: (b) => b.message === "Problems parsing JSON" },
+    adminSeedMalformed: { status: 400, check: (b) => b.message === "Problems parsing JSON" },
+    mcpCallAlias: { status: 422, check: (b) => b.message === "Validation Failed" && b.errors?.[0]?.field === "tool" },
+    mcpCallForm: { status: 400, check: (b) => b.message === "Problems parsing JSON" },
+    mcpCallMalformed: { status: 400, check: (b) => b.message === "Problems parsing JSON" },
+    pomeHealthKeys: ["fidelity", "implementation", "ok", "runtime", "twin"],
+    adminSeedTape: "delta-null",
     unknownSession: { status: 501, check: (b) => b._twin?.fidelity === "unsupported" },
     unknownRoot: { status: 404 },
   },
@@ -45,6 +56,21 @@ export const PER_TWIN = {
     expired: { status: 401, check: (b) => b.error === "token_expired" },
     rawToken: { status: 401 },
     mcpCallUnknown: { status: 404, check: (b) => b.error === "unknown_tool" },
+    // Body-parsing corners (F-683 review pins; probed 2026-07-08 against the
+    // pre-port 3cd86eb build): slack parses form-or-JSON tolerantly on every
+    // surface (official Slack SDKs default to form-urlencoded; malformed JSON
+    // collapses to {}), accepts the {name}/{params} alias keys, a body naming
+    // no tool is 400 {ok:false, error:"invalid_arguments"}, and admin errors
+    // (a form seed whose string value fails the seed schema) are 500
+    // internal_error — the admin surface has its own envelope.
+    aliasTool: "slack_list_channels",
+    adminSeedForm: { status: 500, check: (b) => b.ok === false && b.error === "internal_error" },
+    adminSeedMalformed: { status: 200, check: (b) => b.ok === true },
+    mcpCallAlias: { status: 200, check: (b) => b.ok === true },
+    mcpCallForm: { status: 200, check: (b) => b.ok === true },
+    mcpCallMalformed: { status: 400, check: (b) => b.ok === false && b.error === "invalid_arguments" },
+    pomeHealthKeys: ["ok", "twin"],
+    adminSeedTape: "delta-null",
     unknownSession: {
       status: 501,
       check: (b) => b.error === "unsupported_endpoint" && b._twin?.fidelity === "unsupported",
@@ -64,6 +90,18 @@ export const PER_TWIN = {
     // stripe accepts a prefix-less bearer (raw JWT) today — FDRS-712 row 4.
     rawToken: { status: 200 },
     mcpCallUnknown: { status: 400, check: (b) => b.error?.code === "tool_unknown" },
+    // Body-parsing corners (F-683 review pins, probed on the pre-port twin):
+    // stripe reads form-or-JSON (malformed JSON collapses to {}), rejects the
+    // alias keys with its parameter_invalid envelope, and dispatches
+    // form-encoded legacy /mcp/call bodies.
+    aliasTool: "retrieve_balance",
+    adminSeedForm: { status: 200, check: (b) => b.ok === true },
+    adminSeedMalformed: { status: 200, check: (b) => b.ok === true },
+    mcpCallAlias: { status: 400, check: (b) => b.error?.code === "parameter_invalid" && b.error?.param === "tool" },
+    mcpCallForm: { status: 200, check: (b) => typeof b === "object" },
+    mcpCallMalformed: { status: 400, check: (b) => b.error?.code === "parameter_invalid" && b.error?.param === "tool" },
+    pomeHealthKeys: ["fidelity", "implementation", "ok", "recorder", "runtime", "tthw_seconds", "twin"],
+    adminSeedTape: "none",
     unknownSession: {
       status: 501,
       check: (b) => b.error?.code === "endpoint_not_supported" && b.error?.fidelity === "unsupported",
@@ -199,6 +237,83 @@ export function contractSuite(twin, exp, label = twin.name) {
         headers: { Authorization: mintSessionJwt({ sid: SID }) },
       });
       assert.equal(raw.status, exp.rawToken.status, "raw (prefix-less) bearer behavior is frozen per twin");
+    });
+
+
+    it(`POST /admin/seed body-parsing corners are frozen (form-encoded → ${exp.adminSeedForm.status}, malformed JSON → ${exp.adminSeedMalformed.status})`, async () => {
+      const form = await fetch(`${t.base}/admin/seed`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "seed=whatever",
+      });
+      const formBody = await form.json().catch(() => ({}));
+      assert.equal(form.status, exp.adminSeedForm.status);
+      checkBody(exp.adminSeedForm, formBody, "admin/seed form-encoded");
+
+      const malformed = await fetch(`${t.base}/admin/seed`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{oops",
+      });
+      const malformedBody = await malformed.json().catch(() => ({}));
+      assert.equal(malformed.status, exp.adminSeedMalformed.status);
+      checkBody(exp.adminSeedMalformed, malformedBody, "admin/seed malformed JSON");
+    });
+
+    it("legacy /mcp/call body corners are frozen (alias keys, form encoding, malformed JSON)", async () => {
+      const alias = await fetch(`${t.base}${sPath("/mcp/call")}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${jwt}`, "content-type": "application/json" },
+        body: JSON.stringify({ name: exp.aliasTool, params: {} }),
+      });
+      const aliasBody = await alias.json().catch(() => ({}));
+      assert.equal(alias.status, exp.mcpCallAlias.status, "mcp/call {name, params} alias");
+      checkBody(exp.mcpCallAlias, aliasBody, "mcp/call alias");
+
+      const form = await fetch(`${t.base}${sPath("/mcp/call")}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${jwt}`, "content-type": "application/x-www-form-urlencoded" },
+        body: `tool=${exp.aliasTool}`,
+      });
+      const formBody = await form.json().catch(() => ({}));
+      assert.equal(form.status, exp.mcpCallForm.status, "mcp/call form-encoded");
+      checkBody(exp.mcpCallForm, formBody, "mcp/call form");
+
+      const malformed = await fetch(`${t.base}${sPath("/mcp/call")}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${jwt}`, "content-type": "application/json" },
+        body: "{oops",
+      });
+      const malformedBody = await malformed.json().catch(() => ({}));
+      assert.equal(malformed.status, exp.mcpCallMalformed.status, "mcp/call malformed JSON");
+      checkBody(exp.mcpCallMalformed, malformedBody, "mcp/call malformed");
+    });
+
+    it("GET /s/:sid/_pome/health carries the exact frozen key set", async () => {
+      const res = await req(t.base, sPath("/_pome/health"), { token: jwt });
+      assert.equal(res.status, 200);
+      assert.deepEqual(Object.keys(res.json ?? {}).sort(), exp.pomeHealthKeys);
+    });
+
+    it("tape shape: /_pome/state fetches are never recorded; admin/seed tape presence is frozen", async () => {
+      await req(t.base, sPath("/_pome/state"), { token: jwt });
+      await req(t.base, "/admin/seed", { method: "POST", body: {} });
+      const events = await req(t.base, sPath("/_pome/events"), { token: jwt });
+      const list = Array.isArray(events.json) ? events.json : [];
+      const eventPath = (e) => String(e.request_path ?? e.path ?? e.method ?? "");
+      assert.ok(!list.some((e) => eventPath(e).includes("_pome/state")), "no recorder event for /_pome/state fetches");
+      const seedEvents = list.filter((e) => eventPath(e).includes("admin/seed"));
+      if (exp.adminSeedTape === "none") {
+        assert.equal(seedEvents.length, 0, "admin/seed is not recorded on this twin");
+      } else {
+        assert.ok(seedEvents.length > 0, "admin/seed is recorded on this twin");
+        const last = seedEvents[seedEvents.length - 1];
+        if (exp.adminSeedTape === "delta-object") {
+          assert.ok(last.state_delta !== null && typeof last.state_delta === "object", "admin/seed event carries a state_delta object");
+        } else {
+          assert.equal(last.state_delta, null, "admin/seed event carries state_delta:null");
+        }
+      }
     });
 
     it("unknown session route → 501 unsupported envelope; unknown root route frozen", async () => {

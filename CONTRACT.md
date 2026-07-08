@@ -58,6 +58,21 @@ Several rows are under active ruling in FDRS-712. They are frozen **as-is**: cha
 | root `/v1/*` SDK-compat mount (no path sid; bearer alone) | — | — | yes |
 | extra session routes | `/_pome/access-control` | — | — |
 
+### Body-parsing and tape corners (pinned 2026-07-08, F-683 review)
+
+Probed against the pre-engine builds (`3cd86eb`); the contract suite asserts every row.
+
+| Surface | github | slack | stripe |
+| --- | --- | --- | --- |
+| `/admin/seed` form-encoded body | 400 `Problems parsing JSON` | **500** `internal_error` (admin surface has its own envelope; the form value fails the seed schema) | 200 accepted |
+| `/admin/seed` malformed JSON | 400 `Problems parsing JSON` | 200 `{ok:true}` (tolerant parse collapses to `{}`) | 200 accepted (defaults applied) |
+| legacy `/mcp/call` `{name}/{params}` alias keys | 422 validation (`tool` missing) | **accepted** — aliases of `{tool}/{arguments}` | 400 `parameter_invalid` (`tool`) |
+| legacy `/mcp/call` form-encoded body | 400 `Problems parsing JSON` | dispatched | dispatched |
+| legacy `/mcp/call` malformed JSON | 400 `Problems parsing JSON` | 400 `{ok:false, error:"invalid_arguments"}` | 400 `parameter_invalid` (`tool`) |
+| `GET /s/:sid/_pome/health` exact keys | `ok, twin, implementation, fidelity, runtime` | `ok, twin` | `ok, twin, implementation, fidelity, runtime, tthw_seconds, recorder` |
+| `/_pome/state` fetches on the recorder tape | never | never | never |
+| `/admin/seed` on the recorder tape | recorded, `state_delta: null` | recorded, `state_delta: null` | not recorded |
+
 ## Verifying
 
 ```

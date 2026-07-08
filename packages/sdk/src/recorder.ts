@@ -31,16 +31,43 @@ export type ErrorEnvelopeFn = (err: unknown) => { status: number; body: unknown 
 export interface RecorderStore {
   record(event: RecorderEvent): void;
   events(): RecorderEvent[];
+  /** Event count without the O(N) copy `events()` makes. Optional for custom stores. */
+  count?(): number;
+  /** Events dropped by a bounded store (stripe pins a 10k cap + dropped counter). */
+  dropped?(): number;
 }
 
-export function createRecorderStore(): RecorderStore {
+export interface RecorderStoreOptions {
+  /**
+   * Bound the in-memory tape: past `maxEvents` the store drops the OLDEST
+   * event and increments the `dropped()` counter (stripe's pre-port
+   * D-ENG-10/E-10 recorder behavior). Default: unbounded (github/slack).
+   */
+  maxEvents?: number;
+}
+
+export function createRecorderStore(options: RecorderStoreOptions = {}): RecorderStore {
   const items: RecorderEvent[] = [];
+  const cap = options.maxEvents !== undefined ? Math.max(1, options.maxEvents) : undefined;
+  let droppedCount = 0;
   return {
     record(event) {
       items.push(event);
+      if (cap !== undefined) {
+        while (items.length > cap) {
+          items.shift();
+          droppedCount += 1;
+        }
+      }
     },
     events() {
       return [...items];
+    },
+    count() {
+      return items.length;
+    },
+    dropped() {
+      return droppedCount;
     },
   };
 }
@@ -111,7 +138,8 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     events() {
       return store.events();
     },
-    handle({ mutation, fidelity = "semantic" }, fn) {
+    handle({ mutation, fidelity = "semantic", errorEnvelope: perCallEnvelope }, fn) {
+      const projectError = perCallEnvelope ?? errorEnvelope;
       return async (c) => {
         const started = Date.now();
         let requestBody: unknown = null;
@@ -127,7 +155,7 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
           emit(c, started, requestBody, result, effectiveMutation, fidelity, errorMsg);
           return c.json(result.body as never, result.status as never);
         } catch (caught) {
-          const envelope = errorEnvelope(caught);
+          const envelope = projectError(caught);
           // Failed routes never mutated state — record as state_mutation=false
           // regardless of the declared flag. Per recording-spec § state_mutation,
           // the field reflects whether the request *did* mutate state.

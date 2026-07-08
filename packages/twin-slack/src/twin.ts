@@ -26,6 +26,7 @@ import { defaultSeedState } from "./seed.js";
 import { executeTool, isMutatingTool, listTools, toolDefinitions } from "./tools.js";
 import { slackError } from "./serializers.js";
 import type { SlackStateSeed, SlackTwinDatabase } from "./types.js";
+import { parseFormOrJson } from "./util.js";
 import { unsupportedEnvelope } from "./unsupported-envelope.js";
 
 type SlackSeed = Record<string, unknown>;
@@ -113,6 +114,18 @@ export const slackTwinDefinition: TwinDefinition<SlackTwinDatabase, SlackSeed, S
     return domain;
   },
   routes: registerSlackRoutes,
+  // Frozen slack body parsing (F-683 review pin): form-or-JSON on every
+  // engine-owned surface — official Slack SDKs default to
+  // application/x-www-form-urlencoded — and malformed JSON collapses to {}.
+  bodyReader: (c) => parseFormOrJson(c),
+  // Frozen legacy /mcp/call surface: {name}/{params} alias keys; a body
+  // naming no tool answers 400 {ok:false, error:"invalid_arguments"}.
+  legacyMcp: {
+    aliases: true,
+    missingTool: () => ({ status: 400, body: slackError("invalid_arguments") }),
+  },
+  // Frozen /_pome/health shape: exactly {ok, twin} — no extras.
+  pomeHealth: () => ({}),
   state: ({ domain }) => domain.exportState(),
   admin: {
     reset: ({ domain }) => {
@@ -123,6 +136,18 @@ export const slackTwinDefinition: TwinDefinition<SlackTwinDatabase, SlackSeed, S
       domain.applySeed(seed.seed ?? seed);
       return { ok: true };
     },
+    // Frozen pre-port admin surface: EVERY thrown error (zod seed rejection
+    // included) answers 500 {ok:false, error:"internal_error", warning} —
+    // the session envelope's 200 {ok:false} projection never applied here.
+    // Probed on the 3cd86eb baseline (form body "seed=whatever" → 500).
+    errorEnvelope: (err) => ({
+      status: 500,
+      body: {
+        ok: false,
+        error: "internal_error",
+        warning: err instanceof Error ? err.message : "internal_error",
+      },
+    }),
     // Frozen slack admin-gate 403 body.
     forbidden: () => ({ status: 403, body: slackError("restricted_action") }),
   },
