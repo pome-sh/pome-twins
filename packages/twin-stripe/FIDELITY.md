@@ -265,7 +265,7 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
 ## Verification commands
 
 ```bash
-bun run test            # 14 files / 70 tests, all green
-bun run smoke           # full x402 flow against built server
-bun run typecheck
+npm run test            # 14 files / 70 tests, all green
+npm run smoke           # full x402 flow against built server
+npm run typecheck
 ```

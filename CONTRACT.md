@@ -9,7 +9,7 @@ This document enumerates everything pome-cloud (and the pome CLI) may rely on wh
 - Entry point: `node dist/src/server.js` with **cwd = the twin package root** (`packages/twin-<name>`).
 - `GET /healthz` answers **200 within 3 seconds** of spawn.
 - The twin **refuses to boot** on a non-loopback bind host without `TWIN_AUTH_SECRET` (exit code ≠ 0; the error names the variable).
-- Runtime dependency arrangement: hoisted `node_modules` + `packages/shared-types` **with its compiled runtime JS** + `packages/sdk` **with its built `dist/`** (the twins are engine plugins since F-682/683/684; the runtime image ships the sdk so the hoisted workspace symlink resolves) (`bun run --filter '@pome-sh/shared-types' build:runtime`). `@pome-sh/shared-types` exports `./src/index.ts`, so a plain-`node` boot relies on type stripping (**Node ≥ 22.18**) plus the built `src/*.js` files for its `.js` import specifiers. The GHCR runtime image ships `node:24`; the Dockerfiles are the reference implementation of this arrangement.
+- Runtime dependency arrangement: hoisted `node_modules` + `packages/shared-types` **with its compiled runtime JS** + `packages/sdk` **with its built `dist/`** (the twins are engine plugins since F-682/683/684; the runtime image ships the sdk so the hoisted workspace symlink resolves) (`npm run build:runtime -w @pome-sh/shared-types`). `@pome-sh/shared-types` exports `./src/index.ts`, so a plain-`node` boot relies on type stripping (**Node ≥ 22.18**) plus the built `src/*.js` files for its `.js` import specifiers. The GHCR runtime image ships `node:24`; the Dockerfiles are the reference implementation of this arrangement.
 
 ## Environment surface
 
@@ -76,7 +76,7 @@ Probed against the pre-engine builds (`3cd86eb`); the contract suite asserts eve
 ## Verifying
 
 ```
-bun run test:contract
+npm run test:contract
 ```
 
 builds the shared-types runtime + the three twins, then runs `node --test contract/contract.test.mjs`. The suite is dependency-free (node:test, global fetch, node:crypto) so the same file can be pointed at any built twin artifact — including a cloud-built snapshot (FDRS-714).

@@ -250,10 +250,10 @@ above — never the reverse.
 
 ```bash
 cd packages/twin-slack
-bun run typecheck                       # zero TS errors
-bun run test                            # all tests pass
+npm run typecheck                       # zero TS errors
+npm run test                            # all tests pass
 bunx vitest run --coverage              # ≥ 90% lines, ≥ 90% funcs
-bun run validate:mcp                    # JSON-RPC SDK round-trip
-TWIN_AUTH_SECRET=dev SLACK_DETERMINISTIC_TS=1 bun run smoke
-bun run verify:cloud-token              # cloud xoxb-pome-* token validates
+npm run validate:mcp                    # JSON-RPC SDK round-trip
+TWIN_AUTH_SECRET=dev SLACK_DETERMINISTIC_TS=1 npm run smoke
+npm run verify:cloud-token              # cloud xoxb-pome-* token validates
 ```

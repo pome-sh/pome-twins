@@ -1299,8 +1299,8 @@ async function copyStarterScenarios(packageRoot: string) {
 }
 
 // Resolve symlinks on both sides of the entry-point comparison. Without
-// this, the guard never matches under a `bun link` / `npm link` install
-// where `~/.bun/bin/pome` (or the npm equivalent) is a symlink and
+// this, the guard never matches under an `npm link` install
+// where the global `pome` bin is a symlink and
 // `process.argv[1]` keeps the symlink path while `import.meta.url`
 // resolves to the real file. On macOS the same mismatch hits any `/tmp`
 // path because `/tmp` symlinks to `/private/tmp`. Symptom: invoking

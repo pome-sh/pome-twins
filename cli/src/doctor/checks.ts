@@ -43,8 +43,7 @@ export interface RunDoctorChecksOptions {
   // "full" (default, `pome doctor` + local-run gate) boots the local twin.
   // "hosted" (the hosted-run gate, FDRS-641) skips the local twin boot: a
   // hosted run never touches it — the cloud provisions the session twin —
-  // and the local boot needs better-sqlite3, unavailable under the Bun
-  // runtime hosted runs commonly use. Config/routing/egress still gate.
+  // and the local boot needs better-sqlite3. Config/routing/egress still gate.
   mode?: "full" | "hosted";
 }
 
@@ -113,7 +112,7 @@ async function checkConfig(cwd: string): Promise<ConfigCheck> {
       status: "fail",
       label: "pome.config.json is not valid",
       cause: `${path} has an agent.command that is not a non-empty string.`,
-      fix: 'set agent.command to the command that starts your agent, e.g. "bun run src/index.ts"',
+      fix: 'set agent.command to the command that starts your agent, e.g. "npx tsx src/index.ts"',
     };
   }
 
@@ -134,13 +133,13 @@ async function checkTwinReachable(_configDir: string): Promise<DoctorCheck> {
     status: "fail",
     label: "twin not reachable",
     cause,
-    fix: "bun install (twin dependencies), then re-run pome doctor — if it persists, file an issue with the error above",
+    fix: "npm install (twin dependencies), then re-run pome doctor — if it persists, file an issue with the error above",
   });
 
   let harness;
   try {
     // Dynamic import: the twin harness pulls in better-sqlite3, which the
-    // hosted-mode gate must never load (unavailable under the Bun runtime).
+    // hosted-mode gate must never load better-sqlite3 unnecessarily.
     const { bootTwin } = await import("../twin/twinHarness.js");
     harness = await bootTwin({
       twin: "github",

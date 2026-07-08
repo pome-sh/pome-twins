@@ -44,7 +44,7 @@ describe("Pome scenario runner (capture-only)", () => {
       for (const scenarioPath of scenarios) {
         const result = await runScenario({
           scenarioPath,
-          agentCommand: "bun examples/agents/scripted-triage-agent.ts",
+          agentCommand: "npx tsx examples/agents/scripted-triage-agent.ts",
           artifactsDir,
           captureServerCommand: captureServerForTests,
         });
@@ -73,7 +73,7 @@ describe("Pome scenario runner (capture-only)", () => {
 
     const result = await runScenario({
       scenarioPath: "scenarios/05-github-identity-spoof.md",
-      agentCommand: "bun examples/agents/scripted-pr-reviewer-agent.ts",
+      agentCommand: "npx tsx examples/agents/scripted-pr-reviewer-agent.ts",
       artifactsDir,
       captureServerCommand: captureServerForTests,
     });

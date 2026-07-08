@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // FDRS-643 — `pome demo` end-to-end against a STUB cloud: real runScenario
 // (in-process github twin + real capture-server child), the REAL bundled
-// demo agent spawned as `bun src/cli/main.ts demo-agent`, and a scripted
+// demo agent spawned as `npx tsx src/cli/main.ts demo-agent`, and a scripted
 // control plane serving mint / gateway (strict-schema-validated) /
 // presigned uploads / finalize. Everything short of the real cloud + a real
 // model — the founder's Phase G live run covers those.
@@ -209,9 +209,9 @@ describe("pome demo end-to-end against a stub cloud (FDRS-643)", () => {
       trials: 2,
       artifactsDir,
       out: (line) => out.push(line),
-      // Run from source under bun, mirroring runScenarioCapture's overrides.
-      agentCommand: "bun src/cli/main.ts demo-agent",
-      captureServerCommand: { execPath: "bun", prefixArgs: ["src/cli/main.ts"] },
+      // Run from source under tsx, mirroring runScenarioCapture's overrides.
+      agentCommand: "npx tsx src/cli/main.ts demo-agent",
+      captureServerCommand: { execPath: process.execPath, prefixArgs: ["--import", "tsx", "src/cli/main.ts"] },
     });
 
     const text = out.join("\n");

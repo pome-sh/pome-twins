@@ -29,7 +29,7 @@ async function repo(files: Record<string, string>): Promise<string> {
   return dir;
 }
 
-const VALID_CONFIG = JSON.stringify({ agent: { command: "bun src/agent.ts", sdk: "claude" } });
+const VALID_CONFIG = JSON.stringify({ agent: { command: "npx tsx src/agent.ts", sdk: "claude" } });
 
 describe("runDoctorChecks", () => {
   it("fails the config check when no pome.config.json exists, pointing at pome init", async () => {

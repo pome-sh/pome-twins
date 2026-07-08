@@ -134,8 +134,10 @@ describe("pome run --hosted (e2e via spawn)", () => {
     );
 
     const child = spawn(
-      "bun",
+      process.execPath,
       [
+        "--import",
+        "tsx",
         CLI_ENTRY,
         "run",
         scenarioPath,
@@ -206,8 +208,10 @@ describe("pome run --hosted (e2e via spawn)", () => {
     );
 
     const child = spawn(
-      "bun",
+      process.execPath,
       [
+        "--import",
+        "tsx",
         CLI_ENTRY,
         "run",
         scenarioPath,

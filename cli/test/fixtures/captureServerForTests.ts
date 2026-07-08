@@ -3,11 +3,11 @@
 // `process.argv[1]` is vitest's worker entry — not pome's main — so the
 // default child-process spawn (`process.execPath process.argv[1] ...`)
 // doesn't boot the capture-server. Tests pass this override to point the
-// runner at `bun src/cli/main.ts capture-server ...` instead.
+// runner at `npx tsx src/cli/main.ts capture-server ...` instead.
 
 import type { CaptureServerCommand } from "../../src/runner/runScenario.js";
 
 export const captureServerForTests: CaptureServerCommand = {
-  execPath: "bun",
-  prefixArgs: ["src/cli/main.ts"],
+  execPath: process.execPath,
+  prefixArgs: ["--import", "tsx", "src/cli/main.ts"],
 };

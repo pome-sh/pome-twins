@@ -15,7 +15,7 @@ import { writeRunNoScore } from "./runScenarioCore.js";
 
 // Override for how `pome capture-server` is invoked as a child. Production
 // re-invokes process.argv[1] (the same compiled `pome` binary). Tests pass
-// `{ execPath: "bun", prefixArgs: ["src/cli/main.ts"] }` to run from source.
+// `{ execPath: process.execPath, prefixArgs: ["--import", "tsx", "src/cli/main.ts"] }` to run from source.
 // The full child argv ends up as `[...prefixArgs, "capture-server", "--port",
 // "0", "--events-out", <eventsJsonlPath>]`.
 export type CaptureServerCommand = {

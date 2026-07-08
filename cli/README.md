@@ -48,10 +48,10 @@ contract, authentication, the Stripe/Slack twins, and everything else.
 ## Development
 
 ```bash
-bun install
-bun run typecheck
-bun run build
-bun run test
+npm install
+npm run typecheck
+npm run build
+npm test
 ```
 
 The package publishes the `pome` binary from `dist/src/cli/main.js`.
@@ -61,7 +61,7 @@ The package publishes the `pome` binary from `dist/src/cli/main.js`.
 Any PR that touches `cli/src/**` must either add a changeset under
 `cli/.changeset/` or bump `cli/package.json` directly; CI enforces this
 via [`scripts/check-cli-version-bump.sh`](../scripts/check-cli-version-bump.sh).
-Preferred path: `cd cli && bun changeset`.
+Preferred path: `cd cli && npm run changeset`.
 
 ## License
 

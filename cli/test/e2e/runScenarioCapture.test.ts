@@ -68,11 +68,11 @@ describe("runScenario — capture-server wiring (FDRS-399)", () => {
     try {
       const result = await runScenario({
         scenarioPath: "scenarios/01-bug-happy-path.md",
-        agentCommand: `bun ${probePath}`,
+        agentCommand: `npx tsx ${probePath}`,
         artifactsDir,
         captureServerCommand: {
-          execPath: "bun",
-          prefixArgs: ["src/cli/main.ts"],
+          execPath: process.execPath,
+          prefixArgs: [require.resolve("tsx/cli"), "src/cli/main.ts"],
         },
         onCaptureServerSpawned: (pid) => {
           capturedPid = pid;

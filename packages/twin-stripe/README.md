@@ -24,8 +24,8 @@ agent), clone this repo and run:
 
 ```bash
 git clone https://github.com/pome-sh/pome.git
-cd pome && bun install
-bun run --filter @pome-sh/twin-stripe dev &   # starts on :3333
+cd pome && npm install
+npm run -w @pome-sh/twin-stripe dev &   # starts on :3333
 sleep 2
 
 # Or via Docker (host port 3334 when using root docker-compose --profile twins):
@@ -82,10 +82,10 @@ deviations from real Stripe.
 
 ```bash
 # Terminal 1
-bun run --filter @pome-sh/twin-stripe dev
+npm run -w @pome-sh/twin-stripe dev
 
 # Terminal 2
-bun run --cwd packages/twin-stripe/examples/buyer-agent start
+npm start --prefix packages/twin-stripe/examples/buyer-agent
 ```
 
 You'll see:
@@ -177,11 +177,11 @@ change for hosted; coordinate via a cross-repo PR.
 ### Build
 
 - Package is `npm install`-able from `package.json` alone (no
-  `workspace:*` protocols, no bun-only deps; no committed lockfile is
+  `workspace:*` protocols, no package-manager-specific deps; no committed lockfile is
   required, the snapshot build regenerates one on each rebuild).
 - `npm run build` exits 0 and emits `dist/src/server.js`.
 - Built output is loadable under Node 24 — the snapshot runs
-  `runtime: "node24"`. No Bun-only N-API consumers (better-sqlite3 is
+  `runtime: "node24"`. Uses Node-native `better-sqlite3` (
   fine; we install python3 + make + g++ in the Dockerfile build stage).
 
 ### Runtime
@@ -230,18 +230,18 @@ Other deviations from real Stripe:
 ## Local commands
 
 ```bash
-bun install
-bun run dev                        # boot on :3333 with default seed
-bun run typecheck                  # tsc --noEmit
-bun run test                       # vitest, 17 files / 87 tests
-bun run build                      # tsc → dist/src/server.js
+npm install
+npm run dev                        # boot on :3333 with default seed
+npm run typecheck                  # tsc --noEmit
+npm run test                       # vitest, 17 files / 87 tests
+npm run build                      # tsc → dist/src/server.js
 node dist/src/server.js            # production-shape boot
 ```
 
 ## Use it as a Stripe test double in your tests
 
 Until the package is on npm (post-Stage-1), the cleanest way is to clone
-this monorepo and shell out to `bun run dev` from your test setup:
+this monorepo and shell out to `npm run dev` from your test setup:
 
 ```ts
 // In your test setup
@@ -251,7 +251,7 @@ import { join } from "node:path";
 // Path to where you cloned pome-sh/pome on disk
 const POME_REPO = process.env.POME_REPO ?? "/path/to/pome";
 
-const twin = spawn("bun", ["run", "dev"], {
+const twin = spawn("npm", ["run", "dev"], {
   cwd: join(POME_REPO, "packages/twin-stripe"),
   env: { ...process.env, PORT: "3333", STRIPE_CLONE_DB: ":memory:" },
 });
