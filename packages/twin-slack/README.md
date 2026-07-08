@@ -181,7 +181,7 @@ via a cross-repo PR.
   build regenerates one on each rebuild). Internal `@pome-sh/*` dependencies
   are exact published versions.
 - `npm run build` exits 0 and emits `dist/src/server.js`
-- Built output is loadable under Node 22 — the snapshot runs `runtime: "node22"`.
+- Built output is loadable under Node 24 — the snapshot runs `runtime: "node24"`.
 
 ### Runtime
 

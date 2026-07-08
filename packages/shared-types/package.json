@@ -34,9 +34,9 @@
   },
   "peerDependencies": { "zod": "^4.1.13" },
   "devDependencies": {
-    "@types/node": "^25.0.3",
+    "@types/node": "^26.1.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15",
+    "vitest": "^4.1.10",
     "zod": "^4.1.13"
   },
   "publishConfig": { "access": "public" }

@@ -103,7 +103,7 @@ via a cross-repo PR.
   protocols, no bun-only deps; no committed lockfile is required, the snapshot
   build regenerates one on each rebuild)
 - `npm run build` exits 0 and emits `dist/src/server.js`
-- Built output is loadable under Node 22 — the snapshot runs `runtime: "node22"`.
+- Built output is loadable under Node 24 — the snapshot runs `runtime: "node24"`.
   No Bun-only N-API consumers (see oven/bun#4290 for context on `better-sqlite3`).
 
 ### Runtime

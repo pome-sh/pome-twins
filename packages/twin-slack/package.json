@@ -43,7 +43,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.6",
+    "@hono/node-server": "^2.0.8",
     "@pome-sh/sdk": "0.2.0",
     "@pome-sh/shared-types": "0.6.0",
     "better-sqlite3": "^12.5.0",
@@ -54,11 +54,11 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@slack/web-api": "^7.16.0",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^25.0.3",
-    "@vitest/coverage-v8": "4.1.9",
+    "@types/node": "^26.1.0",
+    "@vitest/coverage-v8": "4.1.10",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.10"
   },
   "keywords": [
     "slack",
@@ -79,6 +79,6 @@
   },
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }

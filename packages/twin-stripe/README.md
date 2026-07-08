@@ -180,8 +180,8 @@ change for hosted; coordinate via a cross-repo PR.
   `workspace:*` protocols, no bun-only deps; no committed lockfile is
   required, the snapshot build regenerates one on each rebuild).
 - `npm run build` exits 0 and emits `dist/src/server.js`.
-- Built output is loadable under Node 22 — the snapshot runs
-  `runtime: "node22"`. No Bun-only N-API consumers (better-sqlite3 is
+- Built output is loadable under Node 24 — the snapshot runs
+  `runtime: "node24"`. No Bun-only N-API consumers (better-sqlite3 is
   fine; we install python3 + make + g++ in the Dockerfile build stage).
 
 ### Runtime
