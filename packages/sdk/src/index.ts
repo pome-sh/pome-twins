@@ -115,6 +115,10 @@ export interface RecorderHandlerResult {
 export interface RecorderHandle {
   record(event: RecorderEvent): void;
   events(): RecorderEvent[];
+  /** Event count without the O(N) copy `events()` makes. */
+  count(): number;
+  /** Events dropped by a bounded store (0 for the default unbounded store). */
+  dropped(): number;
   /**
    * Wrap a Hono handler with auto-recording. The wrapped function returns
    * `{ status, body }` (not a `Response`); the recorder fills in `ts`,
@@ -151,6 +155,12 @@ export interface AdminHandlers<TDomain = unknown, TSeed = unknown> {
     seed: TSeed;
     reportDelta: (delta: RecorderEvent["state_delta"]) => void;
   }) => unknown | Promise<unknown>;
+  /**
+   * Whether /admin/reset|seed land on the recorder tape. Default true
+   * (github/slack frozen tapes record admin events); stripe pins false —
+   * its pre-port recorder never saw admin traffic.
+   */
+  recorded?: boolean;
   /**
    * Per-surface error projection for /admin/reset|seed. Pre-port slack's
    * admin handlers answered EVERY thrown error with 500
@@ -360,6 +370,7 @@ const toolMeta = z.object({
 const adminMeta = z.object({
   reset: z.custom<Function>(isFunction).optional(),
   seed: z.custom<Function>(isFunction).optional(),
+  recorded: z.boolean().optional(),
   errorEnvelope: z.custom<Function>(isFunction).optional(),
   forbidden: z.custom<Function>(isFunction).optional(),
 });

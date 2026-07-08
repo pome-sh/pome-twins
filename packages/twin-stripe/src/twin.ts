@@ -35,6 +35,7 @@ import { resolveSidFromKey } from "./api-keys.js";
 import { openTwinStripeDatabase, resetDatabase } from "./db.js";
 import { StripeDomain } from "./domain/index.js";
 import { TwinError, forbidden, stripeError, unauthorized, unsupported } from "./errors.js";
+import { looksLikeApiKey } from "./api-keys.js";
 import { idempotencyMiddleware } from "./idempotency.js";
 import { registerStripeRoutes } from "./routes/index.js";
 import { applySeed, defaultSeed, seedSchema } from "./seed.js";
@@ -143,7 +144,12 @@ export function createStripeTwinDefinition(
     implementation: "stripe_clone",
     packageName: "@pome-sh/twin-stripe",
     fidelity: { default: "semantic" },
-    seed: stripeSeedSchema,
+    // Pre-port: `payload === null ? defaultSeed() : parseSeed(payload)` —
+    // an absent/unparseable seed body applies the default world.
+    seed: z.preprocess(
+      (value) => (value === null || value === undefined ? defaultSeed() : value),
+      stripeSeedSchema
+    ) as unknown as typeof stripeSeedSchema,
     domain: ({ db: injected, seed }) => {
       if (injected && injected !== db) {
         throw new Error(
@@ -154,7 +160,12 @@ export function createStripeTwinDefinition(
       if (seed !== undefined) applySeed(db, seed, failureInjection);
       return domain;
     },
-    routes: (app, ctx) => {
+    // Session-wide middleware (the pre-port `session.use("*")` position):
+    // mounted by the engine BEFORE its MCP routes, so failure injection and
+    // idempotency cover /mcp, /mcp/call, /mcp/tools/:name exactly as the
+    // pre-port chassis did (F-684 review pin: an Idempotency-Key'd MCP
+    // create must replay, and injected rules on MCP paths must fire).
+    middleware: (app, ctx) => {
       // Failure injection MUST run before idempotency so a configured
       // failure response isn't cached by the idempotency layer (a retry
       // under the same key would replay the synthetic 4xx instead of
@@ -165,6 +176,35 @@ export function createStripeTwinDefinition(
         twin: "stripe",
       }));
       app.use("*", idempotencyMiddleware(db, ctx.recorder, ctx.runId));
+    },
+    // Frozen pre-port body parsing on the engine-owned surfaces (F-684
+    // review pin). Two pre-port readers existed: /admin/seed was strict
+    // JSON with a null fallback (null → default seed via the schema
+    // preprocess below), while the MCP dispatch surfaces used
+    // routes/index.ts's form-or-JSON reader ({} fallback).
+    bodyReader: async (c) => {
+      if (new URL(c.req.url).pathname.endsWith("/admin/seed")) {
+        try {
+          return await c.req.json();
+        } catch {
+          return null;
+        }
+      }
+      const contentType = c.req.header("content-type") ?? "";
+      if (contentType.includes("application/x-www-form-urlencoded")) {
+        try {
+          return await c.req.parseBody();
+        } catch {
+          return {};
+        }
+      }
+      try {
+        return await c.req.json();
+      } catch {
+        return {};
+      }
+    },
+    routes: (app, ctx) => {
       opts.extendRoutes?.(app, ctx);
       registerStripeRoutes(app, ctx.domain, ctx.recorder, ctx.runId);
       if (opts.twinBaseUrl) {
@@ -192,6 +232,9 @@ export function createStripeTwinDefinition(
           failure_injection: (seed.failure_injection ?? []).length,
         };
       },
+      // Frozen tape shape: stripe's pre-port recorder never saw admin
+      // traffic — /admin/reset|seed emit no events (F-684 review pin).
+      recorded: false,
       // Frozen stripe admin-gate 403 body.
       forbidden: () => forbidden("Forbidden"),
     },
@@ -208,13 +251,13 @@ export function createStripeTwinDefinition(
     // core {ok, twin, implementation, tools, runtime}.
     healthz: () => ({ fidelity: "semantic", tthw_seconds: tthwSeconds(startedAtMs) }),
     // Frozen per-session health shape: implementation/fidelity/tthw/runtime
-    // plus recorder counters (the engine recorder is unbounded → dropped 0).
+    // plus recorder counters (bounded store: real dropped count, D-ENG-10).
     pomeHealth: ({ recorder }) => ({
       implementation: "stripe_clone",
       fidelity: "semantic",
       tthw_seconds: tthwSeconds(startedAtMs),
       runtime: twinBuildInfo("@pome-sh/twin-stripe"),
-      recorder: { events: recorder.events().length, dropped: 0 },
+      recorder: { events: recorder.count(), dropped: recorder.dropped() },
     }),
     // Frozen per-twin difference: stripe has NO per-session /healthz (501).
     sessionHealthz: false,
@@ -234,11 +277,25 @@ export function createStripeTwinDefinition(
       allowRawBearer: true,
       requirePathSid: false,
       resolveCredential: (token) => {
+        // Perf + pre-port parity: only api-key-shaped tokens hit the DB.
+        // A table miss falls through to provider verify; if that also
+        // fails, the unauthorized hook renders the frozen
+        // "Invalid API Key provided." for this shape.
+        if (!looksLikeApiKey(token)) return undefined;
         const row = resolveSidFromKey(db, token);
         return row ? { sid: row.sid, account_id: row.account_id, via: "api_key" } : undefined;
       },
-      unauthorized: (kind) => {
-        const envelope = unauthorized(kind === "expired" ? "Token expired" : "Bad credentials");
+      unauthorized: (kind, info) => {
+        // Frozen wire messages: api-key-shaped tokens that resolve nowhere
+        // answer "Invalid API Key provided." (pre-port terminal branch);
+        // JWT-shaped failures answer "Bad credentials" / "Token expired".
+        const message =
+          kind === "expired"
+            ? "Token expired"
+            : info?.token && looksLikeApiKey(info.token)
+              ? "Invalid API Key provided."
+              : "Bad credentials";
+        const envelope = unauthorized(message);
         return { status: envelope.status, body: envelope.body };
       },
       sidMismatch: () => {

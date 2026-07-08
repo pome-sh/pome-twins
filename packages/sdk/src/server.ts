@@ -214,9 +214,25 @@ export function createApp<TDb, TSeed, TDomain>(
       : requireAdminAuth()
   );
   const adminEnvelope = definition.admin?.errorEnvelope;
+  // stripe pin: its pre-port recorder never saw admin traffic, so
+  // admin.recorded=false serves the same handlers without emitting events.
+  const wrapAdmin =
+    definition.admin?.recorded !== false
+      ? (fn: (c: Context) => Promise<{ status: number; body: unknown; delta?: unknown }>) =>
+          recorder.handle({ mutation: true, errorEnvelope: adminEnvelope }, fn as never)
+      : (fn: (c: Context) => Promise<{ status: number; body: unknown; delta?: unknown }>) =>
+          async (c: Context) => {
+            try {
+              const result = await fn(c);
+              return c.json(result.body as never, result.status as never);
+            } catch (err) {
+              const envelope = (adminEnvelope ?? definition.errorEnvelope ?? envelopeFor)(err);
+              return c.json(envelope.body as never, envelope.status as never);
+            }
+          };
   adminApp.post(
     "/reset",
-    recorder.handle({ mutation: true, errorEnvelope: adminEnvelope }, async () => {
+    wrapAdmin(async () => {
       if (!definition.admin?.reset) {
         throw new TwinError("admin.reset is not configured for this twin", 501);
       }
@@ -227,7 +243,7 @@ export function createApp<TDb, TSeed, TDomain>(
   );
   adminApp.post(
     "/seed",
-    recorder.handle({ mutation: true, errorEnvelope: adminEnvelope }, async (c) => {
+    wrapAdmin(async (c) => {
       if (!definition.admin?.seed) {
         throw new TwinError("admin.seed is not configured for this twin", 501);
       }

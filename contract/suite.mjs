@@ -102,6 +102,13 @@ export const PER_TWIN = {
     mcpCallMalformed: { status: 400, check: (b) => b.error?.code === "parameter_invalid" && b.error?.param === "tool" },
     pomeHealthKeys: ["fidelity", "implementation", "ok", "recorder", "runtime", "tthw_seconds", "twin"],
     adminSeedTape: "none",
+    // Probed on the 3cd86eb baseline: an api-key-shaped bearer that resolves
+    // nowhere answers the frozen Invalid-API-Key envelope, never the JWT
+    // "Bad credentials" message.
+    unknownApiKey: {
+      status: 401,
+      check: (b) => b.error?.code === "unauthorized" && b.error?.message === "Invalid API Key provided.",
+    },
     unknownSession: {
       status: 501,
       check: (b) => b.error?.code === "endpoint_not_supported" && b.error?.fidelity === "unsupported",
@@ -314,6 +321,12 @@ export function contractSuite(twin, exp, label = twin.name) {
           assert.equal(last.state_delta, null, "admin/seed event carries state_delta:null");
         }
       }
+    });
+
+    it("bearer with an unknown API key → frozen per-twin 401 envelope", { skip: !exp.unknownApiKey }, async () => {
+      const res = await req(t.base, sPath("/_pome/state"), { token: "sk_test_pome_nonexistent" });
+      assert.equal(res.status, exp.unknownApiKey.status);
+      checkBody(exp.unknownApiKey, res.json, "unknown api key");
     });
 
     it("unknown session route → 501 unsupported envelope; unknown root route frozen", async () => {

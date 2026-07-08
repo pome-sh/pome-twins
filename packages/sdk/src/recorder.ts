@@ -147,6 +147,12 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     events() {
       return store.events();
     },
+    count() {
+      return store.count?.() ?? store.events().length;
+    },
+    dropped() {
+      return store.dropped?.() ?? 0;
+    },
     handle({ mutation, fidelity = "semantic", errorEnvelope: perCallEnvelope }, fn) {
       const projectError = perCallEnvelope ?? errorEnvelope;
       return async (c) => {

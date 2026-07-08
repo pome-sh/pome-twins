@@ -238,8 +238,13 @@ export interface BearerAuthOptions {
     token: string,
     c: Context
   ) => SessionValue | undefined | Promise<SessionValue | undefined>;
-  /** Rows 2 + 6: the twin's 401 envelope, keyed by failure classification. */
-  unauthorized?: (kind: UnauthorizedKind) => AuthEnvelope;
+  /**
+   * Rows 2 + 6: the twin's 401 envelope, keyed by failure classification.
+   * `info.token` carries the presented credential so a twin can render
+   * shape-dependent messages (stripe: api-key-shaped tokens answer
+   * "Invalid API Key provided.", JWTs answer "Bad credentials").
+   */
+  unauthorized?: (kind: UnauthorizedKind, info?: { token?: string }) => AuthEnvelope;
   /** Row 5 pin: the twin's sid-mismatch envelope (github/slack 401, stripe 403). */
   sidMismatch?: () => AuthEnvelope;
   /** Row 7: extra session fields derived from verified JWT claims. */
@@ -348,12 +353,12 @@ export function bearerAuth(options: BearerAuthOptions = {}): MiddlewareHandler {
     try {
       claims = (await verify(token, resolveAuthSecret(), "HS256")) as unknown as SessionClaims;
     } catch (err) {
-      return respond(unauthorized(classifyJwtError(err)));
+      return respond(unauthorized(classifyJwtError(err), { token }));
     }
     if (typeof claims.exp === "number" && claims.exp < Math.floor(Date.now() / 1000)) {
-      return respond(unauthorized("expired"));
+      return respond(unauthorized("expired", { token }));
     }
-    if (!claims.sid) return respond(unauthorized("invalid"));
+    if (!claims.sid) return respond(unauthorized("invalid", { token }));
     const mismatch = checkSid(claims.sid);
     if (mismatch) return mismatch;
 

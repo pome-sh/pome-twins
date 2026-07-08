@@ -245,6 +245,7 @@ describe("redactSecrets — F-716 adversarial inputs stay linear", () => {
     expect(redactSecrets(input)).toBe("[REDACTED]\n".repeat(20_000));
     expect(performance.now() - started).toBeLessThan(1_000);
   });
+});
 
 // Provider secret shapes previously guarded by the per-twin mirror copies
 // (FDRS-588 / FDRS-608). The stripe copy died in F-684; its distinctive
