@@ -27,12 +27,12 @@ The bar Pome aims for: **agents written against real Stripe x402 run
 unchanged against this twin**, and trip a loud failure for anything
 outside the documented surface.
 
-For the build / runtime / cross-repo invariants the hosted snapshot
+For the build / runtime / cloud consumer invariants the hosted snapshot
 build depends on (port `:3333`, `/healthz`, `STRIPE_CLONE_HOST`,
 `npm install`-able package, `node dist/src/server.js`), see
 [Runtime contract](./README.md#runtime-contract-for-snapshot-consumers)
 in the package README. Changing any of those is a breaking change for
-`pome-cloud` and goes via a cross-repo PR.
+`pome-cloud` and requires a matching cloud consumer PR.
 
 ## REST routes (v1 = 12 semantic + everything else loud 501)
 

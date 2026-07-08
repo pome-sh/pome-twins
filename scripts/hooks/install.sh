@@ -13,4 +13,5 @@ chmod +x scripts/hooks/pre-commit
 git config core.hooksPath scripts/hooks
 
 echo "✅ git hooks installed (core.hooksPath = scripts/hooks)"
-echo "   pre-commit will run the open-core boundary + twin-only namespace lints."
+echo "   pre-commit will run OSS boundary, copy-marker, and staged secret scans."
+echo "   Install gitleaks + trufflehog locally before committing staged changes."

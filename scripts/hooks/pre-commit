@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Pome repo pre-commit hook. Belt to CI's suspenders — the same lints run in
+# Pome repo pre-commit hook. Belt to CI's suspenders — the same gates run in
 # .github/workflows/ci.yml, so a `--no-verify` commit is still caught on PR.
 #
 # Install with:  bash scripts/hooks/install.sh
 #
-# Lints:
+# Gates:
 #  - ADR-002 open-core boundary: no `pome-cloud` imports in packages/.
+#  - Capture-only OSS boundary: no local eval/scoring/judging/correlation.
+#  - No cross-package file-copy markers.
+#  - Secret scan staged changes when gitleaks/trufflehog are installed.
 
 set -euo pipefail
 
@@ -14,3 +17,33 @@ cd "$repo_root"
 
 echo "pre-commit: open-core boundary lint"
 bash scripts/lint-no-cloud-imports.sh
+
+echo "pre-commit: no local eval gate"
+bun run gate:no-eval
+
+echo "pre-commit: copy-marker gate"
+bun run lint:copy-markers
+
+staged_count="$(git diff --cached --name-only --diff-filter=ACMR | wc -l | tr -d ' ')"
+if [ "$staged_count" = "0" ]; then
+  echo "pre-commit: no staged files for secret scan"
+  exit 0
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is required for staged secret scans." >&2
+  echo "Install it from https://github.com/gitleaks/gitleaks, then retry." >&2
+  exit 1
+fi
+
+if ! command -v trufflehog >/dev/null 2>&1; then
+  echo "pre-commit: trufflehog is required for staged secret scans." >&2
+  echo "Install it from https://github.com/trufflesecurity/trufflehog, then retry." >&2
+  exit 1
+fi
+
+echo "pre-commit: gitleaks staged scan"
+gitleaks protect --staged --verbose
+
+echo "pre-commit: trufflehog verified-secret scan"
+trufflehog filesystem --only-verified --fail .
