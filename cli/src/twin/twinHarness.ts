@@ -31,14 +31,9 @@ import {
   SlackDomain,
 } from "@pome-sh/twin-slack";
 import {
-  applySeed as applyStripeSeed,
-  createFailureInjectionStore,
-  createRecorder as createStripeRecorder,
   createTwinStripeApp,
-  listTools as listStripeTools,
   openTwinStripeDatabase,
   parseSeed as parseStripeSeed,
-  registerStripeSessionRoutes,
   StripeDomain,
 } from "@pome-sh/twin-stripe";
 
@@ -124,37 +119,26 @@ export async function bootTwin(opts: {
     }
 
     case "stripe": {
-      // Stripe uses its OWN recorder (the chassis calls `recorder.dropped()`,
-      // which the CLI recorder lacks), so events come from it rather than the
-      // shared `recorder` created above.
-      const stripeRecorder = createStripeRecorder();
+      // Engine-based twin (F-684): the factory owns middleware, MCP mount,
+      // and the failure-injection store — seed rules ride in via `seed` and
+      // land in the same store the session middleware reads (FDRS-369), so
+      // e.g. scenario 14's lost-response 402 actually fires. Recorder
+      // counters (dropped) come from the engine handle, so the shared CLI
+      // recorder suffices here too.
       const db = openTwinStripeDatabase(":memory:");
-      const failureInjection = createFailureInjectionStore();
-      // applySeed installs `failure_injection` rules into the SAME store the
-      // session router reads (FDRS-369), so e.g. scenario 14's lost-response
-      // 402 actually fires. Seed is normalized through the twin's parseSeed.
-      applyStripeSeed(db, parseStripeSeed(opts.seedState), failureInjection);
       const domain = new StripeDomain(db);
       const app = createTwinStripeApp({
         db,
-        recorder: stripeRecorder,
+        recorder: recorder as NonNullable<Parameters<typeof createTwinStripeApp>[0]>["recorder"],
         runId: opts.runId,
-        failureInjection,
-        toolCount: listStripeTools().length,
-        extendSession: (session) => {
-          return registerStripeSessionRoutes(session, {
-            domain,
-            recorder: stripeRecorder,
-            runId: opts.runId,
-            twinBaseUrl: opts.twinBaseUrl ?? "http://127.0.0.1:3333",
-          });
-        },
+        seed: parseStripeSeed(opts.seedState),
+        twinBaseUrl: opts.twinBaseUrl ?? "http://127.0.0.1:3333",
       }) as TwinHarness["app"];
       return {
         app,
         envName: "STRIPE",
         exportState: () => domain.exportState(STRIPE_LOCAL_ACCOUNT_ID),
-        events: () => stripeRecorder.events() as unknown as RecorderEvent[],
+        events: () => recorder.events(),
         extraClaims: { account_id: STRIPE_LOCAL_ACCOUNT_ID },
         close: () => db.close(),
       };
