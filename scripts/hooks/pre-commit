@@ -8,7 +8,7 @@
 #  - ADR-002 open-core boundary: no `pome-cloud` imports in packages/.
 #  - Capture-only OSS boundary: no local eval/scoring/judging/correlation.
 #  - No cross-package file-copy markers.
-#  - Secret scan staged file contents when gitleaks/trufflehog are installed.
+#  - Secret scan staged file contents (requires gitleaks + trufflehog).
 
 set -euo pipefail
 
@@ -43,7 +43,7 @@ if ! command -v trufflehog >/dev/null 2>&1; then
 fi
 
 echo "pre-commit: gitleaks staged scan"
-gitleaks protect --staged --verbose
+gitleaks protect --staged --verbose --config .gitleaks.toml
 
 staged_snapshot="$(mktemp -d)"
 staged_list="$(mktemp)"
