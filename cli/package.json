@@ -38,7 +38,6 @@
     "examples",
     "scenarios",
     "skills",
-    "vendor",
     "LICENSE",
     "package.json",
     "README.md"
@@ -55,7 +54,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run test/e2e",
-    "verify:vendor": "node scripts/verify-vendor.mjs",
     "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
     "changeset": "changeset",
     "changeset:version": "changeset version",
@@ -69,19 +67,16 @@
     "@anthropic-ai/sdk": "^0.109.0",
     "@hono/node-server": "^2.0.6",
     "@openrouter/ai-sdk-provider": "^2.9.0",
-    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz",
-    "@pome-sh/twin-github": "file:./vendor/pome-sh-twin-github-0.1.0.tgz",
-    "@pome-sh/twin-slack": "file:./vendor/pome-sh-twin-slack-0.1.0.tgz",
-    "@pome-sh/twin-stripe": "file:./vendor/pome-sh-twin-stripe-0.2.0.tgz",
+    "@pome-sh/shared-types": "0.6.0",
+    "@pome-sh/twin-github": "0.1.0",
+    "@pome-sh/twin-slack": "0.1.0",
+    "@pome-sh/twin-stripe": "0.2.0",
     "ai": "^6.0.193",
     "better-sqlite3": "^12.5.0",
     "commander": "^15.0.0",
     "hono": "^4.10.7",
     "yaml": "^2.8.2",
     "zod": "^4.1.13"
-  },
-  "overrides": {
-    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",

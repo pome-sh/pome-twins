@@ -16,8 +16,8 @@ const scenario: Scenario = {
   prompt: "Triage the incoming bug and label it.",
   expectedBehavior: "The agent labels the issue as a bug.",
   criteria: [
-    { type: "D", text: "The issue is labeled `bug`" },
-    { type: "P", text: "The agent left a helpful triage comment" },
+    { type: "code", text: "The issue is labeled `bug`" },
+    { type: "model", text: "The agent left a helpful triage comment" },
   ],
   config: { twins: ["github"], timeout: 60, runs: 1, passThreshold: 100 },
   seedState: {} as Scenario["seedState"],
@@ -46,8 +46,8 @@ describe("fix-prompt (capture-only)", () => {
     expect(out).toContain("You are a senior engineer");
     // The scenario prompt + every criterion are included (no verdict needed).
     expect(out).toContain("Triage the incoming bug and label it.");
-    expect(out).toContain("[D] The issue is labeled `bug`");
-    expect(out).toContain("[P] The agent left a helpful triage comment");
+    expect(out).toContain("[code] The issue is labeled `bug`");
+    expect(out).toContain("[model] The agent left a helpful triage comment");
     // The captured trace is embedded inside the agent-trace fence.
     expect(out).toContain("<agent-trace>");
     expect(out).toContain("/repos/acme/api/issues/1/labels");

@@ -83,10 +83,12 @@ async function startStubCloud(): Promise<StubCloud> {
         const n = minted.length;
         json(201, {
           session_id: `ses_${n}`,
+          session_token: `pst_test_${n}`,
           twin_url: `http://127.0.0.1:${port}/s/ses_${n}`,
           expires_at: new Date(Date.now() + 600_000).toISOString(),
           agent_token: `tok_${n}`,
           openapi_url: `http://127.0.0.1:${port}/openapi.json`,
+          per_twin: {},
         });
         return;
       }

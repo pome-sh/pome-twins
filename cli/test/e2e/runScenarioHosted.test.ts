@@ -27,10 +27,12 @@ async function startFakeCloud(): Promise<number> {
     );
     return c.json({
       session_id: sid,
+      session_token: "pst_test_e2e",
       twin_url: `http://127.0.0.1:${port}/s/${sid}`,
       expires_at: new Date(Date.now() + 600_000).toISOString(),
       agent_token: token,
       openapi_url: `http://127.0.0.1:${port}/openapi.json`,
+      per_twin: {},
     });
   });
   app.get("/s/:sid/_pome/state", (c) =>

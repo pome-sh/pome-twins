@@ -10,9 +10,17 @@
     "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" }
   },
   "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pome-sh/pome-twins.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/pome-sh/pome-twins/tree/main/packages/sdk",
+  "bugs": {
+    "url": "https://github.com/pome-sh/pome-twins/issues"
+  },
   "files": [
     "dist",
-    "vendor",
     "package.json"
   ],
   "scripts": {
@@ -22,13 +30,11 @@
     "prepublishOnly": "tsc -p tsconfig.build.json",
     "emit-fidelity": "tsx scripts/emit-fidelity.ts"
   },
-  "//shared-types": "FDRS-612: shared-types is not on npm, so `workspace:*` (unresolvable off-workspace) is replaced by the vendored, dist-shipping tarball. In-repo dev still resolves it via the bun workspace by package name; the `file:` spec + bundledDependencies only take effect off-workspace (npm pack/install), where scripts/pack-publishable.mjs rewrites main/types/exports to ./dist.",
   "dependencies": {
-    "@pome-sh/shared-types": "file:./vendor/pome-sh-shared-types-0.6.0.tgz",
+    "@pome-sh/shared-types": "0.6.0",
     "hono": "^4.12.27",
     "zod": "^4.1.13"
   },
-  "bundledDependencies": ["@pome-sh/shared-types"],
   "peerDependencies": {
     "@hono/node-server": "^1.19.6",
     "better-sqlite3": "^12.5.0"

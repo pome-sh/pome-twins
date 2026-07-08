@@ -36,7 +36,7 @@ function verdict(over: Partial<VerdictArtifact>): VerdictArtifact {
     passed: true,
     criteria_results: [
       {
-        criterion: { type: "P", text: "Severity is set correctly" },
+        criterion: { type: "model", text: "Severity is set correctly" },
         passed: true,
         skipped: false,
         reason: "ok",

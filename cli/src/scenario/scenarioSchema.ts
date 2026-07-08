@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { seedSchema as githubSeedStateSchema } from "@pome-sh/twin-github";
+// Criterion kinds are owned by the published contract. `criterionSchema`
+// accepts the legacy `D`/`P` spellings and normalizes them to `code`/`model`,
+// so existing scenario files keep parsing. The former local `["D","P"]` fork is
+// retired here (M6 — one published contract).
+import { criterionSchema } from "@pome-sh/shared-types";
 import { z } from "zod";
 
-export const criterionSchema = z.object({
-  type: z.enum(["D", "P"]),
-  text: z.string().min(1)
-});
+export { criterionSchema };
 
 export const scenarioConfigSchema = z.object({
   twins: z.array(z.string()).default(["github"]),

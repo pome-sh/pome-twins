@@ -1,0 +1,41 @@
+{
+  "package": "@pome-sh/shared-types",
+  "version": "0.6.0",
+  "zod": {
+    "range": "^4.1.13",
+    "major": 4
+  },
+  "exports": {
+    "root": "@pome-sh/shared-types",
+    "recorderEvents": "@pome-sh/shared-types/recorder-events",
+    "run": "@pome-sh/shared-types/run",
+    "otel": "@pome-sh/shared-types/otel",
+    "redaction": "@pome-sh/shared-types/redaction"
+  },
+  "canonicalSchemas": [
+    "recorderEventSchema",
+    "eventSchema",
+    "otelEventSchema",
+    "runSchema"
+  ],
+  "fixtures": [
+    "test/fixtures/v1/createSessionRequest/multi-twin-permissive-seed-idempotency.json",
+    "test/fixtures/v1/createSessionRequest/scenario-source-github.json",
+    "test/fixtures/v1/createSessionRequest/stored-scenario.json",
+    "test/fixtures/v1/createSessionRequestTaskVocab/stored-task.json",
+    "test/fixtures/v1/createSessionRequestTaskVocab/task-source-github.json",
+    "test/fixtures/v1/createSessionResponse/full-multi-twin.json",
+    "test/fixtures/v1/createSessionResponse/legacy-single-twin.json",
+    "test/fixtures/v1/planTier/enterprise.json",
+    "test/fixtures/v1/planTier/free.json",
+    "test/fixtures/v1/planTier/hobby.json",
+    "test/fixtures/v1/planTier/pro.json",
+    "test/fixtures/v1/planTier/self_host_annual.json",
+    "test/fixtures/v1/planTier/team.json",
+    "test/fixtures/v1/run/full-production.json",
+    "test/fixtures/v1/run/legacy-minimal.json",
+    "test/fixtures/v1/runTaskVocab/full-production-task-vocab.json",
+    "test/fixtures/v1/usage/free-tier.json",
+    "test/fixtures/v1/usage/team-tier-exhausted.json"
+  ]
+}

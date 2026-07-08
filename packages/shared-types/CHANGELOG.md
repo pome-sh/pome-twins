@@ -1,5 +1,25 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.6.0
+
+M6 — publish the trace-format contract as the single reusable package surface
+for OSS twins, the CLI, adapters, and pome-cloud consumers.
+
+### Added
+
+- Subpath exports for `recorder-events`, `run`, `otel`, and `redaction` so
+  downstream codegen and consumers can import stable contract leaves.
+- Shared redaction helpers (`redactSecrets`, `redactEvent`) used by CLI,
+  adapter, SDK, and first-party twins.
+- CLI response contract coverage for eval sessions, finalize responses, and
+  criterion definitions.
+
+### Changed
+
+- `@pome-sh/shared-types` is the source of truth for the CLI trace/event
+  schemas; the CLI no longer maintains a local copy.
+- Published consumers must use zod 4 (`^4.1.13`).
+
 ## 0.5.0
 
 FDRS-653 — reconcile the forked OTel surface (twins is the single canonical

@@ -83,11 +83,12 @@ function failedResult(): FinalizeResponse["criteria_results"] {
 
 function criterion(text: string, outcome: "passed" | "failed") {
   return {
-    criterion: { type: "P" as const, text },
-    outcome,
+    criterion: { type: "model" as const, text },
     passed: outcome === "passed",
     skipped: false,
     reason: outcome === "passed" ? "ok" : "not satisfied",
+    confidence: outcome === "passed" ? 0.95 : 0.1,
+    judge_model: "test-judge",
   };
 }
 

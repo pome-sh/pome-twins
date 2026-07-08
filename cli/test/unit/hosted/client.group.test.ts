@@ -23,10 +23,12 @@ function mockFetch(impl: typeof fetch) {
 
 const SESSION_RESPONSE = JSON.stringify({
   session_id: "ses_abc",
+  session_token: "pst_test_abc",
   twin_url: "https://twins.example.com/s/ses_abc",
   expires_at: "2026-07-05T20:00:00Z",
   agent_token: "edt_jwt",
   openapi_url: "https://twins.example.com/s/ses_abc/openapi.json",
+  per_twin: {},
 });
 
 describe("HostedClient.createSession — group fields (FDRS-636)", () => {

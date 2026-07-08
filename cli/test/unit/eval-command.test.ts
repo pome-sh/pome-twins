@@ -710,8 +710,7 @@ describe("pome eval review fixes (FDRS-656 follow-up)", () => {
         dashboard_url: `https://dashboard.example.com/runs/${FAKE_RUN_ID}`,
         criteria_results: [
           {
-            criterion: { type: "P", text: "agent acted reasonably" },
-            outcome: "skipped",
+            criterion: { type: "model", text: "agent acted reasonably" },
             passed: false,
             skipped: true,
             reason: "no judge configured",

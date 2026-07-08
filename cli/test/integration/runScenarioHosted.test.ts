@@ -28,10 +28,12 @@ async function startFakeCloud(opts?: { finalizeScore?: number }) {
     );
     return c.json({
       session_id: FAKE_SESSION_ID,
+      session_token: "pst_test_hosted",
       twin_url: `http://127.0.0.1:${cloudPort}/s/${FAKE_SESSION_ID}`,
       expires_at: new Date(Date.now() + 600_000).toISOString(),
       agent_token: token,
       openapi_url: `http://127.0.0.1:${cloudPort}/openapi.json`,
+      per_twin: {},
     });
   });
 
@@ -281,10 +283,12 @@ describe("runScenarioHosted with upload route stubbed", () => {
       );
       return c.json({
         session_id: FAKE_SESSION_ID,
+        session_token: "pst_test_hosted",
         twin_url: `http://127.0.0.1:${uploadPort}/s/${FAKE_SESSION_ID}`,
         expires_at: new Date(Date.now() + 600_000).toISOString(),
         agent_token: token,
         openapi_url: `http://127.0.0.1:${uploadPort}/openapi.json`,
+        per_twin: {},
       });
     });
 
@@ -487,10 +491,12 @@ describe("runScenarioHosted failure paths", () => {
       );
       return c.json({
         session_id: FAKE_SESSION_ID,
+        session_token: "pst_test_hosted",
         twin_url: `http://127.0.0.1:${cloudPort}/s/${FAKE_SESSION_ID}`,
         expires_at: new Date(Date.now() + 600_000).toISOString(),
         agent_token: token,
         openapi_url: "http://127.0.0.1/openapi.json",
+        per_twin: {},
       });
     });
     app.get("/s/:sid/_pome/state", (c) =>

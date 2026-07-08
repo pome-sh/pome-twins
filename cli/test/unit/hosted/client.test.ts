@@ -33,10 +33,12 @@ describe("HostedClient.createSession", () => {
       return new Response(
         JSON.stringify({
           session_id: "ses_abc",
+          session_token: "pst_test_abc",
           twin_url: "https://twins.example.com/s/ses_abc",
           expires_at: "2026-05-01T20:00:00Z",
           agent_token: "edt_jwt",
           openapi_url: "https://twins.example.com/s/ses_abc/openapi.json",
+          per_twin: {},
         }),
         { status: 201, headers: { "content-type": "application/json" } }
       );
@@ -111,10 +113,12 @@ describe("HostedClient.createSession", () => {
       return new Response(
         JSON.stringify({
           session_id: "ses_abc",
+          session_token: "pst_test_abc",
           twin_url: "https://twins.example.com/s/ses_abc",
           expires_at: "2026-05-01T20:00:00Z",
           agent_token: "edt_jwt",
           openapi_url: "https://twins.example.com/s/ses_abc/openapi.json",
+          per_twin: {},
         }),
         { status: 201, headers: { "content-type": "application/json" } },
       );
@@ -138,10 +142,12 @@ describe("HostedClient.createSession", () => {
       return new Response(
         JSON.stringify({
           session_id: "ses_abc",
+          session_token: "pst_test_abc",
           twin_url: "https://twins.example.com/s/ses_abc",
           expires_at: "2026-05-01T20:00:00Z",
           agent_token: "edt_jwt",
           openapi_url: "https://twins.example.com/s/ses_abc/openapi.json",
+          per_twin: {},
         }),
         { status: 201, headers: { "content-type": "application/json" } },
       );
@@ -158,10 +164,12 @@ describe("HostedClient.createSession", () => {
       return new Response(
         JSON.stringify({
           session_id: "ses_abc",
+          session_token: "pst_test_abc",
           twin_url: "https://twins.example.com/s/ses_abc",
           expires_at: "2026-05-01T20:00:00Z",
           agent_token: "edt_jwt",
           openapi_url: "https://twins.example.com/s/ses_abc/openapi.json",
+          per_twin: {},
         }),
         { status: 201, headers: { "content-type": "application/json" } },
       );
@@ -721,16 +729,14 @@ describe("HostedClient.listSessions", () => {
     await expect(client.listSessions()).rejects.toBeInstanceOf(HostedOrchError);
   });
 
-  // F26 — terminal sessions should expose an `expired_reason` so
-  // dashboard / CLI can distinguish user-stopped vs TTL-elapsed. Schema
-  // accepts it optionally so older cloud builds (which don't emit it) keep
-  // parsing.
-  it("preserves optional expired_reason on terminal rows", async () => {
+  // F26 — terminal sessions parse cleanly alongside active rows. Unknown
+  // extra fields emitted by older/newer cloud builds are tolerated by the
+  // schema so parsing keeps working.
+  it("parses terminal rows alongside active rows", async () => {
     const terminalRow = {
       ...row,
       state: "expired",
       closed_at: "2026-05-01T13:00:00.000Z",
-      expired_reason: "ttl_elapsed",
     };
     mockFetch(async () =>
       new Response(JSON.stringify([terminalRow, row]), {
@@ -741,8 +747,8 @@ describe("HostedClient.listSessions", () => {
     const client = createHostedClient({ baseUrl: BASE, apiKey: KEY });
     const out = await client.listSessions({ limit: 10 });
     expect(out).toHaveLength(2);
-    expect(out[0]?.expired_reason).toBe("ttl_elapsed");
-    expect(out[1]?.expired_reason).toBeUndefined();
+    expect(out[0]?.state).toBe("expired");
+    expect(out[0]?.closed_at).toBe("2026-05-01T13:00:00.000Z");
   });
 });
 

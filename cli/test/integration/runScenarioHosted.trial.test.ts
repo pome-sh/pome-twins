@@ -65,10 +65,12 @@ async function startFakeCloud(opts?: { stateStatus?: number }): Promise<FakeClou
     );
     return c.json({
       session_id: SESSION_ID,
+      session_token: "pst_test_trial",
       twin_url: `http://127.0.0.1:${port}/s/${SESSION_ID}`,
       expires_at: new Date(Date.now() + 600_000).toISOString(),
       agent_token: token,
       openapi_url: `http://127.0.0.1:${port}/openapi.json`,
+      per_twin: {},
     });
   });
   app.get("/s/:sid/_pome/state", (c) => {
@@ -137,11 +139,13 @@ async function premintedFor(port: number): Promise<CreateSessionResponse> {
   );
   return {
     session_id: SESSION_ID,
+    session_token: "pst_test_trial",
     twin_url: `http://127.0.0.1:${port}/s/${SESSION_ID}`,
     expires_at: new Date(Date.now() + 600_000).toISOString(),
     agent_token: token,
     provider_credentials: {},
     openapi_url: `http://127.0.0.1:${port}/openapi.json`,
+    per_twin: {},
   };
 }
 

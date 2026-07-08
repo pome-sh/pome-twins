@@ -7,6 +7,7 @@ import { z } from "zod";
 import { defaultSeedState, seedSchema } from "@pome-sh/twin-github";
 import { parseGitHubSeedState } from "./githubSeedCompat.js";
 import {
+  criterionSchema,
   scenarioConfigSchema,
   scenarioSchema,
   slackSeedStateSchema,
@@ -133,10 +134,9 @@ function parseCriteria(input: string): Criterion[] {
     .map((line) => line.trim())
     .map((line) => line.match(/^[-*]\s+\[([DP])\]\s+(.+)$/))
     .filter((match): match is RegExpMatchArray => Boolean(match))
-    .map((match) => ({
-      type: match[1] as "D" | "P",
-      text: match[2]!.trim()
-    }));
+    // Authors still write `[D]`/`[P]` in markdown; the published contract's
+    // tolerant reader normalizes those to the canonical `code`/`model` kinds.
+    .map((match) => criterionSchema.parse({ type: match[1], text: match[2]!.trim() }));
 }
 
 function parseFencedYaml(input: string) {

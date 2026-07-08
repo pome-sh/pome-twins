@@ -1,0 +1,7 @@
+{
+  "session_id": "ses_legacy123",
+  "twin_url": "https://api.pome.sh/github/ses_legacy123",
+  "expires_at": "2026-07-02T12:30:00.000Z",
+  "agent_token": "edt_eyJhbGciOiJIUzI1Ni9.legacy.jwt",
+  "openapi_url": "https://api.pome.sh/github/ses_legacy123/openapi.json"
+}

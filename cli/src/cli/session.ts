@@ -211,9 +211,8 @@ export async function runSessionList(opts: {
     return;
   }
   for (const r of rows) {
-    const reason = r.expired_reason ? ` (${r.expired_reason})` : "";
     console.error(
-      `${r.id}\t${displayState(r.state)}${reason}\t${r.twins.join(",")}\texpires ${r.expires_at}`,
+      `${r.id}\t${displayState(r.state)}\t${r.twins.join(",")}\texpires ${r.expires_at}`,
     );
   }
 }

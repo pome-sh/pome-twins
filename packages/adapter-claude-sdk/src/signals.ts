@@ -10,9 +10,8 @@
 //
 // FDRS-407: rows are now M0-schema events. The on-disk shape matches
 // `@pome-sh/shared-types`' discriminated union (`hookEventSchema` and
-// siblings); writers construct rows by hand so this package doesn't yet
-// depend on shared-types at runtime. Legacy `{type: "step"}` /
-// `{type: "tool_call"}` shapes are removed.
+// siblings). Legacy `{type: "step"}` / `{type: "tool_call"}` shapes are
+// removed.
 //
 // FDRS-408: adds ToolUseEvent / ToolResultEvent writers. Same single-writer
 // pattern, same on-disk file as HookEvent.
@@ -25,6 +24,7 @@
 
 import { appendFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import type { HookEvent, SubagentSpawnEvent, ToolResultEvent, ToolUseEvent } from "@pome-sh/shared-types";
 
 export const ADAPTER_SIGNALS_ENV = "POME_ADAPTER_SIGNALS_PATH";
 
@@ -37,17 +37,7 @@ export function newEventId(): string {
   return randomUUID();
 }
 
-// Mirrors `hookEventSchema` in @pome-sh/shared-types/recorder-events. Keep
-// shapes in sync; shared-types is the canonical source of truth for the
-// on-disk format.
-export interface HookEventRow {
-  ts: string;
-  event_id: string;
-  parent_id: string | null;
-  kind: "HookEvent";
-  hook_name: string;
-  tool_name: string | null;
-}
+export type HookEventRow = HookEvent;
 
 export function writeHookEvent(row: HookEventRow): void {
   const path = resolveSignalsPath();
@@ -55,29 +45,12 @@ export function writeHookEvent(row: HookEventRow): void {
   appendFileSync(path, JSON.stringify(row) + "\n");
 }
 
-// Mirrors `toolUseEventSchema` / `toolResultEventSchema` in
-// @pome-sh/shared-types/recorder-events. The CLI forwards lines from this
-// signals JSONL into the canonical events.jsonl post-run (FDRS-326). HookEvent
-// writers (FDRS-407) share the same file — there's one writer per process.
-export interface ToolUseEventRow {
-  ts: string;
-  event_id: string;
-  parent_id: string | null;
-  kind: "ToolUseEvent";
-  tool_use_id: string;
-  tool_name: string;
-  input: unknown;
-}
+// The CLI forwards lines from this signals JSONL into the canonical
+// events.jsonl post-run (FDRS-326). HookEvent writers (FDRS-407) share the
+// same file — there's one writer per process.
+export type ToolUseEventRow = ToolUseEvent;
 
-export interface ToolResultEventRow {
-  ts: string;
-  event_id: string;
-  parent_id: string | null;
-  kind: "ToolResultEvent";
-  tool_use_id: string;
-  output: unknown;
-  is_error: boolean;
-}
+export type ToolResultEventRow = ToolResultEvent;
 
 export function writeToolUseEvent(row: ToolUseEventRow): void {
   const path = resolveSignalsPath();
@@ -91,17 +64,10 @@ export function writeToolResultEvent(row: ToolResultEventRow): void {
   appendFileSync(path, JSON.stringify(row) + "\n");
 }
 
-// Mirrors `subagentSpawnEventSchema` in @pome-sh/shared-types/recorder-events.
 // `parent_tool_use_id` is the SDK's correlation handle; `parent_id` points at
-// the spawning `ToolUseEvent.event_id` when the adapter saw the parent tool_use
-// earlier in the stream.
-export interface SubagentSpawnEventRow {
-  ts: string;
-  event_id: string;
-  parent_id: string | null;
-  kind: "SubagentSpawnEvent";
-  parent_tool_use_id: string;
-}
+// the spawning `ToolUseEvent.event_id` when the adapter saw the parent
+// tool_use earlier in the stream.
+export type SubagentSpawnEventRow = SubagentSpawnEvent;
 
 export function writeSubagentSpawnEvent(row: SubagentSpawnEventRow): void {
   const path = resolveSignalsPath();

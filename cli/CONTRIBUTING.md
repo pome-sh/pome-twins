@@ -32,7 +32,7 @@ bun run test:e2e     # end-to-end tests
 bun run build        # full publishable build
 ```
 
-CI runs typecheck, build, tests, and vendor verification. PRs are gated on green CI.
+CI runs typecheck, build, tests, and capture-only gates. PRs are gated on green CI.
 
 ## Pull requests
 
@@ -46,8 +46,8 @@ CI runs typecheck, build, tests, and vendor verification. PRs are gated on green
 - `src/cli/`: command surface (Commander.js entry points).
 - `src/runner/`: scenario execution (local + hosted).
 - `src/hosted/`: control-plane HTTP client.
-- `src/twin/`: local twin boot harness (`githubCloneAdapter.ts` wraps vendored twins).
-- `vendor/`: tarballs bundled into the published CLI (`@pome-sh/twin-*`, `@pome-sh/shared-types`). After changing a twin package, rebuild its tarball, replace the matching file under `vendor/`, and update `scripts/verify-vendor.mjs`.
+- `src/twin/`: local twin boot harness (`githubCloneAdapter.ts` wraps published twin packages).
+- `package.json`: pins exact `@pome-sh/*` package versions consumed by the published CLI.
 - `scenarios/`: bundled starter scenarios shipped with the package.
 - `examples/`: example agent implementations.
 - `scripts/`: build-only helpers (not published).

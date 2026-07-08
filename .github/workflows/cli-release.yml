@@ -1,5 +1,6 @@
 name: cli-release
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -38,13 +39,33 @@ jobs:
       # for trusted publishing and publishes cleanly.
       - name: Install npm with OIDC trusted publishing support
         run: npm install -g npm@11.5.1
-      - run: node scripts/verify-vendor.mjs
+      - name: Check package dependencies are published
+        id: package-deps
+        run: |
+          set +e
+          npm view @pome-sh/shared-types@0.6.0 version &&
+          npm view @pome-sh/twin-github@0.1.0 version &&
+          npm view @pome-sh/twin-slack@0.1.0 version &&
+          npm view @pome-sh/twin-stripe@0.2.0 version
+          ready=$?
+          set -e
+          if [ "$ready" -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Skip until package batch is published
+        if: steps.package-deps.outputs.ready != 'true'
+        run: |
+          echo "Skipping CLI release. Publish the packages-v* batch first, then rerun this workflow."
       # --backend=copyfile: bun's default Linux backend hardlinks packages into
       # node_modules; npm publish then packs the bundleDependencies as hard-link
       # tar entries, which the registry rejects (E415 "Hard link is not
       # allowed"). copyfile makes them real files.
-      - run: bun install --frozen-lockfile --backend=copyfile
+      - if: steps.package-deps.outputs.ready == 'true'
+        run: bun install --backend=copyfile
       - name: Changesets — version PR or publish
+        if: steps.package-deps.outputs.ready == 'true'
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           cwd: cli

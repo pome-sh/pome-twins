@@ -1,23 +1,18 @@
-name: sdk publish
+name: package publish
 on:
   release:
     types: [published]
   pull_request:
     paths:
-      - "packages/sdk/**"
-      - "packages/adapter-claude-sdk/**"
-      - "packages/shared-types/**"
+      - "packages/**"
       - "scripts/pack-publishable.mjs"
       - ".github/workflows/sdk-publish.yml"
 
 concurrency:
-  group: sdk-publish-${{ github.ref }}
+  group: package-publish-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # T10 (FDRS-585 / FDRS-612): prove @pome-sh/sdk and @pome-sh/adapter-claude-sdk
-  # are importable from a published npm tarball — runnable dist JS, no
-  # unresolvable `workspace:` specs, and the sdk `./server` subpath resolves.
   pack-smoke:
     name: npm-pack clean-room import
     runs-on: ubuntu-latest
@@ -32,55 +27,73 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile --filter @pome-sh/sdk --filter @pome-sh/adapter-claude-sdk --filter @pome-sh/shared-types
+      - run: bun install --frozen-lockfile --filter '*'
 
-      - name: Build publishable tarballs and check SDK vendor
-        run: node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs" --check-vendor
+      - name: Build publishable tarballs
+        run: node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs"
 
-      - name: Guard — no `workspace:` specs survive into any published manifest
+      - name: Guard publish manifests
         run: |
           set -euo pipefail
-          fail=0
           for tgz in "$RUNNER_TEMP"/tarballs/*.tgz; do
             dir="$(mktemp -d)"
             tar -xzf "$tgz" -C "$dir"
-            if grep -q '"workspace:' "$dir/package/package.json" \
-               || grep -Eq '"[^"]*"[[:space:]]*:[[:space:]]*"workspace:' "$dir/package/package.json"; then
-              echo "✗ $(basename "$tgz") package.json still contains a workspace: spec"
-              grep -n "workspace:" "$dir/package/package.json" || true
-              fail=1
-            else
-              echo "✓ $(basename "$tgz") has no workspace: spec"
+            manifest="$dir/package/package.json"
+            if grep -Eq '"(workspace:|file:)' "$manifest"; then
+              echo "✗ $(basename "$tgz") contains a local dependency spec"
+              grep -En '"(workspace:|file:)' "$manifest" || true
+              exit 1
             fi
+            node -e "const p=require(process.argv[1]); if (p.private) throw new Error(p.name + ' is private')" "$manifest"
           done
-          exit $fail
 
-      - name: Clean-room import (sdk root + ./server, adapter)
+      - name: Clean-room import and twin bin resolution
         run: |
           set -euo pipefail
           room="$(mktemp -d)"
           cd "$room"
           npm init -y >/dev/null 2>&1
-          npm install \
-            "$RUNNER_TEMP"/tarballs/pome-sh-sdk-*.tgz \
-            "$RUNNER_TEMP"/tarballs/pome-sh-adapter-claude-sdk-*.tgz \
-            --no-audit --no-fund
+          npm install "$RUNNER_TEMP"/tarballs/*.tgz --no-audit --no-fund
           node --input-type=module -e '
-            const root = await import("@pome-sh/sdk");
+            const shared = await import("@pome-sh/shared-types");
+            const recorder = await import("@pome-sh/shared-types/recorder-events");
+            const sdk = await import("@pome-sh/sdk");
             const server = await import("@pome-sh/sdk/server");
             const adapter = await import("@pome-sh/adapter-claude-sdk");
-            if (typeof root.recorderEventSchema?.parse !== "function") throw new Error("sdk root missing bundled shared-types runtime re-export");
-            if (typeof root.defineTwin !== "function") throw new Error("sdk root missing defineTwin");
-            if (typeof server.createApp !== "function") throw new Error("sdk/server subpath failed to resolve");
+            const github = await import("@pome-sh/twin-github");
+            const slack = await import("@pome-sh/twin-slack");
+            const stripe = await import("@pome-sh/twin-stripe");
+            if (typeof shared.recorderEventSchema?.parse !== "function") throw new Error("shared-types root missing recorderEventSchema");
+            if (typeof recorder.eventSchema?.parse !== "function") throw new Error("shared-types recorder-events subpath missing eventSchema");
+            if (typeof shared.redactSecrets !== "function") throw new Error("shared-types missing redactSecrets");
+            if (typeof sdk.defineTwin !== "function") throw new Error("sdk root missing defineTwin");
+            if (typeof server.createApp !== "function") throw new Error("sdk/server missing createApp");
             if (typeof adapter.flushPomeTelemetry !== "function") throw new Error("adapter export missing");
-            console.log("clean-room import OK: sdk root, sdk/server, adapter");
+            if (!github || !slack || !stripe) throw new Error("twin root import failed");
+          '
+          node --input-type=module -e '
+            import { existsSync, readFileSync } from "node:fs";
+            if (!existsSync("node_modules/@pome-sh/shared-types/trace-contract.json")) {
+              throw new Error("shared-types package missing trace-contract.json");
+            }
+            for (const name of ["twin-github", "twin-slack", "twin-stripe"]) {
+              const manifest = JSON.parse(readFileSync(`node_modules/@pome-sh/${name}/package.json`, "utf8"));
+              const bin = manifest.bin?.[name];
+              if (!bin || !existsSync(`node_modules/@pome-sh/${name}/${bin}`)) {
+                throw new Error(`${name} bin does not resolve`);
+              }
+              const firstLine = readFileSync(`node_modules/@pome-sh/${name}/${bin}`, "utf8").split("\n")[0];
+              if (firstLine !== "#!/usr/bin/env node") throw new Error(`${name} bin target is missing node shebang`);
+            }
           '
 
   publish:
-    if: startsWith(github.event.release.tag_name, 'sdk-v')
+    if: startsWith(github.event.release.tag_name, 'packages-v')
+    needs: pack-smoke
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -90,19 +103,23 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile --filter @pome-sh/sdk --filter @pome-sh/adapter-claude-sdk --filter @pome-sh/shared-types
-      - run: bun run --filter '@pome-sh/sdk' typecheck
-      - run: bun run --filter '@pome-sh/sdk' test
-      - run: bun run --filter '@pome-sh/sdk' build
-      # `npm publish` is intentionally NOT invoked. Per option-A decision
-      # (2026-05-07), `@pome-sh/sdk` does not flip to npm until OSS Launch
-      # Stage 1 lifts the npm-hold. This workflow exercises the publish
-      # gates (typecheck, test, build) on every `sdk-v*` tag so the publish
-      # pipeline is wired and rehearsed; the actual `npm publish` step lands
-      # in a follow-up PR alongside the Stage 1 cutover.
-      - name: npm publish (DRY RUN — held until Stage 1)
-        working-directory: packages/sdk
+      # OIDC Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      - name: Install npm with OIDC trusted publishing support
+        run: npm install -g npm@11.5.1
+      - run: bun install --frozen-lockfile --filter '*'
+      - run: node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs"
+      - name: Publish packages with provenance
         run: |
-          echo "@pome-sh/sdk publish is held until OSS Launch Stage 1."
-          echo "Tag: ${{ github.event.release.tag_name }}"
-          echo "Skipping 'npm publish'."
+          set -euo pipefail
+          publish_one() {
+            local pattern="$1"
+            local tgz
+            tgz="$(ls "$RUNNER_TEMP"/tarballs/$pattern)"
+            npm publish "$tgz" --access public --provenance
+          }
+          publish_one 'pome-sh-shared-types-*.tgz'
+          publish_one 'pome-sh-sdk-*.tgz'
+          publish_one 'pome-sh-adapter-claude-sdk-*.tgz'
+          publish_one 'pome-sh-twin-github-*.tgz'
+          publish_one 'pome-sh-twin-slack-*.tgz'
+          publish_one 'pome-sh-twin-stripe-*.tgz'

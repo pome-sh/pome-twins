@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// MIRRORED FILE — byte-identical copies enforced by
-// scripts/check-admin-gate-mirrors.mjs (root script `lint:admin-gate-mirrors`,
-// wired into .github/workflows/ci.yml). Edit the canonical copy, then re-copy.
-//
-// Canonical: packages/sdk/src/admin-gate.ts
-// Mirrors:   packages/twin-github/src/admin-gate.ts
-//            packages/twin-slack/src/admin-gate.ts
-//            packages/twin-stripe/src/admin-gate.ts
-//            cli/src/twin-github/admin-gate.ts
-//            cli/src/twin-slack/admin-gate.ts
-//
-// Shared admin-endpoint gate (FDRS-587 / FDRS-616). Twins cannot depend on
-// @pome-sh/sdk (twin-stripe is vendored into the CLI as a file: tarball, so
-// a workspace dep would break off-workspace installs) — hence the mirror
-// pattern, same as redaction.ts.
+// Shared admin-endpoint gate (FDRS-587 / FDRS-616). First-party twins import
+// this through `@pome-sh/sdk/server`; do not copy this file into a twin package.
 //
 // Tiered policy (semantics unchanged from the per-twin copies it replaces):
 //   1. TWIN_ADMIN_TOKEN set → require X-Admin-Token to match (timing-safe).

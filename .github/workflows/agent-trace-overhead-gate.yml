@@ -53,15 +53,22 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # Repo-root install populates the workspace packages
-      # (adapter-claude-sdk, twin-github, shared-types) plus their devDeps
+      # Repo-root install populates every workspace package plus its devDeps
       # (notably @anthropic-ai/claude-agent-sdk) so the FDRS-413 fixture can
-      # resolve `withPome()` + the SDK's `tool()` at runtime.
-      - run: bun install --frozen-lockfile --filter @pome-sh/adapter-claude-sdk --filter @pome-sh/twin-github --filter @pome-sh/shared-types
+      # resolve `withPome()` + the SDK's `tool()` at runtime, and so the pack
+      # step below can build all publishable packages.
+      - run: bun install --frozen-lockfile --filter '*'
+      # The CLI consumes the @pome-sh/* packages as published versions, which
+      # don't exist on npm before the first release. Pack them locally and
+      # point the CLI at the tarballs (deps + transitive overrides).
+      - name: Pack @pome-sh packages and rewrite the CLI onto local tarballs
+        run: |
+          node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs"
+          node scripts/use-local-pome-tarballs.mjs cli/package.json
       - name: Install + build CLI
         working-directory: cli
         run: |
-          bun install --frozen-lockfile
+          bun install
           bun run build
       - name: Run agent-trace overhead gate (PR/FAQ #1)
         working-directory: cli

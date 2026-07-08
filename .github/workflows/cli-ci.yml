@@ -3,17 +3,23 @@ on:
   pull_request:
     paths:
       - 'cli/**'
+      - 'packages/shared-types/**'
+      - 'packages/sdk/**'
       - 'packages/twin-github/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
+      - 'scripts/pack-publishable.mjs'
       - '.github/workflows/cli-ci.yml'
   push:
     branches: [main]
     paths:
       - 'cli/**'
+      - 'packages/shared-types/**'
+      - 'packages/sdk/**'
       - 'packages/twin-github/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
+      - 'scripts/pack-publishable.mjs'
       - '.github/workflows/cli-ci.yml'
   workflow_dispatch:
 
@@ -43,11 +49,18 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: node scripts/verify-vendor.mjs
       # FDRS-657 — fail fast if local evaluation (scoring / judge / correlator)
       # is reintroduced into the capture-only OSS CLI.
       - run: node scripts/no-eval-in-oss.mjs
-      - run: bun install --frozen-lockfile
+      - name: Build local @pome-sh package tarballs
+        working-directory: ${{ github.workspace }}
+        run: |
+          bun install --frozen-lockfile --filter '*'
+          node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs"
+      - name: Use local package tarballs before first npm publish
+        working-directory: ${{ github.workspace }}
+        run: node scripts/use-local-pome-tarballs.mjs cli/package.json
+      - run: bun install
       - run: bun run typecheck
       - run: bun run build
       - run: bun run test

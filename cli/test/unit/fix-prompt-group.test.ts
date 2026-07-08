@@ -22,7 +22,7 @@ const CRITERIA = {
 };
 
 function result(text: string, passed: boolean, reason: string): CriterionResult {
-  return { criterion: { type: "P", text }, passed, skipped: false, reason };
+  return { criterion: { type: "model", text }, passed, skipped: false, reason };
 }
 
 function trial(
@@ -68,9 +68,9 @@ const scenario: Scenario = {
   prompt: "Triage the incoming bug and label it.",
   expectedBehavior: "",
   criteria: [
-    { type: "P", text: CRITERIA.severity },
-    { type: "P", text: CRITERIA.assignee },
-    { type: "P", text: CRITERIA.comment },
+    { type: "model", text: CRITERIA.severity },
+    { type: "model", text: CRITERIA.assignee },
+    { type: "model", text: CRITERIA.comment },
   ],
   config: { twins: ["github"], timeout: 60, runs: 5, passThreshold: 100 },
   seedState: {} as Scenario["seedState"],
@@ -183,7 +183,7 @@ describe("run-set fix prompt (FDRS-644)", () => {
       trials: mixedTrials(),
     });
     expect(prompt).toContain("task file not found at scenarios/scn.md");
-    expect(prompt).toContain(`[P] ${CRITERIA.severity}`);
+    expect(prompt).toContain(`[model] ${CRITERIA.severity}`);
   });
 
   it("buildGroupFixPrompt prepends the shared system prompt", () => {
@@ -199,7 +199,7 @@ describe("run-set fix prompt (FDRS-644)", () => {
 
   it("never reports a skipped/errored-everywhere criterion as passed (adversarial fix)", () => {
     const skippedResult: CriterionResult = {
-      criterion: { type: "P", text: CRITERIA.comment },
+      criterion: { type: "model", text: CRITERIA.comment },
       passed: false,
       skipped: true,
       reason: "not evaluated",

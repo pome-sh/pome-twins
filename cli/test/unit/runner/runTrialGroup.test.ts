@@ -85,11 +85,13 @@ function makeFakeClient(overrides: Partial<FakeCloud> = {}): FakeCloud {
       const n = mints.length;
       return {
         session_id: `ses_${n}`,
+        session_token: `pst_test_${n}`,
         twin_url: `https://twins.example/s/ses_${n}`,
         expires_at: new Date(Date.now() + 600_000).toISOString(),
         agent_token: `tok_${n}`,
         provider_credentials: {},
         openapi_url: "https://twins.example/openapi.json",
+        per_twin: {},
       };
     },
     async createEvalSession() {
@@ -149,11 +151,12 @@ function scoreOf(satisfaction: number, failedTexts: string[] = []): Score {
     evaluated: true,
     can_pass: true,
     results: failedTexts.map((text) => ({
-      criterion: { type: "P" as const, text },
-      outcome: "failed" as const,
+      criterion: { type: "model" as const, text },
       passed: false,
       skipped: false,
       reason: "not met",
+      confidence: 0.1,
+      judge_model: "test-judge",
     })),
     judge_model: "test-judge",
     judge_tokens_in: null,
@@ -463,11 +466,13 @@ function makeQuotaCloud(input: {
       const n = cloud.mints.length;
       return {
         session_id: `ses_${n}`,
+        session_token: `pst_test_${n}`,
         twin_url: `https://twins.example/s/ses_${n}`,
         expires_at: new Date(Date.now() + 600_000).toISOString(),
         agent_token: `tok_${n}`,
         provider_credentials: {},
         openapi_url: "https://twins.example/openapi.json",
+        per_twin: {},
       };
     },
     async deleteSession(sessionId) {

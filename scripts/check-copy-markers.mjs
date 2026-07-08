@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// F-679 copy-marker gate. Cross-package file copies must not grow without an
-// explicit decision. Known mirrors are allowlisted until M6 deletes them.
+// F-679/M6 copy-marker gate. Cross-package file copies are not allowed in OSS
+// packages; shared code should move through published packages instead.
 import { readFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
@@ -9,19 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const ALLOWLIST = new Set([
-  "packages/sdk/src/admin-gate.ts",
-  "packages/twin-github/src/admin-gate.ts",
-  "packages/twin-slack/src/admin-gate.ts",
-  "packages/twin-stripe/src/admin-gate.ts",
-  "cli/src/recorder/redaction.ts",
-  "packages/adapter-claude-sdk/src/redaction.ts",
-  "packages/twin-github/src/redaction.ts",
-  "packages/twin-slack/src/redaction.ts",
-  "packages/twin-stripe/src/redaction.ts",
-  "packages/adapter-claude-sdk/src/signals.ts",
-  "cli/src/types/shared.ts",
-]);
+const ALLOWLIST = new Set([]);
 
 const SCAN_DIRS = ["packages", "cli/src"];
 const MARKER_RES = [

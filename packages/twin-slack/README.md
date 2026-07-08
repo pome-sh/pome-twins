@@ -178,8 +178,8 @@ via a cross-repo PR.
 
 - Package is `npm install`-able from `package.json` alone (no `workspace:*`
   protocols, no bun-only deps; no committed lockfile is required, the snapshot
-  build regenerates one on each rebuild). The shared-types `workspace:*` is
-  rewritten to `file:./vendor/shared-types` inside the sandbox build.
+  build regenerates one on each rebuild). Internal `@pome-sh/*` dependencies
+  are exact published versions.
 - `npm run build` exits 0 and emits `dist/src/server.js`
 - Built output is loadable under Node 22 — the snapshot runs `runtime: "node22"`.
 

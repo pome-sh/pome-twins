@@ -1,66 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * shared-types — V1 contract barrel
+ * shared-types — public V1 contract barrel.
  *
- * Shape contract between WS-A (cloud control plane + dashboard) and WS-B
- * (twin runtime + evaluator + CLI). After 2026-05-11, the file is split:
- *   - `./recorder-events.ts` — RecorderEvent + supporting types
- *   - `./run.ts`             — Run + Lane + Step + CriterionResult
- *   - this file (`./index.ts`) — identity, sessions, scenarios, REST API,
- *     error envelope, EvaluatorHooks, plus barrel re-exports of the above
- *
- * Pre-2026-05-11 v2 (2026-04-30) folded in the BYOK-Flavor-#1 +
- * OpenAI-compatible-endpoint pivot:
- *   - LLM judge runs CLI-side using the customer's LLM provider key (any
- *     OpenAI-compatible endpoint — OpenRouter / Vercel AI Gateway /
- *     LiteLLM / OpenAI / Anthropic via gateway / Ollama / etc.).
- *   - Cloud never holds, sees, or invokes the LLM provider key.
- *   - `POST /v1/sessions/{id}/result` is synchronous: CLI submits a
- *     pre-scored result + trace blobs; cloud writes a row.
- *   - `runs.judge_cost_cents` REMOVED → replaced with token telemetry
- *     (`judge_tokens_in/out`). Cloud does not maintain provider pricing.
- *   - `EvaluatorHooks.onJudgeCall` REMOVED → only `onTraceUpload` remains.
- *   - `agent_stdout` is NEVER uploaded to cloud (privacy posture: "cloud
- *     never sees your prompts or agent output").
- *
- * Source documents this draft is faithful to:
- *   - product/04-data-model.md (Postgres + SQLite schemas, post-BYOK)
- *   - product/05-api-spec.md (CLI / REST / tRPC surfaces, post-BYOK)
- *   - pome-cloud/docs/decisions/002-open-core-boundary.md (EvaluatorHooks pattern)
- *   - pome-cloud/docs/decisions/008-multi-tenant-pods.md (per-session connection model)
- *
- * Already-existing schemas absorbed from oslo workspace:
- *   - pome/src/scenario/scenarioSchema.ts (Criterion, ScenarioConfig, Scenario)
- *   - pome/src/twin/github/domain/seed.ts (SeedState — nested shape)
- *   - pome/src/evaluator/score.ts (CriterionResult shape: criterion+passed+skipped+reason)
- *
- * Naming conventions:
- *   - Persisted IDs are typed strings: `usr_*`, `tm_*`, `ses_*`, `run_*`,
- *     `scn_*`, `pme_*`, `edt_*`, `inv_*` (per 04-data-model.md).
- *   - Timestamps are ISO 8601 strings on the wire. (Postgres-side they
- *     are `timestamptz`; we stringify at the API boundary.)
- *   - `nullable()` = "the field is always present, sometimes null"
- *     `optional()` = "the field may be absent entirely"
- *
- * Change policy after sign-off:
- *   - Either founder changing a shape requires a PR + both signoffs.
- *   - npm version pinned in both repos; CI alerts on bump mismatch.
- *   - 4-week lock target before any breaking change.
- *
- * v0.5.0 — W3 wire vocabulary + tolerant-reader window (FDRS-653):
- *   - Everything "scenario" is now "task" on the wire (`task_name`,
- *     `task_hash`, `task_source`, `task_id`, `promoted_task_id`,
- *     `task_step_id`), and criterion kinds `D` / `P` are now `code` / `model`.
- *     Canonical schemas + types use the NEW vocabulary only.
- *   - TOLERANT READER: every reader accepts BOTH the 0.3.0-era keys and the
- *     new ones and normalizes to the new vocabulary at parse time. Nothing a
- *     0.3.0-era artifact (or a shipped CLI that vendors shared-types 0.3.0)
- *     sends becomes invalid. See `./task-vocab.ts` for the key map and the
- *     window's closing conditions.
- *   - Deprecated `scenario*`-named EXPORTS (`scenarioSchema`, `Scenario`,
- *     `scenarioConfigSchema`, `persistedScenarioSchema`, …) remain as aliases
- *     of the canonical `task*` exports for one release train (FDRS-654 swaps
- *     the consumers).
+ * Owns identity/session/task REST contracts plus re-exports for the trace
+ * surface in `recorder-events.ts`, completed-run shape in `run.ts`, and the
+ * OpenTelemetry extension surface in `otel/`. Release history and migration
+ * notes live in CHANGELOG.md.
  */
 
 import { z } from "zod";
@@ -79,6 +24,7 @@ export * from "./recorder-events.js";
 export * from "./run.js";
 export * from "./task-vocab.js";
 export * from "./github-access-control.js";
+export * from "./redaction.js";
 // OpenTelemetry-native trace surface (M1 / FDRS-480-482): OtelSpanEvent schema,
 // GenAI/HTTP span mapper, legacy→span shim, pinned semconv, otelEventSchema.
 export * from "./otel/index.js";
@@ -538,7 +484,7 @@ export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 // from pome-cloud /v1 wire truth (FDRS-613).
 export const createSessionResponseSchema = z.object({
   session_id: z.string(),
-  session_token: z.string(),                   // = session_id in V1; public URL token
+  session_token: z.string().optional(),        // = session_id in V1; public URL token; optional for legacy single-twin responses
   twin_url: z.string().url(),                  // legacy: = per_twin[twins[0]].api_url
   expires_at: z.string().datetime(),
   agent_token: z.string(),                     // edt_<jwt>; SENSITIVE — never log; CLI memory only; bearer scoped to session TTL
@@ -575,7 +521,7 @@ export const createSessionResponseSchema = z.object({
       mcp_url: z.string().url(),               // mcp.pome.sh/<twin>/<session_token> (501 stub in V1)
       openapi_url: z.string().url(),
     }),
-  ),
+  ).optional(),
 });
 export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 
@@ -637,6 +583,30 @@ export const submitResultResponseSchema = z.object({
   dashboard_url: z.string().url(),
 });
 export type SubmitResultResponse = z.infer<typeof submitResultResponseSchema>;
+
+// POST /v1/eval-sessions — mints a twin-less session for `pome eval <run-dir>`.
+export const createEvalSessionResponseSchema = z.object({
+  session_id: z.string(),
+  expires_at: z.string(),
+});
+export type CreateEvalSessionResponse = z.infer<typeof createEvalSessionResponseSchema>;
+
+// /v1/sessions/:id/finalize — ADR-013 managed-judge response.
+export const finalizeResponseSchema = z.object({
+  run_id: z.string(),
+  score: z.number().int().min(0).max(100),
+  judge_model: z.string().nullable().optional(),
+  dashboard_url: z.string().url(),
+  criteria_results: z.array(criterionResultSchema).optional(),
+});
+export type FinalizeResponse = z.infer<typeof finalizeResponseSchema>;
+
+export const criterionDefSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1),
+  kind: z.enum(["D", "P"]),
+});
+export type CriterionDef = z.infer<typeof criterionDefSchema>;
 
 // GET /v1/usage — live concurrent-session quota snapshot.
 // FDRS-613: `sessions_remaining` tightened to `.int().min(0)` to match the
@@ -737,51 +707,3 @@ export interface EvaluatorHooks {
   }>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// END
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// LOCKED DECISIONS (post 2026-04-30 review + BYOK pivot):
-//
-// • BYOK Flavor #1: judge runs CLI-side; cloud holds no LLM keys.
-// • OpenAI-compatible endpoint is the universal LLM contract; CLI accepts
-//   {base_url, api_key, model_name} via env or `~/.pome/config`. judge_model
-//   is therefore a free-form string, not an enum. Recommended endpoints
-//   (OpenRouter, Vercel AI Gateway, LiteLLM, Ollama, raw OpenAI/Anthropic) are
-//   listed in docs, not constrained at the schema level.
-// • SubmitResult is synchronous (no scoringStatus / poll_url / 202).
-// • No /v1/runs/{id}/replay endpoint in V1 — replay is a CLI command
-//   (`pome replay <run-id>`) that re-fetches the trace and re-judges locally.
-// • No team_integrations table; cloud never stores customer LLM keys.
-// • runs.judge_cost_cents removed; runs.judge_tokens_in/out replace it.
-// • EvaluatorHooks.onJudgeCall + JudgeCallContext removed.
-// • agent_stdout is never uploaded to cloud (privacy posture).
-// • DB ID columns: users.id and teams.id use text prefixed nanoids.
-// • users.deleted_at and teams.deleted_at dropped (no soft-delete in V1).
-// • Quota unit: concurrent sessions, not session-minutes (see usageResponseSchema,
-//   the live concurrent-session quota snapshot).
-// • API error enum: drop judge_cap_exceeded; add forbidden, conflict,
-//   session_expired.
-//
-// LOCKED DECISIONS (2026-05-11 split — FDRS-318):
-//
-// • File split: index.ts → index.ts + recorder-events.ts + run.ts.
-//   index.ts becomes the barrel + identity/sessions/scenarios/REST/error/hooks.
-// • RecorderEvent.twin kept as `z.string().min(1)` for SDK community-twin
-//   compatibility (revised mid-implementation from a closed enum after the
-//   SDK ergonomics blocker surfaced — see [DECISION] amendment on FDRS-318).
-//   `KNOWN_TWIN_IDS = ["github", "stripe"] as const` is exported as the
-//   canonical pattern-match set for dashboard rendering. Twin growth no
-//   longer requires a shared-types bump.
-// • RecorderEvent.state_delta added: { before, after } | null at each leaf.
-//   Per-twin row shape NOT enforced (twin owns its row).
-// • RecorderEvent.step_id added — correlator-assigned (vs scenario_step_id
-//   which is scenario-author-set).
-// • RecorderEvent.tool_call_id added — adapter-emitted (null in heuristic path).
-// • Run.lanes / Run.steps added — correlator output. Flat parallel arrays.
-// • Run.fix_prompt added — CLI-generated (BYOK Flavor #1). Nullable.
-// • Run.events_jsonl_url added — S3 URL for V1.5 re-correlate. Nullable
-//   (aligns with FDRS-327's `events_jsonl_url text NULL` DB shape; supersedes
-//   the FDRS-318 description's `string` typo).
-// • submitResultRequestSchema gets lanes/steps/fix_prompt with defaults for
-//   pre-M3i CLI backward compat during rollout.

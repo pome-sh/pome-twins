@@ -44,6 +44,7 @@ export { bearerAuth, requireAdminAuth, resolveAuthSecret } from "./auth.js";
 // 403 envelope. See the SECURITY note on setClientIp — never derive the value
 // from request headers.
 export { createAdminGate, setClientIp } from "./admin-gate.js";
+export type { AdminGateOptions } from "./admin-gate.js";
 export { TwinError, UnknownToolError } from "./errors.js";
 export { redactEvent, redactSecrets } from "./redaction.js";
 export {

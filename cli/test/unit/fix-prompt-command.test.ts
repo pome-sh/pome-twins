@@ -41,7 +41,7 @@ function verdict(over: Partial<VerdictArtifact>): VerdictArtifact {
     passed: true,
     criteria_results: [
       {
-        criterion: { type: "P", text: "Severity is set correctly" },
+        criterion: { type: "model", text: "Severity is set correctly" },
         passed: true,
         skipped: false,
         reason: "ok",
@@ -131,7 +131,7 @@ describe("pome fix-prompt command (FDRS-644)", () => {
       finalized_at: "2026-07-06T00:02:00.000Z",
       criteria_results: [
         {
-          criterion: { type: "P", text: "Severity is set correctly" },
+          criterion: { type: "model", text: "Severity is set correctly" },
           passed: false,
           skipped: false,
           reason: "under-rated",
@@ -176,7 +176,7 @@ describe("pome fix-prompt command (FDRS-644)", () => {
       passed: false,
       criteria_results: [
         {
-          criterion: { type: "P", text: "Severity is set correctly" },
+          criterion: { type: "model", text: "Severity is set correctly" },
           passed: false,
           skipped: false,
           reason: "under-rated",

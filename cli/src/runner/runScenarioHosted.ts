@@ -375,10 +375,12 @@ export async function runScenarioHosted(
     //    storage, calls the managed judge via AI Gateway, persists the run
     //    row, and returns the authoritative score the dashboard records.
     //    The CLI prints this score on the `score:` line.
+    // `CriterionDef.kind` on the finalize request is still the legacy `D`/`P`
+    // wire vocabulary; map the canonical `code`/`model` kind back for the wire.
     const criteriaDefs: CriterionDef[] = scenario.criteria.map((c, idx) => ({
       id: `crit_${idx}`,
       text: c.text,
-      kind: c.type,
+      kind: c.type === "code" ? "D" : "P",
     }));
     const stopReason = agentResult.timedOut
       ? "agent_timeout"

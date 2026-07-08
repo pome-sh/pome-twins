@@ -7,6 +7,15 @@
   "types": "./dist/index.d.ts",
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pome-sh/pome-twins.git",
+    "directory": "packages/adapter-claude-sdk"
+  },
+  "homepage": "https://github.com/pome-sh/pome-twins/tree/main/packages/adapter-claude-sdk",
+  "bugs": {
+    "url": "https://github.com/pome-sh/pome-twins/issues"
+  },
   "files": [
     "dist",
     "package.json",
@@ -22,7 +31,8 @@
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
     "@opentelemetry/resources": "^2.0.0",
-    "@opentelemetry/sdk-trace-base": "^2.0.0"
+    "@opentelemetry/sdk-trace-base": "^2.0.0",
+    "@pome-sh/shared-types": "0.6.0"
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.197"
