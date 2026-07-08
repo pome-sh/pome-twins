@@ -15,7 +15,6 @@
   "ignoreDependencies": [
     "better-sqlite3",
     "@types/better-sqlite3",
-    "bun-types",
     "@ai-sdk/anthropic",
     "@ai-sdk/gateway",
     "@ai-sdk/google",
