@@ -86,7 +86,7 @@ bearer-auth contract is unchanged — the JWT `sid` claim (or
 
 Every `tools/call` reaching `/s/:sid/mcp` produces one recorder event whose
 `request_body` is `{ tool, arguments }` and whose `response_body` is the raw
-domain return — byte-identical to what `POST /s/:sid/mcp/call` records. The
+domain return — identical to what `POST /s/:sid/mcp/call` records. The
 only intentional difference is `path`. Run `bun run validate:mcp` to
 regenerate the side-by-side diff in `scripts/validate-mcp.output.txt`.
 

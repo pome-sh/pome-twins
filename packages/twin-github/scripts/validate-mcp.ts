@@ -222,7 +222,7 @@ async function main() {
       throw new Error(`unexpected field divergence beyond 'path': ${JSON.stringify(Object.keys(diff))}`);
     }
     record("✓ Only `path` differs between surfaces (the intentional, surface-identifying field).");
-    record("✓ request_body, response_body, state_mutation, state_delta, status, fidelity, error all byte-identical.");
+    record("✓ request_body, response_body, state_mutation, state_delta, status, fidelity, error all identical.");
 
     section("RESULT");
     record("ALL VALIDATIONS PASSED ✓");

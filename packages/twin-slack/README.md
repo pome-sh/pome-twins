@@ -154,7 +154,7 @@ bun run agent:claude "<task>"   # Claude-driven smoke flow
 
 Every `tools/call` reaching `/s/:sid/mcp` produces one recorder event whose
 `request_body` is `{ tool, arguments }` and whose `response_body` is the raw
-domain return — byte-identical to what `POST /s/:sid/mcp/call` records. The
+domain return — identical to what `POST /s/:sid/mcp/call` records. The
 only intentional difference is `path`. Run `bun run validate:mcp` to
 exercise the MCP wire protocol end-to-end and dump the round-trip.
 
@@ -192,7 +192,7 @@ via a cross-repo PR.
 - `GET /healthz` returns 200 within ~3s of process start (the snapshot build
   sleeps 3s after `node dist/src/server.js` before probing)
 - All admin routes are localhost-only (`/admin/*`)
-- Bearer auth at `Authorization: Bearer <jwt>` per `src/auth.ts`
+- Bearer auth at `Authorization: Bearer <jwt>` — engine-owned (`@pome-sh/sdk` `bearerAuth`), shape declared in `src/twin.ts`
 
 ### Env
 

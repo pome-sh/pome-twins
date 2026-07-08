@@ -121,7 +121,7 @@ export function normalizeTs(value: unknown): string | undefined {
 }
 
 // Base unix seconds for deterministic ts generation. Controlled by
-// SLACK_DETERMINISTIC_TS=1 in tests so output is byte-identical across runs.
+// SLACK_DETERMINISTIC_TS=1 in tests so output is identical across runs.
 export const DETERMINISTIC_TS_BASE_SECONDS = 1735689600; // 2025-01-01 UTC
 
 export function tsBaseSeconds(): number {

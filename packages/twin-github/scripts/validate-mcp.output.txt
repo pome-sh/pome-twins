@@ -2772,7 +2772,7 @@ Per-field comparison (excluding volatile ts/request_id/correlation_id/latency_ms
   }
 }
 ✓ Only `path` differs between surfaces (the intentional, surface-identifying field).
-✓ request_body, response_body, state_mutation, state_delta, status, fidelity, error all byte-identical.
+✓ request_body, response_body, state_mutation, state_delta, status, fidelity, error all identical.
 
 ━━━ RESULT ━━━
 ALL VALIDATIONS PASSED ✓

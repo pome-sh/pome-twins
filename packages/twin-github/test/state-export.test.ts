@@ -125,7 +125,7 @@ describe("state export determinism (F-682)", () => {
     };
     // Wall-clock audit columns and fabricated shas (makeSha salts with a
     // random UUID) are the only intentionally-nondeterministic fields; the
-    // remaining export must be byte-identical across runs.
+    // remaining export must be identical across runs.
     const strip = (s: string) =>
       s
         .replace(/"[a-z_]+_at":("[^"]*"|null)/g, '"<at>":"<ts>"')

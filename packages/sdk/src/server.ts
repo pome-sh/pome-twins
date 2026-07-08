@@ -1,4 +1,3 @@
-// file-size: engine surface grew with the per-twin pins (F-682/F-684); the F-685 sweep in this stack splits boot/dispatch helpers into server-helpers.ts
 // SPDX-License-Identifier: Apache-2.0
 //
 // `@pome-sh/sdk/server` — boot a `TwinDefinition` into a Hono app and
@@ -38,6 +37,20 @@ import { handleMcpJsonRpc, mcpMethodNotAllowed } from "./mcp-jsonrpc.js";
 import { createRecorderHandle, type RecorderStore } from "./recorder.js";
 import { redactSecrets } from "./redaction.js";
 import { TwinError, UnknownToolError, envelopeFor } from "./errors.js";
+import {
+  POME_CORE_ROUTE_NAMES,
+  TwinBootError,
+  assertUniqueToolNames,
+  findTool,
+  isLoopbackHost,
+  makeDeltaSink,
+  readJson,
+  shadowedPrefix,
+} from "./server-helpers.js";
+
+// Public boot surface consumed by twin entrypoints
+// (`import { TwinBootError, isLoopbackHost, serve } from "@pome-sh/sdk/server"`).
+export { TwinBootError, isLoopbackHost, created, ok } from "./server-helpers.js";
 
 export { createRecorderHandle, createRecorderStore } from "./recorder.js";
 export type { RecorderStore, ErrorEnvelopeFn } from "./recorder.js";
@@ -84,24 +97,6 @@ export type {
 export { twinBuildInfo } from "./build-info.js";
 export type { TwinBuildInfo } from "./build-info.js";
 
-/**
- * Convenience helper for `recorder.handle` inner functions. Returns a
- * 200 response with the supplied `mutation` flag (default: false). Mirrors
- * `packages/twin-github/src/app.ts:ok`.
- */
-export function ok(body: unknown, mutation = false): { status: 200; body: unknown; mutation: boolean } {
-  return { status: 200, body, mutation };
-}
-
-/**
- * Convenience helper for `recorder.handle` inner functions. Returns a
- * 201 response with `mutation: true`. Mirrors
- * `packages/twin-github/src/app.ts:created`.
- */
-export function created(body: unknown): { status: 201; body: unknown; mutation: true } {
-  return { status: 201, body, mutation: true };
-}
-
 export interface ServeOptions<TDb = unknown, TSeed = unknown> {
   /** Optional. When set, `serve()` binds a Node HTTP server. */
   port?: number;
@@ -115,13 +110,6 @@ export interface ServeOptions<TDb = unknown, TSeed = unknown> {
   recorder?: RecorderStore;
   /** Run identifier embedded in every recorder event. Defaults to "local". */
   runId?: string;
-}
-
-export class TwinBootError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "TwinBootError";
-  }
 }
 
 const jsonRecord = z.record(z.string(), z.unknown());
@@ -496,64 +484,3 @@ export async function serve<TDb, TSeed, TDomain>(
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /** Engine-owned `/_pome/*` route names a twin's `pomeRoutes` may not shadow. */
-const POME_CORE_ROUTE_NAMES = new Set(["health", "state", "events"]);
-
-function makeDeltaSink() {
-  let delta: import("@pome-sh/shared-types").RecorderEvent["state_delta"] = null;
-  return {
-    report(d: import("@pome-sh/shared-types").RecorderEvent["state_delta"]) {
-      delta = d;
-    },
-    value() {
-      return delta;
-    },
-  };
-}
-
-/** Hostnames the boot guard treats as loopback binds. */
-export function isLoopbackHost(value: string): boolean {
-  return value === "127.0.0.1" || value === "::1" || value === "localhost";
-}
-
-function shadowedPrefix(routePath: string): string | null {
-  for (const prefix of RESERVED_SESSION_PREFIXES) {
-    if (routePath === prefix || routePath.startsWith(`${prefix}/`)) return prefix;
-  }
-  return null;
-}
-
-function assertUniqueToolNames<TDomain>(
-  tools: ReadonlyArray<ToolSpec<TDomain>>,
-  twinId: string
-) {
-  const seen = new Set<string>();
-  for (const tool of tools) {
-    if (seen.has(tool.name)) {
-      throw new TwinBootError(`Twin "${twinId}" has duplicate tool name: ${tool.name}`);
-    }
-    seen.add(tool.name);
-  }
-}
-
-function findTool<TDb, TSeed, TDomain>(
-  definition: TwinDefinition<TDb, TSeed, TDomain>,
-  name: string
-): ToolSpec<TDomain> {
-  const tool = definition.tools.find((t) => t.name === name);
-  if (!tool) {
-    throw new UnknownToolError(name);
-  }
-  return tool;
-}
-
-async function readJson(req: Request): Promise<unknown> {
-  try {
-    const cloned = req.clone();
-    const text = await cloned.text();
-    if (!text) return null;
-    return JSON.parse(text);
-  } catch (err) {
-    if (err instanceof SyntaxError) throw err;
-    return null;
-  }
-}
