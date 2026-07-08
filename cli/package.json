@@ -60,7 +60,7 @@
     "changeset:publish": "changeset publish"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/anthropic": "^4.0.9",
     "@ai-sdk/gateway": "^3.0.143",
     "@ai-sdk/google": "^3.0.80",
     "@ai-sdk/openai": "^3.0.67",
