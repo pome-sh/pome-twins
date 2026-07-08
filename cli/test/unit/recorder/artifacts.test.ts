@@ -3,7 +3,7 @@
 // written by the capture-server child during a run are preserved alongside
 // the recorder's twin-traffic rows. Pre-FDRS-399 the function truncated.
 
-import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -90,27 +90,50 @@ describe("writeRunArtifactsCore — events.jsonl", () => {
     expect(captureRow).toBeDefined();
     expect(twinRow).toBeDefined();
   });
+});
 
-  it("tool_calls.jsonl reflects only the recorder events (still truncates)", async () => {
+// F-689 remainder (D6) — the run dir contains EXACTLY six files; the
+// intermediate correlation artifacts (tool_calls.jsonl, state-before.json,
+// state-after.json, state-diff.json) are gone for good.
+describe("writeRunArtifactsCore — file-set contract (F-689 / D6)", () => {
+  it("writes exactly meta.json, events.jsonl, state_initial.json, state_final.json, stdout.txt, stderr.log", async () => {
     const root = await mkdtemp(join(tmpdir(), "pome-art-"));
     const scenario = fakeScenario();
-    const runId = "run_test_2";
+    const runId = "run_test_fileset";
     const runDir = join(root, scenario.slug, runId);
-    await mkdir(runDir, { recursive: true });
 
-    // Pre-fill tool_calls.jsonl with garbage that MUST be overwritten — only
-    // events.jsonl gains the append semantics in FDRS-399.
-    await writeFile(join(runDir, "tool_calls.jsonl"), "GARBAGE\n");
+    await writeRunArtifactsCore({
+      artifactsDir: root,
+      runId,
+      scenario,
+      startedAt: "2026-05-26T11:59:59.000Z",
+      completedAt: "2026-05-26T12:00:02.000Z",
+      stdout: "hi",
+      stderr: "bye",
+      exitCode: 0,
+      events: [],
+      stateInitial: {},
+      stateFinal: {},
+    });
 
-    const recorderEvent = {
-      ts: "2026-05-26T12:00:01.000Z",
-      event_id: "evt_twin_only",
-      parent_id: null,
-      kind: "TwinHttpEvent",
-      method: "GET",
-      url: "/x",
-      status: 200,
-    };
+    const entries = (await readdir(runDir)).sort();
+    expect(entries).toEqual(
+      [
+        "events.jsonl",
+        "meta.json",
+        "state_final.json",
+        "state_initial.json",
+        "stderr.log",
+        "stdout.txt",
+      ].sort(),
+    );
+  });
+
+  it("meta.json carries spec_version and twin_versions for the run's twins (D18.1)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pome-art-"));
+    const scenario = fakeScenario();
+    const runId = "run_test_meta";
+    const runDir = join(root, scenario.slug, runId);
 
     await writeRunArtifactsCore({
       artifactsDir: root,
@@ -121,13 +144,19 @@ describe("writeRunArtifactsCore — events.jsonl", () => {
       stdout: "",
       stderr: "",
       exitCode: 0,
-      events: [recorderEvent as never],
+      events: [],
       stateInitial: {},
       stateFinal: {},
     });
 
-    const tc = (await readFile(join(runDir, "tool_calls.jsonl"), "utf8")).trim();
-    expect(tc).not.toContain("GARBAGE");
-    expect(JSON.parse(tc).event_id).toBe("evt_twin_only");
+    const meta = JSON.parse(await readFile(join(runDir, "meta.json"), "utf8")) as {
+      spec_version: number;
+      twin_versions: Record<string, string>;
+    };
+    expect(meta.spec_version).toBe(1);
+    // fakeScenario() declares twins: ["github"] — only that twin's pinned
+    // package version should be present.
+    expect(Object.keys(meta.twin_versions)).toEqual(["github"]);
+    expect(meta.twin_versions.github).toMatch(/^\d+\.\d+\.\d+/);
   });
 });

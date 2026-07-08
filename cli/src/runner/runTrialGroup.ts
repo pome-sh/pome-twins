@@ -42,7 +42,7 @@ import { HostedQuotaError, HostedTrialError } from "../hosted/errors.js";
 import { newGroupId } from "../demo/ids.js";
 import { criterionPhrase } from "../demo/render.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
-import { outcomeOf } from "../score/view.js";
+import { outcomeOf } from "../hosted/evalResultView.js";
 import {
   normalizeConfigAgentId,
   normalizeConfigAgentSlug,

@@ -612,6 +612,46 @@ describe("HostedClient.requestEventsUploadUrl", () => {
   });
 });
 
+describe("HostedClient.requestMetaUploadUrl", () => {
+  it("POSTs to /v1/sessions/:id/meta-upload-url with x-api-key and returns { url, key }", async () => {
+    const fetchMock = mockFetch(async (url, init) => {
+      expect(String(url)).toBe(`${BASE}/v1/sessions/ses_abc/meta-upload-url`);
+      expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get("x-api-key")).toBe(KEY);
+      return new Response(
+        JSON.stringify({
+          url: "https://signed.example/put-meta",
+          key: "team-tm_x/session-ses_abc/meta.json",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+    const client = createHostedClient({ baseUrl: BASE, apiKey: KEY });
+    const out = await client.requestMetaUploadUrl("ses_abc");
+    expect(out.url).toBe("https://signed.example/put-meta");
+    expect(out.key).toBe("team-tm_x/session-ses_abc/meta.json");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  // D18.1 — feature-detection: the route ships in a parallel pome-cloud PR.
+  // A control plane that predates it 404s; the client surfaces that as a
+  // normal HostedOrchError (it does NOT special-case 404 itself) — the
+  // upload orchestration layer (uploadAndFinalize.ts) is what tolerates it
+  // silently. See uploadAndFinalize.test.ts for that half of the contract.
+  it("throws HostedOrchError on 404 (endpoint not deployed yet — caller falls back to null)", async () => {
+    mockFetch(async () =>
+      new Response(
+        JSON.stringify({ error: { type: "not_found", message: "no route" } }),
+        { status: 404 },
+      ),
+    );
+    const client = createHostedClient({ baseUrl: BASE, apiKey: KEY });
+    await expect(
+      client.requestMetaUploadUrl("ses_abc"),
+    ).rejects.toBeInstanceOf(HostedOrchError);
+  });
+});
+
 describe("HostedClient.requestStateUploadUrl", () => {
   it("POSTs to /v1/sessions/:id/state-upload-url with x-api-key and returns the pair of {url, key}", async () => {
     const fetchMock = mockFetch(async (url, init) => {

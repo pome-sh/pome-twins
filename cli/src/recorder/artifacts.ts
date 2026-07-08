@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Scenario } from "../scenario/scenarioSchema.js";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import { redactEvent, redactSecrets } from "./redaction.js";
+import { META_SPEC_VERSION, resolveTwinPackageVersions } from "./specMeta.js";
 
 // FDRS-399 / FDRS-398 — wrap a legacy RecorderEvent (or pass through any row
 // that already carries a `kind` discriminator) into the unified events.jsonl
@@ -46,11 +47,23 @@ export type RunArtifactCoreInput = {
   stateFinal: unknown;
 };
 
-// FDRS-657 — the OSS CLI is CAPTURE-ONLY: it writes raw trace + state
+// FDRS-657 / F-689 — the OSS CLI is CAPTURE-ONLY: it writes raw trace + state
 // artifacts and NEVER a score.json. Local artifacts are trace/audit only; a
 // verdict comes only from the cloud and is printed ephemerally to the
 // terminal (hosted `pome run`, `pome eval`) — never persisted next to the
 // trace. There is no `writeScoreJson`/`readScore` anymore.
+//
+// F-689 remainder (D6) — a completed run dir contains EXACTLY these six
+// files: `meta.json`, `events.jsonl`, `state_initial.json`,
+// `state_final.json`, `stdout.txt`, `stderr.log`. The intermediate
+// correlation artifacts this CLI used to also write (`tool_calls.jsonl`,
+// `state-before.json`, `state-after.json`, `state-diff.json`) were deleted —
+// they duplicated `events.jsonl`/`state_*.json` and existed only to feed the
+// local correlator/evaluator, which no longer runs here. `stdout.txt` and
+// `stderr.log` are NOT part of the trace contract cloud judges against; they
+// are non-trace debug sidecars — raw agent-process output, kept only so a
+// human (or `pome inspect`) can read what the agent printed when a run needs
+// forensics.
 export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promise<RunArtifacts> {
   const runDir = join(input.artifactsDir, input.scenario.slug, input.runId);
   await mkdir(runDir, { recursive: true });
@@ -62,12 +75,14 @@ export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promis
     started_at: input.startedAt,
     completed_at: input.completedAt,
     exit_code: input.exitCode,
-    twins: input.scenario.config.twins
+    twins: input.scenario.config.twins,
+    // D18.1 — the meta.json contract half: spec_version lets cloud's ingest
+    // (a parallel PR) validate the shape it's parsing; twin_versions lets it
+    // attribute the captured behavior to the exact twin build that produced
+    // it. Both additive — an older CLI's meta.json simply omits them.
+    spec_version: META_SPEC_VERSION,
+    twin_versions: resolveTwinPackageVersions(input.scenario.config.twins),
   });
-  // tool_calls.jsonl keeps the legacy recorder shape (no `kind`) — it's the
-  // pre-FDRS-398 view that some downstream consumers still read.
-  const toolCallsJsonl = input.events.map((event) => JSON.stringify(redactEvent(event))).join("\n") + "\n";
-  await writeFile(join(runDir, "tool_calls.jsonl"), toolCallsJsonl);
   // events.jsonl is the unified discriminated-union view (FDRS-398). The
   // in-process twin recorders still emit legacy RecorderEvent rows; wrap each
   // one into a TwinHttpEvent before serializing so `pome inspect` (FDRS-403)
@@ -79,9 +94,6 @@ export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promis
   await appendFile(join(runDir, "events.jsonl"), eventsJsonl);
   await writeJson(join(runDir, "state_initial.json"), input.stateInitial);
   await writeJson(join(runDir, "state_final.json"), input.stateFinal);
-  await writeJson(join(runDir, "state-before.json"), input.stateInitial);
-  await writeJson(join(runDir, "state-after.json"), input.stateFinal);
-  await writeJson(join(runDir, "state-diff.json"), summarizeStateDiff(input.stateInitial, input.stateFinal));
   await writeFile(join(runDir, "stdout.txt"), redactText(input.stdout));
   await writeFile(join(runDir, "stderr.log"), redactText(input.stderr));
   await writeJson(join(input.artifactsDir, "latest.json"), {
@@ -126,31 +138,4 @@ async function writeJson(path: string, value: unknown) {
 
 function redactText(value: string): string {
   return redactSecrets(value) as string;
-}
-
-function summarizeStateDiff(before: unknown, after: unknown) {
-  const beforeSummary = summarizeState(before);
-  const afterSummary = summarizeState(after);
-  const keys = Array.from(new Set([...Object.keys(beforeSummary), ...Object.keys(afterSummary)])).sort();
-  return {
-    summary: keys.map((key) => ({
-      path: key,
-      before: beforeSummary[key] ?? 0,
-      after: afterSummary[key] ?? 0,
-      delta: (afterSummary[key] ?? 0) - (beforeSummary[key] ?? 0)
-    }))
-  };
-}
-
-function summarizeState(value: unknown, prefix = ""): Record<string, number> {
-  if (Array.isArray(value)) {
-    return prefix ? { [prefix]: value.length } : {};
-  }
-  if (!value || typeof value !== "object") return {};
-  const out: Record<string, number> = {};
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    Object.assign(out, summarizeState(child, path));
-  }
-  return out;
 }

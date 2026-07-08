@@ -47,7 +47,7 @@ import {
   scoreCountsSummary,
   scoreStatus,
   type Score,
-} from "../score/view.js";
+} from "../hosted/evalResultView.js";
 import { resolveCredentials } from "./credentials.js";
 import {
   normalizeConfigAgentSdk,
@@ -123,6 +123,9 @@ export interface RunDirArtifacts {
   stateFinalJson: string;
   /** Present only when the optional signals.jsonl exists. */
   signalsJsonl: string | null;
+  /** D18.1 — raw meta.json text (the same bytes `meta` was parsed from),
+   *  re-redacted and uploaded via `requestMetaUploadUrl`. */
+  metaJson: string;
 }
 
 async function readRequiredFile(runDir: string, name: string): Promise<string> {
@@ -208,7 +211,15 @@ export async function readRunDirArtifacts(
   }
   if (signalsJsonl !== null) validateJsonl("signals.jsonl", signalsJsonl);
 
-  return { runDir, meta, eventsJsonl, stateInitialJson, stateFinalJson, signalsJsonl };
+  return {
+    runDir,
+    meta,
+    eventsJsonl,
+    stateInitialJson,
+    stateFinalJson,
+    signalsJsonl,
+    metaJson: metaRaw,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -435,6 +446,8 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
       redactSecrets(JSON.parse(artifacts.stateFinalJson)),
     ),
     signalsJsonl: redactJsonl(artifacts.signalsJsonl ?? ""),
+    // D18.1 — already validated as parseable JSON in readRunDirArtifacts.
+    metaJson: JSON.stringify(redactSecrets(JSON.parse(artifacts.metaJson))),
   };
 
   let reusedSession = false;

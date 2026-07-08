@@ -58,6 +58,7 @@ function makeStubClient({
   requestEventsUploadUrlImpl,
   requestStateUploadUrlImpl,
   requestSignalsUploadUrlImpl,
+  requestMetaUploadUrlImpl,
   fetchStateImpl,
   finalizeScore = 100,
 }: {
@@ -67,6 +68,7 @@ function makeStubClient({
     state_final: { url: string; key: string };
   }>;
   requestSignalsUploadUrlImpl?: () => Promise<{ url: string; key: string }>;
+  requestMetaUploadUrlImpl?: () => Promise<{ url: string; key: string }>;
   fetchStateImpl?: () => Promise<unknown>;
   finalizeScore?: number;
 }): {
@@ -140,6 +142,13 @@ function makeStubClient({
       // suite supplies a real mock.
       (async () => {
         throw new HostedOrchError("no signals-upload-url stubbed");
+      }),
+    requestMetaUploadUrl:
+      requestMetaUploadUrlImpl ??
+      // D18.1 — best-effort like the other blobs; tests that don't care get
+      // an unreachable stub that degrades to metaKey=null.
+      (async () => {
+        throw new HostedOrchError("no meta-upload-url stubbed");
       }),
     async abandonSession() {
       throw new HostedOrchError("no abandon stubbed (single-run path never calls it)");

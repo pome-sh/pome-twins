@@ -17,7 +17,7 @@ import {
   VERDICT_ARTIFACT_VERSION,
   writeVerdictArtifact,
   type VerdictArtifact,
-} from "../../src/recorder/verdictArtifact.js";
+} from "../../src/hosted/evalResultCache.js";
 
 const SCENARIO =
   "# scn\n\n## Prompt\nTriage the bug.\n\n## Success Criteria\n- [P] Severity is set correctly\n";

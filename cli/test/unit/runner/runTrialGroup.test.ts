@@ -32,7 +32,7 @@ import type {
   RunScenarioHostedOptions,
   RunScenarioHostedResult,
 } from "../../../src/runner/runScenarioHosted.js";
-import type { Score } from "../../../src/score/view.js";
+import type { Score } from "../../../src/hosted/evalResultView.js";
 
 vi.mock("../../../src/hosted/client.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../../src/hosted/client.js")>();
@@ -122,6 +122,9 @@ function makeFakeClient(overrides: Partial<FakeCloud> = {}): FakeCloud {
       throw new Error("not used");
     },
     async requestSignalsUploadUrl() {
+      throw new Error("not used");
+    },
+    async requestMetaUploadUrl() {
       throw new Error("not used");
     },
     async abandonSession(sessionId, input) {
@@ -488,6 +491,7 @@ function makeQuotaCloud(input: {
     requestEventsUploadUrl: unused,
     requestStateUploadUrl: unused,
     requestSignalsUploadUrl: unused,
+    requestMetaUploadUrl: unused,
     abandonSession: async (sessionId) => ({
       session_id: sessionId,
       state: "failed",

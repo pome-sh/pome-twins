@@ -9,7 +9,7 @@
 // The seed → DB → readback path mirrors what `/_pome/state` surfaces to the
 // cloud evaluator, so a green test here is the unit-level equivalent of
 // `pome run --hosted scenarios/14-stripe-refund-retry.md` showing the seeded
-// rows in `state-before.json`. The full live-flow check is cross-repo
+// rows in `state_initial.json`. The full live-flow check is cross-repo
 // (CLI at `cli/` + cloud + scenario file at `cli/scenarios/`) and is verified separately.
 
 import { describe, expect, it } from "vitest";

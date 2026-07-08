@@ -9,8 +9,8 @@
 
 import type { HostedClient } from "./client.js";
 import type { FinalizeResponse } from "../types/shared.js";
-import type { Score } from "../score/view.js";
-import { outcomeOf } from "../score/view.js";
+import type { Score } from "./evalResultView.js";
+import { outcomeOf } from "./evalResultView.js";
 import { redactSecrets } from "../recorder/redaction.js";
 
 /** The narrow client surface the upload orchestration needs. `pome eval`
@@ -20,6 +20,7 @@ export type UploadClient = Pick<
   | "requestEventsUploadUrl"
   | "requestStateUploadUrl"
   | "requestSignalsUploadUrl"
+  | "requestMetaUploadUrl"
 >;
 
 export interface RunBlobs {
@@ -29,6 +30,9 @@ export interface RunBlobs {
   /** Pre-redacted JSONL. Empty / whitespace-only skips the signals upload
    *  entirely so cloud doesn't allocate storage for "{}" payloads (F0-4 / L7). */
   signalsJsonl: string;
+  /** D18.1 — the run's meta.json (spec_version + twin_versions + the rest of
+   *  writeRunArtifactsCore's payload), as written to / read from disk. */
+  metaJson: string;
 }
 
 export interface UploadedBlobKeys {
@@ -36,6 +40,11 @@ export interface UploadedBlobKeys {
   stateInitialKey: string | null;
   stateFinalKey: string | null;
   signalsKey: string | null;
+  /** D18.1 — null whenever the upload didn't happen, INCLUDING the
+   *  feature-detection case (older control plane 404s meta-upload-url).
+   *  Never distinguished from any other failure — same best-effort contract
+   *  as every other blob here. */
+  metaKey: string | null;
 }
 
 async function putBlob(
@@ -161,16 +170,44 @@ export async function uploadRunBlobs(
     }
   }
 
-  const [eventsKey, stateKeys, signalsKey] = await Promise.all([
+  // D18.1 — upload meta.json via the presigned route. FEATURE-DETECT: a
+  // control plane that predates `POST /v1/sessions/:id/meta-upload-url`
+  // (the route ships in a parallel pome-cloud PR) 404s the mint call, which
+  // lands in this same catch as any other failure — warn and continue with
+  // metaKey=null. Identical best-effort shape to the other three uploads;
+  // never surfaced to the caller as distinct from "upload failed".
+  async function uploadMeta(): Promise<string | null> {
+    try {
+      const upload = await client.requestMetaUploadUrl(sessionId);
+      const ok = await putBlob(
+        upload.url,
+        blobs.metaJson,
+        "application/json",
+        "meta.json",
+      );
+      return ok ? upload.key : null;
+    } catch (err) {
+      console.warn(
+        `[pome] meta.json upload skipped (${
+          err instanceof Error ? err.message : String(err)
+        }); continuing with meta_storage_key=null`,
+      );
+      return null;
+    }
+  }
+
+  const [eventsKey, stateKeys, signalsKey, metaKey] = await Promise.all([
     uploadEvents(),
     uploadStates(),
     uploadSignals(),
+    uploadMeta(),
   ]);
 
   return {
     eventsKey,
     stateInitialKey: stateKeys.initialKey,
     stateFinalKey: stateKeys.finalKey,
+    metaKey,
     signalsKey,
   };
 }

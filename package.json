@@ -11,7 +11,7 @@
     "test:contract": "node contract/run.mjs",
     "typecheck": "bun run --filter '*' typecheck",
     "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh",
-    "gate:no-correlator": "node scripts/no-correlator-in-oss.mjs",
+    "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
     "lint:copy-markers": "node scripts/check-copy-markers.mjs",
     "lint:code-health": "node scripts/lint-code-health.mjs",
     "lint:dead-code": "bunx --bun knip --no-config-hints"

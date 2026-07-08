@@ -23,7 +23,10 @@ jobs:
       - run: node scripts/lint-code-health.mjs
       - run: bun install --frozen-lockfile --filter '*'
       - run: bun run lint:dead-code
-      - run: bun run gate:no-correlator
+      # F-692 / D9 — one repo-wide capture-only gate, scanning cli/src/**,
+      # cli/scripts/**, and packages/** (cli-ci.yml's former duplicate step
+      # was folded in here).
+      - run: bun run gate:no-eval
       - run: bun run --filter '@pome-sh/shared-types' check:trace-contract
       # Consumers import sibling packages through their published `exports`
       # (e.g. `@pome-sh/sdk/server` → dist/server.d.ts). Build the workspace in

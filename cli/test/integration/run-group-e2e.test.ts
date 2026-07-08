@@ -15,7 +15,7 @@ import { runTrialGroup } from "../../src/runner/runTrialGroup.js";
 import {
   discoverRunSet,
   readVerdictArtifact,
-} from "../../src/recorder/verdictArtifact.js";
+} from "../../src/hosted/evalResultCache.js";
 
 const SCENARIO =
   "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
