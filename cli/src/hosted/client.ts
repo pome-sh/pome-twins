@@ -142,6 +142,16 @@ export interface SignalsUploadUrlResponse {
   key: string;
 }
 
+// D18.1 — mint a signed PUT for meta.json (spec_version + twin package
+// versions). FEATURE-DETECT: `POST /v1/sessions/:id/meta-upload-url` ships in
+// a parallel pome-cloud PR; a control plane that predates it 404s here, and
+// the upload orchestration in uploadAndFinalize.ts treats that exactly like
+// every other best-effort blob upload — warn and continue with key=null.
+export interface MetaUploadUrlResponse {
+  url: string;
+  key: string;
+}
+
 export interface FinalizeInput {
   /** "completed" | "timeout" | "preflight_failed" — free-form for now. */
   stopReason: string;
@@ -216,6 +226,10 @@ export interface HostedClient {
    *  HookEvent / ToolUseEvent / SubagentSpawnEvent rows). The returned
    *  `key` flows into `FinalizeInput.signalsStorageKey`. */
   requestSignalsUploadUrl(sessionId: string): Promise<SignalsUploadUrlResponse>;
+  /** D18.1 — mint a signed PUT for meta.json. See `MetaUploadUrlResponse`
+   *  for the feature-detection contract (a 404 here means an older control
+   *  plane; callers must tolerate it silently). */
+  requestMetaUploadUrl(sessionId: string): Promise<MetaUploadUrlResponse>;
   /** @param bestEffort default true — hosted runner swallows network errors on teardown */
   deleteSession(sessionId: string, bestEffort?: boolean): Promise<void>;
 }
@@ -492,6 +506,26 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
           }
           throw new HostedOrchError(
             "POST /v1/sessions/:id/signals-upload-url returned unexpected shape",
+          );
+        },
+      );
+    },
+
+    async requestMetaUploadUrl(sessionId) {
+      return postJson(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/meta-upload-url`,
+        {},
+        (raw) => {
+          if (
+            typeof raw === "object" &&
+            raw !== null &&
+            typeof (raw as { url?: unknown }).url === "string" &&
+            typeof (raw as { key?: unknown }).key === "string"
+          ) {
+            return raw as MetaUploadUrlResponse;
+          }
+          throw new HostedOrchError(
+            "POST /v1/sessions/:id/meta-upload-url returned unexpected shape",
           );
         },
       );

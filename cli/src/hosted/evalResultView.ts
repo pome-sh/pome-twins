@@ -13,6 +13,11 @@
 // (`scoreResults`, the deterministic matchers, the BYOK LLM judge) was deleted
 // under FDRS-657; only the pure display model survives, moved out of the
 // `evaluator/` tree so the `no-eval-in-oss` gate can assert that tree is gone.
+//
+// F-689/D16 — moved AGAIN from `src/score/view.ts` to here. `score/` (a
+// module-name stem the repo-wide gate now denies outright) has to cease to
+// exist, so this pure display model lives under `hosted/` with the rest of
+// the cloud-facing surface it renders.
 
 // Wire-side criterion, NOT the scenario-markdown one: cloud responses carry
 // the unified "code"/"model" vocabulary (legacy "D"/"P" tolerated) while

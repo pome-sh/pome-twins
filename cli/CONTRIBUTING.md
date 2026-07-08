@@ -45,12 +45,45 @@ CI runs typecheck, build, tests, and capture-only gates. PRs are gated on green 
 
 - `src/cli/`: command surface (Commander.js entry points).
 - `src/runner/`: scenario execution (local + hosted).
-- `src/hosted/`: control-plane HTTP client.
+- `src/hosted/`: control-plane HTTP client, plus the pure cloud-verdict
+  display/cache models (`evalResultView.ts`, `evalResultCache.ts`).
 - `src/twin/`: local twin boot harness (`githubCloneAdapter.ts` wraps published twin packages).
 - `package.json`: pins exact `@pome-sh/*` package versions consumed by the published CLI.
 - `scenarios/`: bundled starter scenarios shipped with the package.
 - `examples/`: example agent implementations.
 - `scripts/`: build-only helpers (not published).
+
+## Capture is open, evaluation is the product
+
+pome-twins (this repo — the twins + the `pome` CLI) is **capture-only**: it
+boots a twin, runs an agent against it, and records the raw trace (events,
+before/after state, stdout/stderr). It never computes a score, never calls a
+judge, and never correlates events into a verdict locally. That logic —
+deterministic predicate matching, the LLM judge, correlation, scoring — is
+the product, and it lives entirely in pome-cloud. A verdict only ever comes
+back from the cloud, whether via a hosted `pome run` or an upload through
+`pome eval`.
+
+This boundary is enforced mechanically, repo-wide, by
+[`scripts/no-eval-in-oss.mjs`](../scripts/no-eval-in-oss.mjs) (`bun run
+gate:no-eval` from the repo root; `cd cli && bun run gate:no-eval` also
+works). The gate denies three things across `cli/src/**`, `cli/scripts/**`,
+and `packages/**`:
+
+1. **Known deleted paths reappearing** — `src/evaluator/`, `src/matrix/`,
+   `src/score/`, `packages/correlator/`, and the retired local-scoring CLI
+   entrypoints must stay gone.
+2. **File names that look like an evaluator** — any file whose name starts
+   with `correlate`, `score`, `judge`, or `verdict` (case-insensitive), no
+   matter where it lives. If your change legitimately needs a name like
+   that, it almost certainly belongs in pome-cloud instead.
+3. **Forbidden imports** — the local correlator/judge/matcher packages, or
+   any `@pome-cloud/*` package. This repo must never depend on cloud-only
+   code.
+
+If you're adding a feature and the gate fires, the fix is virtually never
+"add an allowlist entry" (the file-name allowlist is intentionally empty) —
+it's "this code belongs in pome-cloud, not here."
 
 ## Security
 

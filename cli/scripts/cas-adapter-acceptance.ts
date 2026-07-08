@@ -269,15 +269,15 @@ async function assertInspect(runDir: string): Promise<void> {
 async function copyArtifacts(runDir: string, dest: string): Promise<void> {
   const { mkdir, copyFile } = await import("node:fs/promises");
   await mkdir(dest, { recursive: true });
-  // Mirrors the file set the runner produces (see scoreAndWriteRun.ts). We
-  // include the score + state diffs because the trace is most useful in CI
-  // when paired with what the scorer thought the run did.
+  // Mirrors the file set the runner produces (F-689: no local score.json,
+  // no tool_calls.jsonl/state-before/after/diff — those were deleted; only
+  // the raw trace/state + optional adapter signals survive).
   for (const name of [
     "events.jsonl",
     "signals.jsonl",
     "meta.json",
-    "score.json",
-    "state-diff.json",
+    "state_initial.json",
+    "state_final.json",
     "stdout.txt",
     "stderr.log",
   ]) {

@@ -9,8 +9,8 @@
 
 import type { HostedClient } from "./client.js";
 import type { FinalizeResponse } from "../types/shared.js";
-import type { Score } from "../score/view.js";
-import { outcomeOf } from "../score/view.js";
+import type { Score } from "./evalResultView.js";
+import { outcomeOf } from "./evalResultView.js";
 import { redactSecrets } from "../recorder/redaction.js";
 
 /** The narrow client surface the upload orchestration needs. `pome eval`
@@ -20,6 +20,7 @@ export type UploadClient = Pick<
   | "requestEventsUploadUrl"
   | "requestStateUploadUrl"
   | "requestSignalsUploadUrl"
+  | "requestMetaUploadUrl"
 >;
 
 export interface RunBlobs {
@@ -29,6 +30,9 @@ export interface RunBlobs {
   /** Pre-redacted JSONL. Empty / whitespace-only skips the signals upload
    *  entirely so cloud doesn't allocate storage for "{}" payloads (F0-4 / L7). */
   signalsJsonl: string;
+  /** D18.1 — the run's meta.json (spec_version + twin_versions + the rest of
+   *  writeRunArtifactsCore's payload), as written to / read from disk. */
+  metaJson: string;
 }
 
 export interface UploadedBlobKeys {
@@ -36,6 +40,16 @@ export interface UploadedBlobKeys {
   stateInitialKey: string | null;
   stateFinalKey: string | null;
   signalsKey: string | null;
+  /** D18.1 — the storage key the presigned PUT landed at, or null whenever
+   *  the upload didn't happen, INCLUDING the feature-detection case (older
+   *  control plane 404s meta-upload-url). Never distinguished from any other
+   *  failure — same best-effort contract as every other blob here.
+   *
+   *  NOT threaded onto /finalize (unlike the state / signals keys): the cloud
+   *  contract auto-discovers meta.json by the conventional session-prefixed
+   *  path — see uploadRunBlobs and uploadMeta below. Returned only so callers
+   *  and tests can observe whether the upload happened. */
+  metaKey: string | null;
 }
 
 async function putBlob(
@@ -72,6 +86,9 @@ async function putBlob(
  * without an explicit override. State blobs and signals have no conventional
  * fallback today — without an explicit override the judge sees "{}" for
  * state files (FDRS-395) and skips the adapter-rich correlator (F0-4 / L7).
+ * meta.json (D18.1/D18.6) DOES have a conventional fallback: cloud finalize
+ * auto-discovers it at `team-<>/session-<>/meta.json`, so its key is uploaded
+ * to that path and never threaded onto /finalize (see uploadMeta below).
  * All four uploads are best-effort: any failure leaves the corresponding
  * blob missing (`null` key), the judge still runs against whatever it does
  * have, and the dashboard handles nulls gracefully.
@@ -161,16 +178,53 @@ export async function uploadRunBlobs(
     }
   }
 
-  const [eventsKey, stateKeys, signalsKey] = await Promise.all([
+  // D18.1 / D18.6 — upload meta.json via the presigned route. The mint route
+  // signs the CONVENTIONAL `team-<>/session-<>/meta.json` path, and cloud's
+  // /finalize AUTO-DISCOVERS the blob at that same conventional path (it
+  // downloads it unconditionally when no explicit override is given — see
+  // pome-cloud services/finalize-run.ts, which defaults `metaStorageKey` to
+  // the conventional path). So — unlike the state / signals keys — the
+  // returned meta key is deliberately NOT threaded onto the /finalize body:
+  // uploading to the conventional path is the whole contract. There is no
+  // `meta_storage_key` finalize field to null out.
+  //
+  // FEATURE-DETECT: a control plane that predates
+  // `POST /v1/sessions/:id/meta-upload-url` 404s the mint call, which lands
+  // in this same catch as any other failure — warn and continue. Identical
+  // best-effort shape to the other three uploads; never surfaced to the
+  // caller as distinct from "upload failed".
+  async function uploadMeta(): Promise<string | null> {
+    try {
+      const upload = await client.requestMetaUploadUrl(sessionId);
+      const ok = await putBlob(
+        upload.url,
+        blobs.metaJson,
+        "application/json",
+        "meta.json",
+      );
+      return ok ? upload.key : null;
+    } catch (err) {
+      console.warn(
+        `[pome] meta.json upload skipped (${
+          err instanceof Error ? err.message : String(err)
+        }); cloud will finalize without producing-twin metadata for this run`,
+      );
+      return null;
+    }
+  }
+
+  const [eventsKey, stateKeys, signalsKey, metaKey] = await Promise.all([
     uploadEvents(),
     uploadStates(),
     uploadSignals(),
+    uploadMeta(),
   ]);
 
   return {
     eventsKey,
     stateInitialKey: stateKeys.initialKey,
     stateFinalKey: stateKeys.finalKey,
+    metaKey,
     signalsKey,
   };
 }

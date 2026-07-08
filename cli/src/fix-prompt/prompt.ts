@@ -16,8 +16,8 @@ import { fileURLToPath } from "node:url";
 import type { CriterionResult, RecorderEvent } from "../types/shared.js";
 import type { Criterion, Scenario } from "../scenario/scenarioSchema.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
-import { outcomeOf } from "../score/view.js";
-import type { VerdictArtifact } from "../recorder/verdictArtifact.js";
+import { outcomeOf } from "../hosted/evalResultView.js";
+import type { VerdictArtifact } from "../hosted/evalResultCache.js";
 
 export const FIX_PROMPT_TEMPLATE_VERSION = "v1";
 

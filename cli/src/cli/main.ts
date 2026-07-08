@@ -22,7 +22,7 @@ import {
 import { runScenario } from "../runner/runScenario.js";
 import { runScenarioHosted } from "../runner/runScenarioHosted.js";
 import { effectiveTrialCount, parseTrialsFlag } from "../runner/trialCount.js";
-import { runScoreLine, scoreStatus } from "../score/view.js";
+import { runScoreLine, scoreStatus } from "../hosted/evalResultView.js";
 import { HostedUsageError, exitCodeFor } from "../hosted/errors.js";
 import { resolveCredentials, clearLocalCredentials } from "./credentials.js";
 import { loginWithClerk } from "./login.js";
@@ -77,7 +77,7 @@ import {
 import {
   discoverRunSet,
   loadTrialEvents,
-} from "../recorder/verdictArtifact.js";
+} from "../hosted/evalResultCache.js";
 import type { Scenario } from "../scenario/scenarioSchema.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import type { RecorderEvent } from "../types/shared.js";

@@ -15,6 +15,11 @@
 // Artifact-layout knowledge lives HERE and only here:
 //   <artifacts-root>/<task-slug>/<session-id>/verdict.json
 // (runDir shape from recorder/artifacts.ts `writeRunArtifactsCore`).
+//
+// F-689/D16 — moved from `src/recorder/verdictArtifact.ts` to here (and
+// renamed: the repo-wide no-eval gate denies any module NAMED verdict*, so
+// this file itself can't be called that anymore) and grouped under
+// `hosted/` since it caches a CLOUD response, not a recorder concern.
 
 import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";

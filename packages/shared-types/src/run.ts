@@ -133,7 +133,7 @@ const runObjectSchema = z.object({
   task_hash: z.string(),                       // sha256 of source markdown; 0.3.0 alias: scenario_hash
   satisfaction_score: z.number().int().min(0).max(100),  // CLI-computed (BYOK Flavor #1)
   criteria_results: z.array(criterionResultSchema),
-  trace_s3_key: z.string().nullable(),         // s3 key for tool_calls.jsonl (hosted only)
+  trace_s3_key: z.string().nullable(),         // s3 key for events.jsonl (hosted only; F-689 deleted tool_calls.jsonl)
   state_s3_key: z.string().nullable(),         // s3 key for state_final.json
   meta_s3_key: z.string().nullable(),
   duration_ms: z.number().int(),

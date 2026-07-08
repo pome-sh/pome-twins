@@ -32,7 +32,7 @@ import {
   scoreFromFinalizeResponse,
   uploadRunBlobs,
 } from "../hosted/uploadAndFinalize.js";
-import { outcomeOf, scoreStatus } from "../score/view.js";
+import { outcomeOf, scoreStatus } from "../hosted/evalResultView.js";
 import { HostedQuotaError } from "../hosted/errors.js";
 import {
   DemoCapacityError,
@@ -63,6 +63,7 @@ export type DemoTrialClient = Pick<
   | "requestEventsUploadUrl"
   | "requestStateUploadUrl"
   | "requestSignalsUploadUrl"
+  | "requestMetaUploadUrl"
   | "finalize"
   | "abandonSession"
 >;
@@ -305,16 +306,20 @@ async function runOneTrial(input: RunOneTrialInput): Promise<TrialVerdict> {
   // Upload the genuinely captured blobs, then ask the cloud for the verdict.
   input.out(evaluatingLine(input.trialNumber));
   const runDir = result.artifacts.runDir;
-  const [eventsJsonl, stateInitialJson, stateFinalJson] = await Promise.all([
+  const [eventsJsonl, stateInitialJson, stateFinalJson, metaJson] = await Promise.all([
     readFile(join(runDir, "events.jsonl"), "utf8"),
     readFile(join(runDir, "state_initial.json"), "utf8"),
     readFile(join(runDir, "state_final.json"), "utf8"),
+    // D18.1 — best-effort: a demo trial's verdict must never hinge on the
+    // meta.json sidecar being readable.
+    readFile(join(runDir, "meta.json"), "utf8").catch(() => "{}"),
   ]);
   const uploaded = await uploadRunBlobs(input.client, input.session.session_id, {
     eventsJsonl,
     stateInitialJson,
     stateFinalJson,
     signalsJsonl: "",
+    metaJson,
   });
 
   // criteria: [] — demo finalize replaces the client body with the

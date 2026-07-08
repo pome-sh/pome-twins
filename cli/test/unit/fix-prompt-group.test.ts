@@ -11,7 +11,7 @@ import {
   representativeFailingTrial,
   type TrialFixInput,
 } from "../../src/fix-prompt/index.js";
-import { VERDICT_ARTIFACT_VERSION, type VerdictArtifact } from "../../src/recorder/verdictArtifact.js";
+import { VERDICT_ARTIFACT_VERSION, type VerdictArtifact } from "../../src/hosted/evalResultCache.js";
 import type { CriterionResult, RecorderEvent } from "../../src/types/shared.js";
 import type { Scenario } from "../../src/scenario/scenarioSchema.js";
 

@@ -58,6 +58,7 @@ function makeStubClient({
   requestEventsUploadUrlImpl,
   requestStateUploadUrlImpl,
   requestSignalsUploadUrlImpl,
+  requestMetaUploadUrlImpl,
   fetchStateImpl,
   finalizeScore = 100,
 }: {
@@ -67,6 +68,7 @@ function makeStubClient({
     state_final: { url: string; key: string };
   }>;
   requestSignalsUploadUrlImpl?: () => Promise<{ url: string; key: string }>;
+  requestMetaUploadUrlImpl?: () => Promise<{ url: string; key: string }>;
   fetchStateImpl?: () => Promise<unknown>;
   finalizeScore?: number;
 }): {
@@ -140,6 +142,13 @@ function makeStubClient({
       // suite supplies a real mock.
       (async () => {
         throw new HostedOrchError("no signals-upload-url stubbed");
+      }),
+    requestMetaUploadUrl:
+      requestMetaUploadUrlImpl ??
+      // D18.1 — best-effort like the other blobs; tests that don't care get
+      // an unreachable stub that degrades to metaKey=null.
+      (async () => {
+        throw new HostedOrchError("no meta-upload-url stubbed");
       }),
     async abandonSession() {
       throw new HostedOrchError("no abandon stubbed (single-run path never calls it)");
@@ -248,6 +257,68 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     expect(signalsPutBody).toContain("[REDACTED]");
     expect(signalsPutBody).not.toContain("redaction_fixture_secret_signal");
     expect(getFinalizeSignalsStorageKey()).toBe(SIGNALS_KEY);
+  });
+
+  // D18.1 / D18.6 — when the control plane exposes the meta-upload-url route,
+  // the runner reads the on-disk meta.json (written by writeRunArtifactsCore
+  // with spec_version + twin_versions) and PUTs it to the signed URL. The key
+  // is NOT threaded onto /finalize — cloud auto-discovers meta.json at the
+  // conventional session-prefixed path. This test locks the happy path so a
+  // regression in the meta read/upload wiring (wrong file path, missing blob)
+  // is caught above the lower-level uploadAndFinalize.test.ts.
+  it("D18.1: uploads meta.json with spec_version to the signed URL when the route exists", async () => {
+    const META_URL = "https://signed.example/put-meta";
+    const META_KEY = `team-tm_x/session-${FAKE_SESSION_ID}/meta.json`;
+
+    let metaPutBody: string | null = null;
+    let metaPutCount = 0;
+
+    const { client, getFinalizeInput } = makeStubClient({
+      requestEventsUploadUrlImpl: async () => ({
+        url: FAKE_UPLOAD_URL,
+        key: FAKE_UPLOAD_KEY,
+      }),
+      requestMetaUploadUrlImpl: async () => ({ url: META_URL, key: META_KEY }),
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const urlStr = String(url);
+      const method = (init as RequestInit | undefined)?.method;
+      if (urlStr === FAKE_UPLOAD_URL && method === "PUT") {
+        return new Response(null, { status: 200 });
+      }
+      if (urlStr === META_URL && method === "PUT") {
+        metaPutCount += 1;
+        metaPutBody = await new Request(urlStr, init as RequestInit).text();
+        return new Response(null, { status: 200 });
+      }
+      throw new Error(`Unexpected fetch call to ${urlStr}`);
+    });
+
+    const scenarioPath = join(tmp, "scn.md");
+    await writeFile(scenarioPath, TRIVIAL_PASSING_SCENARIO, "utf8");
+    const stubAgent = `node -e ${JSON.stringify("console.log('done')")}`;
+
+    const result = await runScenarioHosted({
+      scenarioPath,
+      agentCommand: stubAgent,
+      artifactsDir: join(tmp, "runs"),
+      hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
+      client,
+    });
+
+    expect(result.cloudRunId).toBe(FAKE_RUN_ID);
+    // meta.json was PUT exactly once, and its body carries the D18.1 contract.
+    expect(metaPutCount).toBe(1);
+    expect(metaPutBody).not.toBeNull();
+    const parsedMeta = JSON.parse(metaPutBody as unknown as string);
+    expect(parsedMeta.spec_version).toBe(1);
+    expect(parsedMeta.twin_versions).toBeDefined();
+    // The meta key is deliberately NOT threaded onto /finalize — cloud
+    // auto-discovers it at the conventional path.
+    expect(
+      (getFinalizeInput() as { metaStorageKey?: string }).metaStorageKey,
+    ).toBeUndefined();
   });
 
   it("happy path: PUTs events JSONL to signed URL and forwards storage key to finalize", async () => {

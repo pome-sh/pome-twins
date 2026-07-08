@@ -8,7 +8,7 @@ import { toTwinHttpEvent, writeRunArtifactsCore } from "../recorder/artifacts.js
 import {
   VERDICT_ARTIFACT_VERSION,
   writeVerdictArtifact,
-} from "../recorder/verdictArtifact.js";
+} from "../hosted/evalResultCache.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { createHostedClient, type HostedClient } from "../hosted/client.js";
@@ -30,7 +30,7 @@ import type {
 } from "../types/shared.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "@pome-sh/shared-types";
 import type { Scenario } from "../scenario/scenarioSchema.js";
-import type { Score } from "../score/view.js";
+import type { Score } from "../hosted/evalResultView.js";
 import type { RunArtifacts } from "../recorder/artifacts.js";
 
 export interface RunScenarioHostedOptions {
@@ -358,11 +358,21 @@ export async function runScenarioHosted(
         }); continuing with signals_storage_key=null`,
       );
     }
+    // D18.1 — meta.json is already redacted on disk (writeRunArtifactsCore's
+    // writeJson applies redactSecrets); read it back rather than re-deriving
+    // it so what's uploaded is byte-identical to the local artifact. A read
+    // failure degrades to an empty-object upload rather than aborting the
+    // run — meta.json is a best-effort sidecar, never load-bearing for the
+    // score.
+    const metaJson = await readFile(join(artifacts.runDir, "meta.json"), "utf8").catch(
+      () => "{}",
+    );
     const uploaded = await uploadRunBlobs(client, session.session_id, {
       eventsJsonl,
       stateInitialJson,
       stateFinalJson,
       signalsJsonl,
+      metaJson,
     });
     const eventsJsonlUrl = uploaded.eventsKey;
     const stateKeys = {

@@ -32,6 +32,8 @@ const STATE_INITIAL_KEY = `team-tm_x/session-${FAKE_SESSION_ID}/state_initial.js
 const STATE_FINAL_KEY = `team-tm_x/session-${FAKE_SESSION_ID}/state_final.json`;
 const SIGNALS_URL = "https://signed.example/put-signals";
 const SIGNALS_KEY = `team-tm_x/session-${FAKE_SESSION_ID}/signals.jsonl`;
+const META_URL = "https://signed.example/put-meta";
+const META_KEY = `team-tm_x/session-${FAKE_SESSION_ID}/meta.json`;
 
 const META = {
   run_id: "ses_original_run",
@@ -133,6 +135,9 @@ function makeEvalClient({
     },
     async requestSignalsUploadUrl() {
       return { url: SIGNALS_URL, key: SIGNALS_KEY };
+    },
+    async requestMetaUploadUrl() {
+      return { url: META_URL, key: META_KEY };
     },
     async finalize(sessionId, input) {
       calls.finalize.push({ sessionId, input });
@@ -338,9 +343,9 @@ describe("pome eval upload + finalize flow (FDRS-656)", () => {
     expect(calls.create).toEqual([
       { agent: "triage-bot", taskName: "01-bug-happy-path" },
     ]);
-    // All three required blobs PUT to their signed URLs (no signals.jsonl).
+    // events/state/meta blobs all PUT to their signed URLs (no signals.jsonl).
     expect(putUrls().sort()).toEqual(
-      [EVENTS_URL, STATE_FINAL_URL, STATE_INITIAL_URL].sort(),
+      [EVENTS_URL, STATE_FINAL_URL, STATE_INITIAL_URL, META_URL].sort(),
     );
     // Finalize on the minted session with explicit storage-key overrides and
     // NO client-side criteria/score (ADR-013: cloud judges).

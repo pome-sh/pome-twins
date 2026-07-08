@@ -32,6 +32,7 @@ async function artifactsDirWithBlobs(): Promise<string> {
   );
   await writeFile(join(dir, "state_initial.json"), "{}\n");
   await writeFile(join(dir, "state_final.json"), "{}\n");
+  await writeFile(join(dir, "meta.json"), "{}\n");
   return dir;
 }
 
@@ -106,6 +107,9 @@ function fakeClient(
       throw new Error(`no blob store in this test (${sessionId})`);
     }),
     requestSignalsUploadUrl: vi.fn(async (sessionId: string) => {
+      throw new Error(`no blob store in this test (${sessionId})`);
+    }),
+    requestMetaUploadUrl: vi.fn(async (sessionId: string) => {
       throw new Error(`no blob store in this test (${sessionId})`);
     }),
     finalize: vi.fn(async (sessionId: string, input: unknown) => {

@@ -18,7 +18,7 @@ import {
   scanVerdictArtifacts,
   writeVerdictArtifact,
   type VerdictArtifact,
-} from "../../src/recorder/verdictArtifact.js";
+} from "../../../src/hosted/evalResultCache.js";
 
 function verdict(over: Partial<VerdictArtifact>): VerdictArtifact {
   return {

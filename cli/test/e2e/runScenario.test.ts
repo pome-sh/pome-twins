@@ -1,10 +1,32 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runScenario } from "../../src/runner/runScenario.js";
 import { captureServerForTests } from "../fixtures/captureServerForTests.js";
+
+// F-689 remainder (D6/R1) — `writeRunArtifactsCore` writes EXACTLY six files
+// (asserted directly at the unit level in
+// test/unit/recorder/artifacts.test.ts). The full self-host `runScenario()`
+// surface tested here also writes its own pre-existing, unrelated sidecars
+// (signals.jsonl for adapter signals, egress.jsonl for refused CONNECTs) —
+// so this e2e checks the REQUIRED six are present and the four deleted
+// correlation artifacts never come back, without over-claiming an exact set.
+const REQUIRED_RUN_DIR_FILES = [
+  "events.jsonl",
+  "meta.json",
+  "state_final.json",
+  "state_initial.json",
+  "stderr.log",
+  "stdout.txt",
+];
+const DELETED_RUN_DIR_FILES = [
+  "tool_calls.jsonl",
+  "state-before.json",
+  "state-after.json",
+  "state-diff.json",
+];
 
 // FDRS-657 — self-host (`pome run` / `pome run --local`) is CAPTURE-ONLY. It
 // records the raw trace + state and NEVER scores, judges, or writes score.json.
@@ -32,12 +54,15 @@ describe("Pome scenario runner (capture-only)", () => {
         // Agent ran cleanly → exit 0. There is no scenario verdict to gate on.
         expect(result.exitCode).toBe(0);
         // Raw trace + state are captured...
-        expect(existsSync(join(result.artifacts.runDir, "events.jsonl"))).toBe(true);
-        expect(existsSync(join(result.artifacts.runDir, "state-before.json"))).toBe(true);
-        expect(existsSync(join(result.artifacts.runDir, "state-after.json"))).toBe(true);
-        expect(existsSync(join(result.artifacts.runDir, "state-diff.json"))).toBe(true);
-        // ...but NO score.json — local artifacts are trace/audit only.
-        expect(existsSync(join(result.artifacts.runDir, "score.json"))).toBe(false);
+        const entries = new Set(await readdir(result.artifacts.runDir));
+        for (const required of REQUIRED_RUN_DIR_FILES) {
+          expect(entries.has(required)).toBe(true);
+        }
+        // ...and the correlation artifacts F-689 deleted never come back.
+        for (const deleted of DELETED_RUN_DIR_FILES) {
+          expect(entries.has(deleted)).toBe(false);
+        }
+        expect(entries.has("score.json")).toBe(false);
       }
     },
     90_000,

@@ -99,6 +99,9 @@ describe("runScenarioHosted signals redaction containment", () => {
       async requestSignalsUploadUrl() {
         throw new HostedOrchError("no route");
       },
+      async requestMetaUploadUrl() {
+        throw new HostedOrchError("no route");
+      },
       async abandonSession() {
         throw new HostedOrchError("no abandon stubbed (single-run path never calls it)");
       },

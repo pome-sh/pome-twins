@@ -54,7 +54,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run test/e2e",
-    "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
+    "gate:no-eval": "node ../scripts/no-eval-in-oss.mjs",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish"

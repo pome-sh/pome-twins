@@ -49,9 +49,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # FDRS-657 — fail fast if local evaluation (scoring / judge / correlator)
-      # is reintroduced into the capture-only OSS CLI.
-      - run: node scripts/no-eval-in-oss.mjs
+      # F-692 / D9 — the no-eval-in-oss gate now runs ONCE, repo-wide, in
+      # ci.yml's typecheck-test job (bun run gate:no-eval); this duplicate
+      # cli-scoped step was folded in there.
       - name: Build local @pome-sh package tarballs
         working-directory: ${{ github.workspace }}
         run: |
