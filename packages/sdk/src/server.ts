@@ -1,3 +1,4 @@
+// file-size: engine surface grew with the per-twin pins (F-682/F-684); the F-685 sweep in this stack splits boot/dispatch helpers into server-helpers.ts
 // SPDX-License-Identifier: Apache-2.0
 //
 // `@pome-sh/sdk/server` — boot a `TwinDefinition` into a Hono app and
@@ -138,6 +139,7 @@ export function createApp<TDb, TSeed, TDomain>(
     twin: definition.id,
     store: options.recorder,
     errorEnvelope: definition.errorEnvelope,
+    stampToolCallId: definition.stampToolCallId,
   });
 
   // 4. Boot-time invariant: user routes must not shadow reserved prefixes.
@@ -205,10 +207,9 @@ export function createApp<TDb, TSeed, TDomain>(
       if (!definition.admin?.reset) {
         throw new TwinError("admin.reset is not configured for this twin", 501);
       }
-      let delta: unknown = null;
-      const reportDelta = (d: unknown) => { delta = d; };
-      const body = (await definition.admin.reset({ domain, reportDelta })) ?? { ok: true };
-      return { status: 200, body, delta: delta as never };
+      const delta = makeDeltaSink();
+      const body = (await definition.admin.reset({ domain, reportDelta: delta.report })) ?? { ok: true };
+      return { status: 200, body, delta: delta.value() };
     })
   );
   adminApp.post(
@@ -225,10 +226,10 @@ export function createApp<TDb, TSeed, TDomain>(
       }
       const raw = await readBody(c);
       const parsed = definition.seed.parse(raw) as TSeed;
-      let delta: unknown = null;
-      const reportDelta = (d: unknown) => { delta = d; };
-      const body = (await definition.admin.seed({ domain, seed: parsed, reportDelta })) ?? { ok: true };
-      return { status: 200, body, delta: delta as never };
+      const delta = makeDeltaSink();
+      const body =
+        (await definition.admin.seed({ domain, seed: parsed, reportDelta: delta.report })) ?? { ok: true };
+      return { status: 200, body, delta: delta.value() };
     })
   );
   root.route("/admin", adminApp);
@@ -247,12 +248,16 @@ export function createApp<TDb, TSeed, TDomain>(
 
   session.get("/healthz", (c) => c.json({ ok: true, sid: c.req.param("sid") }));
   // `pomeHealth` extras replace the default {version, fidelity} for twins
-  // with a frozen /_pome/health shape (slack: bare {ok, twin}).
+  // with a frozen per-session health shape (github, F-682).
   const pomeHealthExtras =
     definition.pomeHealth ??
     (() => ({ version: definition.version, fidelity: definition.fidelity.default }));
   session.get("/_pome/health", (c) =>
-    c.json({ ok: true, twin: definition.id, ...pomeHealthExtras({ recorder }) })
+    c.json({
+      ok: true,
+      twin: definition.id,
+      ...pomeHealthExtras({ recorder }),
+    })
   );
   // NOT recorder-wrapped: no pre-port twin recorded /_pome/state fetches on
   // the tape (F-683 review pin) — the export is a read-side probe, and
@@ -272,6 +277,21 @@ export function createApp<TDb, TSeed, TDomain>(
     }
   });
   session.get("/_pome/events", (c) => c.json(recorder.events()));
+
+  // 8b. Extra per-twin `/_pome/*` routes (github's frozen
+  //     GET /s/:sid/_pome/access-control, F-682). Registered after the core
+  //     routes so the platform surface can never be shadowed; core names are
+  //     rejected outright at boot.
+  if (definition.pomeRoutes) {
+    for (const [name, handler] of Object.entries(definition.pomeRoutes)) {
+      if (POME_CORE_ROUTE_NAMES.has(name)) {
+        throw new TwinBootError(
+          `Twin "${definition.id}" pome route "/_pome/${name}" shadows a reserved engine route`
+        );
+      }
+      session.get(`/_pome/${name}`, async (c) => c.json((await handler({ domain })) as never));
+    }
+  }
 
   // 9. MCP routes from tool registry. `/mcp` is the streamable-HTTP
   //    JSON-RPC endpoint (stateless — GET/DELETE answer 405); `/mcp/tools`,
@@ -430,6 +450,21 @@ export async function serve<TDb, TSeed, TDomain>(
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Engine-owned `/_pome/*` route names a twin's `pomeRoutes` may not shadow. */
+const POME_CORE_ROUTE_NAMES = new Set(["health", "state", "events"]);
+
+function makeDeltaSink() {
+  let delta: import("@pome-sh/shared-types").RecorderEvent["state_delta"] = null;
+  return {
+    report(d: import("@pome-sh/shared-types").RecorderEvent["state_delta"]) {
+      delta = d;
+    },
+    value() {
+      return delta;
+    },
+  };
+}
 
 /** Hostnames the boot guard treats as loopback binds. */
 export function isLoopbackHost(value: string): boolean {

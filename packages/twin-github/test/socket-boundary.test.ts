@@ -25,7 +25,7 @@ import { serve } from "@hono/node-server";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
+import { createGitHubCloneApp } from "../src/twin.js";
 import { toolDefinitions } from "../src/tools.js";
 import { unsupportedEnvelope } from "../src/unsupported-envelope.js";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken } from "./_authHelper.js";

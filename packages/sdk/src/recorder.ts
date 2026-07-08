@@ -83,6 +83,12 @@ export interface RecorderHandleOptions {
    * own error shape without bypassing the recorder middleware.
    */
   errorEnvelope?: ErrorEnvelopeFn;
+  /**
+   * FDRS-402 adapter-rich stamping pin (F-682): when true, events persist
+   * the incoming `x-pome-correlation-id` header as `tool_call_id` (github's
+   * frozen tape shape). Default false — slack's frozen tape stamps null.
+   */
+  stampToolCallId?: boolean;
 }
 
 export function createRecorderHandle(options: RecorderHandleOptions): RecorderHandle {
@@ -106,6 +112,7 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     // plus the legacy scenario_step_id key (frozen v1 trace format —
     // preserve semantics, tolerant readers accept either).
     const stepId = c.req.header("x-pome-scenario-step-id") ?? null;
+    const correlationHeader = c.req.header("x-pome-correlation-id") ?? null;
     // Redaction is unconditional at the engine layer (F-681): every event
     // that reaches any store — including custom stores — is already scrubbed.
     store.record(redactEvent({
@@ -113,11 +120,13 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
       run_id: options.runId,
       twin: options.twin,
       request_id: requestId,
-      correlation_id: c.req.header("x-pome-correlation-id") ?? requestId,
+      correlation_id: correlationHeader ?? requestId,
       task_step_id: stepId,
       scenario_step_id: stepId,
       step_id: null,
-      tool_call_id: null,
+      // FDRS-402 adapter-rich path: only twins that pin `stampToolCallId`
+      // persist the header here (github); the default tape stamps null.
+      tool_call_id: options.stampToolCallId ? correlationHeader : null,
       method: c.req.method,
       path: new URL(c.req.url).pathname,
       request_body: requestBody,
@@ -153,7 +162,7 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
           const errorMsg =
             result.status >= 400 ? extractMessage(result.body) ?? "request failed" : null;
           emit(c, started, requestBody, result, effectiveMutation, fidelity, errorMsg);
-          return c.json(result.body as never, result.status as never);
+          return respondWith(c, result.status, result.body);
         } catch (caught) {
           const envelope = projectError(caught);
           // Failed routes never mutated state — record as state_mutation=false
@@ -171,11 +180,22 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
             fidelity,
             errMsg
           );
-          return c.json(envelope.body as never, envelope.status as never);
+          return respondWith(c, envelope.status, envelope.body);
         }
       };
     },
   };
+}
+
+// The Response constructor forbids a body on null-body statuses (204/205/
+// 304) — `c.json(null, 204)` throws and surfaces as a 500. github's frozen
+// surface answers deletes and the collaborator-membership check with a bare
+// 204 (F-682), so those statuses return an empty body.
+function respondWith(c: Context, status: number, body: unknown): Response {
+  if (status === 204 || status === 205 || status === 304) {
+    return c.body(null, status as never);
+  }
+  return c.json(body as never, status as never);
 }
 
 // `clone()` throws synchronously once the body stream is disturbed — e.g.

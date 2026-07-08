@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import type Database from "better-sqlite3";
-import type { RecorderEvent } from "@pome-sh/shared-types";
+import type { TwinDatabase } from "@pome-sh/sdk";
 
 export type { RecorderEvent } from "@pome-sh/shared-types";
 
-export type GitHubCloneDatabase = Database.Database;
+// The engine's driver wrapper is the only database surface a twin sees
+// (F-681/F-682): prepare/exec/pragma/transaction/close.
+export type GitHubCloneDatabase = TwinDatabase;
 
 export type GitHubStateSeed = {
   users?: SeedUser[];
@@ -257,9 +258,4 @@ export type CollaboratorRow = {
   login: string;
   permission: string;
   invitation_state: "pending" | "accepted";
-};
-
-export type Recorder = {
-  record(event: RecorderEvent): void;
-  events(): RecorderEvent[];
 };

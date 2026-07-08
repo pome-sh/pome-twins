@@ -68,7 +68,6 @@ import {
   type ProjectConfig,
 } from "./project-config.js";
 import { createGitHubCloneApp, openGitHubCloneDatabase, seedGitHubCloneDatabase } from "../twin/githubCloneAdapter.js";
-import { resolveAuthSecret } from "@pome-sh/twin-github";
 import {
   buildFixPrompt,
   buildGroupFixPrompt,
@@ -1113,7 +1112,9 @@ export function createProgram() {
       process.env.TWIN_AUTH_SECRET = authSecret;
       const token = await sign(
         { sid: "standalone", team_id: "tm_local", exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 },
-        resolveAuthSecret()
+        // The secret was just pinned into the env above; the ported twin no
+        // longer exports resolveAuthSecret (engine-owned, F-682).
+        authSecret
       );
       serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });
       await writeFile(

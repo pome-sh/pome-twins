@@ -6,7 +6,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { serve, type ServerType } from "@hono/node-server";
 import { networkInterfaces } from "node:os";
-import { createGitHubCloneApp } from "../src/app.js";
+import { createGitHubCloneApp } from "../src/twin.js";
 
 /** First non-internal IPv4 on this host, so requests to it arrive with a
  *  non-loopback peer address. GitHub CI runners always have one. */

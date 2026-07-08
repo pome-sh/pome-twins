@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createGitHubCloneApp } from "../src/app.js";
+import { createGitHubCloneApp } from "../src/twin.js";
 import { openGitHubCloneDatabase } from "../src/db.js";
 import { GitHubDomain } from "../src/domain.js";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
@@ -155,7 +155,13 @@ describe("v2 error paths — domain invariants", () => {
         reopened.close();
       }
     } finally {
-      if (db.open) db.close();
+      // The engine's TwinDatabase surface has no `open` flag; close() on an
+      // already-closed handle is the safe no-op equivalent.
+      try {
+        db.close();
+      } catch {
+        /* already closed */
+      }
       rmSync(dir, { recursive: true, force: true });
     }
   });

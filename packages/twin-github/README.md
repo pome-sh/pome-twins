@@ -115,7 +115,7 @@ via a cross-repo PR.
 - `GET /healthz` returns 200 within ~3s of process start (the snapshot build
   sleeps 3s after `node dist/src/server.js` before probing)
 - All admin routes are localhost-only (`/admin/*`)
-- Bearer auth at `Authorization: Bearer <jwt>` per `src/auth.ts`
+- Bearer auth at `Authorization: Bearer <jwt>` — engine mechanism (`@pome-sh/sdk`), shape pinned in `src/twin.ts` (F-712)
 
 ### Cross-repo coordination
 

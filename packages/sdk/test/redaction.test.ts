@@ -286,6 +286,42 @@ describe("slack token / webhook shapes", () => {
   });
 });
 
+// GitHub-mirror coverage lives HERE (F-682): the twin-github package no
+// longer carries a redaction mirror or its own copy of these assertions.
+describe("github-mirror provider secret shapes", () => {
+  it("redacts the 12-char body Stripe seed key sk_test_pome_default", () => {
+    const key = "sk_test_pome_default";
+    const out = redactSecrets({ note: `secret ${key}` }) as { note: string };
+    expect(out.note).not.toContain(key);
+    expect(out.note).toContain("[REDACTED]");
+  });
+
+  it("redacts short Pome Stripe secret and restricted seed keys", () => {
+    const secretKey = "sk_test_pome_a";
+    const restrictedKey = "rk_test_pome_default";
+    expect(redactSecrets(`${secretKey} ${restrictedKey}`)).toBe("[REDACTED] [REDACTED]");
+  });
+
+  it("redacts live Stripe secret keys", () => {
+    const key = "sk_live_" + "51H".repeat(8);
+    expect(redactSecrets(key)).toBe("[REDACTED]");
+  });
+
+  it("redacts Google API keys (AIza...)", () => {
+    const key = "AIza" + "SyD-abc123DEF456ghi789jklMNO_pqrstu";
+    expect(redactSecrets(key)).toBe("[REDACTED]");
+  });
+
+  it("does not over-redact benign lookalikes", () => {
+    expect(redactSecrets({ msg: "task_test_pipeline_default" })).toEqual({
+      msg: "task_test_pipeline_default",
+    });
+    expect(redactSecrets({ msg: "task-management-service-endpoint-handler" })).toEqual({
+      msg: "task-management-service-endpoint-handler",
+    });
+  });
+});
+
 describe("recorder redacts every emitted event", () => {
   it("scrubs request_body and response_body at emit time", async () => {
     const store = createRecorderStore();

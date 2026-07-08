@@ -163,10 +163,14 @@ async function handleToolsCall<TDb, TSeed, TDomain>(
 
   if (!tool) {
     const envelope = projectError(new UnknownToolError(name));
+    // The unknown-tool result body is frozen per twin (F-682): github pins
+    // its pre-port `{message: "Unknown tool: <name>"}` text while the
+    // legacy /mcp/call surface keeps the envelope projection.
+    const body = deps.definition.mcpUnknownTool ? deps.definition.mcpUnknownTool(name) : envelope.body;
     status = envelope.status;
-    responseBody = envelope.body;
+    responseBody = body;
     toolError = `Unknown tool: ${name}`;
-    mcpResult = { content: [{ type: "text", text: JSON.stringify(envelope.body) }], isError: true };
+    mcpResult = { content: [{ type: "text", text: JSON.stringify(body) }], isError: true };
   } else {
     try {
       const parsed = tool.schema.parse(args);
@@ -215,16 +219,18 @@ function buildEventCore<TDb, TSeed, TDomain>(
   const requestId = `req_${randomUUID()}`;
   // Same stamping as recorder.ts emit() — see the comment there (F-683).
   const stepId = c.req.header("x-pome-scenario-step-id") ?? null;
+  const correlationHeader = c.req.header("x-pome-correlation-id") ?? null;
   return {
     ts: new Date().toISOString(),
     run_id: deps.runId,
     twin: deps.definition.id,
     request_id: requestId,
-    correlation_id: c.req.header("x-pome-correlation-id") ?? requestId,
+    correlation_id: correlationHeader ?? requestId,
     task_step_id: stepId,
     scenario_step_id: stepId,
     step_id: null,
-    tool_call_id: null,
+    // FDRS-402 adapter-rich path — per-twin pin, see recorder.ts (F-682).
+    tool_call_id: deps.definition.stampToolCallId ? correlationHeader : null,
     method: c.req.method,
     path: new URL(c.req.url).pathname,
     request_body: fields.requestBody,

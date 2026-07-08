@@ -22,7 +22,7 @@ export { recorderEventSchema, recorderFidelitySchema };
 export type { RecorderEvent, RecorderFidelity, TwinId };
 
 export { openTwinDatabase } from "./db.js";
-export type { OpenTwinDatabaseOptions, TwinDatabase, TwinStatement } from "./db.js";
+export type { OpenTwinDatabaseOptions, TwinDatabase, TwinRunResult, TwinStatement, TwinTransaction } from "./db.js";
 export { redactEvent, redactSecrets } from "./redaction.js";
 
 // FIDELITY.md uses three tiers (`semantic` | `shape` | `unsupported`); the
@@ -134,15 +134,23 @@ export interface RecorderHandle {
 
 export interface AdminHandlers<TDomain = unknown, TSeed = unknown> {
   /**
-   * Implements POST /admin/reset. `reportDelta` stamps the recorder event's
-   * `state_delta` (slack's frozen tape records row-level admin deltas).
+   * Implements POST /admin/reset. `reportDelta` records the row-level
+   * before/after as the admin event's `state_delta` (github's frozen tape
+   * records the seed delta on admin mutations, F-682).
    */
-  reset?: (ctx: { domain: TDomain; reportDelta: (delta: unknown) => void }) => unknown | Promise<unknown>;
+  reset?: (ctx: {
+    domain: TDomain;
+    reportDelta: (delta: RecorderEvent["state_delta"]) => void;
+  }) => unknown | Promise<unknown>;
   /**
    * Implements POST /admin/seed. The seed body is Zod-parsed via
    * `definition.seed` first; `reportDelta` stamps the event's `state_delta`.
    */
-  seed?: (ctx: { domain: TDomain; seed: TSeed; reportDelta: (delta: unknown) => void }) => unknown | Promise<unknown>;
+  seed?: (ctx: {
+    domain: TDomain;
+    seed: TSeed;
+    reportDelta: (delta: RecorderEvent["state_delta"]) => void;
+  }) => unknown | Promise<unknown>;
   /**
    * Per-surface error projection for /admin/reset|seed. Pre-port slack's
    * admin handlers answered EVERY thrown error with 500
@@ -246,13 +254,38 @@ export interface TwinDefinition<
     missingTool?: () => { status: number; body: unknown };
   };
   /**
-   * Extra `GET /s/:sid/_pome/health` fields merged over the frozen core
-   * `{ok, twin}`. Defaults to `{version, fidelity}` (the pre-F-681 sdk
-   * shape); twins with a frozen _pome/health shape supply their own extras
-   * (slack: `{}`; github: implementation/fidelity/runtime; stripe adds
-   * recorder counters).
+   * Extra `/s/:sid/_pome/health` fields merged over the contract core
+   * `{ok, twin}`. When absent the engine adds `{version, fidelity}`; a twin
+   * with a frozen per-session health shape (slack: bare {ok, twin};
+   * github: implementation, fidelity, runtime — no version) supplies its
+   * own extras. The hook receives the app's recorder so counters can be
+   * surfaced (stripe).
    */
   pomeHealth?: (ctx: { recorder: RecorderHandle }) => Record<string, unknown>;
+  /**
+   * Extra per-twin GET routes under the reserved `/s/:sid/_pome/*` session
+   * namespace, keyed by subpath (github's frozen
+   * `GET /s/:sid/_pome/access-control`). Handlers return the JSON body;
+   * the engine mounts them behind bearer auth, after its own core routes.
+   * The core names (`health`, `state`, `events`) stay engine-owned — a twin
+   * declaring one refuses to boot.
+   */
+  pomeRoutes?: Record<string, (ctx: { domain: TDomain }) => unknown | Promise<unknown>>;
+  /**
+   * FDRS-402 adapter-rich stamping pin: when true, every recorded event
+   * persists the incoming `x-pome-correlation-id` header as `tool_call_id`
+   * (github's frozen tape shape). Defaults to false — slack's frozen tape
+   * stamps null. Flipping a twin is a deliberate tape-shape change.
+   */
+  stampToolCallId?: boolean;
+  /**
+   * JSON-RPC `tools/call` unknown-tool result body (frozen per-twin wire
+   * shape). Defaults to the twin's `errorEnvelope` projection of
+   * `UnknownToolError` (slack/stripe). github pins the pre-port
+   * `{message: "Unknown tool: <name>"}` text — its legacy `/mcp/call`
+   * surface keeps the 422 validation envelope from `errorEnvelope`.
+   */
+  mcpUnknownTool?: (name: string) => unknown;
   /**
    * Per-twin auth declarations (F-712): token shape, error envelopes, extra
    * token locations, raw-bearer / sid-mismatch pins, credential lookup.
@@ -334,6 +367,9 @@ const twinMeta = z.object({
     .optional(),
   pomeHealth: z.custom<Function>(isFunction).optional(),
   unsupported: z.custom<Function>(isFunction).optional(),
+  pomeRoutes: z.record(z.string(), z.custom<Function>(isFunction)).optional(),
+  stampToolCallId: z.boolean().optional(),
+  mcpUnknownTool: z.custom<Function>(isFunction).optional(),
   auth: z
     .custom<object>((value) => typeof value === "object" && value !== null, "auth must be an options object")
     .optional(),

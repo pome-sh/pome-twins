@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
+import { createGitHubCloneApp } from "../src/twin.js";
 import { GITHUB_ACCESS_CONTROL_CATALOG, summarizeGitHubAccessControlCatalog } from "@pome-sh/shared-types";
 import { assertAccessControlCatalogMatchesTools } from "../src/access-control.js";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";

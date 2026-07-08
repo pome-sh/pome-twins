@@ -26,7 +26,6 @@ const FILE_SIZE_ALLOWLIST = new Set([
   "cli/src/runner/runScenarioHosted.ts",
   "packages/shared-types/src/index.ts",
   "packages/shared-types/src/otel/fixtures/data.ts",
-  "packages/twin-github/src/app.ts",
   "packages/twin-github/src/domain.ts",
   "packages/twin-github/src/serializers.ts",
   "packages/twin-github/src/tools.ts",

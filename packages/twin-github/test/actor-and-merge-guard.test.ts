@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
-import { createRecorder } from "../src/recorder.js";
+import { createGitHubCloneApp } from "../src/twin.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
 
 const previousSecret = process.env.TWIN_AUTH_SECRET;
@@ -132,7 +132,7 @@ describe("merge-guard 403 enforcement", () => {
   });
 
   it("403 attempt is recorded with status:403, state_mutation:false, error populated", async () => {
-    const recorder = createRecorder();
+    const recorder = createRecorderStore();
     const app = createGitHubCloneApp({ recorder, runId: "run_merge_403_test" });
     const aliceToken = await signTestToken({ login: "alice" });
     const pr = await seedBranchAndPR(app, aliceToken, "feature/recorder-403");

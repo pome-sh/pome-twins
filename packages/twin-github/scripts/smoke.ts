@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { sign } from "hono/jwt";
-import { createGitHubCloneApp } from "../src/app.js";
+import { createGitHubCloneApp } from "../src/twin.js";
 
 const port = 43333;
 const sid = "smoke-session";

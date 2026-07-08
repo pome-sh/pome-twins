@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
-import { createRecorder } from "../src/recorder.js";
+import { createGitHubCloneApp } from "../src/twin.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
 
@@ -20,7 +20,7 @@ afterAll(() => {
 const base = `/s/${TEST_SID}`;
 
 function setupApp() {
-  const recorder = createRecorder();
+  const recorder = createRecorderStore();
   const app = createGitHubCloneApp({ recorder, runId: "run_state_delta_test" });
   return { app, recorder };
 }
@@ -164,7 +164,7 @@ describe("recorder state_delta — error responses", () => {
 
 describe("recorder state_delta — hero scenario (identity-spoof PR review)", () => {
   it("POST /pulls/:n/reviews emits review row in state_delta.after", async () => {
-    const recorder = createRecorder();
+    const recorder = createRecorderStore();
     const app = createGitHubCloneApp({
       recorder,
       runId: "run_identity_spoof_test",

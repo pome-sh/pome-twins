@@ -18,18 +18,36 @@ import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 
+/**
+ * Mutation outcome — the shape both better-sqlite3's `RunResult` and
+ * node:sqlite's `StatementResultingChanges` return, so the M2 swap (F-703)
+ * keeps this interface as-is.
+ */
+export interface TwinRunResult {
+  changes: number;
+  lastInsertRowid: number | bigint;
+}
+
 export interface TwinStatement {
-  run(...params: unknown[]): unknown;
+  run(...params: unknown[]): TwinRunResult;
   get(...params: unknown[]): unknown;
   all(...params: unknown[]): unknown[];
 }
+
+/**
+ * A wrapped transaction function (better-sqlite3's shape). The `.immediate`
+ * variant takes the write lock up front (BEGIN IMMEDIATE) — github's domain
+ * runs its mutations under it. The M2 node:sqlite implementation backs both
+ * call forms with explicit BEGIN [IMMEDIATE]/COMMIT/ROLLBACK.
+ */
+export type TwinTransaction<F extends (...args: never[]) => unknown> = F & { immediate: F };
 
 export interface TwinDatabase {
   prepare(sql: string): TwinStatement;
   exec(sql: string): void;
   pragma(statement: string, options?: { simple?: boolean }): unknown;
   /** Same shape as better-sqlite3: wraps `fn` so calling it runs atomically. */
-  transaction<F extends (...args: never[]) => unknown>(fn: F): F;
+  transaction<F extends (...args: never[]) => unknown>(fn: F): TwinTransaction<F>;
   close(): void;
 }
 

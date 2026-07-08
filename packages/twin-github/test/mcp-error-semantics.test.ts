@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createGitHubCloneApp } from "../src/app.js";
-import { createRecorder } from "../src/recorder.js";
+import { createGitHubCloneApp } from "../src/twin.js";
+import { createRecorderStore } from "@pome-sh/sdk/server";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
 
 const previousSecret = process.env.TWIN_AUTH_SECRET;
@@ -20,7 +20,7 @@ const base = `/s/${TEST_SID}`;
 
 describe("GitHub-shaped error semantics", () => {
   it("returns a loud 501 unsupported envelope and records unsupported fidelity", async () => {
-    const recorder = createRecorder();
+    const recorder = createRecorderStore();
     const app = createGitHubCloneApp({ recorder, runId: "error-contract" });
 
     const response = await app.request(`${base}/repos/acme/api/actions/runs`, withAuth(token));

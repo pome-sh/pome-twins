@@ -80,6 +80,19 @@ describe("openTwinDatabase", () => {
   });
 });
 
+describe("statement run() result (F-682)", () => {
+  it("reports changes and lastInsertRowid — the shape node:sqlite also returns (F-703)", () => {
+    withDb((db) => {
+      db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+      const inserted = db.prepare("INSERT INTO t (name) VALUES (?)").run("a");
+      expect(Number(inserted.lastInsertRowid)).toBe(1);
+      expect(inserted.changes).toBe(1);
+      const deleted = db.prepare("DELETE FROM t WHERE name = ?").run("missing");
+      expect(deleted.changes).toBe(0);
+    });
+  });
+});
+
 describe("transaction()", () => {
   it("has the better-sqlite3 shape: transaction(fn) returns a callable that commits", () => {
     withDb((db) => {
@@ -105,6 +118,19 @@ describe("transaction()", () => {
       expect(() => failing()).toThrow("boom");
       const row = db.prepare("SELECT COUNT(*) AS n FROM t").get() as { n: number };
       expect(row.n).toBe(0);
+    });
+  });
+
+  it("exposes the .immediate variant (BEGIN IMMEDIATE) github's domain runs mutations under (F-682)", () => {
+    withDb((db) => {
+      db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+      const insert = db.transaction((name: string) => {
+        db.prepare("INSERT INTO t (name) VALUES (?)").run(name);
+        return name;
+      });
+      expect(insert.immediate("a")).toBe("a");
+      const row = db.prepare("SELECT COUNT(*) AS n FROM t").get() as { n: number };
+      expect(row.n).toBe(1);
     });
   });
 });

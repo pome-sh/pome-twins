@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+//
+// GitHub-domain helpers only (F-682): timestamps, sha fabrication, content
+// encoding, pagination, diff-stat counting. Request-id stamping moved to
+// the engine's recorder with the port.
 import { createHash, randomUUID } from "node:crypto";
 
 export function nowIso() {
@@ -44,10 +48,6 @@ export function paginate<T>(items: T[], page = 1, perPage = 30) {
   const safePerPage = Math.min(100, Math.max(1, perPage));
   const start = (safePage - 1) * safePerPage;
   return items.slice(start, start + safePerPage);
-}
-
-export function requestId() {
-  return `req_${randomUUID()}`;
 }
 
 export function linesChanged(before: string | undefined, after: string) {
