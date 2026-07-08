@@ -16,25 +16,27 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          bun-version: 1.3.13
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
       - run: node scripts/check-copy-markers.mjs
       - run: node scripts/lint-code-health.mjs
-      - run: bun install --frozen-lockfile --filter '*'
-      - run: bun run lint:dead-code
+      - run: npm ci
+      - run: npm run lint:dead-code
       # F-692 / D9 — one repo-wide capture-only gate, scanning cli/src/**,
       # cli/scripts/**, and packages/** (cli-ci.yml's former duplicate step
       # was folded in here).
-      - run: bun run gate:no-eval
-      - run: bun run --filter '@pome-sh/shared-types' check:trace-contract
+      - run: npm run gate:no-eval
+      - run: npm run check:trace-contract -w @pome-sh/shared-types
       # Consumers import sibling packages through their published `exports`
       # (e.g. `@pome-sh/sdk/server` → dist/server.d.ts). Build the workspace in
       # dependency order so those subpaths resolve before typecheck/test.
-      - run: bun run --filter '*' build
-      - run: bun run --filter '*' typecheck
-      - run: bun run --filter '*' test
-      - run: cd packages/twin-github && bun run test:coverage
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:coverage -w @pome-sh/twin-github
       # Twin Fidelity Watch (tools/fidelity) moved to pome-cloud
       # (packages/fidelity-watch) — it owns status.pome.sh now.
 
@@ -55,14 +57,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.13
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
-      - run: bun install --frozen-lockfile --filter '*'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
       # Build sibling packages so `@pome-sh/sdk/server` (dist) resolves when the
       # contract runner builds and boots the twins.
-      - run: bun run --filter '*' build
-      - run: bun run test:contract
+      - run: npm run build
+      - run: npm run test:contract

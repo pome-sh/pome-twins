@@ -10,7 +10,7 @@
 // "Trace health" section.
 //
 // Designed to be run from `cli/`:
-//   cd cli && bun run scripts/overhead-gate.ts
+//   cd cli && npx tsx scripts/overhead-gate.ts
 
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -29,7 +29,7 @@ const N = Number.parseInt(process.env.OVERHEAD_BENCH_N ?? "100", 10);
 const BUDGET_MS = Number.parseFloat(process.env.OVERHEAD_BENCH_BUDGET_MS ?? "5");
 const SCENARIO_PATH = process.env.OVERHEAD_BENCH_SCENARIO ?? "scenarios/01-bug-happy-path.md";
 const AGENT_SCRIPT = process.env.OVERHEAD_BENCH_AGENT ?? "scripts/overhead-bench-agent.ts";
-// Pome's in-process twin uses better-sqlite3 (no Bun support), and
+// Pome's in-process twin uses better-sqlite3 (Node N-API), and
 // pome's capture-server child re-invokes `process.execPath process.argv[1]
 // capture-server …` — which only works when argv[1] is a runtime-loadable
 // file. Easiest invariant: build first, then point the gate at the compiled
@@ -55,7 +55,7 @@ async function makeDoctorScaffold(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pome-overhead-scaffold-"));
   await writeFile(
     join(dir, "pome.config.json"),
-    `${JSON.stringify({ agent: { command: "bun agent.ts" } }, null, 2)}\n`,
+    `${JSON.stringify({ agent: { command: "npx tsx agent.ts" } }, null, 2)}\n`,
   );
   await writeFile(
     join(dir, "agent.ts"),
@@ -193,7 +193,7 @@ async function runPome(input: { noCapture: boolean; target: string; scaffold: st
     "run",
     resolve(CLI_ROOT, SCENARIO_PATH),
     "--agent",
-    `bun ${resolve(CLI_ROOT, AGENT_SCRIPT)}`,
+    `npx tsx ${resolve(CLI_ROOT, AGENT_SCRIPT)}`,
     "--artifacts-dir",
     artifactsDir,
   ];

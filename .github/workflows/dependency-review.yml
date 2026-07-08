@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '**/package.json'
-      - '**/bun.lock'
+      - '**/package-lock.json'
       - '.github/workflows/dependency-review.yml'
 
 permissions:

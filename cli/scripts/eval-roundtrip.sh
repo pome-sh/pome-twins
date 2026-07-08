@@ -57,8 +57,8 @@ if [[ -z "$RUN_DIR" ]]; then
   # cas-adapter-acceptance.ts) — that re-invocation must be node-runnable, so
   # this needs the BUILT CLI, not tsx-from-source. Build fresh so a stale
   # dist/ never silently masks what this round-trip is meant to catch.
-  echo "[eval-roundtrip] building the CLI (bun run build)…" >&2
-  bun run build >&2
+  echo "[eval-roundtrip] building the CLI (npm run build)…" >&2
+  npm run build >&2
 
   ARTIFACTS_DIR="$(mktemp -d)"
   SCAFFOLD_DIR="$(mktemp -d)"
@@ -73,7 +73,7 @@ if [[ -z "$RUN_DIR" ]]; then
   # so the wiring check has something to scan.
   cat > "$SCAFFOLD_DIR/pome.config.json" <<'EOF'
 {
-  "agent": { "command": "bun agent.ts" }
+  "agent": { "command": "npx tsx agent.ts" }
 }
 EOF
   cat > "$SCAFFOLD_DIR/agent.ts" <<'EOF'
@@ -90,7 +90,7 @@ EOF
     POME_LOCAL=1 node "$POME_BIN" run \
       "$CLI_ROOT/scenarios/01-bug-happy-path.md" \
       --local \
-      --agent "bun $CLI_ROOT/examples/agents/scripted-triage-agent.ts" \
+      --agent "npx tsx $CLI_ROOT/examples/agents/scripted-triage-agent.ts" \
       --artifacts-dir "$ARTIFACTS_DIR"
   )
 

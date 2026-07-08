@@ -76,7 +76,7 @@ This PR touches cli/src/** or cli/vendor/** but neither:
 Pick one before merging:
 
   # (preferred) record a changeset:
-  cd cli && bun changeset
+  cd cli && npm run changeset
   # ...write a one-line summary, pick patch/minor/major, commit the new file.
 
   # OR bump the version directly in cli/package.json:
