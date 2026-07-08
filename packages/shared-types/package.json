@@ -10,6 +10,7 @@
     "./recorder-events": "./src/recorder-events.ts",
     "./run": "./src/run.ts",
     "./otel": "./src/otel/index.ts",
+    "./otel/fixtures": "./src/otel/fixtures/index.ts",
     "./redaction": "./src/redaction.ts"
   },
   "files": ["dist", "src", "package.json", "trace-contract.json"],
