@@ -4,6 +4,8 @@ on:
     paths:
       - 'cli/**'
       - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'scripts/pack-publishable.mjs'
       - '.github/workflows/cli-publish-smoke.yml'
 
@@ -35,8 +37,12 @@ jobs:
       - name: Use local package tarballs before first npm publish
         working-directory: ${{ github.workspace }}
         run: node scripts/use-local-pome-tarballs.mjs cli/package.json
-      # Manifest was rewritten to file: tarballs; CLI has no committed lockfile.
-      - run: npm install
+      # Manifest was rewritten to file: tarballs; generate a lockfile then
+      # freeze install. Commit cli/package-lock.json after first @pome-sh/*
+      # publish and switch to committed-lock npm ci.
+      - run: |
+          npm install --package-lock-only
+          npm ci
       - run: npm run build
       - name: npm publish --dry-run (packs the real tarball)
         run: npm publish --dry-run --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/pack.log"

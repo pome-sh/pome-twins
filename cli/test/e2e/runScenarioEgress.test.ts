@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runScenario } from "../../src/runner/runScenario.js";
+import { captureServerForTests } from "../fixtures/captureServerForTests.js";
 
 function listenEphemeral(server: ReturnType<typeof createNetServer>): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -69,10 +70,7 @@ describe("runScenario — egress floor wiring (FDRS-635)", () => {
         scenarioPath: "scenarios/01-bug-happy-path.md",
         agentCommand: `npx tsx ${probePath}`,
         artifactsDir,
-        captureServerCommand: {
-          execPath: process.execPath,
-          prefixArgs: [require.resolve("tsx/cli"), "src/cli/main.ts"],
-        },
+        captureServerCommand: captureServerForTests,
       });
 
       // The fixture exits non-zero if the blocked CONNECT was NOT refused

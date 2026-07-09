@@ -252,7 +252,7 @@ above — never the reverse.
 cd packages/twin-slack
 npm run typecheck                       # zero TS errors
 npm run test                            # all tests pass
-bunx vitest run --coverage              # ≥ 90% lines, ≥ 90% funcs
+npm run test:coverage                   # ≥ 90% lines, ≥ 90% funcs
 npm run validate:mcp                    # JSON-RPC SDK round-trip
 TWIN_AUTH_SECRET=dev SLACK_DETERMINISTIC_TS=1 npm run smoke
 npm run verify:cloud-token              # cloud xoxb-pome-* token validates

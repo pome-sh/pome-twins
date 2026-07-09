@@ -25,6 +25,8 @@ on:
       - 'cli/**'
       - 'packages/twin-github/**'
       - 'packages/adapter-claude-sdk/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/agent-trace-overhead-gate.yml'
   push:
     branches: [main]
@@ -32,6 +34,8 @@ on:
       - 'cli/**'
       - 'packages/twin-github/**'
       - 'packages/adapter-claude-sdk/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/agent-trace-overhead-gate.yml'
   workflow_dispatch:
 
@@ -67,7 +71,10 @@ jobs:
       - name: Install + build CLI
         working-directory: cli
         run: |
-          npm install
+          # No committed cli/package-lock.json until @pome-sh/* are on npm;
+          # generate a lockfile from the rewritten manifest then freeze.
+          npm install --package-lock-only
+          npm ci
           npm run build
       - name: Run agent-trace overhead gate (PR/FAQ #1)
         working-directory: cli

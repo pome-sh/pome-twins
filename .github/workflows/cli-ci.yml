@@ -8,6 +8,8 @@ on:
       - 'packages/twin-github/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'scripts/pack-publishable.mjs'
       - '.github/workflows/cli-ci.yml'
   push:
@@ -19,6 +21,8 @@ on:
       - 'packages/twin-github/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'scripts/pack-publishable.mjs'
       - '.github/workflows/cli-ci.yml'
   workflow_dispatch:
@@ -60,9 +64,13 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: node scripts/use-local-pome-tarballs.mjs cli/package.json
       # CLI has no committed lockfile: @pome-sh/* packages are not yet on npm,
-      # so CI rewrites deps to local tarballs and installs from the rewritten
-      # manifest (same pattern as the pre-publish npm flow).
-      - run: npm install
+      # so CI rewrites deps to local tarballs, generates a lockfile from the
+      # rewritten manifest, then freezes install with npm ci (same pattern as
+      # the pre-publish npm flow). Commit cli/package-lock.json after first
+      # @pome-sh/* publish and switch to committed-lock npm ci.
+      - run: |
+          npm install --package-lock-only
+          npm ci
       - run: npm run typecheck
       - run: npm run build
       - run: npm test

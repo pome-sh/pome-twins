@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - "packages/**"
+      - "package.json"
+      - "package-lock.json"
       - "scripts/pack-publishable.mjs"
       - ".github/workflows/sdk-publish.yml"
 

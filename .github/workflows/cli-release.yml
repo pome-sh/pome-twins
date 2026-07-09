@@ -56,8 +56,29 @@ jobs:
         run: |
           echo "Skipping CLI release. Publish the packages-v* batch first, then rerun this workflow."
       # No committed cli/package-lock.json until @pome-sh/* packages are on npm.
+      # Generate a lockfile from the resolved manifest, then freeze install so
+      # the published tree matches what this job resolved (OpenJS lockfile
+      # integrity). After first @pome-sh/* publish, commit cli/package-lock.json
+      # and switch to committed-lock npm ci.
       - if: steps.package-deps.outputs.ready == 'true'
-        run: npm install
+        run: |
+          npm install --package-lock-only
+          npm ci
+      - name: Guard against hard-link tarball (E415)
+        if: steps.package-deps.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          npm run build
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          tgz="$(ls "$RUNNER_TEMP"/pome-sh-*.tgz)"
+          # The npm registry rejects tarballs with hard-link entries (E415).
+          # Fail here rather than at publish time if any slip in.
+          if tar -tvf "$tgz" | grep -qE '^h'; then
+            echo "tarball contains hard links — npm registry would reject (E415):"
+            tar -tvf "$tgz" | grep -E '^h'
+            exit 1
+          fi
+          echo "E415 hard-link check OK: $tgz"
       - name: Changesets — version PR or publish
         if: steps.package-deps.outputs.ready == 'true'
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
