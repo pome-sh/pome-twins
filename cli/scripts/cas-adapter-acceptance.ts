@@ -53,6 +53,11 @@ const ARTIFACT_OUT = process.env.CAS_ACCEPTANCE_ARTIFACT_OUT ?? null;
 // against that root so `pome run` can be spawned from an isolated scaffold dir.
 const CLI_ROOT = process.cwd();
 
+// See overhead-gate.ts: launch the agent via cli's own tsx install, NOT
+// `npx tsx` — from the scaffold cwd (no node_modules) npx resolves tsx from
+// registry.npmjs.org at runtime, which the egress floor refuses (exit 3).
+const TSX_BIN = resolve(CLI_ROOT, "node_modules/.bin/tsx");
+
 // FDRS-641 — `pome run` hard-gates on the doctor wiring checks (config → twin
 // → routing → egress) with no --force. This synthetic gate used to run in a
 // bare `cli/` with no pome.config.json, so post-FDRS-641 it dies at the config
@@ -139,7 +144,7 @@ async function runPome(input: { target: string; scaffold: string }): Promise<str
     "run",
     resolve(CLI_ROOT, SCENARIO_PATH),
     "--agent",
-    `npx tsx ${resolve(CLI_ROOT, AGENT_FIXTURE)}`,
+    `${TSX_BIN} ${resolve(CLI_ROOT, AGENT_FIXTURE)}`,
     "--artifacts-dir",
     artifactsDir,
   ];

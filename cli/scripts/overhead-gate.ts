@@ -42,6 +42,12 @@ const POME_BIN = process.env.OVERHEAD_BENCH_POME ?? "node dist/src/cli/main.js";
 // scaffold directory (see makeDoctorScaffold) with a different cwd.
 const CLI_ROOT = process.cwd();
 
+// The agent must be launched via cli's own tsx install, NOT `npx tsx`: the
+// agent is spawned with cwd = the tmp scaffold (no node_modules), so npx
+// resolves tsx from registry.npmjs.org at runtime — a CONNECT the run's
+// deny-by-default egress floor refuses, killing the agent preflight (exit 3).
+const TSX_BIN = resolve(CLI_ROOT, "node_modules/.bin/tsx");
+
 // FDRS-641 — `pome run` now hard-gates on the doctor wiring checks (config →
 // twin → routing → egress) with no --force. This synthetic benchmark used to
 // run in a bare `cli/` with no pome.config.json, so post-FDRS-641 it dies at
@@ -193,7 +199,7 @@ async function runPome(input: { noCapture: boolean; target: string; scaffold: st
     "run",
     resolve(CLI_ROOT, SCENARIO_PATH),
     "--agent",
-    `npx tsx ${resolve(CLI_ROOT, AGENT_SCRIPT)}`,
+    `${TSX_BIN} ${resolve(CLI_ROOT, AGENT_SCRIPT)}`,
     "--artifacts-dir",
     artifactsDir,
   ];

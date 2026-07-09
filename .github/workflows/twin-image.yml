@@ -35,9 +35,11 @@ jobs:
       - name: Wait for ci workflow on this SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # PRs use the merge commit as github.sha; ci runs against the head SHA.
-          GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        run: bash scripts/ci/wait-for-workflow.sh ci.yml
+        # PRs use the merge commit as github.sha; ci runs are keyed by the head
+        # SHA. Passed as an argument — the runner silently ignores env:
+        # overrides of default GITHUB_* variables, so an `env: GITHUB_SHA:`
+        # form waits on the merge SHA forever and times out on every PR.
+        run: bash scripts/ci/wait-for-workflow.sh ci.yml "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
 
   publish:
     name: ${{ matrix.twin }}
