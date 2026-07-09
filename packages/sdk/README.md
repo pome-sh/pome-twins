@@ -47,10 +47,16 @@ Every engine-booted twin honors the frozen runtime contract in
 
 The trace recorder lives in this package (`packages/sdk/src/recorder.ts`).
 There is no separate `packages/twin-core` — F-681 folded twin-core into
-`@pome-sh/sdk`. Default boot uses an in-memory store; durable write-through
-semantics (`flush` / `close`, file-backed NDJSON) are defined on
-`RecorderStore` for F-698. Redaction always runs in the handle *before*
+`@pome-sh/sdk`. Default boot uses an in-memory store; set
+`POME_RECORDER_EVENTS_PATH` to enable durable write-through (`flush` /
+`close`, TwinHttpEvent NDJSON). Redaction always runs in the handle *before*
 `store.record()`, including for custom stores.
+
+**Architecture (F-698 / §9 Q3):** recorder *transport* belongs in twin-core
+(`@pome-sh/sdk`). Twins inherit durability via `resolveRecorderStore()` /
+`POME_RECORDER_EVENTS_PATH`; the self-host CLI harness passes the run's
+`events.jsonl` path into the same store. Disk rows are already
+`TwinHttpEvent`-shaped so upload/finalize byte shape is unchanged.
 
 ## Docs
 

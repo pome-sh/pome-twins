@@ -34,7 +34,7 @@ import { createAdminGate } from "./admin-gate.js";
 import { makeToolCallContext } from "./tool-context.js";
 import { twinBuildInfo } from "./build-info.js";
 import { handleMcpJsonRpc, mcpMethodNotAllowed } from "./mcp-jsonrpc.js";
-import { createRecorderHandle, type RecorderStore } from "./recorder.js";
+import { createRecorderHandle, resolveRecorderStore, type RecorderStore } from "./recorder.js";
 import { redactSecrets } from "./redaction.js";
 import { TwinError, UnknownToolError, envelopeFor } from "./errors.js";
 import {
@@ -56,6 +56,9 @@ export {
   createRecorderHandle,
   createRecorderStore,
   createFileBackedRecorderStore,
+  resolveRecorderStore,
+  toTwinHttpEventRow,
+  POME_RECORDER_EVENTS_PATH,
 } from "./recorder.js";
 export type {
   RecorderStore,
@@ -115,7 +118,7 @@ export interface ServeOptions<TDb = unknown, TSeed = unknown> {
   db?: TDb;
   /** Initial seed forwarded to `definition.domain({ seed })`. Validated against `definition.seed` if provided. */
   seed?: TSeed;
-  /** Custom recorder store. Defaults to in-memory. */
+  /** Custom recorder store. Defaults to `resolveRecorderStore()` (durable when `POME_RECORDER_EVENTS_PATH` is set). */
   recorder?: RecorderStore;
   /** Run identifier embedded in every recorder event. Defaults to "local". */
   runId?: string;
@@ -147,7 +150,7 @@ export function createApp<TDb, TSeed, TDomain>(
   const recorder = createRecorderHandle({
     runId,
     twin: definition.id,
-    store: options.recorder,
+    store: options.recorder ?? resolveRecorderStore(),
     errorEnvelope: definition.errorEnvelope,
     stampToolCallId: definition.stampToolCallId,
   });

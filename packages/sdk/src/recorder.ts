@@ -157,25 +157,51 @@ export interface FileBackedRecorderStoreOptions extends RecorderStoreOptions {
    */
   path: string;
   /**
-   * When true, each accepted write is `fsync`'d after the append so a
-   * `kill -9` loses at most the in-flight event. Default false in the
-   * F-720 skeleton (opt-in); F-698 flips the production default to true.
+   * When true, each accepted write is `fsync`'d so a `kill -9` loses at most
+   * the in-flight event. Default true for the production durable path (F-698).
    */
   fsync?: boolean;
 }
 
 /**
- * Durable recorder store skeleton (F-720 / F-698).
+ * Env key for the durable recorder tape. When set, twin boot paths and the
+ * self-host harness use `createFileBackedRecorderStore` instead of heap-only.
+ * Architecture (F-698 / §9 Q3): recorder *transport* lives in twin-core
+ * (`packages/sdk`); twins inherit durability by reading this env.
+ */
+export const POME_RECORDER_EVENTS_PATH = "POME_RECORDER_EVENTS_PATH";
+
+/**
+ * Wrap a legacy `RecorderEvent` into the unified `TwinHttpEvent` NDJSON row
+ * shape used by uploaded `events.jsonl` (FDRS-398). Pass-through when `kind`
+ * is already present. Disk rows from the durable store use this shape so
+ * finalize/upload does not need a second wrap for crash-streamed events.
+ */
+export function toTwinHttpEventRow(
+  event: RecorderEvent
+): RecorderEvent & { kind: "TwinHttpEvent"; event_id: string; parent_id: null } {
+  const maybeKind = (event as { kind?: unknown }).kind;
+  if (typeof maybeKind === "string") {
+    return event as RecorderEvent & { kind: "TwinHttpEvent"; event_id: string; parent_id: null };
+  }
+  return {
+    ...event,
+    kind: "TwinHttpEvent",
+    event_id: event.request_id,
+    parent_id: null,
+  };
+}
+
+/**
+ * Durable recorder store (F-720 contract / F-698 implementation).
  *
- * Keeps an in-memory mirror for `events()` / `count()` (same API as the heap
- * store) and appends each accepted redacted `RecorderEvent` as one NDJSON
- * line. `flush()` drains pending writes and rethrows the first append/fsync
- * failure; with `fsync: true` it also `fsync`s the fd so a `kill -9` loses
- * at most the in-flight event. `maxEvents` caps only the heap mirror — the
- * NDJSON tape stays append-only.
- *
- * Twin boot paths still default to `createRecorderStore()` — wiring this
- * store into production servers/CLI is F-698.
+ * Keeps an in-memory mirror of legacy `RecorderEvent` rows for `events()` /
+ * `GET /_pome/events` (unchanged API), and appends each accepted event as a
+ * `TwinHttpEvent` NDJSON line so on-disk `events.jsonl` matches the uploaded
+ * raw-trace byte shape. `flush()` drains pending writes and rethrows the
+ * first append/fsync failure; `fsync` (default true) bounds crash loss to
+ * the in-flight event. `maxEvents` caps only the heap mirror — the NDJSON
+ * tape stays append-only.
  */
 export function createFileBackedRecorderStore(
   options: FileBackedRecorderStoreOptions
@@ -184,7 +210,7 @@ export function createFileBackedRecorderStore(
   const cap = options.maxEvents !== undefined ? Math.max(1, options.maxEvents) : undefined;
   let droppedCount = 0;
   let closed = false;
-  const doFsync = options.fsync === true;
+  const doFsync = options.fsync !== false;
 
   mkdirSync(dirname(options.path), { recursive: true });
   // Open the fd synchronously so fsync never races createWriteStream's
@@ -253,7 +279,7 @@ export function createFileBackedRecorderStore(
           droppedCount += 1;
         }
       }
-      enqueueWrite(`${JSON.stringify(event)}\n`);
+      enqueueWrite(`${JSON.stringify(toTwinHttpEventRow(event))}\n`);
     },
     events() {
       return [...items];
@@ -286,6 +312,18 @@ export function createFileBackedRecorderStore(
       });
     },
   };
+}
+
+/**
+ * Resolve the recorder store for a twin boot: durable file-backed when
+ * `POME_RECORDER_EVENTS_PATH` is set, otherwise the in-memory default.
+ */
+export function resolveRecorderStore(options: RecorderStoreOptions = {}): RecorderStore {
+  const path = process.env[POME_RECORDER_EVENTS_PATH]?.trim();
+  if (path) {
+    return createFileBackedRecorderStore({ ...options, path });
+  }
+  return createRecorderStore(options);
 }
 
 export interface RecorderHandleOptions {

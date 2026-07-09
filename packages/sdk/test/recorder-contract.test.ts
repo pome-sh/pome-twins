@@ -8,7 +8,11 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { recorderEventSchema, type RecorderEvent } from "@pome-sh/shared-types";
+import {
+  recorderEventSchema,
+  twinHttpEventSchema,
+  type RecorderEvent,
+} from "@pome-sh/shared-types";
 
 // Optional fsync override so we can assert flush() rethrows a prior failure
 // after the rejected promise has left `pending` (ESM blocks spyOn on node:fs).
@@ -87,7 +91,7 @@ async function assertStoreContract(store: RecorderStore, opts?: { path?: string 
     const lines = raw.split("\n").filter((l) => l.length > 0);
     expect(lines.length).toBe(1);
     const row = JSON.parse(lines[0]!) as unknown;
-    const diskParsed = recorderEventSchema.safeParse(row);
+    const diskParsed = twinHttpEventSchema.safeParse(row);
     expect(diskParsed.success, JSON.stringify(diskParsed)).toBe(true);
     expect(row).toMatchObject({
       run_id: "run_contract",
@@ -95,9 +99,11 @@ async function assertStoreContract(store: RecorderStore, opts?: { path?: string 
       method: "POST",
       status: 201,
     });
-    // Durable store writes legacy RecorderEvent NDJSON — no kind discriminator
-    // (upload/finalize wraps to TwinHttpEvent; store must not change that shape).
-    expect((row as { kind?: unknown }).kind).toBeUndefined();
+    // Durable store writes TwinHttpEvent NDJSON (uploaded events.jsonl shape).
+    expect((row as { kind?: unknown }).kind).toBe("TwinHttpEvent");
+    expect((row as { event_id?: unknown }).event_id).toBe(
+      (store.events()[0] as { request_id: string }).request_id
+    );
   }
 }
 
@@ -133,7 +139,9 @@ describe("recorder write-through contract (F-720)", () => {
     const lines = raw.split("\n").filter((l) => l.length > 0);
     expect(lines).toHaveLength(2);
     for (const line of lines) {
-      expect(recorderEventSchema.safeParse(JSON.parse(line)).success).toBe(true);
+      const row = JSON.parse(line) as { kind?: string };
+      expect(row.kind).toBe("TwinHttpEvent");
+      expect(twinHttpEventSchema.safeParse(row).success).toBe(true);
     }
     await store.close?.();
   });
