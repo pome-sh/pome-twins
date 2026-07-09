@@ -65,6 +65,11 @@ async function benchDurable(dir: string): Promise<number[]> {
     path: join(dir, "events.jsonl"),
     fsync: true,
   });
+  const flush = store.flush;
+  const close = store.close;
+  if (!flush || !close) {
+    fail("createFileBackedRecorderStore must implement flush/close");
+  }
   const samples: number[] = [];
   for (let i = 0; i < WARMUP + N; i++) {
     const t0 = performance.now();
@@ -75,8 +80,8 @@ async function benchDurable(dir: string): Promise<number[]> {
     const dt = performance.now() - t0;
     if (i >= WARMUP) samples.push(dt);
   }
-  await store.flush();
-  await store.close();
+  await flush();
+  await close();
   return samples;
 }
 

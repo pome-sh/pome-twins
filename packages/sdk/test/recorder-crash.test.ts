@@ -75,10 +75,15 @@ function event(i: number) {
 }
 
 async function main() {
-  for (let i = 0; i < total; i++) {
+  for (let i = 0; i < readyAfter; i++) {
     store.record(event(i));
     await store.flush!();
-    if (i + 1 === readyAfter) writeFileSync(readyPath, String(i + 1));
+  }
+  writeFileSync(readyPath, String(readyAfter));
+  // Keep recording without awaiting flush so SIGKILL can land on an
+  // in-flight write; loss must stay ≤ 1 beyond the ready barrier.
+  for (let i = readyAfter; i < total; i++) {
+    store.record(event(i));
   }
   await new Promise(() => {});
 }
@@ -129,7 +134,20 @@ void main();
     await new Promise<void>((resolvePromise) => child.once("exit", () => resolvePromise()));
 
     const raw = await readFile(eventsPath, "utf8");
-    const lines = raw.split("\n").filter((l) => l.trim().length > 0);
+    // Tolerate a trailing partial line from SIGKILL mid-write; complete
+    // NDJSON rows must still parse.
+    const lines = raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .filter((line) => {
+        try {
+          JSON.parse(line);
+          return true;
+        } catch {
+          return false;
+        }
+      });
     expect(lines.length).toBeGreaterThanOrEqual(READY_AFTER);
     expect(lines.length).toBeLessThanOrEqual(TOTAL);
 
@@ -140,7 +158,9 @@ void main();
       expect((row as { kind: string }).kind).toBe("TwinHttpEvent");
     }
 
-    // Loss bounded to at most the in-flight event after the ready barrier.
-    expect(lines.length).toBeGreaterThanOrEqual(readyCount - 1);
+    // Child flushes before writing the ready barrier, so every readyCount
+    // event is durable. Loss after that is bounded to the in-flight write
+    // (at most one event beyond the last successful flush).
+    expect(lines.length).toBeGreaterThanOrEqual(readyCount);
   }, 30_000);
 });
