@@ -23,7 +23,14 @@ const WARMUP = Number.parseInt(process.env.RECORDER_OVERHEAD_WARMUP ?? "20", 10)
 // Hot-path budget: sync record() enqueue cost (not fsync). Default 1ms is
 // generous vs heap (~µs) while still catching accidental sync disk I/O on
 // the request path.
-const BUDGET_MS = Number.parseFloat(process.env.RECORDER_OVERHEAD_BUDGET_MS ?? "1");
+const BUDGET_RAW = process.env.RECORDER_OVERHEAD_BUDGET_MS ?? "1";
+const BUDGET_MS = Number.parseFloat(BUDGET_RAW);
+if (!Number.isFinite(BUDGET_MS) || BUDGET_MS <= 0) {
+  console.error(
+    `[recorder-overhead-gate] FAIL: RECORDER_OVERHEAD_BUDGET_MS must be a positive number (got ${JSON.stringify(BUDGET_RAW)})`,
+  );
+  process.exit(1);
+}
 
 function sampleEvent(i: number): RecorderEvent {
   return {

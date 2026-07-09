@@ -35,10 +35,13 @@ describe("durable recorder crash loss (F-722)", () => {
     tmpDirs.push(dir);
     const eventsPath = join(dir, "events.jsonl");
     const readyPath = join(dir, "ready");
+    const armedPath = join(dir, "armed");
     const childScript = join(dir, "crash-child.ts");
 
     const TOTAL = 20;
-    const READY_AFTER = 10;
+    // Flush TOTAL-1 events, then enqueue one more without flush so SIGKILL
+    // can only lose that in-flight write.
+    const FLUSHED = TOTAL - 1;
     await writeFile(
       childScript,
       `
@@ -49,8 +52,9 @@ import { createFileBackedRecorderStore } from ${JSON.stringify(
 
 const path = process.env.EVENTS_PATH!;
 const readyPath = process.env.READY_PATH!;
+const armedPath = process.env.ARMED_PATH!;
 const total = Number(process.env.TOTAL);
-const readyAfter = Number(process.env.READY_AFTER);
+const flushed = Number(process.env.FLUSHED);
 const store = createFileBackedRecorderStore({ path, fsync: true });
 
 function event(i: number) {
@@ -75,16 +79,15 @@ function event(i: number) {
 }
 
 async function main() {
-  for (let i = 0; i < readyAfter; i++) {
+  for (let i = 0; i < flushed; i++) {
     store.record(event(i));
     await store.flush!();
   }
-  writeFileSync(readyPath, String(readyAfter));
-  // Keep recording without awaiting flush so SIGKILL can land on an
-  // in-flight write; loss must stay ≤ 1 beyond the ready barrier.
-  for (let i = readyAfter; i < total; i++) {
-    store.record(event(i));
-  }
+  writeFileSync(readyPath, String(flushed));
+  // One more accepted write without awaiting flush — the only event that
+  // SIGKILL is allowed to lose.
+  store.record(event(flushed));
+  writeFileSync(armedPath, String(total));
   await new Promise(() => {});
 }
 void main().catch((err) => {
@@ -101,8 +104,9 @@ void main().catch((err) => {
         ...process.env,
         EVENTS_PATH: eventsPath,
         READY_PATH: readyPath,
+        ARMED_PATH: armedPath,
         TOTAL: String(TOTAL),
-        READY_AFTER: String(READY_AFTER),
+        FLUSHED: String(FLUSHED),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -125,10 +129,10 @@ void main().catch((err) => {
       const deadline = Date.now() + 15_000;
       while (Date.now() < deadline) {
         try {
-          const ready = await readFile(readyPath, "utf8");
-          if (Number(ready) >= READY_AFTER) break;
+          const armed = await readFile(armedPath, "utf8");
+          if (Number(armed) >= TOTAL) break;
         } catch {
-          // not ready yet
+          // not armed yet
         }
         if (child.exitCode !== null) {
           throw new Error(
@@ -137,16 +141,16 @@ void main().catch((err) => {
         }
         await new Promise((r) => setTimeout(r, 20));
       }
-      let readyCount = 0;
+      let armedCount = 0;
       try {
-        readyCount = Number(await readFile(readyPath, "utf8"));
+        armedCount = Number(await readFile(armedPath, "utf8"));
       } catch {
-        readyCount = 0;
+        armedCount = 0;
       }
-      if (readyCount < READY_AFTER) {
+      if (armedCount < TOTAL) {
         killChild();
         throw new Error(
-          `crash child never reached ready barrier (ready=${readyCount}): stderr=${stderr} stdout=${stdout}`
+          `crash child never reached armed barrier (armed=${armedCount}): stderr=${stderr} stdout=${stdout}`
         );
       }
 
@@ -164,34 +168,39 @@ void main().catch((err) => {
       }
 
       const raw = await readFile(eventsPath, "utf8");
-      // Tolerate a trailing partial line from SIGKILL mid-write; complete
-      // NDJSON rows must still parse.
-      const lines = raw
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0)
-        .filter((line) => {
-          try {
-            JSON.parse(line);
-            return true;
-          } catch {
-            return false;
+      // Tolerate only a trailing partial line from SIGKILL mid-write. A
+      // corrupt complete row earlier in the file must fail the gate.
+      const rawLines = raw.split("\n").map((l) => l.trim());
+      while (rawLines.length > 0 && rawLines[rawLines.length - 1] === "") {
+        rawLines.pop();
+      }
+      const completeLines: string[] = [];
+      for (let i = 0; i < rawLines.length; i++) {
+        const line = rawLines[i]!;
+        const isLast = i === rawLines.length - 1;
+        try {
+          JSON.parse(line);
+          completeLines.push(line);
+        } catch {
+          if (!isLast) {
+            throw new Error(`corrupt NDJSON row before trailing line: ${line.slice(0, 120)}`);
           }
-        });
-      expect(lines.length).toBeGreaterThanOrEqual(READY_AFTER);
-      expect(lines.length).toBeLessThanOrEqual(TOTAL);
+          // Trailing partial — drop it from the durable count.
+        }
+      }
 
-      for (const line of lines) {
+      expect(completeLines.length).toBeLessThanOrEqual(TOTAL);
+      // Child flushed FLUSHED events, then armed after enqueueing the last.
+      // Loss is bounded to that single in-flight write.
+      expect(completeLines.length).toBeGreaterThanOrEqual(FLUSHED);
+      expect(completeLines.length).toBeGreaterThanOrEqual(TOTAL - 1);
+
+      for (const line of completeLines) {
         const row = JSON.parse(line) as unknown;
         const result = twinHttpEventSchema.safeParse(row);
         expect(result.success, JSON.stringify(result)).toBe(true);
         expect((row as { kind: string }).kind).toBe("TwinHttpEvent");
       }
-
-      // Child flushes before writing the ready barrier, so every readyCount
-      // event is durable. Loss after that is bounded to the in-flight write
-      // (at most one event beyond the last successful flush).
-      expect(lines.length).toBeGreaterThanOrEqual(readyCount);
     } finally {
       killChild();
     }
