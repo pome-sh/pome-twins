@@ -2,6 +2,10 @@
 
 ## 0.2.0
 
+First npm-published release (F-714). The twin engine: `defineTwin()` +
+`serve()` — HTTP mounting, bearer auth, recorder + redaction, MCP dispatch,
+SQLite driver, and the admin gate behind every first-party twin.
+
 ### Breaking changes
 
 - Removed the deprecated `localhostOnly` re-export from the server surface

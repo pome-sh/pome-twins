@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.0 — 2026-07-09
+
+First npm-published release (F-714). Drop-in adapter for Anthropic's
+`@anthropic-ai/claude-agent-sdk` (peer dependency): `withPome`, `tool`, and
+`query` wrap an agent so its tool calls, subagent spawns, and hook events
+land in the Pome trace format defined by `@pome-sh/shared-types`.
+
 FDRS-410 — outgoing correlation header renamed from `X-Pome-Tool-Call-Id` to lowercase `x-pome-correlation-id` to match the twin recorders' contract (FDRS-402) and HTTP header-name convention. The exported symbol on the index follows: `TOOL_CALL_HEADER` → `CORRELATION_HEADER`. New `test/als-propagation.test.ts` exercises a tool handler that crosses two microtask boundaries before issuing `fetch()`, asserting exact equality between the entry-time `tool_call_id` (read from ALS) and the outgoing `x-pome-correlation-id` header — fails loudly on the silent-`null`-header failure mode that hid FDRS-322 for weeks.
 
 FDRS-409 — `query()` now emits one `SubagentSpawnEvent` the first time it sees a non-null `parent_tool_use_id` on an SDK message. The spawn row's `parent_id` points at the spawning `ToolUseEvent.event_id` (looked up via `tool_use_id == parent_tool_use_id`); subsequent child `ToolUseEvent`s coming from that sub-agent's message stream carry `parent_id` set to the SubagentSpawnEvent's `event_id`, so child rows chain through the spawn row instead of pointing at null. Same single-writer JSONL path (`POME_ADAPTER_SIGNALS_PATH`); shape matches `subagentSpawnEventSchema` in `@pome-sh/shared-types`.

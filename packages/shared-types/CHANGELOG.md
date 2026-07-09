@@ -2,6 +2,8 @@
 
 ## 0.6.0
 
+First npm-published release (F-714).
+
 M6 — publish the trace-format contract as the single reusable package surface
 for OSS twins, the CLI, adapters, and pome-cloud consumers.
 
