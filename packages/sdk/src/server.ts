@@ -445,16 +445,15 @@ export function createApp<TDb, TSeed, TDomain>(
 export interface ServeResult {
   app: Hono;
   /**
-   * Stop the bound HTTP server. Resolves once the server is fully closed.
-   * Throws if `serve()` was called without a `port` (no server was bound).
+   * Stop the bound HTTP server (if any), then flush+close the recorder store
+   * so durable tapes drain before process exit (F-698).
    */
   close(): Promise<void>;
 }
 
 /**
  * Build the app and bind a Node HTTP server. If `port` is omitted, no
- * server is bound and `close()` is a no-op — useful for tests that drive
- * the app via `app.request(...)`.
+ * server is bound — `close()` still flushes the recorder store.
  */
 export async function serve<TDb, TSeed, TDomain>(
   definition: TwinDefinition<TDb, TSeed, TDomain>,
@@ -469,9 +468,16 @@ export async function serve<TDb, TSeed, TDomain>(
       `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${hostname}).`
     );
   }
-  const app = createApp(definition, options);
+  // Resolve the store once so `close()` can flush the same instance the app
+  // records into (durable when POME_RECORDER_EVENTS_PATH is set).
+  const store = options.recorder ?? resolveRecorderStore();
+  const app = createApp(definition, { ...options, recorder: store });
+  const closeRecorder = async () => {
+    await store.flush?.();
+    await store.close?.();
+  };
   if (options.port === undefined) {
-    return { app, close: async () => undefined };
+    return { app, close: closeRecorder };
   }
   const { serve: nodeServe } = await import("@hono/node-server");
   const server = await new Promise<ReturnType<typeof nodeServe>>((resolve) => {
@@ -486,10 +492,12 @@ export async function serve<TDb, TSeed, TDomain>(
   });
   return {
     app,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
         server.close((err?: Error) => (err ? reject(err) : resolve()));
-      }),
+      });
+      await closeRecorder();
+    },
   };
 }
 

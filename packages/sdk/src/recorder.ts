@@ -31,17 +31,18 @@
 // call — including custom stores and direct `recorder.record()` — so no
 // store ever sees unredacted secrets. Stores must not re-emit raw bodies.
 //
-// Persisted row shape: durable stores write one redacted `RecorderEvent` per
-// NDJSON line (shared-types `recorderEventSchema`). Upload/finalize may wrap
-// legacy rows into `TwinHttpEvent` for the unified `events.jsonl` byte shape;
-// the store itself does not change that uploaded shape (F-698).
+// Persisted row shape (F-698): durable stores write one redacted
+// `TwinHttpEvent` NDJSON line per accepted event (shared-types
+// `twinHttpEventSchema`) so on-disk `events.jsonl` matches the uploaded
+// raw-trace byte shape. The in-memory mirror / `GET /_pome/events` still
+// exposes legacy `RecorderEvent` rows.
 //
 // `flush()`: optional. When present, resolves after every accepted event is
 // durable on the store's backing medium (fsync for file-backed). In-memory
 // stores may omit it (no-op if called via a handle that forwards). Callers
 // that need crash-bounded loss (≤ in-flight event) must await `flush()`
-// before relying on the on-disk tape, or use a store that flushes on each
-// `record()` (F-698 production path).
+// before relying on the on-disk tape, or use a store that fsyncs on each
+// `record()` (F-698 production default).
 //
 // `close()`: optional. When present, flushes pending writes, releases the
 // backing resource, and is idempotent. After `close()`, further `record()`
@@ -56,8 +57,8 @@
 // tape, not `events()`.
 //
 // Default runtime behavior: `createRecorderStore()` remains heap-only.
-// `createFileBackedRecorderStore()` is the durable skeleton for F-698; twin
-// boot paths do not switch to it in this contract PR.
+// Set `POME_RECORDER_EVENTS_PATH` (or pass `createFileBackedRecorderStore`)
+// for durable write-through; twin boot resolves via `resolveRecorderStore()`.
 
 import { randomUUID } from "node:crypto";
 import {
