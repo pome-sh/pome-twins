@@ -1,3 +1,4 @@
+// file-size: server engine intentionally centralizes TwinDefinition boot, reserved routes, recorder shutdown, and auth wiring.
 // SPDX-License-Identifier: Apache-2.0
 //
 // `@pome-sh/sdk/server` — boot a `TwinDefinition` into a Hono app and
