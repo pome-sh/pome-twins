@@ -28,6 +28,8 @@ const db = openGitHubCloneDatabase(dbPath);
 // the boot loudly instead of silently serving the default world.
 const seed = process.env.GITHUB_CLONE_NO_SEED === "1" ? undefined : loadSeedFromEnv();
 
+// F-698: when POME_RECORDER_EVENTS_PATH is set, createApp/serve resolves a
+// durable file-backed store (twin-core transport). Otherwise heap-only.
 await serve(githubTwinDefinition, {
   port,
   hostname: host,
