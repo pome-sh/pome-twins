@@ -64,10 +64,11 @@ with both gitleaks and TruffleHog. Install the local hook with
 `bash scripts/hooks/install.sh`; staged changes are blocked unless the same
 boundary gates pass and installed secret scanners find no verified secrets.
 
-Twin images publish only after package tests and Trivy scans pass. Published
-GHCR digests are cosign-signed with GitHub OIDC, and each digest receives an
-SPDX SBOM attestation. Downstream cloud snapshot promotion must pin and verify
-those signed digests before rebuilding runtime snapshots.
+Twin images publish only after the `ci` workflow succeeds for that SHA
+(`scripts/ci/wait-for-workflow.sh`) and Trivy scans pass. Published GHCR
+digests are cosign-signed with GitHub OIDC, and each digest receives an SPDX
+SBOM attestation. Downstream cloud snapshot promotion must pin and verify those
+signed digests before rebuilding runtime snapshots.
 
 Everything else — architecture, per-package details, and the CI gotchas
 (changeset gate, no-cloud-imports, twin Docker build) — is documented at

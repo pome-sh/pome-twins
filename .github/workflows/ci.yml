@@ -35,7 +35,9 @@ jobs:
       # dependency order so those subpaths resolve before typecheck/test.
       - run: npm run build
       - run: npm run typecheck
-      - run: npm test
+      # twin-github runs with coverage thresholds (90% lines/funcs/statements)
+      # instead of a second plain `npm test` pass for that workspace.
+      - run: npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe
       - run: npm run test:coverage -w @pome-sh/twin-github
       # Twin Fidelity Watch (tools/fidelity) moved to pome-cloud
       # (packages/fidelity-watch) — it owns status.pome.sh now.

@@ -11,6 +11,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/pack-publishable.mjs'
+      - 'scripts/use-local-pome-tarballs.mjs'
       - '.github/workflows/cli-ci.yml'
   push:
     branches: [main]
@@ -24,6 +25,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/pack-publishable.mjs'
+      - 'scripts/use-local-pome-tarballs.mjs'
       - '.github/workflows/cli-ci.yml'
   workflow_dispatch:
 
@@ -74,3 +76,31 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      # Former cli-publish-smoke.yml — same tarball install, so pack/clean-room
+      # checks reuse this job instead of a second npm ci + pack cycle.
+      - name: npm publish --dry-run (packs the real tarball)
+        run: npm publish --dry-run --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/pack.log"
+      - name: Pack and clean-room install
+        run: |
+          set -euo pipefail
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          tgz="$(ls "$RUNNER_TEMP"/pome-sh-*.tgz)"
+          # The npm registry rejects tarballs with hard-link entries (E415).
+          # Fail here rather than at publish time if any slip in.
+          if tar -tvf "$tgz" | grep -qE '^h'; then
+            echo "tarball contains hard links — npm registry would reject (E415):"
+            tar -tvf "$tgz" | grep -E '^h'
+            exit 1
+          fi
+          room="$(mktemp -d)"
+          cd "$room"
+          npm init -y >/dev/null 2>&1
+          npm install "$tgz" --no-audit --no-fund --ignore-scripts
+          # bin resolves and dist entry is present:
+          test -f node_modules/pome-sh/dist/src/cli/main.js
+          # bundled twins made it into the tarball:
+          for t in shared-types twin-github twin-slack twin-stripe; do
+            ls node_modules/pome-sh/node_modules/@pome-sh/$t/package.json \
+              || { echo "MISSING bundled @pome-sh/$t in published tarball"; exit 1; }
+          done
+          echo "clean-room OK: bin + dist + bundled twins present"

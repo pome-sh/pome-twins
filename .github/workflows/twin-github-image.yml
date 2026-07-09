@@ -12,35 +12,20 @@ on:
       - 'package-lock.json'
       - '.dockerignore'
       - '.trivyignore'
+      - 'scripts/ci/wait-for-workflow.sh'
+      - '.github/workflows/ci.yml'
       - '.github/workflows/twin-github-image.yml'
   workflow_dispatch:
 
 jobs:
-  # Gate the image publish on the twin's own tests. Without this a red test
-  # could still ship a rolling `github` tag to GHCR on a main push, since the
-  # separate `ci` workflow does not block this one. FDRS-586.
-  test:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      # Build the sibling packages so the twin's `@pome-sh/sdk/server` import
-      # (a dist subpath export) resolves during typecheck.
-      - run: npm run build -w @pome-sh/shared-types -w @pome-sh/sdk
-      - run: npm run typecheck -w @pome-sh/twin-github
-      - run: npm test -w @pome-sh/twin-github
-
+  # Package typecheck/test live in `ci` (npm test --workspaces). This workflow
+  # waits for that SHA's `ci` run before building/scanning/pushing so a red
+  # twin cannot still ship a rolling `github` tag to GHCR (FDRS-586) without
+  # re-running the same vitest suite.
   publish:
-    needs: test
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       id-token: write
       packages: write
@@ -48,6 +33,12 @@ jobs:
       signed-digests: ${{ steps.sign.outputs.signed_digests }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Wait for ci workflow on this SHA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PRs use the merge commit as github.sha; ci runs against the head SHA.
+          GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/ci/wait-for-workflow.sh ci.yml
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
