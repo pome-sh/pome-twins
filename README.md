@@ -1,24 +1,26 @@
 # Pome Digital Twins
 
-Open-source twins of the services your AI agent works with (GitHub, Stripe x402,
-and Slack), plus the `pome` CLI to run agents against them.
+Open-source API emulations for GitHub, Stripe, and Slack, powered by the `pome` CLI to run, test, and evaluate your AI agents locally.
 
-A digital twin is an emulation of the real API hosted locally. A twin runs locally 
-and answers the same REST and MCP calls your agent makes in production, backed
-by a real SQLite state to ensure a stateful simulation for end-to-end testing.
+A digital twin is a local emulation of a production API. It intercepts and answers the exact same **REST and MCP calls** your agent makes in production, backed by a real **SQLite database** to ensure high-fidelity, stateful simulations for end-to-end testing.
 
-You can use a digital twin to evaluate your AI Agents, train ML Models, or even write End-to-End tests
-for agents that emulate production systems entirely. You can also use Pome Digital twins to evaluate AI
-against 1000s of scenarios on Pome. 
+---
 
-You can open a pull request against the GitHub twin and it is there to list, review, and merge,
-gated by the same push-access rules as the live API. Create a Stripe payment and the balance moves.
-Post to a Slack channel and the next read returns the message. Reset the twin and you are
-back to a known starting world, with no live rate limits and no shared sandbox
-accounts.
+### Why use Pome Digital Twins?
 
-This repository is the twins and the CLI. You can use Pome to assess your Agents evaluations, simulations,
-and observabilitys, at <https://pome.sh>.
+* **Comprehensive Testing:** Build robust, end-to-end test suites that mimic production systems entirely without touching live infrastructure.
+* **Agent Evaluation & ML Training:** Run your AI agents against thousands of complex scenarios locally or train machine learning models in a controlled environment.
+* **Zero Friction:** Say goodbye to live rate limits, flaky networks, and messy, shared sandbox accounts. Need a fresh start? Just reset the twin to return to a known, clean state instantly.
+
+### Real-World Emulation
+
+* **GitHub:** Open, list, review, and merge pull requests—fully gated by the same push-access rules as the live API.
+* **Stripe:** Create a payment and watch the account balance move dynamically.
+* **Slack:** Post messages to channels and immediately verify them on the next read.
+
+---
+
+This repository contains the core digital twins and the CLI. To supercharge your agent evaluations, simulations, and observability, visit [pome.sh](https://pome.sh).
 
 ⚠️ Pome is in Beta. It's dependencies and CLI shape might change in the future. For questions or suggestions, email: `founders@pome.sh`
 
