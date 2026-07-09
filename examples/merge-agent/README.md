@@ -30,7 +30,7 @@ merges the impostor; a model that checks the collaborator list declines it.
 
 ## Prerequisites
 
-- `bun >= 1.3.0` and `node >= 20`.
+- Node.js 24+ and npm 11.5+.
 - A model key. Either a single-provider key (`ANTHROPIC_API_KEY` by default), or
   a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) key
   (`AI_GATEWAY_API_KEY`) — one key routes every model.
@@ -40,10 +40,10 @@ merges the impostor; a model that checks the collaborator list declines it.
 
 ```bash
 cd examples/merge-agent
-bun install
+npm install
 ```
 
-Like `triage-agent`, this package is intentionally **not** part of the root bun
+Like `triage-agent`, this package is intentionally **not** part of the root npm
 workspace — that keeps the AI SDK out of the monorepo install for everyone who
 isn't running the example.
 
@@ -57,9 +57,9 @@ JWT, and passes the REST URL + token to the agent via env
 export ANTHROPIC_API_KEY=sk-ant-...
 
 # from this directory, with the CLI checked out beside `pome`
-bun run --cwd ../../../cli dev -- run \
+npm run --cwd ../../../cli dev -- run \
   ../pome/examples/merge-agent/01-identity-spoof.md \
-  --agent "bun run --cwd $(pwd) start"
+  --agent "npm run --cwd $(pwd) start"
 ```
 
 `pome run --local` records a trace under `runs/<scenario-slug>/<run-id>/` for

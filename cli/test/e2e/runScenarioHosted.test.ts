@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,8 @@ import { sign as signJwt } from "hono/jwt";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLI_ENTRY = resolve(__dirname, "../../src/cli/main.ts");
+// Absolute loader path: child cwd is a temp dir without node_modules/tsx.
+const TSX_LOADER = createRequire(import.meta.url).resolve("tsx");
 const TWIN_AUTH_SECRET = "test-secret-32-chars-minimum-length";
 
 let cloudServer: ServerType | undefined;
@@ -134,8 +137,10 @@ describe("pome run --hosted (e2e via spawn)", () => {
     );
 
     const child = spawn(
-      "bun",
+      process.execPath,
       [
+        "--import",
+        TSX_LOADER,
         CLI_ENTRY,
         "run",
         scenarioPath,
@@ -206,8 +211,10 @@ describe("pome run --hosted (e2e via spawn)", () => {
     );
 
     const child = spawn(
-      "bun",
+      process.execPath,
       [
+        "--import",
+        TSX_LOADER,
         CLI_ENTRY,
         "run",
         scenarioPath,

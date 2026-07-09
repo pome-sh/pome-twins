@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// CLI for `bun run --filter @pome-sh/sdk emit-fidelity --twin <package>`.
+// CLI for `npm run emit-fidelity -w @pome-sh/sdk -- --twin <package>`.
 // Loads the twin package, finds an exported `TwinDefinition`, and writes
 // FIDELITY.md into the package directory.
 

@@ -10,8 +10,8 @@
 // MCP tools.
 //
 // Run:
-//   TWIN_AUTH_SECRET=dev-only-insecure-secret SLACK_DETERMINISTIC_TS=1 bun run dev   # in another terminal
-//   ANTHROPIC_API_KEY=sk-... bun run agent:claude "post a hello to #general and react :rocket:"
+//   TWIN_AUTH_SECRET=dev-only-insecure-secret SLACK_DETERMINISTIC_TS=1 npm run dev   # in another terminal
+//   ANTHROPIC_API_KEY=sk-... npm run agent:claude -- "post a hello to #general and react :rocket:"
 
 import { sign } from "hono/jwt";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";

@@ -7,10 +7,10 @@
 ## Quickstart
 
 ```bash
-bun install
-bun run seed
+npm install
+npm run seed
 export TWIN_AUTH_SECRET=$(openssl rand -hex 32)
-bun run dev
+npm run dev
 
 # Docker (from monorepo root; host port 3335):
 # docker compose --profile twins up -d twin-slack
@@ -103,13 +103,13 @@ path's `:sid`.
 ### Use in a new project
 
 ```bash
-bun add -D @pome-sh/twin-slack  # or npm i -D / pnpm add -D
+npm i -D @pome-sh/twin-slack  # or npm i -D / pnpm add -D
 ```
 
 In another terminal, boot the twin and seed it:
 
 ```bash
-TWIN_AUTH_SECRET=$(openssl rand -hex 32) bunx --package=@pome-sh/twin-slack twin-slack &
+TWIN_AUTH_SECRET=$(openssl rand -hex 32) npx --package=@pome-sh/twin-slack twin-slack &
 curl -X POST http://127.0.0.1:3333/admin/seed -H 'content-type: application/json' -d '{}'
 ```
 
@@ -132,22 +132,22 @@ Claude to plan a Slack-flavored task, then drives each tool call via the
 `@modelcontextprotocol/sdk` JSON-RPC client.
 
 ```bash
-TWIN_AUTH_SECRET=dev-only-insecure-secret SLACK_DETERMINISTIC_TS=1 bun run dev &
-ANTHROPIC_API_KEY=sk-... bun run agent:claude "Post hello to #general and react :wave:"
+TWIN_AUTH_SECRET=dev-only-insecure-secret SLACK_DETERMINISTIC_TS=1 npm run dev &
+ANTHROPIC_API_KEY=sk-... npm run agent:claude "Post hello to #general and react :wave:"
 ```
 
 ### Local commands
 
 ```bash
-bun install          # install deps
-bun run seed         # seed the local DB
-bun run dev          # boot the twin on :3333
-bun run smoke        # 12-step end-to-end smoke test
-bun run validate:mcp # JSON-RPC SDK round-trip against /s/<sid>/mcp
-bun run typecheck    # tsc --noEmit
-bun run test         # full vitest run
-bun run test:coverage # coverage gate (lines 90%+, funcs 90%+)
-bun run agent:claude "<task>"   # Claude-driven smoke flow
+npm install          # install deps
+npm run seed         # seed the local DB
+npm run dev          # boot the twin on :3333
+npm run smoke        # 12-step end-to-end smoke test
+npm run validate:mcp # JSON-RPC SDK round-trip against /s/<sid>/mcp
+npm run typecheck    # tsc --noEmit
+npm run test         # full vitest run
+npm run test:coverage # coverage gate (lines 90%+, funcs 90%+)
+npm run agent:claude "<task>"   # Claude-driven smoke flow
 ```
 
 ### Tracing parity
@@ -155,7 +155,7 @@ bun run agent:claude "<task>"   # Claude-driven smoke flow
 Every `tools/call` reaching `/s/:sid/mcp` produces one recorder event whose
 `request_body` is `{ tool, arguments }` and whose `response_body` is the raw
 domain return — identical to what `POST /s/:sid/mcp/call` records. The
-only intentional difference is `path`. Run `bun run validate:mcp` to
+only intentional difference is `path`. Run `npm run validate:mcp` to
 exercise the MCP wire protocol end-to-end and dump the round-trip.
 
 ## Security model
@@ -178,7 +178,7 @@ that pins and verifies the new signed digest.
 ### Build
 
 - Package is `npm install`-able from `package.json` alone (no `workspace:*`
-  protocols, no bun-only deps; no committed lockfile is required, the snapshot
+  protocols, no package-manager-specific deps; no committed lockfile is required, the snapshot
   build regenerates one on each rebuild). Internal `@pome-sh/*` dependencies
   are exact published versions.
 - `npm run build` exits 0 and emits `dist/src/server.js`

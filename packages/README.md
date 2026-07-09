@@ -1,6 +1,6 @@
 # `packages/`
 
-Bun workspaces (`packages/*` in root `package.json`).
+npm workspaces (`packages/*` in root `package.json`).
 
 ## Product twins (what we sell)
 

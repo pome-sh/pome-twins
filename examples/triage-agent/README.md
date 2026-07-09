@@ -13,7 +13,7 @@ This is the example referenced in the README quickstart and the demo video
 - A running Pome twin on `http://127.0.0.1:3333` — the easiest way is
   `docker compose up` from the repo root. The twin auto-generates a
   bearer secret at `<repo-root>/.pome-data/github/secret` on first run.
-- `bun >= 1.3.0` and `node >= 20`.
+- Node.js 24+ and npm 11.5+.
 - Claude auth for the agent loop: BYOK via `ANTHROPIC_API_KEY`, or a Claude
   subscription (`CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or a
   stored `claude` login).
@@ -22,10 +22,10 @@ This is the example referenced in the README quickstart and the demo video
 
 ```bash
 cd examples/triage-agent
-bun install
+npm install
 ```
 
-This package is intentionally **not** part of the root bun workspace — that
+This package is intentionally **not** part of the root npm workspace — that
 keeps the Claude Agent SDK out of the monorepo install for everyone who isn't
 running the example.
 
@@ -37,7 +37,7 @@ docker compose up
 
 # 2. From this directory:
 export ANTHROPIC_API_KEY=sk-ant-...
-bun run start
+npm run start
 ```
 
 The agent reads the secret from `<repo-root>/.pome-data/github/secret`, mints its
@@ -61,9 +61,9 @@ via env (`POME_GITHUB_MCP_URL`, `POME_AUTH_TOKEN`, `POME_TASK`):
 export ANTHROPIC_API_KEY=sk-ant-...
 
 # from this directory, with the CLI at ../../cli
-bun run --cwd ../../cli dev -- run \
+npm run --cwd ../../cli dev -- run \
   ../examples/triage-agent/01-triage-acme-issues.md \
-  --agent "bun run --cwd $(pwd) start"
+  --agent "npm run --cwd $(pwd) start"
 ```
 
 A passing run prints `PASS Triage open issues in acme/api` and writes a

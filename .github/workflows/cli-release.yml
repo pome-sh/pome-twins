@@ -26,9 +26,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.13
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
@@ -58,19 +55,38 @@ jobs:
         if: steps.package-deps.outputs.ready != 'true'
         run: |
           echo "Skipping CLI release. Publish the packages-v* batch first, then rerun this workflow."
-      # --backend=copyfile: bun's default Linux backend hardlinks packages into
-      # node_modules; npm publish then packs the bundleDependencies as hard-link
-      # tar entries, which the registry rejects (E415 "Hard link is not
-      # allowed"). copyfile makes them real files.
+      # No committed cli/package-lock.json until @pome-sh/* packages are on npm.
+      # Generate a lockfile from the resolved manifest, then freeze install so
+      # the published tree matches what this job resolved (OpenJS lockfile
+      # integrity). After first @pome-sh/* publish, commit cli/package-lock.json
+      # and switch to committed-lock npm ci.
       - if: steps.package-deps.outputs.ready == 'true'
-        run: bun install --backend=copyfile
+        run: |
+          # --ignore-scripts on lock-only: prepare/tsc runs before deps exist.
+          npm install --package-lock-only --ignore-scripts
+          npm ci
+      - name: Guard against hard-link tarball (E415)
+        if: steps.package-deps.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          npm run build
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          tgz="$(ls "$RUNNER_TEMP"/pome-sh-*.tgz)"
+          # The npm registry rejects tarballs with hard-link entries (E415).
+          # Fail here rather than at publish time if any slip in.
+          if tar -tvf "$tgz" | grep -qE '^h'; then
+            echo "tarball contains hard links — npm registry would reject (E415):"
+            tar -tvf "$tgz" | grep -E '^h'
+            exit 1
+          fi
+          echo "E415 hard-link check OK: $tgz"
       - name: Changesets — version PR or publish
         if: steps.package-deps.outputs.ready == 'true'
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           cwd: cli
-          version: bun run changeset:version
-          publish: bun run changeset:publish
+          version: npm run changeset:version
+          publish: npm run changeset:publish
           title: "chore(cli): version packages"
           commit: "chore(cli): version packages"
         env:

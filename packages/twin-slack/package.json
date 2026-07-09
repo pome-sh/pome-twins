@@ -37,7 +37,7 @@
     "verify:cloud-token": "tsx scripts/verify-cloud-token.ts",
     "agent:claude": "tsx examples/claude-slack-agent.ts",
     "start": "node dist/src/server.js",
-    "prepack": "bun run build",
+    "prepack": "npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit"

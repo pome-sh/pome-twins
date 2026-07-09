@@ -1,49 +1,57 @@
-name: twin-stripe image
+name: twin image
 on:
   push:
     branches: [main]
     tags: ['v*']
   pull_request:
     paths:
+      - 'packages/twin-github/**'
+      - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
       - 'packages/shared-types/**'
       - 'packages/*/package.json'
       - 'package.json'
-      - 'bun.lock'
+      - 'package-lock.json'
       - '.dockerignore'
       - '.trivyignore'
-      - '.github/workflows/twin-stripe-image.yml'
+      - 'scripts/ci/wait-for-workflow.sh'
+      - 'scripts/ci/sign-image-digests.sh'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/twin-image.yml'
   workflow_dispatch:
 
 jobs:
-  # Gate the image publish on the twin's own tests. Without this a red test
-  # could still ship a rolling `stripe` tag to GHCR on a main push, since the
-  # separate `ci` workflow does not block this one. FDRS-586.
-  test:
+  # Package typecheck/test live in `ci` (npm test --workspaces). This workflow
+  # waits for that SHA's `ci` run before building/scanning/pushing so a red
+  # twin cannot still ship a rolling tag to GHCR (FDRS-586) without
+  # re-running the same vitest suite. Wait once, then matrix the three twins.
+  wait-ci:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.13
-      - run: bun install --frozen-lockfile --filter @pome-sh/twin-stripe --filter @pome-sh/sdk --filter @pome-sh/shared-types
-      # Build the sibling packages so the twin's `@pome-sh/sdk/server` import
-      # (a dist subpath export) resolves during typecheck.
-      - run: bun run --filter @pome-sh/shared-types --filter @pome-sh/sdk build
-      - run: bun run --filter @pome-sh/twin-stripe typecheck
-      - run: bun run --filter @pome-sh/twin-stripe test
+      - name: Wait for ci workflow on this SHA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PRs use the merge commit as github.sha; ci runs against the head SHA.
+          GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/ci/wait-for-workflow.sh ci.yml
 
   publish:
-    needs: test
+    name: ${{ matrix.twin }}
+    needs: wait-ci
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        twin: [github, slack, stripe]
     permissions:
+      actions: read
       contents: read
       id-token: write
       packages: write
-    outputs:
-      signed-digests: ${{ steps.sign.outputs.signed_digests }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -56,29 +64,29 @@ jobs:
         id: meta
         with:
           # One shared package, one image per twin distinguished by tag
-          # prefix: ghcr.io/pome-sh/twins:stripe (rolling), :stripe-<version>,
-          # :stripe-<sha>. `latest=false` — a single `latest` can't span three
+          # prefix: ghcr.io/pome-sh/twins:<twin> (rolling), :<twin>-<version>,
+          # :<twin>-<sha>. `latest=false` — a single `latest` can't span three
           # twins in one package.
           images: ghcr.io/pome-sh/twins
           flavor: |
             latest=false
           tags: |
-            type=raw,value=stripe,enable={{is_default_branch}}
-            type=semver,pattern=stripe-{{version}}
-            type=semver,pattern=stripe-v{{version}}
-            type=sha,prefix=stripe-,format=short
+            type=raw,value=${{ matrix.twin }},enable={{is_default_branch}}
+            type=semver,pattern=${{ matrix.twin }}-{{version}}
+            type=semver,pattern=${{ matrix.twin }}-v{{version}}
+            type=sha,prefix=${{ matrix.twin }}-,format=short
       # Build once and load into the local daemon so Trivy can scan the exact
       # image before it is pushed. Also tag it locally for the scan ref.
       - uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         id: build
         with:
           context: .
-          file: packages/twin-stripe/Dockerfile
+          file: packages/twin-${{ matrix.twin }}/Dockerfile
           load: true
           push: false
           tags: |
             ${{ steps.meta.outputs.tags }}
-            twin-stripe:scan
+            twin-${{ matrix.twin }}:scan
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
       # Fail the publish on fixable HIGH/CRITICAL CVEs. `ignore-unfixed` drops
@@ -87,7 +95,7 @@ jobs:
       - name: Scan image for vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: twin-stripe:scan
+          image-ref: twin-${{ matrix.twin }}:scan
           format: table
           severity: HIGH,CRITICAL
           exit-code: '1'
@@ -96,9 +104,9 @@ jobs:
       - name: Generate image SBOM
         uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
         with:
-          image: twin-stripe:scan
+          image: twin-${{ matrix.twin }}:scan
           format: spdx-json
-          output-file: twin-stripe.spdx.json
+          output-file: twin-${{ matrix.twin }}.spdx.json
           upload-artifact: true
       - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
         if: ${{ github.event_name != 'pull_request' }}
@@ -123,4 +131,4 @@ jobs:
         env:
           IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          bash scripts/ci/sign-image-digests.sh "Signed twin-stripe image digests" twin-stripe.spdx.json
+          bash scripts/ci/sign-image-digests.sh "Signed twin-${{ matrix.twin }} image digests" twin-${{ matrix.twin }}.spdx.json

@@ -49,7 +49,7 @@ If this does not print `ok`, run `pome login` (opens a browser; stores credentia
 
 Read the repo (`package.json` / `pyproject.toml` / agent source / README) and establish three things:
 
-- **Entrypoint + start command** — the exact command that starts the agent (e.g. `bun run src/index.ts`).
+- **Entrypoint + start command** — the exact command that starts the agent (e.g. `npm run src/index.ts`).
 - **Framework** — Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`), another SDK, or a custom script driving an LLM.
 - **Services** — which third-party APIs the agent calls (GitHub? Stripe? Slack?). Run `pome scenarios` to see which twins exist.
 
@@ -133,7 +133,7 @@ next steps:
 | --- | --- |
 | `npm install @pome-sh/adapter-claude-sdk` 404s | The adapter's npm publish is staged (OSS Launch Stage 1). Inside a pome-twins checkout, depend on it via `"@pome-sh/adapter-claude-sdk": "file:<checkout>/packages/adapter-claude-sdk"`; external repos should watch the pome release notes. |
 | doctor: "reads from a hardcoded https://api.github.com" | A production-host literal survives in agent source — even a `?? "https://api.github.com"` fallback triggers it. Move the fallback out of source; read `POME_GITHUB_REST_URL`. |
-| doctor: "twin not reachable" | Twin dependencies missing — run the repo's install (`bun install` / `npm install`) and re-run `pome doctor`. |
+| doctor: "twin not reachable" | Twin dependencies missing — run the repo's install (`npm install` / `npm install`) and re-run `pome doctor`. |
 | doctor: "egress floor disabled" | Remove `*` from `POME_EGRESS_ALLOW`. Never widen egress to pass a check. |
 | Hosted commands fail 401/403 | Re-run `pome login` (or set `POME_API_KEY` in CI). |
 | `agent.command` is still the scaffold default | Point it at the user's real agent (step 1's start command); the default runs a bundled example. |

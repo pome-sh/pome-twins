@@ -3,25 +3,24 @@
   "private": true,
   "version": "0.1.0",
   "workspaces": ["packages/*"],
-  "packageManager": "bun@1.3.13",
+  "packageManager": "npm@11.5.1",
   "scripts": {
-    "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if (!ua.includes('bun/')) { console.error('Use bun install (this repo is bun-only).'); process.exit(1); }\"",
-    "build": "bun run --filter '*' build",
-    "test": "bun run --filter '*' test",
+    "build": "npm run build -w @pome-sh/shared-types && npm run build -w @pome-sh/sdk && npm run build -w @pome-sh/adapter-claude-sdk && npm run build -w @pome-sh/twin-github && npm run build -w @pome-sh/twin-slack && npm run build -w @pome-sh/twin-stripe",
+    "test": "npm run test --workspaces --if-present",
     "test:contract": "node contract/run.mjs",
-    "typecheck": "bun run --filter '*' typecheck",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh",
     "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
     "lint:copy-markers": "node scripts/check-copy-markers.mjs",
     "lint:code-health": "node scripts/lint-code-health.mjs",
-    "lint:dead-code": "bunx --bun knip --no-config-hints"
+    "lint:dead-code": "knip --no-config-hints"
   },
   "engines": {
     "node": ">=24",
-    "bun": ">=1.3.0"
+    "npm": ">=11.5.1"
   },
   "devDependencies": {
-    "bun-types": "^1.3.14"
+    "knip": "^5.66.0"
   },
   "overrides": {
     "hono": "^4.12.27"

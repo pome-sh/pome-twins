@@ -273,7 +273,7 @@ shape matches the captured fixture (keys present, types compatible, optional vs 
 correct). Generated metadata (IDs, timestamps, URLs, SHAs) is allowed to
 differ; behavior-shape is not.
 
-Refresh the fixtures with `bun run capture:fixtures` when you have GitHub
+Refresh the fixtures with `npm run capture:fixtures` when you have GitHub
 CLI auth available. The fixture set is the contract.
 
 ### 2. MCP parity (`scripts/fidelity-parity.ts`)
@@ -287,7 +287,7 @@ a freshly seeded local twin. It runs in two modes:
   additionally calls the same read-only endpoints on real GitHub via `gh
   api`, asserting that response shape parity holds for the live target too.
 
-Run it: `bun run fidelity:parity`.
+Run it: `npm run fidelity:parity`.
 
 ### 3. Cross-twin review harness (`scripts/review-harness.ts`)
 

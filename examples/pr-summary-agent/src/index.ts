@@ -9,11 +9,11 @@
  * Two run modes share the same code path:
  *
  * 1. Standalone — boot the twin via `docker compose up` from the repo root,
- *    then `bun run start` from this directory. The agent reads the auto-
+ *    then `npm run start` from this directory. The agent reads the auto-
  *    generated secret from `<repo-root>/.pome-data/secret`, mints its own
  *    bearer JWT, and talks to the twin at http://127.0.0.1:3333/s/demo/mcp.
  *
- * 2. Pome CLI evaluator — `pome run <scenario>.md --agent="bun run start"`.
+ * 2. Pome CLI evaluator — `pome run <scenario>.md --agent="npm run start"`.
  *    The CLI spins up its own twin on a random port, seeds the scenario, mints
  *    the JWT itself, and passes the URL + token to the agent via env
  *    (POME_GITHUB_MCP_URL, POME_AUTH_TOKEN, POME_TASK).
@@ -279,7 +279,7 @@ class TwinMcpClient {
  *
  * Tip: you can skip the CLI fallback entirely by wrapping the run command,
  * which injects every project secret as an env var:
- *   infisical run -- bun run start
+ *   infisical run -- npm run start
  */
 function resolveAnthropicKey(): string {
   const fromEnv = process.env.ANTHROPIC_API_KEY?.trim();
@@ -292,7 +292,7 @@ function resolveAnthropicKey(): string {
     "Could not resolve an Anthropic API key.\n" +
       "Either:\n" +
       "  • export ANTHROPIC_API_KEY=sk-ant-..., or\n" +
-      "  • run under Infisical: `infisical run -- bun run start`, or\n" +
+      "  • run under Infisical: `infisical run -- npm run start`, or\n" +
       "  • store ANTHROPIC_API_KEY in your Infisical project (the agent will fetch it via the CLI)."
   );
 }

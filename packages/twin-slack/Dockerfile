@@ -1,25 +1,25 @@
 # Build context is the monorepo root. This lets the image use the committed
-# workspace lockfile with --frozen-lockfile instead of resolving dependencies
-# from a standalone package context.
-FROM oven/bun:1@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS build
+# workspace lockfile with npm ci instead of resolving dependencies from a
+# standalone package context.
+FROM node:24-bookworm@sha256:c35698d36238c69451c7e7a5951dd5c9b11c3e45884c918059c94c4a8be969b1 AS build
 WORKDIR /repo
-# better-sqlite3 is a native module that node-gyp must compile; the oven/bun
-# base image is slim and lacks a C++ toolchain by default.
+# better-sqlite3 is a native module that node-gyp must compile; the slim
+# runtime image lacks a C++ toolchain, so compile in this build stage.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
-COPY package.json bun.lock ./
+COPY package.json package-lock.json ./
 COPY packages packages
-RUN bun install --frozen-lockfile
-RUN bun run --cwd packages/shared-types build:runtime
+RUN npm ci
+RUN npm run build:runtime -w @pome-sh/shared-types
 # The twin imports `@pome-sh/sdk/server`, resolved from the SDK's built dist.
-RUN bun run --cwd packages/sdk build
-RUN bun run --cwd packages/twin-slack build
+RUN npm run build -w @pome-sh/sdk
+RUN npm run build -w @pome-sh/twin-slack
 # The runtime image should not include dev/test tooling or unrelated workspace
-# deps. Reinstall only this twin's production graph after the build, hoisted to
-# the root node_modules layout used by the runtime stage.
+# deps. Reinstall only this twin's production graph (plus workspace deps it
+# links: sdk, shared-types) — not every packages/* workspace.
 RUN rm -rf node_modules packages/*/node_modules \
-  && bun install --frozen-lockfile --production --omit=peer --filter @pome-sh/twin-slack --linker=hoisted
+  && npm ci --omit=dev -w @pome-sh/twin-slack
 
 FROM node:24-trixie-slim@sha256:9022946fb57e6fb6a2503931470deba4b49db02bfc8f587f93007fd33ef54415 AS runtime
 WORKDIR /repo

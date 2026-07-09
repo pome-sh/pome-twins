@@ -23,14 +23,14 @@ is sourced from **Infisical or your local environment**.
 - A running Pome twin (the Pome CLI boots its own per run; standalone use needs
   `docker compose up` from the repo root, which writes
   `<repo-root>/.pome-data/secret`).
-- `bun >= 1.3.0` and `node >= 20`.
+- Node.js 24+ and npm 11.5+.
 - An Anthropic API key — from your environment **or** Infisical (see below).
 
 ## Install
 
 ```bash
 cd examples/pr-summary-review
-bun install
+npm install
 ```
 
 ## Claude API key — Infisical or local

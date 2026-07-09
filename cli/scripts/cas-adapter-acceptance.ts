@@ -27,7 +27,7 @@
 // shorthand, not a schema invariant.
 //
 // Designed to be run from `cli/`:
-//   cd cli && bun run scripts/cas-adapter-acceptance.ts
+//   cd cli && npx tsx scripts/cas-adapter-acceptance.ts
 
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -65,7 +65,7 @@ async function makeDoctorScaffold(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pome-cas-scaffold-"));
   await writeFile(
     join(dir, "pome.config.json"),
-    `${JSON.stringify({ agent: { command: "bun agent.ts" } }, null, 2)}\n`,
+    `${JSON.stringify({ agent: { command: "npx tsx agent.ts" } }, null, 2)}\n`,
   );
   await writeFile(
     join(dir, "agent.ts"),
@@ -139,7 +139,7 @@ async function runPome(input: { target: string; scaffold: string }): Promise<str
     "run",
     resolve(CLI_ROOT, SCENARIO_PATH),
     "--agent",
-    `bun ${resolve(CLI_ROOT, AGENT_FIXTURE)}`,
+    `npx tsx ${resolve(CLI_ROOT, AGENT_FIXTURE)}`,
     "--artifacts-dir",
     artifactsDir,
   ];

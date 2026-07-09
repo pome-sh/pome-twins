@@ -35,21 +35,13 @@ npm install -g .
 pome --help
 ```
 
-If you prefer Bun:
-
-```bash
-bun install
-bun run build
-npm link
-```
-
 After installation, run `pome login` once to connect the CLI to your Pome
 account, then run `pome init` in any project where you want scenarios and run
 artifacts.
 
 ## Quickstart
 
-Prerequisites: [Docker](https://docs.docker.com/get-docker/), [Bun ≥ 1.3](https://bun.sh),
+Prerequisites: [Docker](https://docs.docker.com/get-docker/), [Node.js ≥ 24](https://nodejs.org/),
 and an [Anthropic API key](https://console.anthropic.com/) for the bundled example agent.
 
 ```bash
@@ -58,16 +50,16 @@ docker compose up -d                       # GitHub twin on :3333
 curl http://127.0.0.1:3333/healthz
 
 cd examples/triage-agent
-bun install
+npm install
 export ANTHROPIC_API_KEY=sk-ant-...
-bun run start                              # triages a seeded issue on acme/api
+npm start                                  # triages a seeded issue on acme/api
 ```
 
 Run all three twins with `docker compose --profile twins up -d` (ports 3333 /
 3334 / 3335). All twins ship from one GHCR package, one tag per twin
 (`ghcr.io/pome-sh/twins:github` / `:stripe` / `:slack`); it is private until
 launch, so run `docker login ghcr.io` first. To develop a twin from
-source: `bun run --filter @pome-sh/twin-github dev`. Each twin has its own README
+source: `npm run dev -w @pome-sh/twin-github`. Each twin has its own README
 under [`packages/`](./packages/).
 
 ## The twins

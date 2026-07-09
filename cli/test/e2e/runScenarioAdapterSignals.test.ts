@@ -20,7 +20,7 @@ describe("runScenario + POME_ADAPTER_SIGNALS_PATH", () => {
       const result = await runScenario({
         scenarioPath: "scenarios/01-bug-happy-path.md",
         captureServerCommand: captureServerForTests,
-        agentCommand: "bun test/fixtures/adapter-signals-agent.ts",
+        agentCommand: "npx tsx test/fixtures/adapter-signals-agent.ts",
         artifactsDir,
       });
 
@@ -65,7 +65,7 @@ describe("runScenario + POME_ADAPTER_SIGNALS_PATH", () => {
       const result = await runScenario({
         scenarioPath: "scenarios/01-bug-happy-path.md",
         captureServerCommand: captureServerForTests,
-        agentCommand: "bun examples/agents/scripted-triage-agent.ts",
+        agentCommand: "npx tsx examples/agents/scripted-triage-agent.ts",
         artifactsDir,
       });
 

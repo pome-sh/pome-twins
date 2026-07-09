@@ -37,7 +37,7 @@
     "agent:claude": "tsx examples/claude-github-agent.ts",
     "review:harness": "tsx scripts/review-harness.ts",
     "start": "node dist/src/server.js",
-    "prepack": "bun run build",
+    "prepack": "npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",

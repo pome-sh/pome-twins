@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Guards FDRS-604: `docker compose up` writes each twin's secret to a per-twin
 // subdir (`.pome-data/<twin>/secret`), so the agent's secret resolver must probe
-// that path — not the legacy flat `.pome-data/secret`. Run with `bun test`.
-import { afterEach, describe, expect, it } from "bun:test";
+// that path — not the legacy flat `.pome-data/secret`. Run with `npm test`.
+import { afterEach, describe, expect, it } from "vitest";
 import { secretCandidatePaths } from "../src/index.ts";
 
 const savedEnv = { ...process.env };

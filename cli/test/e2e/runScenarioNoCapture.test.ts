@@ -65,7 +65,7 @@ describe("runScenario — noCapture (FDRS-405)", () => {
     try {
       const result = await runScenario({
         scenarioPath: "scenarios/01-bug-happy-path.md",
-        agentCommand: `bun ${probePath}`,
+        agentCommand: `npx tsx ${probePath}`,
         artifactsDir,
         noCapture: true,
         onCaptureServerSpawned: (pid) => {

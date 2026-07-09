@@ -17,7 +17,7 @@ describe("pome doctor — wired triage-agent acceptance (FDRS-634)", () => {
     await cp(exampleSrc, join(dir, "src"), { recursive: true });
     await writeFile(
       join(dir, "pome.config.json"),
-      JSON.stringify({ agent: { command: "bun run src/index.ts", sdk: "claude" } }, null, 2) + "\n",
+      JSON.stringify({ agent: { command: "npm start", sdk: "claude" } }, null, 2) + "\n",
     );
 
     const report = await runDoctorChecks({ cwd: dir, env: {} });

@@ -15,7 +15,7 @@ shape applied to pull requests — and how to source the Claude API key from
 - A running Pome twin on `http://127.0.0.1:3333` — the easiest way is the
   repo-root `docker compose up`. The twin auto-generates a bearer secret at
   `<repo-root>/.pome-data/secret` on first run.
-- `bun >= 1.3.0` and `node >= 20`.
+- Node.js 24+ and npm 11.5+.
 - An Anthropic API key for the agent loop — from your environment **or**
   Infisical (see below).
 
@@ -23,10 +23,10 @@ shape applied to pull requests — and how to source the Claude API key from
 
 ```bash
 cd examples/pr-summary-agent
-bun install
+npm install
 ```
 
-This package is intentionally **not** part of the root bun workspace — that
+This package is intentionally **not** part of the root npm workspace — that
 keeps the Claude Agent SDK out of the monorepo install for everyone who isn't
 running the example.
 
@@ -43,11 +43,11 @@ So either of these works:
 ```bash
 # Local
 export ANTHROPIC_API_KEY=sk-ant-...
-bun run start
+npm run start
 
 # Infisical — store ANTHROPIC_API_KEY in your project, then either:
-infisical run -- bun run start          # injects all secrets as env vars
-bun run start                           # agent fetches the secret via the CLI
+infisical run -- npm run start          # injects all secrets as env vars
+npm run start                           # agent fetches the secret via the CLI
 ```
 
 Infisical lookups honor `INFISICAL_ENV` (default `dev`),
@@ -61,7 +61,7 @@ Infisical lookups honor `INFISICAL_ENV` (default `dev`),
 docker compose up
 
 # 2. From this directory (key from env or Infisical, see above):
-bun run start
+npm run start
 ```
 
 The agent reads the secret from `<repo-root>/.pome-data/secret`, mints its own
@@ -82,9 +82,9 @@ env (`POME_GITHUB_MCP_URL`, `POME_AUTH_TOKEN`, `POME_TASK`):
 export ANTHROPIC_API_KEY=sk-ant-...    # or run under `infisical run -- ...`
 
 # from this directory, with the CLI repo checked out beside `pome`
-bun run --cwd ../../../cli dev -- run \
+npm run --cwd ../../../cli dev -- run \
   ../pome/examples/pr-summary-agent/01-summarize-prs.md \
-  --agent "bun run --cwd $(pwd) start"
+  --agent "npm run --cwd $(pwd) start"
 ```
 
 A passing run prints `PASS Summarize open pull requests (widgets)` and writes a

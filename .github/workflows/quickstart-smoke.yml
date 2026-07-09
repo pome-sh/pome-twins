@@ -12,7 +12,7 @@ on:
       - 'packages/shared-types/**'
       - 'packages/adapter-claude-sdk/**'
       - 'package.json'
-      - 'bun.lock'
+      - 'package-lock.json'
       - 'docker-compose.yml'
       - '.github/workflows/quickstart-smoke.yml'
   push:
@@ -24,38 +24,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Fast, hermetic: the secret-path resolver probes the per-twin path.
-  unit:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.13
-      # Root install first: the example's `file:` adapter dep resolves its own
-      # @anthropic-ai/claude-agent-sdk from the workspace node_modules, so the
-      # module import in the test succeeds.
-      - run: bun install --frozen-lockfile --filter @pome-sh/adapter-claude-sdk
-      # FDRS-658 — build the adapter's dist BEFORE the example installs. The
-      # adapter is dist-only (`files: [dist]`, `exports: ./dist/index.js`, no
-      # `src`) and the example consumes it via a `file:` dep that bun COPIES on
-      # install; without a built dist the copied package has nothing to import
-      # (`Cannot find module '@pome-sh/adapter-claude-sdk'`). Build must precede
-      # the example's `bun install` so the copy includes dist/.
-      - run: bun run --filter '@pome-sh/adapter-claude-sdk' build
-      - name: Secret-path unit test
-        working-directory: examples/triage-agent
-        run: |
-          bun install
-          bun test
-
-  # End-to-end: build the GitHub twin image from this checkout, compose it up,
-  # then run the agent in PREFLIGHT mode (POME_PREFLIGHT=1). The agent resolves
-  # the on-disk secret, mints a JWT, probes the twin's /tools with that token,
-  # and exits 0. That path never calls Claude, but the code asserts
-  # ANTHROPIC_API_KEY is set, so we pass a throwaway value.
+  # End-to-end: hermetic secret-path unit test, then build the GitHub twin image
+  # from this checkout, compose it up, and run the agent in PREFLIGHT mode
+  # (POME_PREFLIGHT=1). The agent resolves the on-disk secret, mints a JWT,
+  # probes the twin's /tools with that token, and exits 0. That path never
+  # calls Claude, but the code asserts ANTHROPIC_API_KEY is set, so we pass a
+  # throwaway value. Former separate `unit` job folded in here to keep one
+  # required check.
   smoke:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
@@ -63,15 +38,30 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          bun-version: 1.3.13
-      # Root install so the example's adapter dep resolves (see the unit job).
-      - run: bun install --frozen-lockfile --filter @pome-sh/adapter-claude-sdk
-      # FDRS-658 — build the adapter's dist before the example installs it (see
-      # the unit job). `bun run start` imports the same dist-only module, so the
-      # copied `file:` dep must contain a built dist/.
-      - run: bun run --filter '@pome-sh/adapter-claude-sdk' build
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/triage-agent/package-lock.json
+      # Root install so the example's adapter dep resolves. The example's
+      # `file:` adapter dep resolves its own @anthropic-ai/claude-agent-sdk
+      # from the workspace node_modules, so the module import in the test
+      # succeeds.
+      - run: npm ci
+      # FDRS-658 — build the adapter's dist BEFORE the example installs. The
+      # adapter is dist-only (`files: [dist]`, `exports: ./dist/index.js`, no
+      # `src`) and the example consumes it via a `file:` dep that npm packs on
+      # install; without a built dist the packed package has nothing to import
+      # (`Cannot find module '@pome-sh/adapter-claude-sdk'`). Build must precede
+      # the example's `npm ci` so the pack includes dist/.
+      - run: npm run build -w @pome-sh/adapter-claude-sdk
+      - name: Secret-path unit test
+        working-directory: examples/triage-agent
+        run: |
+          npm ci
+          npm test
       - name: Build GitHub twin image for compose
         run: docker build -t ghcr.io/pome-sh/twins:github -f packages/twin-github/Dockerfile .
       - name: Start the GitHub twin
@@ -94,9 +84,7 @@ jobs:
           # preflight probes the twin only; it never calls Claude in this mode,
           # but index.ts asserts the key is present, so a placeholder suffices.
           ANTHROPIC_API_KEY: "sk-ant-preflight-not-used"
-        run: |
-          bun install
-          bun run start
+        run: npm start
       - name: Twin logs on failure
         if: failure()
         run: docker compose logs twin-github

@@ -19,17 +19,19 @@ live at **https://docs.pome.sh**.
 
 ## Before you build
 
-- **bun only** — one `bun.lock` at root; an `npm install` guard fails the build.
-- **The CLI (`cli/`) is not a root workspace** — use `cd cli && bun ...`, not
-  `bun run --filter '*'`.
+- **npm only** — one root `package-lock.json` for `packages/*`; use
+  `npm ci` / `npm install`.
+- **The CLI (`cli/`) is not a root workspace** — use `cd cli && npm ...`, not
+  `npm run -w` from the root.
 
 ## CLI releases (`pome-sh`)
 
 Releases are automated by `.github/workflows/cli-release.yml` (Changesets +
 npm OIDC Trusted Publishing). To ship a CLI change:
 
-1. Add a changeset: `cd cli && bun changeset` (pick patch/minor/major, write a
-   one-line user-facing summary). This satisfies the `cli-version-gate`.
+1. Add a changeset: `cd cli && npm run changeset` (pick patch/minor/major, write a
+   one-line user-facing summary). This satisfies the CLI version-bump gate in
+   `cli-ci`.
 2. **Never hand-edit `cli/package.json` `version`** and never write a
    `chore(cli): vX.Y.Z` commit — the release bot owns versioning. It opens a
    "Version Packages" PR that consumes changesets, bumps the version, and
@@ -46,11 +48,11 @@ section in the same PR.
 
 | Invariant | Enforced by |
 | --- | --- |
-| bun only | root `preinstall` checks `npm_config_user_agent` for Bun |
-| Capture is open, evaluation is the product — no local eval/scoring/judging/correlation anywhere in `cli/src/**`, `cli/scripts/**`, `packages/**`, or repo-root `scripts/**` | [`scripts/no-eval-in-oss.mjs`](scripts/no-eval-in-oss.mjs) (`bun run gate:no-eval`) in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — repo-wide, path + module-name + import denylist, empty file allowlist. The module-name rule is a **prefix** match (`correlate*`/`score*`/`judge*`/`verdict*`); an infix like `runScorer.ts` relies on the import rule instead — accepted policy, not a gap. |
+| npm only | root `packageManager` is npm; CI/Docker use `npm ci` and committed `package-lock.json` |
+| Capture is open, evaluation is the product — no local eval/scoring/judging/correlation anywhere in `cli/src/**`, `cli/scripts/**`, `packages/**`, or repo-root `scripts/**` | [`scripts/no-eval-in-oss.mjs`](scripts/no-eval-in-oss.mjs) (`npm run gate:no-eval`) in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — repo-wide, path + module-name + import denylist, empty file allowlist. The module-name rule is a **prefix** match (`correlate*`/`score*`/`judge*`/`verdict*`); an infix like `runScorer.ts` relies on the import rule instead — accepted policy, not a gap. |
 | No cloud imports in OSS packages | [`scripts/lint-no-cloud-imports.sh`](scripts/lint-no-cloud-imports.sh) |
 | No cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (empty allowlist) |
-| Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `bun run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `npm run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | Package barrels + file-size hygiene | [`scripts/lint-code-health.mjs`](scripts/lint-code-health.mjs) |
 
 ## Public Repo Guardrails
@@ -63,10 +65,11 @@ with both gitleaks and TruffleHog. Install the local hook with
 `bash scripts/hooks/install.sh`; staged changes are blocked unless the same
 boundary gates pass and installed secret scanners find no verified secrets.
 
-Twin images publish only after package tests and Trivy scans pass. Published
-GHCR digests are cosign-signed with GitHub OIDC, and each digest receives an
-SPDX SBOM attestation. Downstream cloud snapshot promotion must pin and verify
-those signed digests before rebuilding runtime snapshots.
+Twin images publish only after the `ci` workflow succeeds for that SHA
+(`scripts/ci/wait-for-workflow.sh`) and Trivy scans pass. Published GHCR
+digests are cosign-signed with GitHub OIDC, and each digest receives an SPDX
+SBOM attestation. Downstream cloud snapshot promotion must pin and verify those
+signed digests before rebuilding runtime snapshots.
 
 Everything else — architecture, per-package details, and the CI gotchas
 (changeset gate, no-cloud-imports, twin Docker build) — is documented at

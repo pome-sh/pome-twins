@@ -6,8 +6,8 @@
 //   3. inspects the twin to verify PI succeeded + 5 events recorded
 //
 // Run against a locally-running Pome Stripe twin:
-//   bun run --filter @pome-sh/twin-stripe dev   (in another terminal)
-//   bun run examples/buyer-agent
+//   npm run dev -w @pome-sh/twin-stripe   (in another terminal)
+//   npm run start
 
 import { serve } from "@hono/node-server";
 import { randomBytes } from "node:crypto";
@@ -45,7 +45,7 @@ async function checkTwinReachable(): Promise<void> {
     const res = await fetch(`${TWIN_BASE_URL}/healthz`);
     if (!res.ok) {
       fail(
-        `twin at ${TWIN_BASE_URL} returned ${res.status}; expected 200. Start the twin with \`bun run --filter @pome-sh/twin-stripe dev\`.`
+        `twin at ${TWIN_BASE_URL} returned ${res.status}; expected 200. Start the twin with \`npm run dev -w @pome-sh/twin-stripe\`.`
       );
     }
     const body = (await res.json()) as { ok?: boolean; twin?: string };
@@ -55,7 +55,7 @@ async function checkTwinReachable(): Promise<void> {
     log("step", `twin reachable at ${TWIN_BASE_URL} (${body.twin})`);
   } catch (err) {
     fail(
-      `cannot reach twin at ${TWIN_BASE_URL}: ${(err as Error).message}\nStart the twin with \`bun run --filter @pome-sh/twin-stripe dev\`.`
+      `cannot reach twin at ${TWIN_BASE_URL}: ${(err as Error).message}\nStart the twin with \`npm run dev -w @pome-sh/twin-stripe\`.`
     );
   }
 }

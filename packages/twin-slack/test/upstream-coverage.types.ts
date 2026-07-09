@@ -4,7 +4,7 @@
 // Mirrors twin-github/test/upstream-coverage.types.ts (FDRS-475/476).
 //
 // File name ends in `.types.ts`, NOT `.test.ts`: it matches the tsconfig
-// `test/**/*.ts` include (so `bun run typecheck` checks it) but NOT vitest's
+// `test/**/*.ts` include (so `npm run typecheck` checks it) but NOT vitest's
 // `*.test.ts` glob (so it is never executed as a test). The build tsconfig
 // excludes `test/`, so it never ships.
 //

@@ -8,7 +8,7 @@
 //   1. Direct `@pome-sh/*` deps (dependencies + devDependencies) → `file:` tarball.
 //   2. `overrides` for every packed package. This is the important part: each
 //      packed twin's manifest pins its *own* deps to exact versions
-//      (e.g. `@pome-sh/sdk@0.2.0`), so without an override bun resolves those
+//      (e.g. `@pome-sh/sdk@0.2.0`), so without an override npm resolves those
 //      transitive pins from the real registry and 404s pre-publish.
 //
 // Usage: node scripts/use-local-pome-tarballs.mjs [package.json path]

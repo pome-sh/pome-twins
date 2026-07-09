@@ -32,9 +32,9 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/server.ts",
     "seed": "tsx scripts/seed.ts",
-    "smoke": "bun run build && tsx scripts/smoke.ts",
+    "smoke": "npm run build && tsx scripts/smoke.ts",
     "start": "node dist/src/server.js",
-    "prepack": "bun run build",
+    "prepack": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

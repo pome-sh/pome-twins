@@ -4,32 +4,32 @@ Thanks for your interest! This document covers the developer workflow for the `p
 
 ## Prerequisites
 
-- Node.js **≥ 20** (LTS recommended; CI runs 20 + 22).
-- [Bun](https://bun.sh) for dev install / test speed. End-user installs only require npm/Node.
+- Node.js **≥ 24** (CI runs Node 24).
+- npm **≥ 11.5.1** (matches the Trusted Publishing pin used by release workflows).
 
 ## Setup
 
 ```bash
 git clone https://github.com/pome-sh/pome-twins.git
 cd pome-twins/cli
-bun install
-bun run build      # produces dist/
+npm install
+npm run build      # produces dist/
 ```
 
 ## Running locally
 
 ```bash
-bun run dev -- --help            # tsx + source
-bun run pome -- --help           # built dist/ output
+npm run dev -- --help            # tsx + source
+npm run pome -- --help           # built dist/ output
 ```
 
 ## Test, typecheck, build
 
 ```bash
-bun run typecheck    # tsc --noEmit
-bun run test         # vitest unit tests
-bun run test:e2e     # end-to-end tests
-bun run build        # full publishable build
+npm run typecheck    # tsc --noEmit
+npm test             # vitest unit tests
+npm run test:e2e     # end-to-end tests
+npm run build        # full publishable build
 ```
 
 CI runs typecheck, build, tests, and capture-only gates. PRs are gated on green CI.
@@ -65,8 +65,8 @@ back from the cloud, whether via a hosted `pome run` or an upload through
 `pome eval`.
 
 This boundary is enforced mechanically, repo-wide, by
-[`scripts/no-eval-in-oss.mjs`](../scripts/no-eval-in-oss.mjs) (`bun run
-gate:no-eval` from the repo root; `cd cli && bun run gate:no-eval` also
+[`scripts/no-eval-in-oss.mjs`](../scripts/no-eval-in-oss.mjs) (`npm run
+gate:no-eval` from the repo root; `cd cli && npm run gate:no-eval` also
 works). The gate denies three things across `cli/src/**`, `cli/scripts/**`,
 and `packages/**`:
 
@@ -78,13 +78,4 @@ and `packages/**`:
    matter where it lives. If your change legitimately needs a name like
    that, it almost certainly belongs in pome-cloud instead.
 3. **Forbidden imports** — the local correlator/judge/matcher packages, or
-   any `@pome-cloud/*` package. This repo must never depend on cloud-only
-   code.
-
-If you're adding a feature and the gate fires, the fix is virtually never
-"add an allowlist entry" (the file-name allowlist is intentionally empty) —
-it's "this code belongs in pome-cloud, not here."
-
-## Security
-
-Found a vulnerability? Email `founders@pome.sh`. Please do not file public issues for security reports.
+   any import that reintroduces local scoring into the OSS CLI.

@@ -9,12 +9,12 @@
  * Two run modes share the same code path:
  *
  * 1. Standalone — boot the twin via `docker compose up` from the repo root,
- *    then `bun run start` from this directory. The agent reads the GitHub
+ *    then `npm run start` from this directory. The agent reads the GitHub
  *    twin's auto-generated secret from `<repo-root>/.pome-data/github/secret`,
  *    mints its own bearer JWT, and talks to the twin at
  *    http://127.0.0.1:3333/s/demo/mcp.
  *
- * 2. Pome CLI evaluator — `pome run 01-triage-acme-issues.md --agent="bun
+ * 2. Pome CLI evaluator — `pome run 01-triage-acme-issues.md --agent="npm
  *    run start"`. The CLI spins up its own twin on a random port, seeds the
  *    scenario, mints the JWT itself, and passes the URL + token to the agent
  *    via env (POME_GITHUB_MCP_URL, POME_AUTH_TOKEN, POME_TASK).
@@ -70,7 +70,7 @@ Stop once every open issue has both a classification label and a reasoning comme
 
 const TASK = process.env.POME_TASK?.trim() || DEFAULT_TASK;
 
-// Only run the agent when executed directly (`bun run src/index.ts`). Guarding
+// Only run the agent when executed directly (`npx tsx src/index.ts`). Guarding
 // on `import.meta.main` keeps the module importable — e.g. by the secret-path
 // unit test — without kicking off a full agent run on import.
 if (import.meta.main) {

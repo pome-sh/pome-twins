@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runScenario } from "../../src/runner/runScenario.js";
+import { captureServerForTests } from "../fixtures/captureServerForTests.js";
 
 function listenEphemeral(server: ReturnType<typeof createNetServer>): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -68,12 +69,9 @@ describe("runScenario — capture-server wiring (FDRS-399)", () => {
     try {
       const result = await runScenario({
         scenarioPath: "scenarios/01-bug-happy-path.md",
-        agentCommand: `bun ${probePath}`,
+        agentCommand: `npx tsx ${probePath}`,
         artifactsDir,
-        captureServerCommand: {
-          execPath: "bun",
-          prefixArgs: ["src/cli/main.ts"],
-        },
+        captureServerCommand: captureServerForTests,
         onCaptureServerSpawned: (pid) => {
           capturedPid = pid;
         },

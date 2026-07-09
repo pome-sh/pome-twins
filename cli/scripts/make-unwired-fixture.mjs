@@ -46,8 +46,9 @@ await cp(src, dest, {
 // the wiring agent. The scenario file (01-triage-acme-issues.md) stays —
 // it's what `pome run` needs after the wiring lands.
 await rm(join(dest, "README.md"), { force: true });
-// bun.lock pins the adapter at a relative file: path that breaks outside
-// the monorepo — drop it and let `bun install` regenerate.
+// package-lock.json may pin the adapter at a relative file: path that breaks
+// outside the monorepo — drop it and let `npm install` regenerate.
+await rm(join(dest, "package-lock.json"), { force: true });
 await rm(join(dest, "bun.lock"), { force: true });
 
 // ---- src/index.ts: strip the wiring -----------------------------------
@@ -100,7 +101,7 @@ replaceOnce(
 // 3. The startup hook (and the import.meta.main comments that name pome).
 replaceOnce(
   [
-    "// Only run the agent when executed directly (`bun run src/index.ts`). Guarding",
+    "// Only run the agent when executed directly (`npx tsx src/index.ts`). Guarding",
     "// on `import.meta.main` keeps the module importable — e.g. by the secret-path",
     "// unit test — without kicking off a full agent run on import.",
     "if (import.meta.main) {",
@@ -174,18 +175,22 @@ pkg.description =
 pkg.dependencies["@pome-sh/adapter-claude-sdk"] = `file:${join(repoRoot, "packages", "adapter-claude-sdk")}`;
 await writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
-// bun copies file: deps at install time, so the adapter's dist must exist
-// BEFORE the fixture's `bun install` — otherwise the wired agent dies at
+// npm packs file: deps at install time, so the adapter's dist must exist
+// BEFORE the fixture's `npm install` — otherwise the wired agent dies at
 // import with "Cannot find module ./dist/index.js" (the FDRS-658 class of
 // failure). Build it here if this checkout hasn't yet.
 const adapterDir = join(repoRoot, "packages", "adapter-claude-sdk");
 if (!existsSync(join(adapterDir, "dist", "index.js"))) {
   console.error("adapter dist missing — building @pome-sh/adapter-claude-sdk …");
   try {
-    await execFileAsync("bun", ["run", "build"], { cwd: adapterDir });
+    await execFileAsync("npm", ["run", "build", "-w", "@pome-sh/adapter-claude-sdk"], {
+      cwd: repoRoot,
+    });
   } catch (err) {
     console.error(`adapter build failed: ${err instanceof Error ? err.message : err}`);
-    console.error(`run \`bun run build\` in ${adapterDir} before \`bun install\` in the fixture.`);
+    console.error(
+      `run \`npm run build -w @pome-sh/adapter-claude-sdk\` before \`npm install\` in the fixture.`,
+    );
   }
 }
 
@@ -193,7 +198,7 @@ console.log(dest);
 console.error("");
 console.error("unwired fixture ready. acceptance run:");
 console.error(`  cd ${dest}`);
-console.error("  bun install");
+console.error("  npm install");
 console.error("  pome doctor     # red: no pome.config.json; after the skill runs pome init,");
 console.error("                  # red: hardcoded https://api.github.com in src/index.ts");
 console.error("  pome install    # hands off to your coding agent; approve its edits; ends green");

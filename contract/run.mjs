@@ -36,11 +36,13 @@ function cleanRuntimeJs(dir) {
   return removed;
 }
 
-let status = run("bun", ["run", "--filter", "@pome-sh/shared-types", "build:runtime"]);
+let status = run("npm", ["run", "build:runtime", "-w", "@pome-sh/shared-types"]);
 // The sdk build must precede the twin builds: twin-slack is a thin
 // @pome-sh/sdk plugin since F-683 and compiles against the sdk dist.
-if (status === 0) status = run("bun", ["run", "--filter", "@pome-sh/sdk", "build"]);
-if (status === 0) status = run("bun", ["run", "--filter", "@pome-sh/twin-*", "build"]);
+if (status === 0) status = run("npm", ["run", "build", "-w", "@pome-sh/sdk"]);
+if (status === 0) status = run("npm", ["run", "build", "-w", "@pome-sh/twin-github"]);
+if (status === 0) status = run("npm", ["run", "build", "-w", "@pome-sh/twin-slack"]);
+if (status === 0) status = run("npm", ["run", "build", "-w", "@pome-sh/twin-stripe"]);
 if (status === 0) status = run("node", ["--test", "contract/contract.test.mjs", "contract/sdk-boot.test.mjs"]);
 
 const removed = cleanRuntimeJs(SHARED_SRC);

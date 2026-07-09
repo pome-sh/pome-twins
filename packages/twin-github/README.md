@@ -7,10 +7,10 @@
 ## Quickstart
 
 ```bash
-bun install
-bun run seed
+npm install
+npm run seed
 export TWIN_AUTH_SECRET=$(openssl rand -hex 32)
-bun run dev
+npm run dev
 
 # Docker (from monorepo root; default compose service, port 3333):
 # docker compose up -d
@@ -87,7 +87,7 @@ bearer-auth contract is unchanged — the JWT `sid` claim (or
 Every `tools/call` reaching `/s/:sid/mcp` produces one recorder event whose
 `request_body` is `{ tool, arguments }` and whose `response_body` is the raw
 domain return — identical to what `POST /s/:sid/mcp/call` records. The
-only intentional difference is `path`. Run `bun run validate:mcp` to
+only intentional difference is `path`. Run `npm run validate:mcp` to
 regenerate the side-by-side diff in `scripts/validate-mcp.output.txt`.
 
 ## Runtime contract (for snapshot consumers)
@@ -101,11 +101,11 @@ that pins and verifies the new signed digest.
 ### Build
 
 - Package is `npm install`-able from `package.json` alone (no `workspace:*`
-  protocols, no bun-only deps; no committed lockfile is required, the snapshot
+  protocols, no package-manager-specific deps; no committed lockfile is required, the snapshot
   build regenerates one on each rebuild)
 - `npm run build` exits 0 and emits `dist/src/server.js`
 - Built output is loadable under Node 24 — the snapshot runs `runtime: "node24"`.
-  No Bun-only N-API consumers (see oven/bun#4290 for context on `better-sqlite3`).
+  Uses Node-native `better-sqlite3` (N-API) in the Node 24 runtime image.
 
 ### Runtime
 
@@ -138,8 +138,8 @@ The side-by-side review uses three tests:
 Run against local:
 
 ```bash
-PORT=3333 GITHUB_CLONE_DB=.github_clone/review-harness.db bun run dev
-REVIEW_TARGET=local bun run review:harness
+PORT=3333 GITHUB_CLONE_DB=.github_clone/review-harness.db npm run dev
+REVIEW_TARGET=local npm run review:harness
 ```
 
 Keep agent assertions behavior-based: compare invariants (PR merged, stale `sha` rejected), not hard-coded IDs or SHAs.
@@ -150,8 +150,8 @@ Keep agent assertions behavior-based: compare invariants (PR merged, stale `sha`
 
 ```bash
 cd ~/pome-twins/packages/twin-github
-bun install
-GITHUB_CLONE_DB=.github_clone/my-project.db bun run dev
+npm install
+GITHUB_CLONE_DB=.github_clone/my-project.db npm run dev
 ```
 
 2. Reset or seed state before each run:
@@ -221,7 +221,7 @@ curl -s -X POST http://127.0.0.1:3333/admin/seed \
 Run against local:
 
 ```bash
-GITHUB_MCP_URL=http://127.0.0.1:3333/s/demo/mcp bun run agent:claude -- \
+GITHUB_MCP_URL=http://127.0.0.1:3333/s/demo/mcp npm run agent:claude -- \
   "Create a branch, push claude-agent.txt, open a pull request, approve it, and merge it in acme/api."
 ```
 
@@ -230,23 +230,23 @@ The example captures the PR number returned by `create_pull_request` and reuses 
 ## Local Commands
 
 ```bash
-bun run typecheck
-bun test
-bun run smoke
-bun run fidelity:parity
-bun run validate:mcp # rewrites scripts/validate-mcp.output.txt
-bun run review:harness
-bun run agent:claude
+npm run typecheck
+npm test
+npm run smoke
+npm run fidelity:parity
+npm run validate:mcp # rewrites scripts/validate-mcp.output.txt
+npm run review:harness
+npm run agent:claude
 ```
 
-`bun run capture:fixtures` uses `gh api` to refresh sanitized response-shape fixtures when GitHub CLI auth is available.
+`npm run capture:fixtures` uses `gh api` to refresh sanitized response-shape fixtures when GitHub CLI auth is available.
 
 ## Pome CLI Entry Point
 
 The user-facing `pome` CLI lives at [`cli/`](../../cli/) in this repo. From `cli/`:
 
 ```bash
-bun run dev -- twin start github --port 3333
+npm run dev -- twin start github --port 3333
 ```
 
 The command prints:

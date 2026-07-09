@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   // acceptance criteria (issue #1 labeled `bug`, assigned to `alice`). This
   // mirrors `examples/agents/scripted-triage-agent.ts`'s logic for the
   // happy-path scenario — duplicated here rather than imported because the
-  // bench agent is invoked as a standalone script under `bun`. Several
+  // bench agent is invoked as a standalone script under Node/tsx. Several
   // TwinHttpEvent rows fall out for the PR/FAQ-#1 events-shape assertion.
   await triageIssueOne();
 

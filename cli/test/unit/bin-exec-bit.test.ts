@@ -5,7 +5,7 @@
 // unresolvable on PATH (`npm i -g pome-sh` → `pome` not found until a
 // manual `chmod +x`). The npx path and project-local .bin shims exec via
 // node and never caught this. Guard the built artifact's mode here —
-// cli-ci runs `bun run build` before `bun run test`, so dist/ exists in CI.
+// cli-ci runs `npm run build` before `npm test`, so dist/ exists in CI.
 
 import { existsSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";

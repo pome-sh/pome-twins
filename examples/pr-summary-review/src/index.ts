@@ -17,7 +17,7 @@
  *
  * Two run modes share the same code path:
  *
- * 1. Standalone — `docker compose up` from the repo root, then `bun run start`.
+ * 1. Standalone — `docker compose up` from the repo root, then `npm run start`.
  *    The agent reads <repo-root>/.pome-data/secret, mints its own bearer JWT,
  *    and talks to the twin at http://127.0.0.1:3333/s/demo/mcp.
  *
@@ -297,7 +297,7 @@ class TwinMcpClient {
  *   2. `infisical secrets get ANTHROPIC_API_KEY --plain` via the CLI.
  *
  * Tip: skip the CLI fallback by wrapping the run command, which injects every
- * project secret as an env var: `infisical run -- bun run start`.
+ * project secret as an env var: `infisical run -- npm run start`.
  */
 function resolveAnthropicKey(): string {
   const fromEnv = process.env.ANTHROPIC_API_KEY?.trim();
@@ -310,7 +310,7 @@ function resolveAnthropicKey(): string {
     "Could not resolve an Anthropic API key.\n" +
       "Either:\n" +
       "  • export ANTHROPIC_API_KEY=sk-ant-..., or\n" +
-      "  • run under Infisical: `infisical run -- bun run start`, or\n" +
+      "  • run under Infisical: `infisical run -- npm run start`, or\n" +
       "  • store ANTHROPIC_API_KEY in your Infisical project (the agent will fetch it via the CLI)."
   );
 }
