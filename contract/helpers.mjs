@@ -17,11 +17,29 @@ export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url
 
 export const AUTH_SECRET = "contract-suite-secret-0123456789abcdef";
 
-export const TWINS = [
+const ALL_TWINS = [
   { name: "github", pkg: "packages/twin-github", dbEnv: "GITHUB_CLONE_DB", hostEnv: "GITHUB_CLONE_HOST" },
   { name: "slack", pkg: "packages/twin-slack", dbEnv: "SLACK_CLONE_DB", hostEnv: "SLACK_CLONE_HOST" },
   { name: "stripe", pkg: "packages/twin-stripe", dbEnv: "STRIPE_CLONE_DB", hostEnv: "STRIPE_CLONE_HOST" },
 ];
+
+// FDRS-714: the suite can target an external built twin — e.g. a cloud-built
+// Vercel Sandbox — instead of this repo's workspace dists. CONTRACT_TWIN_ONLY
+// narrows the run to one twin; CONTRACT_TWIN_PKG_ROOT (absolute path) replaces
+// the repo-relative package root as the spawn cwd, and only makes sense
+// together with CONTRACT_TWIN_ONLY.
+const only = process.env.CONTRACT_TWIN_ONLY;
+if (only && !ALL_TWINS.some((t) => t.name === only)) {
+  throw new Error(`CONTRACT_TWIN_ONLY=${only} is not one of: ${ALL_TWINS.map((t) => t.name).join(", ")}`);
+}
+export const TWIN_PKG_ROOT_OVERRIDE = process.env.CONTRACT_TWIN_PKG_ROOT;
+if (TWIN_PKG_ROOT_OVERRIDE && !only) {
+  throw new Error("CONTRACT_TWIN_PKG_ROOT requires CONTRACT_TWIN_ONLY to name the twin it points at");
+}
+if (TWIN_PKG_ROOT_OVERRIDE && !path.isAbsolute(TWIN_PKG_ROOT_OVERRIDE)) {
+  throw new Error(`CONTRACT_TWIN_PKG_ROOT must be an absolute path, got: ${TWIN_PKG_ROOT_OVERRIDE}`);
+}
+export const TWINS = only ? ALL_TWINS.filter((t) => t.name === only) : ALL_TWINS;
 
 function b64url(value) {
   return Buffer.from(value).toString("base64url");
@@ -50,7 +68,19 @@ export async function freePort() {
 // alternate server entry — used by the sdk-boot proof suite (FDRS-681).
 // Default is the contract's own `dist/src/server.js`.
 function entryArgs(twin) {
+  if (twin.entry && TWIN_PKG_ROOT_OVERRIDE) {
+    // Alternate entries (the sdk-boot proof suite) resolve inside this repo;
+    // they cannot be rerouted through an external package root.
+    throw new Error("CONTRACT_TWIN_PKG_ROOT cannot be combined with an alternate twin entry");
+  }
   return [twin.entry ? path.join(REPO_ROOT, twin.entry) : "dist/src/server.js"];
+}
+
+// Package root the twin is spawned from: the repo-relative workspace dist by
+// default, or CONTRACT_TWIN_PKG_ROOT when the suite targets an external built
+// twin (FDRS-714).
+function twinCwd(twin) {
+  return TWIN_PKG_ROOT_OVERRIDE ?? path.join(REPO_ROOT, twin.pkg);
 }
 
 /**
@@ -60,7 +90,7 @@ function entryArgs(twin) {
  */
 export async function spawnTwin(twin, { env = {}, port: portIn, healthzDeadlineMs = 3_000 } = {}) {
   const port = portIn ?? (await freePort());
-  const cwd = path.join(REPO_ROOT, twin.pkg);
+  const cwd = twinCwd(twin);
   // Plain `node` from PATH, never process.execPath: the contract is the cloud's
   // CMD ["node", "dist/src/server.js"], not process.execPath from the test runner.
   const child = spawn("node", entryArgs(twin), {
@@ -123,7 +153,7 @@ export async function spawnTwin(twin, { env = {}, port: portIn, healthzDeadlineM
  * injection) — for boot-guard assertions. Resolves with { code, output }.
  */
 export async function spawnTwinRaw(twin, env, timeoutMs = 5_000) {
-  const cwd = path.join(REPO_ROOT, twin.pkg);
+  const cwd = twinCwd(twin);
   const child = spawn("node", entryArgs(twin), {
     cwd,
     env: { ...process.env, ...env },
