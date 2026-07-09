@@ -6,7 +6,7 @@ The full product changelog lives at https://docs.pome.sh/changelog. This file tr
 
 ## [Unreleased]
 
-## [0.7.0] — 2026-07-XX
+## [0.1.0] — 2026-07-XX
 
 First public release of the `pome` CLI — a capture-only tool for testing AI
 agents against resettable digital twins. `pome run` records what your agent
