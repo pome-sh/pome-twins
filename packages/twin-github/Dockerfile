@@ -36,5 +36,13 @@ COPY --from=build /repo/packages/sdk/package.json ./packages/sdk/package.json
 COPY --from=build /repo/packages/sdk/dist ./packages/sdk/dist
 COPY --from=build /repo/packages/twin-github/package.json ./packages/twin-github/package.json
 COPY --from=build /repo/packages/twin-github/dist ./packages/twin-github/dist
+# Bake build provenance into the /healthz `runtime` block (read by the sdk's
+# build-info env surface). CI passes the real values; local builds keep the
+# "dev" markers. Placed after the COPY layers so a new SHA never invalidates
+# the copied-artifact cache.
+ARG GIT_SHA=dev
+ARG BUILD_TIME=dev
+ENV POME_TWIN_GIT_SHA=$GIT_SHA
+ENV POME_TWIN_BUILD_TIME=$BUILD_TIME
 EXPOSE 3333
 CMD ["node", "packages/twin-github/dist/src/server.js"]

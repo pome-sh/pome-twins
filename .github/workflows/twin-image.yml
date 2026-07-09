@@ -77,6 +77,11 @@ jobs:
             type=semver,pattern=${{ matrix.twin }}-{{version}}
             type=semver,pattern=${{ matrix.twin }}-v{{version}}
             type=sha,prefix=${{ matrix.twin }}-,format=short
+      # /healthz reports these via the Dockerfiles' GIT_SHA/BUILD_TIME args;
+      # without them every published image says git_sha:"dev".
+      - name: Resolve build provenance
+        id: buildinfo
+        run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       # Build once and load into the local daemon so Trivy can scan the exact
       # image before it is pushed. Also tag it locally for the scan ref.
       - uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
@@ -91,6 +96,9 @@ jobs:
             twin-${{ matrix.twin }}:scan
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          build-args: |
+            GIT_SHA=${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+            BUILD_TIME=${{ steps.buildinfo.outputs.time }}
       # Fail the publish on fixable HIGH/CRITICAL CVEs. `ignore-unfixed` drops
       # vulns with no upstream fix (nothing actionable); documented, reviewed
       # exceptions go in `.trivyignore` at the repo root.
