@@ -42,9 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
       packages: write
     outputs:
-      tags: ${{ steps.meta.outputs.tags }}
+      signed-digests: ${{ steps.sign.outputs.signed_digests }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -94,6 +95,15 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           trivyignores: .trivyignore
+      - name: Generate image SBOM
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          image: twin-slack:scan
+          format: spdx-json
+          output-file: twin-slack.spdx.json
+          upload-artifact: true
+      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+        if: ${{ github.event_name != 'pull_request' }}
       # Push the EXACT image built + scanned above (already loaded into the local
       # daemon under every steps.meta.outputs.tags) — no second build, so the
       # published artifact is byte-identical to the one Trivy scanned. PR builds
@@ -109,3 +119,10 @@ jobs:
             echo "pushing $tag"
             docker push "$tag"
           done
+      - name: Sign pushed image digests and attest SBOM
+        id: sign
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          bash scripts/ci/sign-image-digests.sh "Signed twin-slack image digests" twin-slack.spdx.json

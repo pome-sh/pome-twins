@@ -92,10 +92,11 @@ regenerate the side-by-side diff in `scripts/validate-mcp.output.txt`.
 
 ## Runtime contract (for snapshot consumers)
 
-`pome-cloud` builds a Vercel Sandbox snapshot from this package's source. The
-following constraints must hold for that build to succeed and for the resulting
-snapshot to boot. Changing any of these is a breaking change for hosted; coordinate
-via a cross-repo PR.
+`pome-cloud` builds a Vercel Sandbox snapshot from this package's signed source
+artifact. The following constraints must hold for that build to succeed and for
+the resulting snapshot to boot. Changing any of these is a breaking change for
+hosted; land the producer change here first, then open the cloud consumer PR
+that pins and verifies the new signed digest.
 
 ### Build
 
@@ -117,13 +118,14 @@ via a cross-repo PR.
 - All admin routes are localhost-only (`/admin/*`)
 - Bearer auth at `Authorization: Bearer <jwt>` — engine mechanism (`@pome-sh/sdk`), shape pinned in `src/twin.ts` (F-712)
 
-### Cross-repo coordination
+### Cloud consumer coordination
 
-- Bumping any of the above = open a cross-repo PR (this repo + `pome-cloud`)
+- Bumping any of the above = publish a signed twin digest and open the matching
+  `pome-cloud` consumer PR.
 - The cloud-side snapshot build script lives at
-  `pome-cloud/notes/poc-vercel-sandbox/build-twin-github-template.ts`
-- The snapshot manifest at `pome-cloud/notes/poc-vercel-sandbox/twin-snapshot.json`
-  records the OSS git sha each snapshot was built from
+  `pome-cloud/notes/build-twin-github-template.ts`
+- The snapshot manifest at `pome-cloud/infra/twin-github-snapshot.json`
+  records the OSS git sha and signed OCI digest each snapshot was built from.
 
 ## Review harness
 
@@ -147,7 +149,7 @@ Keep agent assertions behavior-based: compare invariants (PR merged, stale `sha`
 1. Install and start the twin:
 
 ```bash
-cd ~/pome/packages/twin-github
+cd ~/pome-twins/packages/twin-github
 npm install
 GITHUB_CLONE_DB=.github_clone/my-project.db npm run dev
 ```

@@ -8,7 +8,7 @@
 // These assertions FREEZE observed wire behavior — including per-twin
 // divergences that are themselves under review (see FDRS-712). Changing any
 // asserted status or shape is a contract change: update CONTRACT.md in the
-// same PR and coordinate the cross-repo pome-cloud PR per the contract doc.
+// same PR and coordinate the pome-cloud consumer PR per the contract doc.
 // The suite body lives in ./suite.mjs (FDRS-681) so the identical assertions
 // also run against the sdk-booted proof entry (./sdk-boot.test.mjs).
 //

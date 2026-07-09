@@ -23,8 +23,8 @@ To run the twin yourself locally (e.g., in CI or against an offline
 agent), clone this repo and run:
 
 ```bash
-git clone https://github.com/pome-sh/pome.git
-cd pome && npm install
+git clone https://github.com/pome-sh/pome-twins.git
+cd pome-twins && npm install
 npm run -w @pome-sh/twin-stripe dev &   # starts on :3333
 sleep 2
 
@@ -169,10 +169,11 @@ curl -s -X POST http://127.0.0.1:3333/s/default/mcp/call \
 
 ## Runtime contract (for snapshot consumers)
 
-`pome-cloud` builds a Vercel Sandbox snapshot from this package's source.
-The following constraints must hold for that build to succeed and for
-the resulting snapshot to boot. Changing any of these is a breaking
-change for hosted; coordinate via a cross-repo PR.
+`pome-cloud` builds a Vercel Sandbox snapshot from this package's signed source
+artifact. The following constraints must hold for that build to succeed and for
+the resulting snapshot to boot. Changing any of these is a breaking change for
+hosted; land the producer change here first, then open the cloud consumer PR
+that pins and verifies the new signed digest.
 
 ### Build
 
@@ -195,13 +196,14 @@ change for hosted; coordinate via a cross-repo PR.
 - All admin routes (`/admin/*`) are localhost-only.
 - Bearer auth at `Authorization: Bearer <jwt>` or `Bearer sk_test_pome_<sid>`.
 
-### Cross-repo coordination
+### Cloud consumer coordination
 
-- Bumping any of the above = open a cross-repo PR (this repo + `pome-cloud`).
+- Bumping any of the above = publish a signed twin digest and open the matching
+  `pome-cloud` consumer PR.
 - The cloud-side snapshot build script lives at
-  `pome-cloud/notes/poc-vercel-sandbox/build-twin-stripe-template.ts`.
+  `pome-cloud/notes/build-twin-stripe-template.ts`.
 - The snapshot manifest at `pome-cloud/infra/twin-stripe-snapshot.json`
-  records the OSS git sha each snapshot was built from.
+  records the OSS git sha and signed OCI digest each snapshot was built from.
 
 ## What v1 does NOT do
 
@@ -248,8 +250,8 @@ this monorepo and shell out to `npm run dev` from your test setup:
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 
-// Path to where you cloned pome-sh/pome on disk
-const POME_REPO = process.env.POME_REPO ?? "/path/to/pome";
+// Path to where you cloned pome-sh/pome-twins on disk
+const POME_REPO = process.env.POME_REPO ?? "/path/to/pome-twins";
 
 const twin = spawn("npm", ["run", "dev"], {
   cwd: join(POME_REPO, "packages/twin-stripe"),
@@ -275,8 +277,7 @@ deterministic-enough for tests but not identical to real Stripe.
 
 ## Pome Cloud (twin selector)
 
-Once `pome-sh/pome-cloud` ships the matching FDRS-275/276 changes, the
-hosted dashboard exposes a **stripe x402** button next to GitHub.
-Clicking it spawns a per-session Vercel Sandbox running this exact
-package. The agent in your session sees the same surface this README
-describes; URLs are path-routed (`https://twins.pome.sh/s/<sid>/...`).
+The hosted dashboard exposes a **Stripe x402** button next to GitHub.
+Clicking it spawns a per-session Vercel Sandbox running this exact package.
+The agent in your session sees the same surface this README describes; URLs
+are path-routed (`https://twins.pome.sh/s/<sid>/...`).

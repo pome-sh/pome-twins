@@ -15,5 +15,10 @@ The CLI package (`pome-sh`) keeps using the existing Changesets flow in
 4. Publish the CLI only after the exact package versions in `cli/package.json`
    exist on npm.
 
+Twin image workflows publish GHCR digests only after tests and Trivy pass. Each
+published digest is cosign-signed with GitHub OIDC and receives an SPDX SBOM
+attestation; the pome-cloud snapshot promotion PR must pin and verify one of
+those digests before rebuilding hosted snapshots.
+
 Do not store `NPM_TOKEN` for these packages. Trusted Publishing must be
 configured in npm for each `@pome-sh/*` package.

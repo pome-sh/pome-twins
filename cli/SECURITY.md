@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The latest published `v0.5.x` line of `pome-sh/cli` receives security updates. Older versions are not patched.
+The latest published `pome-sh` CLI line receives security updates. Older versions are not patched.
 
 ## Reporting a vulnerability
 
@@ -10,7 +10,7 @@ Please **do not** open a public GitHub issue for a suspected vulnerability.
 
 Use GitHub's private vulnerability reporting:
 
-1. Go to https://github.com/pome-sh/cli/security/advisories/new
+1. Go to https://github.com/pome-sh/pome-twins/security/advisories/new
 2. Fill in the form. We get a private notification.
 
 Alternatively, email `founders@pome.sh`.

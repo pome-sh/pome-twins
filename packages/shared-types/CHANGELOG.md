@@ -117,8 +117,8 @@ JS/`.d.ts` so npm consumers (SDK / adapter) can vendor a published tarball
 ## Unreleased
 
 FDRS-480/481/482 — OpenTelemetry-native trace format (M1). Canonical home of the
-OTel surface; `pome-cloud` mirrors `src/otel/` verbatim (its earlier cloud-only
-copy collapses into this mirror).
+OTel surface; `pome-cloud` consumes the published package surface instead of
+mirroring `src/otel/` source files.
 
 ### Added
 
@@ -144,9 +144,8 @@ copy collapses into this mirror).
 - Additive only — `eventSchema` / `recorderEventSchema` and every existing export
   are untouched. Patterns are zod 3+4 compatible (cloud is on zod 3).
 - No version bump: accumulates under `## Unreleased` per this changelog's
-  convention. The coordinated `@pome/shared-types` ↔ `@pome-sh/shared-types`
-  version bump is a founder decision (bi-repo version lockstep) when this lands
-  alongside the cloud mirror.
+  convention. Downstream consumers pick this up through the next
+  `@pome-sh/shared-types` publish.
 
 ---
 
@@ -198,5 +197,7 @@ FDRS-318 — file split + correlator/state-inspector field surface for M1+M2.
 
 ### Notes
 
-- Pre-Stage-1, `pome-cloud/packages/shared-types/` is the mirror copy. This PR requires a paired PR there with the identical diff.
+- Pre-Stage-1, the cloud carried a temporary mirror copy. M8 retires source
+  mirroring; downstream consumers should use the published `@pome-sh/shared-types`
+  package contract.
 - FDRS-318's description says `Run.events_jsonl_url: string`, FDRS-327 says nullable. Aligned with FDRS-327 (nullable) — see [DECISION] comment on FDRS-318.

@@ -2,7 +2,7 @@
 
 **Version 1.0.0** — frozen 2026-07-07 (FDRS-711), verified by the black-box suite in [`contract/`](./contract/).
 
-This document enumerates everything pome-cloud (and the pome CLI) may rely on when booting and driving a twin. **Changing any item below is a breaking contract change**: update this document and the suite in the same PR, and open the coordinated cross-repo PR to pome-cloud (rule of record: `packages/twin-github/README.md`, runtime-contract section).
+This document enumerates everything pome-cloud (and the pome CLI) may rely on when booting and driving a twin. **Changing any item below is a breaking contract change**: update this document and the suite in the same PR, then open the matching pome-cloud consumer PR that pins and verifies the new signed twin artifact (rule of record: `packages/twin-github/README.md`, runtime-contract section).
 
 ## Boot
 

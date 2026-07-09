@@ -225,7 +225,7 @@ export interface BearerAuthOptions {
   /**
    * Row 4 pin: accept a prefix-less bearer and case-insensitive "bearer".
    * Default false (github/slack); stripe pins true. Flipping a twin is a
-   * contract change (CONTRACT.md + suite + cross-repo PR in one change).
+   * contract change (CONTRACT.md + suite, then a cloud consumer PR).
    */
   allowRawBearer?: boolean;
   /**
