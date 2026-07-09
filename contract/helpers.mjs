@@ -36,6 +36,9 @@ export const TWIN_PKG_ROOT_OVERRIDE = process.env.CONTRACT_TWIN_PKG_ROOT;
 if (TWIN_PKG_ROOT_OVERRIDE && !only) {
   throw new Error("CONTRACT_TWIN_PKG_ROOT requires CONTRACT_TWIN_ONLY to name the twin it points at");
 }
+if (TWIN_PKG_ROOT_OVERRIDE && !path.isAbsolute(TWIN_PKG_ROOT_OVERRIDE)) {
+  throw new Error(`CONTRACT_TWIN_PKG_ROOT must be an absolute path, got: ${TWIN_PKG_ROOT_OVERRIDE}`);
+}
 export const TWINS = only ? ALL_TWINS.filter((t) => t.name === only) : ALL_TWINS;
 
 function b64url(value) {
@@ -65,6 +68,11 @@ export async function freePort() {
 // alternate server entry — used by the sdk-boot proof suite (FDRS-681).
 // Default is the contract's own `dist/src/server.js`.
 function entryArgs(twin) {
+  if (twin.entry && TWIN_PKG_ROOT_OVERRIDE) {
+    // Alternate entries (the sdk-boot proof suite) resolve inside this repo;
+    // they cannot be rerouted through an external package root.
+    throw new Error("CONTRACT_TWIN_PKG_ROOT cannot be combined with an alternate twin entry");
+  }
   return [twin.entry ? path.join(REPO_ROOT, twin.entry) : "dist/src/server.js"];
 }
 
