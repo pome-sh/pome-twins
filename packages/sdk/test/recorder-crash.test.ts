@@ -87,7 +87,10 @@ async function main() {
   }
   await new Promise(() => {});
 }
-void main();
+void main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 `,
       "utf8"
     );
@@ -105,62 +108,82 @@ void main();
     });
 
     let stderr = "";
+    let stdout = "";
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
+    child.stdout?.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
 
-    const deadline = Date.now() + 20_000;
-    while (Date.now() < deadline) {
-      try {
-        const ready = await readFile(readyPath, "utf8");
-        if (Number(ready) >= READY_AFTER) break;
-      } catch {
-        // not ready yet
-      }
-      if (child.exitCode !== null) {
-        throw new Error(`crash child exited early (${child.exitCode}): ${stderr}`);
-      }
-      await new Promise((r) => setTimeout(r, 20));
-    }
-    let readyCount = 0;
+    const killChild = () => {
+      if (child.killed || child.exitCode !== null) return;
+      child.kill("SIGKILL");
+    };
+
     try {
-      readyCount = Number(await readFile(readyPath, "utf8"));
-    } catch {
-      readyCount = 0;
-    }
-    expect(readyCount).toBeGreaterThanOrEqual(READY_AFTER);
-
-    child.kill("SIGKILL");
-    await new Promise<void>((resolvePromise) => child.once("exit", () => resolvePromise()));
-
-    const raw = await readFile(eventsPath, "utf8");
-    // Tolerate a trailing partial line from SIGKILL mid-write; complete
-    // NDJSON rows must still parse.
-    const lines = raw
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0)
-      .filter((line) => {
+      const deadline = Date.now() + 15_000;
+      while (Date.now() < deadline) {
         try {
-          JSON.parse(line);
-          return true;
+          const ready = await readFile(readyPath, "utf8");
+          if (Number(ready) >= READY_AFTER) break;
         } catch {
-          return false;
+          // not ready yet
         }
-      });
-    expect(lines.length).toBeGreaterThanOrEqual(READY_AFTER);
-    expect(lines.length).toBeLessThanOrEqual(TOTAL);
+        if (child.exitCode !== null) {
+          throw new Error(
+            `crash child exited early (${child.exitCode}): stderr=${stderr} stdout=${stdout}`
+          );
+        }
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      let readyCount = 0;
+      try {
+        readyCount = Number(await readFile(readyPath, "utf8"));
+      } catch {
+        readyCount = 0;
+      }
+      if (readyCount < READY_AFTER) {
+        killChild();
+        throw new Error(
+          `crash child never reached ready barrier (ready=${readyCount}): stderr=${stderr} stdout=${stdout}`
+        );
+      }
 
-    for (const line of lines) {
-      const row = JSON.parse(line) as unknown;
-      const result = twinHttpEventSchema.safeParse(row);
-      expect(result.success, JSON.stringify(result)).toBe(true);
-      expect((row as { kind: string }).kind).toBe("TwinHttpEvent");
+      killChild();
+      await new Promise<void>((resolvePromise) => child.once("exit", () => resolvePromise()));
+
+      const raw = await readFile(eventsPath, "utf8");
+      // Tolerate a trailing partial line from SIGKILL mid-write; complete
+      // NDJSON rows must still parse.
+      const lines = raw
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+        .filter((line) => {
+          try {
+            JSON.parse(line);
+            return true;
+          } catch {
+            return false;
+          }
+        });
+      expect(lines.length).toBeGreaterThanOrEqual(READY_AFTER);
+      expect(lines.length).toBeLessThanOrEqual(TOTAL);
+
+      for (const line of lines) {
+        const row = JSON.parse(line) as unknown;
+        const result = twinHttpEventSchema.safeParse(row);
+        expect(result.success, JSON.stringify(result)).toBe(true);
+        expect((row as { kind: string }).kind).toBe("TwinHttpEvent");
+      }
+
+      // Child flushes before writing the ready barrier, so every readyCount
+      // event is durable. Loss after that is bounded to the in-flight write
+      // (at most one event beyond the last successful flush).
+      expect(lines.length).toBeGreaterThanOrEqual(readyCount);
+    } finally {
+      killChild();
     }
-
-    // Child flushes before writing the ready barrier, so every readyCount
-    // event is durable. Loss after that is bounded to the in-flight write
-    // (at most one event beyond the last successful flush).
-    expect(lines.length).toBeGreaterThanOrEqual(readyCount);
   }, 30_000);
 });
