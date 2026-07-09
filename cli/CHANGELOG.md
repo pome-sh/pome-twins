@@ -84,7 +84,7 @@ does; the verdict comes from Pome's hosted evaluation.
 - Cross-platform build: `prepare` script ensures `dist/` is built on `npm install` from git.
 
 ### Changed
-- `prepublishOnly` and the build no longer require `bun`; plain `npm` works.
+- `prepublishOnly` and the build work with plain `npm` (no alternate package manager required).
 - `@types/node` pinned to `^22` to match `engines.node": ">=20"`.
 - Source maps no longer ship in the published tarball.
 
@@ -97,4 +97,4 @@ does; the verdict comes from Pome's hosted evaluation.
 - Initial public-prep release: `pome init`, `pome login`, `pome session create|list|stop`, `pome run`, `pome inspect`, `pome fix-prompt`, `pome twin start|reset|status`, `pome docs`, `pome endpoints`, `pome version`, `pome health`.
 - Local GitHub twin with curated REST surface and 35 MCP tools.
 - Hosted-mode integration via the pome.sh control plane.
-- Symlink-resolving entry point (works correctly under `npm link` / `bun link`).
+- Symlink-resolving entry point (works correctly under `npm link`).
