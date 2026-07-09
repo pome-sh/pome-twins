@@ -30,7 +30,10 @@ import {
   openSlackTwinDatabase,
   SlackDomain,
 } from "@pome-sh/twin-slack";
+import { createApp } from "@pome-sh/sdk/server";
+import * as stripeTwin from "@pome-sh/twin-stripe";
 import {
+  applySeed as applyStripeSeed,
   createTwinStripeApp,
   openTwinStripeDatabase,
   parseSeed as parseStripeSeed,
@@ -138,15 +141,37 @@ export async function bootTwin(opts: {
       // recorder suffices here too.
       const db = openTwinStripeDatabase(":memory:");
       const domain = new StripeDomain(db);
-      const app = createTwinStripeApp({
-        db,
-        recorder: recorder as NonNullable<Parameters<typeof createTwinStripeApp>[0]>["recorder"],
-        runId: opts.runId,
-        seed: parseStripeSeed(opts.seedState),
-        twinBaseUrl: opts.twinBaseUrl ?? "http://127.0.0.1:3333",
-      } as Parameters<typeof createTwinStripeApp>[0] & {
-        seed: ReturnType<typeof parseStripeSeed>;
-      }) as TwinHarness["app"];
+      const seed = parseStripeSeed(opts.seedState);
+      const twinBaseUrl = opts.twinBaseUrl ?? "http://127.0.0.1:3333";
+      type StripeDefinitionFactory = (factoryOpts: {
+        db: ReturnType<typeof openTwinStripeDatabase>;
+        twinBaseUrl?: string;
+      }) => Parameters<typeof createApp>[0];
+      const createStripeTwinDefinition = (
+        stripeTwin as typeof stripeTwin & {
+          createStripeTwinDefinition?: StripeDefinitionFactory;
+        }
+      ).createStripeTwinDefinition;
+      const app = (createStripeTwinDefinition
+        ? createApp(createStripeTwinDefinition({ db, twinBaseUrl }), {
+            db,
+            recorder,
+            runId: opts.runId,
+            seed,
+          })
+        : (() => {
+            // Older published twin-stripe packages predate the additive
+            // `seed` app option. Seed explicitly so local runs don't boot an
+            // empty credential store when the CLI resolves that package.
+            applyStripeSeed(db, seed);
+            return createTwinStripeApp({
+              db,
+              recorder:
+                recorder as NonNullable<Parameters<typeof createTwinStripeApp>[0]>["recorder"],
+              runId: opts.runId,
+              twinBaseUrl,
+            } as Parameters<typeof createTwinStripeApp>[0] & { twinBaseUrl?: string });
+          })()) as TwinHarness["app"];
       return {
         app,
         envName: "STRIPE",
