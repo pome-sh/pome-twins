@@ -74,7 +74,10 @@ Twin images publish only after the `ci` workflow succeeds for that SHA
 (`scripts/ci/wait-for-workflow.sh`) and Trivy scans pass. Published GHCR
 digests are cosign-signed with GitHub OIDC, and each digest receives an SPDX
 SBOM attestation. Downstream cloud snapshot promotion must pin and verify those
-signed digests before rebuilding runtime snapshots.
+signed digests before rebuilding runtime snapshots. That promotion is operated
+from the private `pome-sh/pome-cloud` repo — maintainers: see
+`docs/runbooks/twin-release-and-promotion.md` there. Version-bump rules for
+`@pome-sh/*` packages live in [`PACKAGE_RELEASE.md`](PACKAGE_RELEASE.md).
 
 Everything else — architecture, per-package details, and the CI gotchas
 (changeset gate, no-cloud-imports, twin Docker build) — is documented at
