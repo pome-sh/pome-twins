@@ -3,7 +3,7 @@
 ## 0.3.0 — 2026-07-10
 
 Durable write-through recorder (the CLI's crash-safe local runs build on this;
-unblocks the `pomecli` first publish, F-727).
+unblocks the `@pome-sh/cli` first publish, F-727).
 
 - New server exports: `createFileBackedRecorderStore` — a file-backed
   `RecorderStore` that streams twin HTTP events write-through to the run's

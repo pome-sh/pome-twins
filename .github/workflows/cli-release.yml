@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   release:
-    name: version PR or publish (pomecli)
+    name: version PR or publish (@pome-sh/cli)
     runs-on: ubuntu-latest
     permissions:
       contents: write        # push the version branch / tags
@@ -72,7 +72,7 @@ jobs:
           set -euo pipefail
           npm run build
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
-          tgz="$(ls "$RUNNER_TEMP"/pomecli-*.tgz)"
+          tgz="$(ls "$RUNNER_TEMP"/pome-sh-cli-*.tgz)"
           # The npm registry rejects tarballs with hard-link entries (E415).
           # Fail here rather than at publish time if any slip in.
           if tar -tvf "$tgz" | grep -qE '^h'; then

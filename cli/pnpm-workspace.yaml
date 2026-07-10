@@ -1,0 +1,10 @@
+# NOT a pnpm repo — npm ignores this file entirely (the repo is npm-only,
+# see AGENTS.md). It exists only as the root marker changesets/manypkg use
+# to treat cli/ as a single-package changesets root.
+#
+# The previous marker, `"workspaces": ["."]` in package.json, breaks npm
+# itself for scoped package names in this nested layout: npm resolves the
+# workspace entry against the scoped name as if it were a path and walks
+# out of the repo (ENOENT two directories up). See F-727.
+packages:
+  - "."

@@ -37,6 +37,24 @@ if ! grep -qE '^cli/(src|vendor)/' <<<"$changed_files"; then
   exit 0
 fi
 
+# First publish: while the package has never been published (E404), every
+# change ships in the first publish by definition — there is no released
+# behavior to drift from, and a changeset would wrongly bump the first
+# version past its intended base. Same E404-only pattern as
+# check-cli-version-floor.sh; any other registry failure falls through to
+# the normal gate (fail closed). See F-727.
+pkg_name="$(node -p "require('./cli/package.json').name")"
+view_stderr_file="$(mktemp)"
+trap 'rm -f "$view_stderr_file"' EXIT
+set +e
+npm view "$pkg_name" version >/dev/null 2>"$view_stderr_file"
+view_status=$?
+set -e
+if [[ $view_status -ne 0 ]] && grep -q "E404" "$view_stderr_file"; then
+  echo "✅ $pkg_name is not on npm yet (E404) — every change ships in the first publish; version-bump gate skipped."
+  exit 0
+fi
+
 # (a) Was a new changeset file added under cli/.changeset/?
 # Excludes README.md. Only counts ADDED files (not edits to existing ones).
 new_changeset=0

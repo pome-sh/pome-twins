@@ -1,6 +1,6 @@
 # Package Release Flow
 
-The CLI package (`pomecli`) keeps using the existing Changesets flow in
+The CLI package (`@pome-sh/cli`) keeps using the existing Changesets flow in
 `cli/`. Non-CLI packages are released as an explicit batch:
 
 1. In a PR, update each changed package's `package.json` version and package
