@@ -16,8 +16,9 @@ coverage/
 .env.*
 !.env.example
 
-# Local twin state (SQLite-backed runtime data)
-/.pome-data/
+# Local twin state (SQLite-backed runtime data). Unanchored: direct twin
+# boots (cwd = package root) self-generate .pome-data/<twin>/secret (F-708).
+.pome-data/
 .pome/
 .stripe_clone/
 *.db

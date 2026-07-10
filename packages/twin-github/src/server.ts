@@ -6,7 +6,7 @@
 // engine driver, load the boot seed, hand everything to the engine's
 // `serve()`.
 
-import { TwinBootError, isLoopbackHost, serve } from "@pome-sh/sdk/server";
+import { ensureTwinAuthSecret, serve } from "@pome-sh/sdk/server";
 import { openGitHubCloneDatabase } from "./db.js";
 import { loadSeedFromEnv } from "./seed.js";
 import { githubTwinDefinition } from "./twin.js";
@@ -15,13 +15,12 @@ const port = Number(process.env.PORT ?? process.env.GITHUB_CLONE_PORT ?? 3333);
 const host = process.env.GITHUB_CLONE_HOST ?? "127.0.0.1";
 const dbPath = process.env.GITHUB_CLONE_DB ?? ".github_clone/github.db";
 
-// The engine's serve() enforces the same guard; checking here first keeps
-// the refused boot from touching the filesystem (no db file is created).
-if (!isLoopbackHost(host) && !process.env.TWIN_AUTH_SECRET) {
-  throw new TwinBootError(
-    `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${host}).`
-  );
-}
+// F-708: an env-injected TWIN_AUTH_SECRET always wins; a non-loopback bind
+// with no env self-generates a secret and persists it at the compose-era
+// contract location (.pome-data/github/secret). The engine's serve() runs
+// the same guard; calling it here first keeps a failed boot from touching
+// the filesystem (no db file is created).
+ensureTwinAuthSecret("github", host);
 
 const db = openGitHubCloneDatabase(dbPath);
 // POME_SEED_JSON (FDRS-353) is strict-parsed: a malformed cloud seed fails

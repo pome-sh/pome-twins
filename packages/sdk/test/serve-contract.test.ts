@@ -4,6 +4,9 @@
 // healthz implementation+runtime block, per-twin healthz extras, the
 // definition-level auth options, JSON-RPC /s/:sid/mcp, the per-twin 501
 // unsupported envelope, state_delta plumbing, and the serve() boot guard.
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { defineTwin } from "../src/index.js";
@@ -244,17 +247,29 @@ describe("state_delta plumbing", () => {
 });
 
 describe("serve() boot guard", () => {
-  it("refuses a non-loopback bind without TWIN_AUTH_SECRET, naming the variable", async () => {
+  // F-708: a non-loopback bind with no env-injected secret no longer refuses
+  // to boot — the engine self-generates a secret and persists it.
+  it("self-generates and persists TWIN_AUTH_SECRET on a non-loopback bind", async () => {
     const saved = process.env.TWIN_AUTH_SECRET;
+    const savedDataDir = process.env.POME_TWIN_DATA_DIR;
     delete process.env.TWIN_AUTH_SECRET;
+    const dataDir = mkdtempSync(join(tmpdir(), "pome-serve-secret-"));
+    process.env.POME_TWIN_DATA_DIR = dataDir;
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
-      await expect(serve(toyTwin, { port: 0, hostname: "0.0.0.0" })).rejects.toThrow(
-        /TWIN_AUTH_SECRET/
-      );
+      const { close } = await serve(toyTwin, { port: 0, hostname: "0.0.0.0" });
+      await close();
+      const secret = process.env.TWIN_AUTH_SECRET ?? "";
+      expect(secret).toMatch(/^[0-9a-f]{64}$/);
+      expect(readFileSync(join(dataDir, "secret"), "utf8")).toBe(`${secret}\n`);
     } finally {
       process.env.TWIN_AUTH_SECRET = saved;
+      if (savedDataDir === undefined) delete process.env.POME_TWIN_DATA_DIR;
+      else process.env.POME_TWIN_DATA_DIR = savedDataDir;
+      rmSync(dataDir, { recursive: true, force: true });
       warnSpy.mockRestore();
+      logSpy.mockRestore();
     }
   });
 

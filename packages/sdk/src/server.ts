@@ -42,6 +42,7 @@ import {
   POME_CORE_ROUTE_NAMES,
   TwinBootError,
   assertUniqueToolNames,
+  ensureTwinAuthSecret,
   findTool,
   isLoopbackHost,
   makeDeltaSink,
@@ -50,8 +51,8 @@ import {
 } from "./server-helpers.js";
 
 // Public boot surface consumed by twin entrypoints
-// (`import { TwinBootError, isLoopbackHost, serve } from "@pome-sh/sdk/server"`).
-export { TwinBootError, isLoopbackHost, created, ok } from "./server-helpers.js";
+// (`import { ensureTwinAuthSecret, serve } from "@pome-sh/sdk/server"`).
+export { TwinBootError, ensureTwinAuthSecret, isLoopbackHost, created, ok } from "./server-helpers.js";
 
 export {
   createRecorderHandle,
@@ -461,13 +462,13 @@ export async function serve<TDb, TSeed, TDomain>(
   options: ServeOptions<TDb, TSeed> = {}
 ): Promise<ServeResult> {
   const hostname = options.hostname ?? "127.0.0.1";
-  // Contract boot guard: a twin must refuse to serve real traffic with the
-  // dev fallback secret. Checked before the app is built so the process
+  // Contract boot guard: a twin must never serve real traffic with the dev
+  // fallback secret. Since F-708 a non-loopback bind with no env-injected
+  // secret self-generates + persists one instead of refusing to boot; a
+  // failed generation still throws before the app is built, so the process
   // exits non-zero without ever listening.
-  if (options.port !== undefined && !isLoopbackHost(hostname) && !process.env.TWIN_AUTH_SECRET) {
-    throw new TwinBootError(
-      `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${hostname}).`
-    );
+  if (options.port !== undefined && !isLoopbackHost(hostname)) {
+    ensureTwinAuthSecret(definition.id, hostname);
   }
   // Resolve the store once so `close()` can flush the same instance the app
   // records into (durable when POME_RECORDER_EVENTS_PATH is set).

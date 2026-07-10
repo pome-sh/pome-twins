@@ -7,7 +7,7 @@
 // `serve()`. Listens on :3333 (Vercel Sandbox port-forward target) and
 // honors STRIPE_CLONE_HOST=0.0.0.0 in containerized envs.
 
-import { TwinBootError, resolveRecorderStore, isLoopbackHost, serve } from "@pome-sh/sdk/server";
+import { ensureTwinAuthSecret, resolveRecorderStore, serve } from "@pome-sh/sdk/server";
 import { openTwinStripeDatabase } from "./db.js";
 import { loadSeedFromEnv } from "./seed.js";
 import { createStripeTwinDefinition } from "./twin.js";
@@ -16,13 +16,12 @@ const port = Number(process.env.PORT ?? process.env.STRIPE_CLONE_PORT ?? 3333);
 const host = process.env.STRIPE_CLONE_HOST ?? "127.0.0.1";
 const dbPath = process.env.STRIPE_CLONE_DB ?? ".stripe_clone/stripe.db";
 
-// The engine's serve() enforces the same guard; checking here first keeps
-// the refused boot from touching the filesystem (no db file is created).
-if (!isLoopbackHost(host) && !process.env.TWIN_AUTH_SECRET) {
-  throw new TwinBootError(
-    `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${host}).`
-  );
-}
+// F-708: an env-injected TWIN_AUTH_SECRET always wins; a non-loopback bind
+// with no env self-generates a secret and persists it at the compose-era
+// contract location (.pome-data/stripe/secret). The engine's serve() runs
+// the same guard; calling it here first keeps a failed boot from touching
+// the filesystem (no db file is created).
+ensureTwinAuthSecret("stripe", host);
 
 const startedAtMs = Date.now();
 const db = openTwinStripeDatabase(dbPath);

@@ -9,7 +9,10 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mintSessionJwt, req, spawnTwin, spawnTwinRaw } from "./helpers.mjs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { AUTH_SECRET, mintSessionJwt, req, spawnTwin, spawnTwinRaw } from "./helpers.mjs";
 
 const SID = "contract-sid";
 const sPath = (p) => `/s/${SID}${p}`;
@@ -358,15 +361,91 @@ export function adminGateCase(twin, label = twin.name) {
   });
 }
 
-/** Refuses to boot on a non-loopback host without TWIN_AUTH_SECRET. */
+/**
+ * F-708 boot-secret contract: a non-loopback bind with no env-injected
+ * TWIN_AUTH_SECRET self-generates a 32-byte hex secret, persists it at the
+ * compose-era location (POME_TWIN_DATA_DIR overrides `.pome-data/<twin>`),
+ * prints it once to stdout, and reuses it on reboot. An env-injected secret
+ * always wins, and a failed generation still refuses to boot.
+ */
 export function bootGuardCase(twin, label = twin.name) {
-  it(`${label}: refuses to boot on a non-loopback host without TWIN_AUTH_SECRET`, async () => {
-    const { code, output } = await spawnTwinRaw(twin, {
+  const nonLoopback = (dataDir, extra = {}) => ({
+    env: {
       [twin.hostEnv]: "0.0.0.0",
-      PORT: "0",
       TWIN_AUTH_SECRET: "",
-    });
-    assert.notEqual(code, 0, "process exits non-zero");
-    assert.match(output, /TWIN_AUTH_SECRET/, "error names the missing secret");
+      POME_TWIN_DATA_DIR: dataDir,
+      ...extra,
+    },
+  });
+
+  it(`${label}: self-generates TWIN_AUTH_SECRET on a non-loopback bind and reuses it on reboot`, async () => {
+    const dataDir = await mkdtemp(path.join(tmpdir(), "pome-contract-secret-"));
+    try {
+      // First boot: generates, persists, prints once, and serves bearer
+      // traffic signed with the generated secret.
+      const t1 = await spawnTwin(twin, nonLoopback(dataDir));
+      let secret;
+      try {
+        secret = (await readFile(path.join(dataDir, "secret"), "utf8")).trim();
+        assert.match(secret, /^[0-9a-f]{64}$/, "persisted secret is 32-byte hex");
+        assert.ok(t1.output().includes(secret), "first boot prints the generated secret to stdout");
+        const health = await req(t1.base, sPath("/_pome/health"), { token: mintSessionJwt({ sid: SID, secret }) });
+        assert.equal(health.status, 200, "a JWT minted with the persisted secret authenticates");
+      } finally {
+        await t1.close();
+      }
+
+      // Second boot: reuses the persisted secret — no regeneration, no reprint.
+      const t2 = await spawnTwin(twin, nonLoopback(dataDir));
+      try {
+        const persisted = (await readFile(path.join(dataDir, "secret"), "utf8")).trim();
+        assert.equal(persisted, secret, "second boot does not regenerate the secret");
+        assert.ok(!t2.output().includes(secret), "second boot does not reprint the secret value");
+        const health = await req(t2.base, sPath("/_pome/health"), { token: mintSessionJwt({ sid: SID, secret }) });
+        assert.equal(health.status, 200, "the reused secret still authenticates");
+      } finally {
+        await t2.close();
+      }
+    } finally {
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
+  it(`${label}: an env-injected TWIN_AUTH_SECRET always wins over a persisted one`, async () => {
+    const dataDir = await mkdtemp(path.join(tmpdir(), "pome-contract-secret-"));
+    try {
+      const persisted = "f".repeat(64);
+      await writeFile(path.join(dataDir, "secret"), `${persisted}\n`);
+      const t = await spawnTwin(twin, nonLoopback(dataDir, { TWIN_AUTH_SECRET: AUTH_SECRET }));
+      try {
+        const env = await req(t.base, sPath("/_pome/health"), { token: mintSessionJwt({ sid: SID }) });
+        assert.equal(env.status, 200, "the env-injected secret authenticates");
+        const file = await req(t.base, sPath("/_pome/health"), { token: mintSessionJwt({ sid: SID, secret: persisted }) });
+        assert.equal(file.status, 401, "the persisted secret is ignored when env is set");
+        const onDisk = (await readFile(path.join(dataDir, "secret"), "utf8")).trim();
+        assert.equal(onDisk, persisted, "the persisted file is left untouched");
+      } finally {
+        await t.close();
+      }
+    } finally {
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
+  it(`${label}: still refuses to boot when the secret can be neither read nor generated`, async () => {
+    const blocker = await mkdtemp(path.join(tmpdir(), "pome-contract-secret-"));
+    try {
+      await writeFile(path.join(blocker, "not-a-dir"), "");
+      const { code, output } = await spawnTwinRaw(twin, {
+        [twin.hostEnv]: "0.0.0.0",
+        PORT: "0",
+        TWIN_AUTH_SECRET: "",
+        POME_TWIN_DATA_DIR: path.join(blocker, "not-a-dir", "nested"),
+      });
+      assert.notEqual(code, 0, "process exits non-zero");
+      assert.match(output, /TWIN_AUTH_SECRET/, "error names the missing secret");
+    } finally {
+      await rm(blocker, { recursive: true, force: true });
+    }
   });
 }

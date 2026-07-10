@@ -1,6 +1,6 @@
 # Twin Runtime Contract
 
-**Version 1.0.0** — frozen 2026-07-07 (FDRS-711), verified by the black-box suite in [`contract/`](./contract/).
+**Version 1.1.0** — frozen 2026-07-07 (FDRS-711), boot-secret self-generation added 2026-07-10 (F-708). Verified by the black-box suite in [`contract/`](./contract/).
 
 This document enumerates everything pome-cloud (and the pome CLI) may rely on when booting and driving a twin. **Changing any item below is a breaking contract change**: update this document and the suite in the same PR, then open the matching pome-cloud consumer PR that pins and verifies the new signed twin artifact (rule of record: `packages/twin-github/README.md`, runtime-contract section).
 
@@ -8,7 +8,7 @@ This document enumerates everything pome-cloud (and the pome CLI) may rely on wh
 
 - Entry point: `node dist/src/server.js` with **cwd = the twin package root** (`packages/twin-<name>`).
 - `GET /healthz` answers **200 within 3 seconds** of spawn.
-- The twin **refuses to boot** on a non-loopback bind host without `TWIN_AUTH_SECRET` (exit code ≠ 0; the error names the variable).
+- Boot secret (F-708): an env-injected `TWIN_AUTH_SECRET` **always wins** — pome-cloud injects per-tenant secrets and the twin never self-generates when the variable is set (empty counts as unset). On a non-loopback bind host with no env secret, the twin **self-generates** a 32-byte hex secret, persists it at the compose-era location `.pome-data/<twin>/secret` (cwd-relative; `POME_TWIN_DATA_DIR` overrides the directory), prints it **once** to stdout, and reuses the persisted secret on subsequent boots. If the secret can be neither read nor generated, the twin still **refuses to boot** (exit code ≠ 0; the error names the variable). Loopback binds keep the dev-fallback path.
 - Runtime dependency arrangement: hoisted `node_modules` + `packages/shared-types` **with its compiled runtime JS** + `packages/sdk` **with its built `dist/`** (the twins are engine plugins since F-682/683/684; the runtime image ships the sdk so the hoisted workspace symlink resolves) (`npm run build:runtime -w @pome-sh/shared-types`). `@pome-sh/shared-types` exports `./src/index.ts`, so a plain-`node` boot relies on type stripping (**Node ≥ 22.18**) plus the built `src/*.js` files for its `.js` import specifiers. The GHCR runtime image ships `node:24`; the Dockerfiles are the reference implementation of this arrangement.
 
 ## Environment surface
@@ -20,7 +20,8 @@ This document enumerates everything pome-cloud (and the pome CLI) may rely on wh
 | `GITHUB_CLONE_DB` / `SLACK_CLONE_DB` / `STRIPE_CLONE_DB` | SQLite path or `:memory:` | `.<twin>_clone/<twin>.db` |
 | `<TWIN>_CLONE_NO_SEED=1` | skip the default seed at boot | seed applied |
 | `POME_SEED_JSON` | cloud-supplied seed applied at boot (FDRS-353) | default seed |
-| `TWIN_AUTH_SECRET` | HS256 secret for session JWTs + provider-shaped tokens | dev-only fallback; **required** in production / on non-loopback hosts |
+| `TWIN_AUTH_SECRET` | HS256 secret for session JWTs + provider-shaped tokens; env always wins | dev-only fallback on loopback; self-generated + persisted on non-loopback hosts (F-708); **required** in production |
+| `POME_TWIN_DATA_DIR` | directory for the twin's persisted boot secret (`<dir>/secret`) | `.pome-data/<twin>` relative to cwd |
 | `TWIN_ADMIN_TOKEN` | switches `/admin/*` to `X-Admin-Token` auth (timing-safe compare) | loopback-only socket check |
 | `POME_RUN_ID` | recorder run id stamped on events | `"spawn"` |
 | `POME_TWIN_VERSION` / `POME_TWIN_GIT_SHA` / `POME_TWIN_BUILD_TIME` | `/healthz` `runtime` block | `0.1.0` / `dev` / `dev` |
