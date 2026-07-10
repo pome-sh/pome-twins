@@ -28,6 +28,7 @@ const db = openSlackTwinDatabase(dbPath);
 // the boot loudly instead of silently serving the default world.
 const seed = process.env.SLACK_CLONE_NO_SEED === "1" ? undefined : loadSeedFromEnv();
 
+// F-698: durable when POME_RECORDER_EVENTS_PATH is set (resolved inside serve).
 await serve(slackTwinDefinition, {
   port,
   hostname: host,

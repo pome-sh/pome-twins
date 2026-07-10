@@ -122,11 +122,15 @@ export async function runScenario(options: RunScenarioOptions) {
   const twinName = scenario.config.twins[0] ?? "github";
   const port = await getAvailablePort();
   const baseUrl = `http://127.0.0.1:${port}`;
+  // F-698: stream twin HTTP events into the same events.jsonl the
+  // capture-server appends to. Durable store writes TwinHttpEvent rows;
+  // finalize dedupes against disk so upload shape stays one row per event.
   const harness = await bootTwin({
     twin: twinName,
     seedState: scenario.seedState,
     runId,
     twinBaseUrl: baseUrl,
+    eventsPath: eventsJsonlPath,
   });
   const stateInitial = await harness.exportState();
 
@@ -192,6 +196,9 @@ export async function runScenario(options: RunScenarioOptions) {
       preflight: true
     });
     if (preflight.exitCode !== 0) {
+      // Flush durable twin rows before finalize/merge so pending TwinHttpEvent
+      // lines are on disk before events.jsonl is rewritten (not only in finally).
+      await harness.flush();
       const stateFinal = await harness.exportState();
       const { artifacts, exitCode } = await writeRun({
         artifactsDir,
@@ -219,6 +226,7 @@ export async function runScenario(options: RunScenarioOptions) {
       env,
       timeoutSeconds: scenario.config.timeout
     });
+    await harness.flush();
     const stateFinal = await harness.exportState();
     const { artifacts, exitCode } = await writeRun({
       artifactsDir,
@@ -239,10 +247,10 @@ export async function runScenario(options: RunScenarioOptions) {
     return { scenario, runId, artifacts, agent, exitCode, blockedEgress };
   } finally {
     // Drain capture-server first so any in-flight LlmCallEvent rows land
-    // in events.jsonl before we move on; THEN close the twin (which would
-    // otherwise reset any open twin-side sockets and could race the proxy).
+    // in events.jsonl before we move on; THEN close the twin (which flushes
+    // the durable recorder and resets twin-side sockets).
     if (captureServer) await captureServer.shutdown();
     server.close();
-    harness.close();
+    await harness.close();
   }
 }

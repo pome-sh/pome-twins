@@ -7,7 +7,7 @@
 // `serve()`. Listens on :3333 (Vercel Sandbox port-forward target) and
 // honors STRIPE_CLONE_HOST=0.0.0.0 in containerized envs.
 
-import { TwinBootError, createRecorderStore, isLoopbackHost, serve } from "@pome-sh/sdk/server";
+import { TwinBootError, resolveRecorderStore, isLoopbackHost, serve } from "@pome-sh/sdk/server";
 import { openTwinStripeDatabase } from "./db.js";
 import { loadSeedFromEnv } from "./seed.js";
 import { createStripeTwinDefinition } from "./twin.js";
@@ -42,7 +42,8 @@ const definition = createStripeTwinDefinition({
 
 await serve(definition, {
   // Pre-port D-ENG-10 recorder bound: 10k events, drop-oldest, real counter.
-  recorder: createRecorderStore({ maxEvents: 10_000 }),
+  // F-698: durable when POME_RECORDER_EVENTS_PATH is set (same cap).
+  recorder: resolveRecorderStore({ maxEvents: 10_000 }),
   port,
   hostname: host,
   db,

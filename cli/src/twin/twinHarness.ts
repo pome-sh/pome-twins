@@ -30,7 +30,10 @@ import {
   openSlackTwinDatabase,
   SlackDomain,
 } from "@pome-sh/twin-slack";
+import { createApp } from "@pome-sh/sdk/server";
+import * as stripeTwin from "@pome-sh/twin-stripe";
 import {
+  applySeed as applyStripeSeed,
   createTwinStripeApp,
   openTwinStripeDatabase,
   parseSeed as parseStripeSeed,
@@ -54,8 +57,14 @@ export type TwinHarness = {
   /** Extra JWT claims the runner mints into the agent token (e.g. Stripe's
    *  `account_id`, so the token resolves to the account the seed lives in). */
   extraClaims?: Record<string, unknown>;
-  /** Release the SQLite handle. */
-  close(): void;
+  /**
+   * Durability barrier for the twin recorder without closing the DB.
+   * Call before finalize/merge so pending TwinHttpEvent rows land on disk
+   * before `events.jsonl` is rewritten.
+   */
+  flush(): void | Promise<void>;
+  /** Flush durable recorder (if any) and release the SQLite handle. */
+  close(): void | Promise<void>;
 };
 
 export class UnsupportedTwinError extends Error {
@@ -73,8 +82,22 @@ export async function bootTwin(opts: {
   seedState: unknown;
   runId: string;
   twinBaseUrl?: string;
+  /**
+   * F-698: when set, twin HTTP events stream to this NDJSON path via the
+   * twin-core durable recorder (same file capture-server appends to).
+   */
+  eventsPath?: string;
 }): Promise<TwinHarness> {
-  const recorder = createRecorder();
+  const recorder = createRecorder({ eventsPath: opts.eventsPath });
+
+  const flushRecorder = async () => {
+    await recorder.flush?.();
+  };
+  const closeRecorderAndDb = async (dbClose: () => void) => {
+    await flushRecorder();
+    await recorder.close?.();
+    dbClose();
+  };
 
   switch (opts.twin) {
     case "github": {
@@ -90,7 +113,8 @@ export async function bootTwin(opts: {
         envName: "GITHUB",
         exportState: () => exportGitHubCloneState(db),
         events: () => recorder.events(),
-        close: () => (db as { close(): void }).close(),
+        flush: () => flushRecorder(),
+        close: () => closeRecorderAndDb(() => (db as { close(): void }).close()),
       };
     }
 
@@ -114,7 +138,8 @@ export async function bootTwin(opts: {
         envName: "SLACK",
         exportState: () => domain.exportState(),
         events: () => recorder.events(),
-        close: () => db.close(),
+        flush: () => flushRecorder(),
+        close: () => closeRecorderAndDb(() => db.close()),
       };
     }
 
@@ -127,20 +152,45 @@ export async function bootTwin(opts: {
       // recorder suffices here too.
       const db = openTwinStripeDatabase(":memory:");
       const domain = new StripeDomain(db);
-      const app = createTwinStripeApp({
-        db,
-        recorder: recorder as NonNullable<Parameters<typeof createTwinStripeApp>[0]>["recorder"],
-        runId: opts.runId,
-        seed: parseStripeSeed(opts.seedState),
-        twinBaseUrl: opts.twinBaseUrl ?? "http://127.0.0.1:3333",
-      }) as TwinHarness["app"];
+      const seed = parseStripeSeed(opts.seedState);
+      const twinBaseUrl = opts.twinBaseUrl ?? "http://127.0.0.1:3333";
+      type StripeDefinitionFactory = (factoryOpts: {
+        db: ReturnType<typeof openTwinStripeDatabase>;
+        twinBaseUrl?: string;
+      }) => Parameters<typeof createApp>[0];
+      const createStripeTwinDefinition = (
+        stripeTwin as typeof stripeTwin & {
+          createStripeTwinDefinition?: StripeDefinitionFactory;
+        }
+      ).createStripeTwinDefinition;
+      const app = (createStripeTwinDefinition
+        ? createApp(createStripeTwinDefinition({ db, twinBaseUrl }), {
+            db,
+            recorder,
+            runId: opts.runId,
+            seed,
+          })
+        : (() => {
+            // Older published twin-stripe packages predate the additive
+            // `seed` app option. Seed explicitly so local runs don't boot an
+            // empty credential store when the CLI resolves that package.
+            applyStripeSeed(db, seed);
+            return createTwinStripeApp({
+              db,
+              recorder:
+                recorder as NonNullable<Parameters<typeof createTwinStripeApp>[0]>["recorder"],
+              runId: opts.runId,
+              twinBaseUrl,
+            } as Parameters<typeof createTwinStripeApp>[0] & { twinBaseUrl?: string });
+          })()) as TwinHarness["app"];
       return {
         app,
         envName: "STRIPE",
         exportState: () => domain.exportState(STRIPE_LOCAL_ACCOUNT_ID),
         events: () => recorder.events(),
         extraClaims: { account_id: STRIPE_LOCAL_ACCOUNT_ID },
-        close: () => db.close(),
+        flush: () => flushRecorder(),
+        close: () => closeRecorderAndDb(() => db.close()),
       };
     }
 

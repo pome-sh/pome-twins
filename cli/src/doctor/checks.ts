@@ -182,7 +182,7 @@ async function checkTwinReachable(_configDir: string): Promise<DoctorCheck> {
     return fail(`could not reach the locally served twin: ${firstLine(err)}`);
   } finally {
     server?.close();
-    harness.close();
+    await harness.close();
   }
 }
 

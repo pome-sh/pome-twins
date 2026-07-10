@@ -2,31 +2,16 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { toTwinHttpEventRow } from "@pome-sh/sdk/server";
 import type { Scenario } from "../scenario/scenarioSchema.js";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import { redactEvent, redactSecrets } from "./redaction.js";
 import { META_SPEC_VERSION, resolveTwinPackageVersions } from "./specMeta.js";
 
-// FDRS-399 / FDRS-398 — wrap a legacy RecorderEvent (or pass through any row
-// that already carries a `kind` discriminator) into the unified events.jsonl
-// shape. Reuses `request_id` as `event_id` so within-run lookups stay stable
-// across the legacy and unified views.
-//
-// Exported so `runScenarioHosted` can apply the same wrap before uploading
-// events.jsonl to cloud storage. Without it, cloud's FDRS-398 schema gate
-// rejects the upload as "legacy single-shape RecorderEvent".
-export function toTwinHttpEvent(event: RecorderEvent): RecorderEvent & { kind: "TwinHttpEvent"; event_id: string; parent_id: null } {
-  const maybeKind = (event as { kind?: unknown }).kind;
-  if (typeof maybeKind === "string") {
-    return event as RecorderEvent & { kind: "TwinHttpEvent"; event_id: string; parent_id: null };
-  }
-  return {
-    ...event,
-    kind: "TwinHttpEvent",
-    event_id: event.request_id,
-    parent_id: null,
-  };
-}
+// FDRS-399 / FDRS-398 — wrap a legacy RecorderEvent into the unified
+// events.jsonl shape. Delegates to twin-core `toTwinHttpEventRow` so durable
+// stream rows and finalize appends stay byte-identical (F-698).
+export const toTwinHttpEvent = toTwinHttpEventRow;
 
 export type RunArtifacts = {
   runId: string;
@@ -84,14 +69,33 @@ export async function writeRunArtifactsCore(input: RunArtifactCoreInput): Promis
     twin_versions: resolveTwinPackageVersions(input.scenario.config.twins),
   });
   // events.jsonl is the unified discriminated-union view (FDRS-398). The
-  // in-process twin recorders still emit legacy RecorderEvent rows; wrap each
-  // one into a TwinHttpEvent before serializing so `pome inspect` (FDRS-403)
-  // and the dashboard ingest (FDRS-415) can parse them. APPEND (not
-  // truncate) so rows already written by the capture-server child
-  // (FDRS-399) during the run survive.
-  const eventsJsonl =
-    input.events.map((event) => JSON.stringify(redactEvent(toTwinHttpEvent(event)))).join("\n") + "\n";
-  await appendFile(join(runDir, "events.jsonl"), eventsJsonl);
+  // in-process twin recorders still expose legacy RecorderEvent rows via
+  // `events()`; wrap each into a TwinHttpEvent before serializing so
+  // `pome inspect` (FDRS-403) and dashboard ingest (FDRS-415) can parse them.
+  //
+  // F-698: the durable recorder may already have appended TwinHttpEvent rows
+  // during the run. Skip re-appending any event whose `event_id`/`request_id`
+  // is already on disk so finalize does not duplicate crash-streamed rows.
+  // APPEND (not truncate) so capture-server LlmCallEvent rows also survive.
+  const existingIds = await readExistingEventIds(join(runDir, "events.jsonl"));
+  const freshEvents = input.events.filter((event) => {
+    const id = event.request_id;
+    const maybeEventId = (event as { event_id?: unknown }).event_id;
+    if (typeof maybeEventId === "string" && existingIds.has(maybeEventId)) return false;
+    if (existingIds.has(id)) return false;
+    return true;
+  });
+  const eventsPath = join(runDir, "events.jsonl");
+  if (freshEvents.length > 0) {
+    const eventsJsonl =
+      freshEvents.map((event) => JSON.stringify(redactEvent(toTwinHttpEvent(event)))).join("\n") +
+      "\n";
+    await appendFile(eventsPath, eventsJsonl);
+  } else if (!existsSync(eventsPath)) {
+    // Preserve the six-file run-dir contract when nothing was streamed and
+    // the recorder emitted no events (F-689 / D6).
+    await writeFile(eventsPath, "");
+  }
   await writeJson(join(runDir, "state_initial.json"), input.stateInitial);
   await writeJson(join(runDir, "state_final.json"), input.stateFinal);
   await writeFile(join(runDir, "stdout.txt"), redactText(input.stdout));
@@ -134,6 +138,35 @@ export async function readMetaSummary(runDir: string): Promise<RunMetaSummary> {
 
 async function writeJson(path: string, value: unknown) {
   await writeFile(path, `${JSON.stringify(redactSecrets(value), null, 2)}\n`);
+}
+
+async function readExistingEventIds(eventsPath: string): Promise<Set<string>> {
+  const ids = new Set<string>();
+  if (!existsSync(eventsPath)) return ids;
+  try {
+    const raw = await readFile(eventsPath, "utf8");
+    for (const line of raw.split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const row = JSON.parse(line) as {
+          kind?: unknown;
+          event_id?: unknown;
+          request_id?: unknown;
+        };
+        // Only TwinHttpEvent rows participate in finalize dedupe. Other kinds
+        // (LlmCallEvent, HookEvent, …) may carry request_id/event_id values
+        // that must not suppress a twin HTTP row.
+        if (row.kind !== "TwinHttpEvent") continue;
+        if (typeof row.event_id === "string") ids.add(row.event_id);
+        if (typeof row.request_id === "string") ids.add(row.request_id);
+      } catch {
+        // Corrupt/partial trailing line from a crash — ignore for dedupe.
+      }
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+  return ids;
 }
 
 function redactText(value: string): string {

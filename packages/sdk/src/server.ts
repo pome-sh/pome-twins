@@ -1,3 +1,4 @@
+// file-size: server engine intentionally centralizes TwinDefinition boot, reserved routes, recorder shutdown, and auth wiring.
 // SPDX-License-Identifier: Apache-2.0
 //
 // `@pome-sh/sdk/server` — boot a `TwinDefinition` into a Hono app and
@@ -34,7 +35,7 @@ import { createAdminGate } from "./admin-gate.js";
 import { makeToolCallContext } from "./tool-context.js";
 import { twinBuildInfo } from "./build-info.js";
 import { handleMcpJsonRpc, mcpMethodNotAllowed } from "./mcp-jsonrpc.js";
-import { createRecorderHandle, type RecorderStore } from "./recorder.js";
+import { createRecorderHandle, resolveRecorderStore, type RecorderStore } from "./recorder.js";
 import { redactSecrets } from "./redaction.js";
 import { TwinError, UnknownToolError, envelopeFor } from "./errors.js";
 import {
@@ -56,6 +57,9 @@ export {
   createRecorderHandle,
   createRecorderStore,
   createFileBackedRecorderStore,
+  resolveRecorderStore,
+  toTwinHttpEventRow,
+  POME_RECORDER_EVENTS_PATH,
 } from "./recorder.js";
 export type {
   RecorderStore,
@@ -115,7 +119,7 @@ export interface ServeOptions<TDb = unknown, TSeed = unknown> {
   db?: TDb;
   /** Initial seed forwarded to `definition.domain({ seed })`. Validated against `definition.seed` if provided. */
   seed?: TSeed;
-  /** Custom recorder store. Defaults to in-memory. */
+  /** Custom recorder store. Defaults to `resolveRecorderStore()` (durable when `POME_RECORDER_EVENTS_PATH` is set). */
   recorder?: RecorderStore;
   /** Run identifier embedded in every recorder event. Defaults to "local". */
   runId?: string;
@@ -147,7 +151,7 @@ export function createApp<TDb, TSeed, TDomain>(
   const recorder = createRecorderHandle({
     runId,
     twin: definition.id,
-    store: options.recorder,
+    store: options.recorder ?? resolveRecorderStore(),
     errorEnvelope: definition.errorEnvelope,
     stampToolCallId: definition.stampToolCallId,
   });
@@ -442,16 +446,15 @@ export function createApp<TDb, TSeed, TDomain>(
 export interface ServeResult {
   app: Hono;
   /**
-   * Stop the bound HTTP server. Resolves once the server is fully closed.
-   * Throws if `serve()` was called without a `port` (no server was bound).
+   * Stop the bound HTTP server (if any), then flush+close the recorder store
+   * so durable tapes drain before process exit (F-698).
    */
   close(): Promise<void>;
 }
 
 /**
  * Build the app and bind a Node HTTP server. If `port` is omitted, no
- * server is bound and `close()` is a no-op — useful for tests that drive
- * the app via `app.request(...)`.
+ * server is bound — `close()` still flushes the recorder store.
  */
 export async function serve<TDb, TSeed, TDomain>(
   definition: TwinDefinition<TDb, TSeed, TDomain>,
@@ -466,9 +469,16 @@ export async function serve<TDb, TSeed, TDomain>(
       `TWIN_AUTH_SECRET is required when a twin listens on a non-loopback host (${hostname}).`
     );
   }
-  const app = createApp(definition, options);
+  // Resolve the store once so `close()` can flush the same instance the app
+  // records into (durable when POME_RECORDER_EVENTS_PATH is set).
+  const store = options.recorder ?? resolveRecorderStore();
+  const app = createApp(definition, { ...options, recorder: store });
+  const closeRecorder = async () => {
+    await store.flush?.();
+    await store.close?.();
+  };
   if (options.port === undefined) {
-    return { app, close: async () => undefined };
+    return { app, close: closeRecorder };
   }
   const { serve: nodeServe } = await import("@hono/node-server");
   const server = await new Promise<ReturnType<typeof nodeServe>>((resolve) => {
@@ -481,13 +491,50 @@ export async function serve<TDb, TSeed, TDomain>(
       () => resolve(bound)
     );
   });
-  return {
-    app,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        server.close((err?: Error) => (err ? reject(err) : resolve()));
-      }),
+  let closed = false;
+  const close = async () => {
+    if (closed) {
+      await closeRecorder();
+      return;
+    }
+    closed = true;
+    unregisterServeShutdown(close);
+    await new Promise<void>((resolve, reject) => {
+      server.close((err?: Error) => (err ? reject(err) : resolve()));
+    });
+    await closeRecorder();
   };
+  // Twin boot scripts (`await serve(...)`) never call close() themselves.
+  // Drain the durable recorder on graceful process signals so hosted twins
+  // with POME_RECORDER_EVENTS_PATH set do not lose the last accepted events.
+  // Shared registry: every served twin flushes before a single process.exit,
+  // so multi-twin processes cannot lose sibling recorder tapes.
+  registerServeShutdown(close);
+  return { app, close };
+}
+
+/** Active `serve({ port })` close hooks — drained together on SIGINT/SIGTERM. */
+const serveShutdownHooks = new Set<() => Promise<void>>();
+let serveSignalHandlersInstalled = false;
+
+function registerServeShutdown(close: () => Promise<void>): void {
+  serveShutdownHooks.add(close);
+  if (serveSignalHandlersInstalled) return;
+  serveSignalHandlersInstalled = true;
+  const onSignal = () => {
+    void (async () => {
+      const hooks = [...serveShutdownHooks];
+      serveShutdownHooks.clear();
+      await Promise.allSettled(hooks.map((hook) => hook()));
+      process.exit(0);
+    })();
+  };
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
+}
+
+function unregisterServeShutdown(close: () => Promise<void>): void {
+  serveShutdownHooks.delete(close);
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

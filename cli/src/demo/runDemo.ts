@@ -151,7 +151,7 @@ export async function runDemo(options: RunDemoOptions): Promise<RunDemoResult> {
       runId: "demo-warmup",
       twinBaseUrl: `http://127.0.0.1:${port}`,
     });
-    harness.close();
+    await harness.close();
     out(twinReadyLine((Date.now() - warmupStart) / 1000));
   }
 

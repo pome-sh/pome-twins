@@ -83,7 +83,7 @@ describe("bootTwin stripe harness", () => {
       expect(attempt, "the rejected JSON-RPC refund attempt must be recorded").toBeTruthy();
       expect(attempt!.error).toBeTruthy();
     } finally {
-      harness.close();
+      await harness.close();
     }
   });
 
@@ -125,7 +125,7 @@ describe("bootTwin stripe harness", () => {
         if (!server) return resolve();
         server.close((err?: Error) => (err ? reject(err) : resolve()));
       });
-      harness.close();
+      await harness.close();
     }
   });
 });
