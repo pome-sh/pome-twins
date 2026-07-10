@@ -120,8 +120,9 @@ jobs:
           npm install "$tgz" --no-audit --no-fund --ignore-scripts
           # bin resolves and dist entry is present:
           test -f node_modules/pomecli/dist/src/cli/main.js
-          # bundled twins made it into the tarball:
-          for t in shared-types twin-github twin-slack twin-stripe; do
+          # bundled packages made it into the tarball (must match
+          # bundleDependencies in cli/package.json):
+          for t in sdk shared-types twin-github twin-slack twin-stripe; do
             ls node_modules/pomecli/node_modules/@pome-sh/$t/package.json \
               || { echo "MISSING bundled @pome-sh/$t in published tarball"; exit 1; }
           done

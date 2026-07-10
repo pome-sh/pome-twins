@@ -20,13 +20,18 @@ set -euo pipefail
 
 local_version="$(node -p "require('./cli/package.json').version")"
 
+# Keep stdout (the version) separate from stderr: npm writes notices and
+# warnings to stderr even on success, and E404 details on failure.
+stderr_file="$(mktemp)"
+trap 'rm -f "$stderr_file"' EXIT
 set +e
-view_output="$(npm view pomecli version 2>&1)"
+view_stdout="$(npm view pomecli version 2>"$stderr_file")"
 view_status=$?
 set -e
+view_stderr="$(cat "$stderr_file")"
 
 if [[ $view_status -ne 0 ]]; then
-  if grep -q "E404" <<<"$view_output"; then
+  if grep -q "E404" <<<"$view_stderr"; then
     echo "✅ pomecli is not on npm yet (E404) — first publish, no version floor to enforce."
     exit 0
   fi
@@ -35,7 +40,7 @@ if [[ $view_status -ne 0 ]]; then
   exit 2
 fi
 
-published_version="$view_output"
+published_version="$view_stdout"
 
 # Plain x.y.z numeric compare — pomecli has never published prerelease tags.
 # Fail closed on anything that isn't plain x.y.z (a prerelease suffix would
