@@ -40,8 +40,7 @@ const PAIRS = Number.parseInt(process.env.OVERHEAD_BENCH_PAIRS ?? "3", 10);
 const BUDGET_MS = Number.parseFloat(process.env.OVERHEAD_BENCH_BUDGET_MS ?? "5");
 const SCENARIO_PATH = process.env.OVERHEAD_BENCH_SCENARIO ?? "scenarios/01-bug-happy-path.md";
 const AGENT_SCRIPT = process.env.OVERHEAD_BENCH_AGENT ?? "scripts/overhead-bench-agent.ts";
-// Pome's in-process twin uses better-sqlite3 (Node N-API), and
-// pome's capture-server child re-invokes `process.execPath process.argv[1]
+// Pome's capture-server child re-invokes `process.execPath process.argv[1]
 // capture-server …` — which only works when argv[1] is a runtime-loadable
 // file. Easiest invariant: build first, then point the gate at the compiled
 // `dist/src/cli/main.js` so both the parent and the spawned child run under
