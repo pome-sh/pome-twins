@@ -1,5 +1,21 @@
 # @pome-sh/sdk
 
+## 0.3.1 — 2026-07-10
+
+SQLite driver swapped from `better-sqlite3` to the `node:sqlite` builtin
+(F-703) — zero native dependencies; a fresh install needs no compiler
+toolchain.
+
+- `openTwinDatabase()` / `TwinDatabase` reimplemented on `node:sqlite`:
+  same-shape `transaction(fn)` (+ `.immediate`) backed by
+  `BEGIN [IMMEDIATE]`/`COMMIT`/`ROLLBACK`, joining an already-open
+  transaction via `SAVEPOINT` (better-sqlite3's nesting semantics).
+  `TwinRunResult` shape unchanged.
+- `better-sqlite3` dropped from `peerDependencies` — nothing native to
+  install, optional or otherwise.
+
+No API changes.
+
 ## 0.3.0 — 2026-07-10
 
 Durable write-through recorder (the CLI's crash-safe local runs build on this;
