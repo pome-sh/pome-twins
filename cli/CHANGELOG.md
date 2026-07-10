@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+### Patch Changes
+
+- [#103](https://github.com/pome-sh/pome-twins/pull/103) [`830164f`](https://github.com/pome-sh/pome-twins/commit/830164fab0f3c51b654878ae95934a17e3c5624b) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Zero native dependencies: better-sqlite3 is gone from the install closure (F-704). The bundled twin engine now runs on the `node:sqlite` builtin (`@pome-sh/sdk` 0.3.1, twins 0.1.2/0.1.2/0.2.2), so `npm install`/`npx` needs no compiler toolchain. No behavior changes.
+
 All notable changes to the `pome` CLI are documented here. The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows [Semantic Versioning](https://semver.org/).
 
 The full product changelog lives at https://docs.pome.sh/changelog. This file tracks CLI-package releases specifically.

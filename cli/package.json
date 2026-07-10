@@ -1,6 +1,6 @@
 {
   "name": "@pome-sh/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Digital-twin testing for AI agents — run scenarios against resettable local or hosted twins, record tool calls, and score the result.",
   "keywords": [
     "ai",
