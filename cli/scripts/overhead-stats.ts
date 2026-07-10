@@ -67,3 +67,72 @@ export function p99Delta(
   deltas.sort((a, b) => a - b);
   return percentile(deltas, 0.99);
 }
+
+export function median(values: ReadonlyArray<number>): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return percentile(sorted, 0.5);
+}
+
+// F-728 — the runner's measured noise floor at the gate's own statistic: an
+// A/A test. Pairwise p99Delta between baseline (no-capture) runs says how far
+// apart two runs of the SAME distribution land on this runner right now, with
+// zero true overhead in play. p99Delta is directional — tail stalls in the
+// FIRST argument surface as positive deltas at p99, stalls in the second
+// mostly don't — and only positive deltas ever fail the gate, so each pair
+// contributes its worse direction (clamped at 0). Median over the pairs
+// resists one bad baseline run. NaN when fewer than two baselines are
+// supplied.
+export function p99NoiseFloor(baselineRuns: ReadonlyArray<ReadonlyArray<number>>): number {
+  const nulls: number[] = [];
+  for (let i = 0; i < baselineRuns.length; i++) {
+    for (let j = i + 1; j < baselineRuns.length; j++) {
+      const forward = p99Delta(baselineRuns[i]!, baselineRuns[j]!);
+      const reverse = p99Delta(baselineRuns[j]!, baselineRuns[i]!);
+      if (!Number.isFinite(forward) || !Number.isFinite(reverse)) continue;
+      nulls.push(Math.max(forward, reverse, 0));
+    }
+  }
+  if (nulls.length === 0) return NaN;
+  return median(nulls);
+}
+
+export interface GateVerdict {
+  deltas: number[];
+  medianDelta: number;
+  noiseFloor: number;
+  allowance: number;
+  effectiveBudgetMs: number;
+  pass: boolean;
+}
+
+// F-728 — the full gate verdict, pure so it's unit-testable. Per-pair p99
+// deltas → median (one noisy A/B pair can't flip the verdict) → compared
+// against budget + allowance, where allowance is the A/A noise floor from
+// the baseline runs, capped at the budget itself. The cap bounds worst-case
+// leniency at 2× budget: a pathologically noisy runner can't absorb an
+// arbitrary regression. A real capture-path regression shifts every A/B
+// delta but leaves the B/B null deltas untouched, so it cannot hide inside
+// the allowance.
+export function evaluateGate(
+  withRuns: ReadonlyArray<ReadonlyArray<number>>,
+  withoutRuns: ReadonlyArray<ReadonlyArray<number>>,
+  budgetMs: number,
+): GateVerdict {
+  const pairs = Math.min(withRuns.length, withoutRuns.length);
+  const deltas: number[] = [];
+  for (let i = 0; i < pairs; i++) {
+    deltas.push(p99Delta(withRuns[i]!, withoutRuns[i]!));
+  }
+  const medianDelta = median(deltas);
+  const floor = withoutRuns.length >= 2 ? p99NoiseFloor(withoutRuns) : 0;
+  const allowance = Number.isFinite(floor) ? Math.min(Math.max(floor, 0), budgetMs) : 0;
+  const effectiveBudgetMs = budgetMs + allowance;
+  return {
+    deltas,
+    medianDelta,
+    noiseFloor: floor,
+    allowance,
+    effectiveBudgetMs,
+    pass: Number.isFinite(medianDelta) && medianDelta <= effectiveBudgetMs,
+  };
+}

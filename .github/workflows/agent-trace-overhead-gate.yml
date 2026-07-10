@@ -1,8 +1,13 @@
 name: agent-trace-overhead-gate
 
-# FDRS-405 — runs the bundled triage scenario twice (capture on / off),
-# accumulates N=100 per-call latency samples from each, and fails the build
-# if p99(with − without) > 5ms. Same run also asserts PR/FAQ acceptance #1:
+# FDRS-405 — runs the bundled triage scenario in capture-on/off A/B pairs,
+# accumulates N per-call latency samples from each, and fails the build when
+# p99(with − without) exceeds the 5ms budget. F-728: N=1000 (p99 stability),
+# and when the first pair lands over budget the gate escalates to 3 pairs —
+# median delta judged against budget + an A/A noise allowance measured from
+# the no-capture baselines — so shared-runner tail noise can't flip the
+# verdict while a real capture-path regression still fails every path.
+# Same run also asserts PR/FAQ acceptance #1:
 # scenario 01 with a no-adapter agent emits ≥1 LlmCallEvent + ≥1
 # TwinHttpEvent (tool_call_id: null) in events.jsonl, and `pome inspect`
 # exits 0 with a "Trace health" section.
@@ -89,9 +94,11 @@ jobs:
       - name: Run agent-trace overhead gate (PR/FAQ #1)
         working-directory: cli
         env:
-          # Wired by `cli/scripts/overhead-gate.ts`; defaults match FDRS-405
-          # ("N=100, budget 5ms"). Overrideable for local triage runs.
-          OVERHEAD_BENCH_N: '100'
+          # Wired by `cli/scripts/overhead-gate.ts`. Budget is FDRS-405's 5ms;
+          # N and the escalation pair count are F-728's recalibration for
+          # shared-runner noise. Overrideable for local triage runs.
+          OVERHEAD_BENCH_N: '1000'
+          OVERHEAD_BENCH_PAIRS: '3'
           OVERHEAD_BENCH_BUDGET_MS: '5'
         run: npx tsx scripts/overhead-gate.ts
       - name: Run durable recorder overhead gate (F-722)

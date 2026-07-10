@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// FDRS-405 — `agent-trace-overhead-gate`. Runs `pome run` against the bundled
-// triage scenario twice — once with the capture-server proxy enabled
-// (default) and once with `--no-capture` — accumulates N=100 per-call latency
-// samples from each run's agent stdout, and fails if p99(with - without) > 5ms.
+// FDRS-405 / F-728 — `agent-trace-overhead-gate`. Runs `pome run` against the
+// bundled triage scenario in A/B pairs — capture-server proxy enabled
+// (default) vs `--no-capture` — accumulating N per-call latency samples from
+// each run's agent stdout. Fails when p99(with − without) exceeds the 5ms
+// budget: strictly on the first pair's delta, or (after escalating to
+// multiple pairs) on the median delta vs budget + a measured A/A
+// runner-noise allowance. See the protocol comment in main().
 //
 // Same run also enforces PR/FAQ acceptance #1: scenario 01 with no-adapter
 // agent produces `events.jsonl` with ≥1 `LlmCallEvent` + ≥1 `TwinHttpEvent`
@@ -19,13 +22,21 @@ import { createServer as createNetServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  evaluateGate,
   p99Delta,
   parseSamples,
   summarize,
   type LatencyStats,
 } from "./overhead-stats.js";
 
-const N = Number.parseInt(process.env.OVERHEAD_BENCH_N ?? "100", 10);
+// F-728 — N default raised 100 → 1000: at N=100 the nearest-rank p99 is the
+// second-largest sample, so one OS scheduling stall in either run's tail
+// flipped the verdict on shared runners. At N=1000 the p99 sits 10 ranks off
+// the max. Samples are local TCP connects, so the extra 900 cost ~1–2s/run.
+const N = Number.parseInt(process.env.OVERHEAD_BENCH_N ?? "1000", 10);
+// Number of A/B run pairs measured when the first pair lands over budget
+// (the escalation path). The verdict is the median of the per-pair deltas.
+const PAIRS = Number.parseInt(process.env.OVERHEAD_BENCH_PAIRS ?? "3", 10);
 const BUDGET_MS = Number.parseFloat(process.env.OVERHEAD_BENCH_BUDGET_MS ?? "5");
 const SCENARIO_PATH = process.env.OVERHEAD_BENCH_SCENARIO ?? "scenarios/01-bug-happy-path.md";
 const AGENT_SCRIPT = process.env.OVERHEAD_BENCH_AGENT ?? "scripts/overhead-bench-agent.ts";
@@ -113,48 +124,53 @@ async function main(): Promise<void> {
   console.log(`[overhead-gate] N=${N} budget=${BUDGET_MS}ms target=${target}`);
 
   try {
-    // FDRS-405 — the gate metric is p99(with) − p99(without), a difference of
-    // two tail percentiles from two separate short runs. The TRUE proxy
-    // overhead is ~1ms, but on a shared/noisy CI runner a single OS scheduling
-    // hiccup in either run's tail can push the *difference* over the 5ms
-    // budget without any real regression (main's push build flaked at
-    // delta=5.161ms vs 5.0; the same commit measured 1.377ms on the PR runner).
-    // To stay honest about the budget while shedding this transient noise:
-    // retry the A/B measurement up to MAX_ATTEMPTS and PASS on the first
-    // attempt within budget. A genuine regression exceeds every attempt;
-    // scheduling jitter won't. The PR/FAQ #1 correctness assertions are shape
-    // checks independent of latency, so they run once, on the first attempt.
-    const MAX_ATTEMPTS = 3;
-    let delta = Number.NaN;
+    // F-728 (supersedes the FDRS-405 retry loop) — the gate metric is a
+    // difference of two tail percentiles from two separate short runs. The
+    // TRUE proxy overhead is ~1ms, but shared-runner noise flipped the
+    // verdict near the 5ms budget (PR #99: 5.160ms and 5.442ms on unchanged
+    // recorder code, exhausting 3 retries twice — the noise was persistent
+    // per-runner, so retry-until-pass couldn't shed it). The protocol now:
+    //
+    //   1. Measure one A/B pair. Within the strict budget → PASS (the common
+    //      quiet-runner case costs the same 2 runs as before).
+    //   2. Over budget → escalate: measure PAIRS A/B pairs total, alternating
+    //      run order to cancel warm-up bias. Verdict = median(per-pair p99
+    //      deltas) ≤ budget + allowance, where allowance is the A/A noise
+    //      floor measured from the baseline runs (capped at the budget).
+    //
+    // A real regression shifts every A/B delta but not the B/B null deltas,
+    // so it fails the escalated verdict; runner noise inflates the null
+    // deltas too and is absorbed. The PR/FAQ #1 correctness assertions are
+    // shape checks independent of latency, so they run once, on the first
+    // capture-enabled run.
+    const withRuns: number[][] = [];
+    const withoutRuns: number[][] = [];
     let acceptanceChecked = false;
 
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      if (attempt > 1) {
-        console.log(
-          `[overhead-gate] previous attempt over budget — retry ${attempt}/${MAX_ATTEMPTS} (transient CI tail noise, not a regression)`,
-        );
-      }
-
-      // RUN A — capture enabled (default). The agent inherits HTTPS_PROXY
-      // pointing at the spawned capture-server child; per-iteration timings
-      // include the CONNECT-tunnel hop.
-      console.log("[overhead-gate] run A: capture enabled");
-      const withCapture = await runPome({ noCapture: false, target, scaffold });
-
-      // RUN B — `--no-capture`. No proxy is spawned, HTTPS_PROXY is unset; the
-      // agent makes direct TCP connections to the same upstream.
-      console.log("[overhead-gate] run B: --no-capture");
-      const withoutCapture = await runPome({ noCapture: true, target, scaffold });
-
-      const a = summarize(withCapture.samples);
-      const b = summarize(withoutCapture.samples);
-      delta = p99Delta(withCapture.samples, withoutCapture.samples);
-
-      printStats("with capture", a);
-      printStats("without capture", b);
+    for (let pair = 1; pair <= PAIRS; pair++) {
+      // Alternate which side runs first (A,B / B,A / A,B …) so first-run
+      // effects (page cache, CPU frequency ramp) don't systematically load
+      // onto the capture side.
+      const captureFirst = pair % 2 === 1;
       console.log(
-        `[overhead-gate] p99(with − without) = ${fmt(delta)}ms (budget ${BUDGET_MS}ms) [attempt ${attempt}/${MAX_ATTEMPTS}]`,
+        `[overhead-gate] pair ${pair}/${PAIRS}: ${captureFirst ? "capture → no-capture" : "no-capture → capture"}`,
       );
+      let withCapture: RunResult;
+      let withoutCapture: RunResult;
+      if (captureFirst) {
+        withCapture = await runPome({ noCapture: false, target, scaffold });
+        withoutCapture = await runPome({ noCapture: true, target, scaffold });
+      } else {
+        withoutCapture = await runPome({ noCapture: true, target, scaffold });
+        withCapture = await runPome({ noCapture: false, target, scaffold });
+      }
+      withRuns.push(withCapture.samples);
+      withoutRuns.push(withoutCapture.samples);
+
+      printStats(`with capture #${pair}`, summarize(withCapture.samples));
+      printStats(`without capture #${pair}`, summarize(withoutCapture.samples));
+      const delta = p99Delta(withCapture.samples, withoutCapture.samples);
+      console.log(`[overhead-gate] pair ${pair} p99(with − without) = ${fmt(delta)}ms (budget ${BUDGET_MS}ms)`);
 
       // PR/FAQ acceptance #1 — events.jsonl shape after the capture-enabled
       // run (≥1 LlmCallEvent + ≥1 TwinHttpEvent with tool_call_id: null, since
@@ -166,19 +182,38 @@ async function main(): Promise<void> {
         acceptanceChecked = true;
       }
 
-      // A non-finite delta is a structural failure (e.g. missing samples), not
-      // noise — retrying can't help, so fail immediately.
+      // A non-finite delta is a structural failure (e.g. missing samples),
+      // not noise — more pairs can't help, so fail immediately.
       if (!Number.isFinite(delta)) {
         fail(`p99 delta is not finite (${delta}); the gate cannot be evaluated`);
       }
-      if (delta <= BUDGET_MS) {
-        console.log("[overhead-gate] PASS");
+
+      // Fast path: the first pair passing the STRICT budget is the strongest
+      // possible verdict — no allowance in play, nothing more to measure.
+      if (pair === 1 && delta <= BUDGET_MS) {
+        console.log("[overhead-gate] PASS (first pair within strict budget)");
         return;
+      }
+      if (pair === 1) {
+        console.log(
+          `[overhead-gate] first pair over budget — escalating to ${PAIRS}-pair protocol with A/A noise allowance`,
+        );
       }
     }
 
+    const verdict = evaluateGate(withRuns, withoutRuns, BUDGET_MS);
+    console.log(
+      `[overhead-gate] escalated verdict: median(deltas)=${fmt(verdict.medianDelta)}ms ` +
+        `deltas=[${verdict.deltas.map(fmt).join(", ")}]ms ` +
+        `A/A noise floor=${fmt(verdict.noiseFloor)}ms allowance=${fmt(verdict.allowance)}ms ` +
+        `effective budget=${fmt(verdict.effectiveBudgetMs)}ms`,
+    );
+    if (verdict.pass) {
+      console.log("[overhead-gate] PASS (median delta within budget + measured runner-noise allowance)");
+      return;
+    }
     fail(
-      `p99 overhead exceeded budget ${BUDGET_MS}ms on all ${MAX_ATTEMPTS} attempts (last ${fmt(delta)}ms) — a real regression, not runner noise`,
+      `median p99 overhead ${fmt(verdict.medianDelta)}ms exceeded budget ${BUDGET_MS}ms + noise allowance ${fmt(verdict.allowance)}ms across ${PAIRS} pairs — a real regression, not runner noise`,
     );
   } finally {
     await echo.close();
@@ -213,7 +248,14 @@ async function runPome(input: { noCapture: boolean; target: string; scaffold: st
     POME_CAPTURE_TEST_TARGET: input.target,
     OVERHEAD_BENCH_N: String(N),
   };
-  env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(process.env.POME_AGENT_ENV_ALLOWLIST, "POME_CAPTURE_TEST_TARGET");
+  // OVERHEAD_BENCH_N must be allowlisted explicitly or `pome run`'s agent-env
+  // filter strips it and the agent silently falls back to its own default —
+  // invisible while both defaults were 100 (F-728 raised the orchestrator's).
+  env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(
+    process.env.POME_AGENT_ENV_ALLOWLIST,
+    "POME_CAPTURE_TEST_TARGET",
+    "OVERHEAD_BENCH_N",
+  );
   // Pome reads ~/.pome/credentials.json when present; POME_LOCAL=1 routes
   // around it. The keychain shim is also force-disabled so a developer with
   // creds in macOS Keychain doesn't accidentally trigger a hosted run.
@@ -241,9 +283,9 @@ async function runPome(input: { noCapture: boolean; target: string; scaffold: st
   return { stdout, stderr, exitCode, runDir, samples };
 }
 
-function appendAllowlist(existing: string | undefined, name: string): string {
+function appendAllowlist(existing: string | undefined, ...names: string[]): string {
   const values = new Set((existing ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
-  values.add(name);
+  for (const name of names) values.add(name);
   return [...values].join(",");
 }
 

@@ -2,7 +2,7 @@
 // FDRS-405 — overhead-gate agent. Run by `pome run` inside the CI overhead
 // gate. Does enough twin work to produce ≥1 `TwinHttpEvent` (so the gate run
 // also satisfies PR/FAQ acceptance #1's events.jsonl shape), then loops
-// `OVERHEAD_BENCH_N` (default 100) TCP connections to a fixed upstream —
+// `OVERHEAD_BENCH_N` (default 1000, F-728) TCP connections to a fixed upstream —
 // via `HTTPS_PROXY` CONNECT tunnel when the env is set, direct TCP
 // otherwise — emitting one `OVERHEAD_BENCH_SAMPLE_MS=<n>` line per iteration
 // to stdout. The orchestrator (`cli/scripts/overhead-gate.ts`) reads
@@ -23,7 +23,7 @@ if (process.env.POME_PREFLIGHT === "1") {
   process.exit(0);
 }
 
-const N = Number.parseInt(process.env.OVERHEAD_BENCH_N ?? "100", 10);
+const N = Number.parseInt(process.env.OVERHEAD_BENCH_N ?? "1000", 10);
 const target = requiredEnv("POME_CAPTURE_TEST_TARGET");
 const lastColon = target.lastIndexOf(":");
 if (lastColon < 0) {
