@@ -57,6 +57,7 @@ section in the same PR.
 | No cloud imports in OSS packages | [`scripts/lint-no-cloud-imports.sh`](scripts/lint-no-cloud-imports.sh) |
 | No cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (empty allowlist) |
 | Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `npm run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| Zero native modules in the production dependency closure (gyp markers: `binding.gyp` / `"gypfile"`; prebuilt installers like esbuild/fsevents pass) | [`scripts/no-native-modules.mjs`](scripts/no-native-modules.mjs) via `npm run gate:no-native` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (root closure) and [`.github/workflows/cli-ci.yml`](.github/workflows/cli-ci.yml) (CLI closure) |
 | Package barrels + file-size hygiene | [`scripts/lint-code-health.mjs`](scripts/lint-code-health.mjs) |
 | `@pome-sh/cli` version never behind npm `latest` — a publish must not retag `latest` backwards (first publish exempt: an E404 baseline passes) | [`scripts/check-cli-version-floor.sh`](scripts/check-cli-version-floor.sh) in [`.github/workflows/cli-ci.yml`](.github/workflows/cli-ci.yml) (PRs) and [`.github/workflows/cli-release.yml`](.github/workflows/cli-release.yml) (pre-publish) |
 

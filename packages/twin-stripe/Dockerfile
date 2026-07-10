@@ -3,11 +3,6 @@
 # standalone package context.
 FROM node:24-bookworm@sha256:c35698d36238c69451c7e7a5951dd5c9b11c3e45884c918059c94c4a8be969b1 AS build
 WORKDIR /repo
-# better-sqlite3 is a native module that node-gyp must compile; the slim
-# runtime image lacks a C++ toolchain, so compile in this build stage.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY packages packages
 RUN npm ci

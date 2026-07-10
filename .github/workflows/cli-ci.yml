@@ -63,11 +63,9 @@ jobs:
       - name: CLI version not behind npm latest
         working-directory: ${{ github.workspace }}
         run: scripts/check-cli-version-floor.sh
-      # FDRS-652/658 — Node 24, not 20. `npm ci` builds better-sqlite3,
-      # whose install falls through to `node-gyp@latest`; that node-gyp bundles
-      # an undici needing `webidl.util.markAsUncloneable`, absent from Node 20's
-      # runtime (crashes with a TypeError). Node 24 has the API, so the native
-      # build succeeds.
+      # Node 24 — the repo's engines floor (node:sqlite twins, PR #85/F-719).
+      # The old reason (better-sqlite3's node-gyp needing Node 24 APIs) died
+      # with F-704; the floor itself stands.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
@@ -95,6 +93,9 @@ jobs:
       - run: |
           npm install --package-lock-only --ignore-scripts
           npm ci
+      # F-705 — the CLI's production closure must stay free of gyp-marked
+      # packages (the published artifact bundles the twins).
+      - run: npm run gate:no-native
       - run: npm run typecheck
       - run: npm run build
       - run: npm test

@@ -26,6 +26,9 @@ jobs:
       - run: bash scripts/lint-no-cloud-imports.sh
       - run: npm ci
       - run: npm run lint:dead-code
+      # F-705 — zero native deps is an invariant: no gyp-marked package in the
+      # production closure (prebuilt installers like esbuild/fsevents pass).
+      - run: npm run gate:no-native
       # F-692 / D9 — one repo-wide capture-only gate, scanning cli/src/**,
       # cli/scripts/**, and packages/** (cli-ci.yml's former duplicate step
       # was folded in here).

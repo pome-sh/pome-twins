@@ -11,6 +11,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh",
     "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
+    "gate:no-native": "node scripts/no-native-modules.mjs",
     "lint:copy-markers": "node scripts/check-copy-markers.mjs",
     "lint:code-health": "node scripts/lint-code-health.mjs",
     "lint:dead-code": "knip --no-config-hints"
