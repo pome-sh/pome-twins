@@ -4,6 +4,13 @@ All notable changes to the Stripe twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.2 — 2026-07-10
+
+Dependency-only release for the node:sqlite driver swap (F-703):
+`@pome-sh/sdk` pinned to 0.3.1 and the direct `better-sqlite3` dependency
+dropped — the twin's install closure now has zero native modules. No twin
+behavior changes.
+
 ## 0.2.1 — 2026-07-10
 
 Dependency-only release: `@pome-sh/sdk` pinned to 0.3.0 (durable write-through
