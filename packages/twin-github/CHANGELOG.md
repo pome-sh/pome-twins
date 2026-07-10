@@ -4,6 +4,12 @@ All notable changes to the GitHub twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.1.1 — 2026-07-10
+
+Dependency-only release: `@pome-sh/sdk` pinned to 0.3.0 (durable write-through
+recorder) so the CLI bundle resolves a single sdk copy. No twin behavior
+changes.
+
 ## 0.1.0 — 2026-07-09
 
 First npm-published release (F-714).

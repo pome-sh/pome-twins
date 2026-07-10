@@ -113,8 +113,26 @@ jobs:
           set -euo pipefail
           publish_one() {
             local pattern="$1"
-            local tgz
+            local tgz name_ver
             tgz="$(ls "$RUNNER_TEMP"/tarballs/$pattern)"
+            # Skip already-published versions: unchanged packages keep their
+            # version across batches, and npm would otherwise abort the whole
+            # batch with EPUBLISHCONFLICT on the first unchanged package.
+            name_ver="$(tar -xOzf "$tgz" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s);console.log(p.name+"@"+p.version)})')"
+            # Only E404 means "not published yet"; any other npm view failure
+            # (timeout, rate limit, auth) is indeterminate — fail loudly
+            # instead of guessing the publish state.
+            local view_err
+            view_err="$(mktemp)"
+            if npm view "$name_ver" version >/dev/null 2>"$view_err"; then
+              echo "skip $name_ver — already published"
+              return 0
+            fi
+            if ! grep -q "E404" "$view_err"; then
+              echo "npm view $name_ver failed without E404 — cannot determine publish state:" >&2
+              cat "$view_err" >&2
+              return 1
+            fi
             npm publish "$tgz" --access public --provenance
           }
           publish_one 'pome-sh-shared-types-*.tgz'
