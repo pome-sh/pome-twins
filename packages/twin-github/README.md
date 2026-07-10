@@ -105,7 +105,8 @@ that pins and verifies the new signed digest.
   build regenerates one on each rebuild)
 - `npm run build` exits 0 and emits `dist/src/server.js`
 - Built output is loadable under Node 24 — the snapshot runs `runtime: "node24"`.
-  Uses Node-native `better-sqlite3` (N-API) in the Node 24 runtime image.
+  SQLite is the built-in `node:sqlite` (via the sdk's `openTwinDatabase()`,
+  F-703) — no native modules, no compiler toolchain.
 
 ### Runtime
 

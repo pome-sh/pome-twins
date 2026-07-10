@@ -4,6 +4,7 @@
 // wrapper only — `open` + pragmas + a same-shape `transaction()` helper — so
 // the M2 node:sqlite swap (F-703) is a one-file change in the engine.
 import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -22,6 +23,28 @@ function withDb<T>(fn: (db: TwinDatabase) => T, path = ":memory:"): T {
     db.close();
   }
 }
+
+describe("driver (F-703)", () => {
+  it("is backed by node:sqlite — better-sqlite3 never enters the module cache", () => {
+    withDb((db) => {
+      db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+      db.prepare("INSERT INTO t (name) VALUES (?)").run("a");
+      const row = db.prepare("SELECT name FROM t WHERE id = ?").get(1) as { name: string };
+      expect(row.name).toBe("a");
+    });
+    // node:sqlite is a builtin: opening a database registers it in
+    // process.moduleLoadList ("NativeModule sqlite") and pulls nothing
+    // from node_modules — better-sqlite3 must be absent from the CJS cache.
+    // moduleLoadList is real but undocumented, so @types/node omits it.
+    const { moduleLoadList } = process as unknown as { moduleLoadList: string[] };
+    expect(moduleLoadList).toContain("NativeModule sqlite");
+    const require = createRequire(import.meta.url);
+    const nativeDriver = Object.keys(require.cache ?? {}).filter((path) =>
+      path.includes("better-sqlite3")
+    );
+    expect(nativeDriver).toEqual([]);
+  });
+});
 
 describe("openTwinDatabase", () => {
   it("opens an in-memory database and round-trips rows", () => {
@@ -118,6 +141,32 @@ describe("transaction()", () => {
       expect(() => failing()).toThrow("boom");
       const row = db.prepare("SELECT COUNT(*) AS n FROM t").get() as { n: number };
       expect(row.n).toBe(0);
+    });
+  });
+
+  it("nests like better-sqlite3: inner transactions join via savepoint, inner failure rolls back only inner work (github's seed nests createIssue)", () => {
+    withDb((db) => {
+      db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+      const inner = db.transaction((name: string) => {
+        db.prepare("INSERT INTO t (name) VALUES (?)").run(name);
+      });
+      const failingInner = db.transaction(() => {
+        db.prepare("INSERT INTO t (name) VALUES (?)").run("inner-rolled-back");
+        throw new Error("inner boom");
+      });
+      const outer = db.transaction(() => {
+        db.prepare("INSERT INTO t (name) VALUES (?)").run("outer");
+        inner.immediate("inner");
+        try {
+          failingInner();
+        } catch {
+          // Swallowed: the outer transaction keeps its own work.
+        }
+        return true;
+      });
+      expect(outer()).toBe(true);
+      const rows = db.prepare("SELECT name FROM t ORDER BY id").all() as Array<{ name: string }>;
+      expect(rows.map((row) => row.name)).toEqual(["outer", "inner"]);
     });
   });
 
