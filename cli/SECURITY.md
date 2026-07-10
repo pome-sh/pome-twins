@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The latest published `pomecli` CLI line receives security updates. Older versions are not patched (including the deprecated `pome-sh` line this CLI was previously published under).
+The latest published `@pome-sh/cli` CLI line receives security updates. Older versions are not patched (including the deprecated `pome-sh` line this CLI was previously published under).
 
 ## Reporting a vulnerability
 

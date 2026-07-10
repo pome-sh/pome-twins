@@ -1,5 +1,5 @@
 {
-  "name": "pomecli",
+  "name": "@pome-sh/cli",
   "version": "0.1.0",
   "description": "Digital-twin testing for AI agents — run scenarios against resettable local or hosted twins, record tool calls, and score the result.",
   "keywords": [
@@ -27,9 +27,6 @@
   "author": "Pome <founders@pome.sh> (https://pome.sh)",
   "license": "Apache-2.0",
   "type": "module",
-  "workspaces": [
-    "."
-  ],
   "bin": {
     "pome": "./dist/src/cli/main.js"
   },

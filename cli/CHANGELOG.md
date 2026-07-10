@@ -6,11 +6,14 @@ The full product changelog lives at https://docs.pome.sh/changelog. This file tr
 
 ## 0.1.0
 
-First release under the package name **`pomecli`** (F-727). The CLI was
+First release under the package name **`@pome-sh/cli`** (F-727). The CLI was
 previously published as `pome-sh`; that npm package is deprecated in place and
 its 0.5.x–0.8.0 history is preserved below (npm never reuses published version
 numbers, so this line restarts at 0.1.0). Same CLI, same `pome` command — only
-the install name changes: `npx pomecli` / `npm install -g pomecli`.
+the install name changes: `npx @pome-sh/cli` / `npm install -g @pome-sh/cli`.
+The org-scoped name is deliberate: npm's name-similarity rule blocks the
+unscoped `pomecli` (too close to the unrelated, long-abandoned `pome-cli`),
+and scoped names are immune to that class of collision.
 
 Requires Node.js ≥ 24.
 
@@ -79,7 +82,7 @@ does; the verdict comes from Pome's hosted evaluation.
 
 ### Fixed
 
-- `npm install -g pomecli` now installs a runnable `pome` with no manual `chmod`.
+- `npm install -g @pome-sh/cli` now installs a runnable `pome` with no manual `chmod`.
 - Various run-reliability fixes: correct upload format, environment parity
   between local and hosted runs, friendlier capacity messages, and cleanup of
   abandoned sessions on error.
@@ -92,7 +95,7 @@ does; the verdict comes from Pome's hosted evaluation.
 ## Historical releases (published as `pome-sh`)
 
 Everything below shipped on npm under the previous package name `pome-sh`,
-now deprecated in favor of `pomecli`. Those version numbers belong to that
+now deprecated in favor of `@pome-sh/cli`. Those version numbers belong to that
 package and are never reused.
 
 ## 0.8.0
