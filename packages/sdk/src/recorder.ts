@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
+// Twin-core recorder (F-681 / F-720). Home: `packages/sdk/src/recorder.ts`
+// (`@pome-sh/sdk`). There is no separate `packages/twin-core` package — the
+// SDK *is* twin-core for recorder ownership. All first-party twins and the
+// CLI harness consume this module.
+//
 // In-memory recorder + `handle()` helper. `handle({mutation}, fn)` wraps a
 // Hono handler so every wrapped route emits a `RecorderEvent` matching
 // `recording-spec.md` v1.0:
@@ -12,8 +17,58 @@
 //   - `error` = response_body.message when status >= 400, null otherwise.
 //   - Memory: bounded by session timeout × max-rps; events live for the
 //     pod's lifetime and are read once via GET /_pome/events at end-of-run.
+//
+// ── Write-through contract (F-720) ──────────────────────────────────────────
+//
+// Acceptance: an event is *accepted* once `RecorderStore.record()` returns.
+// For the in-memory store that means the row is in the heap tape. For a
+// durable/file-backed store it means the row has been queued for append to
+// the NDJSON file (and is visible via `events()`); durability to disk is
+// completed by `flush()` / `close()` (see below). Callers must not treat
+// `record()` alone as a crash-safe fsync.
+//
+// Redaction: `createRecorderHandle` redacts *before* every `store.record()`
+// call — including custom stores and direct `recorder.record()` — so no
+// store ever sees unredacted secrets. Stores must not re-emit raw bodies.
+//
+// Persisted row shape: durable stores write one redacted `RecorderEvent` per
+// NDJSON line (shared-types `recorderEventSchema`). Upload/finalize may wrap
+// legacy rows into `TwinHttpEvent` for the unified `events.jsonl` byte shape;
+// the store itself does not change that uploaded shape (F-698).
+//
+// `flush()`: optional. When present, resolves after every accepted event is
+// durable on the store's backing medium (fsync for file-backed). In-memory
+// stores may omit it (no-op if called via a handle that forwards). Callers
+// that need crash-bounded loss (≤ in-flight event) must await `flush()`
+// before relying on the on-disk tape, or use a store that flushes on each
+// `record()` (F-698 production path).
+//
+// `close()`: optional. When present, flushes pending writes, releases the
+// backing resource, and is idempotent. After `close()`, further `record()`
+// calls are undefined (stores should throw or no-op). Callers must await
+// `close()` (or at least `flush()`) before upload/finalize so every accepted
+// write has either landed on disk or surfaced as a flush/close error.
+//
+// Bounded stores (`maxEvents`): the cap applies only to the in-memory mirror
+// used by `events()` / `GET /_pome/events` (memory pressure). The durable
+// NDJSON tape is append-only and retains every accepted write — including
+// rows later dropped from the heap mirror — so crash-safe upload reads the
+// tape, not `events()`.
+//
+// Default runtime behavior: `createRecorderStore()` remains heap-only.
+// `createFileBackedRecorderStore()` is the durable skeleton for F-698; twin
+// boot paths do not switch to it in this contract PR.
 
 import { randomUUID } from "node:crypto";
+import {
+  closeSync,
+  createWriteStream,
+  fsync,
+  mkdirSync,
+  openSync,
+  type WriteStream,
+} from "node:fs";
+import { dirname } from "node:path";
 import type { Context } from "hono";
 import type { RecorderEvent, TwinId } from "@pome-sh/shared-types";
 import type { RecorderHandle, RecorderHandlerResult } from "./index.js";
@@ -28,6 +83,12 @@ import { redactEvent } from "./redaction.js";
  */
 export type ErrorEnvelopeFn = (err: unknown) => { status: number; body: unknown };
 
+/**
+ * Backing store for the twin-core recorder.
+ *
+ * `record` / `events` are required. `flush` / `close` are optional so existing
+ * in-memory callers stay source-compatible; durable stores implement them.
+ */
 export interface RecorderStore {
   record(event: RecorderEvent): void;
   events(): RecorderEvent[];
@@ -35,6 +96,15 @@ export interface RecorderStore {
   count?(): number;
   /** Events dropped by a bounded store (stripe pins a 10k cap + dropped counter). */
   dropped?(): number;
+  /**
+   * Durability barrier. Resolves when every previously accepted event is on
+   * the backing medium. Optional for heap-only stores.
+   */
+  flush?(): Promise<void>;
+  /**
+   * Flush + release. Idempotent. Optional for heap-only stores.
+   */
+  close?(): Promise<void>;
 }
 
 export interface RecorderStoreOptions {
@@ -42,6 +112,8 @@ export interface RecorderStoreOptions {
    * Bound the in-memory tape: past `maxEvents` the store drops the OLDEST
    * event and increments the `dropped()` counter (stripe's pre-port
    * D-ENG-10/E-10 recorder behavior). Default: unbounded (github/slack).
+   * For file-backed stores this does **not** truncate the NDJSON tape —
+   * durability stays append-only; only `events()` is capped.
    */
   maxEvents?: number;
 }
@@ -68,6 +140,150 @@ export function createRecorderStore(options: RecorderStoreOptions = {}): Recorde
     },
     dropped() {
       return droppedCount;
+    },
+    async flush() {
+      // Heap-only: accepted === durable for this store.
+    },
+    async close() {
+      // No backing resource.
+    },
+  };
+}
+
+export interface FileBackedRecorderStoreOptions extends RecorderStoreOptions {
+  /**
+   * Path to the NDJSON tape (typically a run's `events.jsonl` or a sidecar).
+   * Parent directories are created if missing. Opens append-mode.
+   */
+  path: string;
+  /**
+   * When true, each accepted write is `fsync`'d after the append so a
+   * `kill -9` loses at most the in-flight event. Default false in the
+   * F-720 skeleton (opt-in); F-698 flips the production default to true.
+   */
+  fsync?: boolean;
+}
+
+/**
+ * Durable recorder store skeleton (F-720 / F-698).
+ *
+ * Keeps an in-memory mirror for `events()` / `count()` (same API as the heap
+ * store) and appends each accepted redacted `RecorderEvent` as one NDJSON
+ * line. `flush()` drains pending writes and rethrows the first append/fsync
+ * failure; with `fsync: true` it also `fsync`s the fd so a `kill -9` loses
+ * at most the in-flight event. `maxEvents` caps only the heap mirror — the
+ * NDJSON tape stays append-only.
+ *
+ * Twin boot paths still default to `createRecorderStore()` — wiring this
+ * store into production servers/CLI is F-698.
+ */
+export function createFileBackedRecorderStore(
+  options: FileBackedRecorderStoreOptions
+): RecorderStore {
+  const items: RecorderEvent[] = [];
+  const cap = options.maxEvents !== undefined ? Math.max(1, options.maxEvents) : undefined;
+  let droppedCount = 0;
+  let closed = false;
+  const doFsync = options.fsync === true;
+
+  mkdirSync(dirname(options.path), { recursive: true });
+  // Open the fd synchronously so fsync never races createWriteStream's
+  // async open (which can leave `writer.fd` undefined and silently skip
+  // durability on the first write).
+  const fd = openSync(options.path, "a");
+  const writer: WriteStream = createWriteStream(options.path, { fd, autoClose: false });
+  const pending = new Set<Promise<void>>();
+  // First append/fsync failure is retained so a later flush()/close() still
+  // reports it even after the rejected promise leaves `pending`.
+  let writeFailure: Error | null = null;
+
+  function enqueueWrite(line: string): void {
+    const write = new Promise<void>((resolve, reject) => {
+      writer.write(line, (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (!doFsync) {
+          resolve();
+          return;
+        }
+        fsync(fd, (fsyncErr) => (fsyncErr ? reject(fsyncErr) : resolve()));
+      });
+    });
+    pending.add(write);
+    // Handle rejection here so a failed write before flush() is not an
+    // unhandled rejection, and so flush() can still surface the error after
+    // the promise has left `pending`.
+    void write.then(
+      () => {
+        pending.delete(write);
+      },
+      (err: unknown) => {
+        pending.delete(write);
+        if (!writeFailure) {
+          writeFailure = err instanceof Error ? err : new Error(String(err));
+        }
+      }
+    );
+  }
+
+  async function flush(): Promise<void> {
+    while (pending.size > 0) {
+      // allSettled: individual failures are already captured in writeFailure;
+      // awaiting a rejected member of `pending` must not short-circuit drain.
+      await Promise.allSettled([...pending]);
+    }
+    if (writeFailure) {
+      const err = writeFailure;
+      writeFailure = null;
+      throw err;
+    }
+  }
+
+  return {
+    record(event) {
+      if (closed) {
+        throw new Error("RecorderStore.record() after close()");
+      }
+      items.push(event);
+      if (cap !== undefined) {
+        while (items.length > cap) {
+          items.shift();
+          droppedCount += 1;
+        }
+      }
+      enqueueWrite(`${JSON.stringify(event)}\n`);
+    },
+    events() {
+      return [...items];
+    },
+    count() {
+      return items.length;
+    },
+    dropped() {
+      return droppedCount;
+    },
+    flush,
+    async close() {
+      if (closed) {
+        await flush();
+        return;
+      }
+      closed = true;
+      await flush();
+      await new Promise<void>((resolve, reject) => {
+        writer.end((err: Error | null | undefined) => {
+          try {
+            closeSync(fd);
+          } catch (closeErr) {
+            reject(err ?? (closeErr as Error));
+            return;
+          }
+          if (err) reject(err);
+          else resolve();
+        });
+      });
     },
   };
 }
@@ -113,8 +329,9 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     // preserve semantics, tolerant readers accept either).
     const stepId = c.req.header("x-pome-scenario-step-id") ?? null;
     const correlationHeader = c.req.header("x-pome-correlation-id") ?? null;
-    // Redaction is unconditional at the engine layer (F-681): every event
-    // that reaches any store — including custom stores — is already scrubbed.
+    // Redaction is unconditional at the engine layer (F-681 / F-720): every
+    // event that reaches any store — including custom stores — is already
+    // scrubbed.
     store.record(redactEvent({
       ts: new Date().toISOString(),
       run_id: options.runId,
@@ -152,6 +369,12 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     },
     dropped() {
       return store.dropped?.() ?? 0;
+    },
+    async flush() {
+      await store.flush?.();
+    },
+    async close() {
+      await store.close?.();
     },
     handle({ mutation, fidelity = "semantic", errorEnvelope: perCallEnvelope }, fn) {
       const projectError = perCallEnvelope ?? errorEnvelope;

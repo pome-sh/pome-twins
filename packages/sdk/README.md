@@ -43,6 +43,15 @@ Every engine-booted twin honors the frozen runtime contract in
 [`CONTRACT.md`](https://github.com/pome-sh/pome-twins/blob/main/CONTRACT.md)
 — entry point, env surface, `/healthz` shape, auth, and MCP surfaces.
 
+## Recorder (twin-core home)
+
+The trace recorder lives in this package (`packages/sdk/src/recorder.ts`).
+There is no separate `packages/twin-core` — F-681 folded twin-core into
+`@pome-sh/sdk`. Default boot uses an in-memory store; durable write-through
+semantics (`flush` / `close`, file-backed NDJSON) are defined on
+`RecorderStore` for F-698. Redaction always runs in the handle *before*
+`store.record()`, including for custom stores.
+
 ## Docs
 
 Full documentation at [docs.pome.sh](https://docs.pome.sh). Source and

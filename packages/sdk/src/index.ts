@@ -120,6 +120,15 @@ export interface RecorderHandle {
   /** Events dropped by a bounded store (0 for the default unbounded store). */
   dropped(): number;
   /**
+   * Durability barrier (F-720). Forwards to the backing `RecorderStore.flush`
+   * when present. Await before upload/finalize when using a durable store.
+   */
+  flush(): Promise<void>;
+  /**
+   * Flush + release the backing store (F-720). Idempotent.
+   */
+  close(): Promise<void>;
+  /**
    * Wrap a Hono handler with auto-recording. The wrapped function returns
    * `{ status, body }` (not a `Response`); the recorder fills in `ts`,
    * `request_id`, `latency_ms`, `state_mutation`, `error`, then writes the

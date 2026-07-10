@@ -52,8 +52,17 @@ import {
 // (`import { TwinBootError, isLoopbackHost, serve } from "@pome-sh/sdk/server"`).
 export { TwinBootError, isLoopbackHost, created, ok } from "./server-helpers.js";
 
-export { createRecorderHandle, createRecorderStore } from "./recorder.js";
-export type { RecorderStore, ErrorEnvelopeFn } from "./recorder.js";
+export {
+  createRecorderHandle,
+  createRecorderStore,
+  createFileBackedRecorderStore,
+} from "./recorder.js";
+export type {
+  RecorderStore,
+  RecorderStoreOptions,
+  FileBackedRecorderStoreOptions,
+  ErrorEnvelopeFn,
+} from "./recorder.js";
 export { bearerAuth, requireAdminAuth, resolveAuthSecret } from "./auth.js";
 // Alternate serving bridges (anything that isn't @hono/node-server) must feed
 // the gate the transport-level peer address via setClientIp from an upstream
