@@ -1,5 +1,18 @@
 # @pome-sh/sdk
 
+## 0.3.0 — 2026-07-10
+
+Durable write-through recorder (the CLI's crash-safe local runs build on this;
+unblocks the `pomecli` first publish, F-727).
+
+- New server exports: `createFileBackedRecorderStore` — a file-backed
+  `RecorderStore` that streams twin HTTP events write-through to the run's
+  `events.jsonl`, so runs survive process death without duplicating finalize
+  rows — and `toTwinHttpEventRow`.
+- `RecorderStore` gains `flush()` and `close()`.
+
+No breaking changes; additive only.
+
 ## 0.2.0
 
 First npm-published release (F-714). The twin engine: `defineTwin()` +

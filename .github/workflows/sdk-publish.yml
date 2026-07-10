@@ -113,8 +113,16 @@ jobs:
           set -euo pipefail
           publish_one() {
             local pattern="$1"
-            local tgz
+            local tgz name_ver
             tgz="$(ls "$RUNNER_TEMP"/tarballs/$pattern)"
+            # Skip already-published versions: unchanged packages keep their
+            # version across batches, and npm would otherwise abort the whole
+            # batch with EPUBLISHCONFLICT on the first unchanged package.
+            name_ver="$(tar -xOzf "$tgz" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s);console.log(p.name+"@"+p.version)})')"
+            if npm view "$name_ver" version >/dev/null 2>&1; then
+              echo "skip $name_ver — already published"
+              return 0
+            fi
             npm publish "$tgz" --access public --provenance
           }
           publish_one 'pome-sh-shared-types-*.tgz'
