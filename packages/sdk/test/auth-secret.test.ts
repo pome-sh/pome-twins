@@ -122,6 +122,22 @@ describe("ensureTwinAuthSecret", () => {
     expect(readSecretFile()).toBe(`${composeSecret}\n`);
   });
 
+  it("refuses to boot on a persisted secret shorter than 32 chars instead of serving a weak key", () => {
+    writeFileSync(secretFile(), "x\n");
+    expect(() => ensureTwinAuthSecret("github", "0.0.0.0")).toThrow(TwinBootError);
+    expect(() => ensureTwinAuthSecret("github", "0.0.0.0")).toThrow(/TWIN_AUTH_SECRET/);
+    expect(process.env.TWIN_AUTH_SECRET).toBeUndefined();
+    // The operator's file is not silently regenerated either.
+    expect(readSecretFile()).toBe("x\n");
+  });
+
+  it("accepts a hand-placed persisted secret of at least 32 chars", () => {
+    const custom = "hand-placed-secret-32-chars-minimum!";
+    writeFileSync(secretFile(), `${custom}\n`);
+    ensureTwinAuthSecret("github", "0.0.0.0");
+    expect(process.env.TWIN_AUTH_SECRET).toBe(custom);
+  });
+
   it("treats a whitespace-only persisted file as absent and regenerates", () => {
     writeFileSync(secretFile(), " \n");
     ensureTwinAuthSecret("github", "0.0.0.0");
