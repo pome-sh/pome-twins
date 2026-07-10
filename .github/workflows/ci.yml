@@ -40,6 +40,9 @@ jobs:
       # instead of a second plain `npm test` pass for that workspace.
       - run: npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe
       - run: npm run test:coverage -w @pome-sh/twin-github
+      # F-722 — durable recorder crash-loss gate (SIGKILL mid-write). Covered
+      # by packages/sdk test/recorder-crash.test.ts in the sdk workspace test
+      # step above; keep this comment so path reviewers know where it lives.
       # Black-box twin runtime-contract suite (FDRS-711). Spawns the BUILT twins
       # via plain `node` — Node 24 to match the GHCR runtime image — and asserts
       # the control-plane surface frozen in CONTRACT.md. Reuses the build above

@@ -7,6 +7,10 @@ name: agent-trace-overhead-gate
 # TwinHttpEvent (tool_call_id: null) in events.jsonl, and `pome inspect`
 # exits 0 with a "Trace health" section.
 #
+# F-722 adds a durable-recorder micro-benchmark (heap vs file-backed fsync)
+# with an explicit per-event p99 budget, and expands path filters to
+# packages/sdk + twin-slack/stripe so recorder durability changes trip the gate.
+#
 # FDRS-413 adds a second job step that runs scenario 01 against the
 # CAS-adapter triage fixture and enforces PR/FAQ acceptance #2: ≥1
 # LlmCallEvent + ≥1 TwinHttpEvent with non-null tool_call_id + ≥1
@@ -15,17 +19,29 @@ name: agent-trace-overhead-gate
 # artifact so reviewers can eyeball a real adapter run.
 #
 # Not a PR required check: the p99 latency gate is expensive and sensitive to
-# runner noise. Keep coverage on main + manual dispatch. Paths filter scopes
-# the gate to changes that could plausibly affect proxy latency or
-# events.jsonl shape — the CLI runtime, the in-process twin-github runtime,
-# and the CAS adapter package.
+# runner noise. Keep coverage on main + PRs that touch recorder/SDK/twin paths
+# + manual dispatch.
 
 on:
   push:
     branches: [main]
     paths:
       - 'cli/**'
+      - 'packages/sdk/**'
       - 'packages/twin-github/**'
+      - 'packages/twin-slack/**'
+      - 'packages/twin-stripe/**'
+      - 'packages/adapter-claude-sdk/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/agent-trace-overhead-gate.yml'
+  pull_request:
+    paths:
+      - 'cli/**'
+      - 'packages/sdk/**'
+      - 'packages/twin-github/**'
+      - 'packages/twin-slack/**'
+      - 'packages/twin-stripe/**'
       - 'packages/adapter-claude-sdk/**'
       - 'package.json'
       - 'package-lock.json'
@@ -78,6 +94,12 @@ jobs:
           OVERHEAD_BENCH_N: '100'
           OVERHEAD_BENCH_BUDGET_MS: '5'
         run: npx tsx scripts/overhead-gate.ts
+      - name: Run durable recorder overhead gate (F-722)
+        working-directory: cli
+        env:
+          RECORDER_OVERHEAD_N: '200'
+          RECORDER_OVERHEAD_BUDGET_MS: '1'
+        run: npx tsx scripts/recorder-overhead-gate.ts
       - name: Run CAS-adapter acceptance gate (PR/FAQ #2)
         working-directory: cli
         env:
