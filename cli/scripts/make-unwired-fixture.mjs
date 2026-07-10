@@ -49,7 +49,6 @@ await rm(join(dest, "README.md"), { force: true });
 // package-lock.json may pin the adapter at a relative file: path that breaks
 // outside the monorepo — drop it and let `npm install` regenerate.
 await rm(join(dest, "package-lock.json"), { force: true });
-await rm(join(dest, "bun.lock"), { force: true });
 
 // ---- src/index.ts: strip the wiring -----------------------------------
 

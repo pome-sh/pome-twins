@@ -19,10 +19,10 @@ echo "pre-commit: open-core boundary lint"
 bash scripts/lint-no-cloud-imports.sh
 
 echo "pre-commit: no local eval gate"
-bun run gate:no-eval
+npm run gate:no-eval
 
 echo "pre-commit: copy-marker gate"
-bun run lint:copy-markers
+npm run lint:copy-markers
 
 staged_count="$(git diff --cached --name-only --diff-filter=ACMR | wc -l | tr -d ' ')"
 if [ "$staged_count" = "0" ]; then
