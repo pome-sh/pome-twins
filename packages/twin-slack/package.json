@@ -46,14 +46,12 @@
     "@hono/node-server": "^2.0.8",
     "@pome-sh/sdk": "0.3.0",
     "@pome-sh/shared-types": "0.6.0",
-    "better-sqlite3": "^12.5.0",
     "hono": "^4.12.27",
     "zod": "^4.1.13"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@slack/web-api": "^7.16.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.1.0",
     "@vitest/coverage-v8": "4.1.10",
     "tsx": "^4.21.0",
