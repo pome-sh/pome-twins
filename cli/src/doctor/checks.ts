@@ -43,7 +43,8 @@ export interface RunDoctorChecksOptions {
   // "full" (default, `pome doctor` + local-run gate) boots the local twin.
   // "hosted" (the hosted-run gate, FDRS-641) skips the local twin boot: a
   // hosted run never touches it — the cloud provisions the session twin —
-  // and the local boot needs better-sqlite3. Config/routing/egress still gate.
+  // so booting a throwaway node:sqlite-backed twin here would gate the run
+  // on machinery it never uses. Config/routing/egress still gate.
   mode?: "full" | "hosted";
 }
 
@@ -138,8 +139,8 @@ async function checkTwinReachable(_configDir: string): Promise<DoctorCheck> {
 
   let harness;
   try {
-    // Dynamic import: the twin harness pulls in better-sqlite3, which the
-    // hosted-mode gate must never load better-sqlite3 unnecessarily.
+    // Dynamic import: the twin harness pulls in the twin packages and their
+    // node:sqlite-backed state, which the hosted-mode gate must never load.
     const { bootTwin } = await import("../twin/twinHarness.js");
     harness = await bootTwin({
       twin: "github",

@@ -37,7 +37,6 @@
       "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
     },
     "cli": {
-      "ignoreDependencies": ["better-sqlite3", "@types/better-sqlite3"],
       "entry": [
         "src/cli/main.ts",
         "scripts/*.{mjs,ts}",
