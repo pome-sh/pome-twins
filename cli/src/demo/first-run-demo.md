@@ -1,7 +1,7 @@
 # first-run-demo
 
 <!--
-FDRS-643 — the packaged `npx pome-sh demo` task. This markdown is the
+FDRS-643 — the packaged `npx pomecli demo` task. This markdown is the
 CANONICAL source of the demo task content: the cloud's server-owned judge
 definition (pome-cloud apps/control-plane/src/lib/demo.ts,
 DEMO_TASK_DEFINITIONS["first-run-demo"]) is regenerated FROM this file — the

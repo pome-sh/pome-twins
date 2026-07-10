@@ -32,7 +32,7 @@ Follow these on every step. They are not optional.
 pome version
 ```
 
-If the command is missing, install it (`npm install -g pome-sh`), then continue.
+If the command is missing, install it (`npm install -g pomecli`), then continue.
 
 Auth — any one of these passing is enough (the macOS Keychain item is service `sh.pome.cli`, account `hosted`):
 

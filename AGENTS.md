@@ -24,7 +24,7 @@ live at **https://docs.pome.sh**.
 - **The CLI (`cli/`) is not a root workspace** — use `cd cli && npm ...`, not
   `npm run -w` from the root.
 
-## CLI releases (`pome-sh`)
+## CLI releases (`pomecli`)
 
 Releases are automated by `.github/workflows/cli-release.yml` (Changesets +
 npm OIDC Trusted Publishing). To ship a CLI change:
@@ -54,7 +54,7 @@ section in the same PR.
 | No cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (empty allowlist) |
 | Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `npm run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | Package barrels + file-size hygiene | [`scripts/lint-code-health.mjs`](scripts/lint-code-health.mjs) |
-| `pome-sh` version never behind npm `latest` — a publish must not retag `latest` backwards | [`scripts/check-cli-version-floor.sh`](scripts/check-cli-version-floor.sh) in [`.github/workflows/cli-ci.yml`](.github/workflows/cli-ci.yml) (PRs) and [`.github/workflows/cli-release.yml`](.github/workflows/cli-release.yml) (pre-publish) |
+| `pomecli` version never behind npm `latest` — a publish must not retag `latest` backwards (first publish exempt: an E404 baseline passes) | [`scripts/check-cli-version-floor.sh`](scripts/check-cli-version-floor.sh) in [`.github/workflows/cli-ci.yml`](.github/workflows/cli-ci.yml) (PRs) and [`.github/workflows/cli-release.yml`](.github/workflows/cli-release.yml) (pre-publish) |
 
 ## Public Repo Guardrails
 

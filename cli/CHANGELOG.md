@@ -1,38 +1,18 @@
 # Changelog
 
-## 0.8.0
-
-### Minor Changes
-
-- [#82](https://github.com/pome-sh/pome-twins/pull/82) [`427d44e`](https://github.com/pome-sh/pome-twins/commit/427d44e46eec0c6ee3867e3273fe54ad12e6db4c) Thanks [@GaganSD](https://github.com/GaganSD)! - Capture-only run-dir trim and meta.json contract.
-
-  A completed run directory now contains exactly six files: `meta.json`, `events.jsonl`, `state_initial.json`, `state_final.json`, `stdout.txt`, and `stderr.log`. The intermediate correlation sidecars this CLI used to also write — `tool_calls.jsonl`, `state-before.json`, `state-after.json`, and `state-diff.json` — have been removed. They duplicated data already in `events.jsonl` / `state_initial.json` / `state_final.json` and only ever fed the local correlator/evaluator, which no longer runs in the OSS CLI. Consumers reading the removed files should read `events.jsonl` for the tool-call trace and `state_initial.json` / `state_final.json` for pre/post state.
-
-  `meta.json` gains two additive fields: `spec_version` (the meta.json shape version) and `twin_versions` (a map of the installed twin package versions that produced the run). Older readers that ignore unknown keys are unaffected.
-
-  `meta.json` is now uploaded alongside the trace and state blobs on the hosted `pome run`, `pome eval`, and `pome demo` paths (best-effort; a control plane that predates the meta upload route is tolerated).
-
-- [#84](https://github.com/pome-sh/pome-twins/pull/84) [`f21c05a`](https://github.com/pome-sh/pome-twins/commit/f21c05aba95a073c81d691ceac81c23df621f633) Thanks [@GaganSD](https://github.com/GaganSD)! - BREAKING: requires Node.js ≥ 24 (previously ≥ 20). `engines.node` is now `>=24`. npm only warns on an engine mismatch, so on an older Node the CLI may still install but can fail at runtime — upgrade to Node 24 before updating. Provider dependencies are refreshed in the same release.
-
-### Patch Changes
-
-- [#63](https://github.com/pome-sh/pome-twins/pull/63) [`9ad94e1`](https://github.com/pome-sh/pome-twins/commit/9ad94e1a0333a8aacc23a7a1c26a652454f8281f) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Conform the CLI to the engine-based twin-github: local Recorder interface replaces the twin's deleted type export; the standalone twin server signs with its env-pinned secret.
-
-- [#62](https://github.com/pome-sh/pome-twins/pull/62) [`b967830`](https://github.com/pome-sh/pome-twins/commit/b967830ef25517be076cb49fe89b5d5d1f1d7c1d) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Type the local slack twin harness recorder against the engine surface (the ported twin no longer exports a per-twin Recorder type).
-
-- [#64](https://github.com/pome-sh/pome-twins/pull/64) [`7be004f`](https://github.com/pome-sh/pome-twins/commit/7be004f6aa92f46dde08c4e30ba3894a3718931a) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Conform the local twin harness to the engine-based twin-stripe: the factory owns middleware, MCP mount, and the failure-injection store; the shared CLI recorder replaces the twin's deleted recorder exports.
-
-- [#61](https://github.com/pome-sh/pome-twins/pull/61) [`91eb11a`](https://github.com/pome-sh/pome-twins/commit/91eb11a9d63ccb1effa39d5140eb2471acb2ded9) Thanks [@GaganSD](https://github.com/GaganSD)! - Use exact published `@pome-sh/*` package dependencies instead of vendored tarballs.
-
-- [#85](https://github.com/pome-sh/pome-twins/pull/85) [`2b1142b`](https://github.com/pome-sh/pome-twins/commit/2b1142bffe05f798a1cf94b942502e0aa6e13a17) Thanks [@GaganSD](https://github.com/GaganSD)! - Point doctor/help copy at npm (and tsx) instead of Bun after the package-manager migration.
-
 All notable changes to the `pome` CLI are documented here. The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows [Semantic Versioning](https://semver.org/).
 
 The full product changelog lives at https://docs.pome.sh/changelog. This file tracks CLI-package releases specifically.
 
-## [Unreleased]
+## 0.1.0
 
-## [0.1.0] — 2026-07-XX
+First release under the package name **`pomecli`** (F-727). The CLI was
+previously published as `pome-sh`; that npm package is deprecated in place and
+its 0.5.x–0.8.0 history is preserved below (npm never reuses published version
+numbers, so this line restarts at 0.1.0). Same CLI, same `pome` command — only
+the install name changes: `npx pomecli` / `npm install -g pomecli`.
+
+Requires Node.js ≥ 24.
 
 First public release of the `pome` CLI — a capture-only tool for testing AI
 agents against resettable digital twins. `pome run` records what your agent
@@ -74,6 +54,9 @@ does; the verdict comes from Pome's hosted evaluation.
 - **Capture-only.** The CLI records traces; it no longer scores runs locally.
   `pome fix-prompt` now assembles a ready-to-paste prompt from a recorded trace
   instead of calling an LLM.
+- **Durable recording.** Twin HTTP events stream to the run's `events.jsonl`
+  via the twin-core durable recorder, so local runs survive process death
+  without duplicating finalize rows.
 - **Bundled twins.** The GitHub, Slack, and Stripe twins ship as packaged
   dependencies, so local and Docker runs behave identically.
 - **Exit codes** follow a documented `0–5` contract across pre-flight and
@@ -96,7 +79,7 @@ does; the verdict comes from Pome's hosted evaluation.
 
 ### Fixed
 
-- `npm install -g pome-sh` now installs a runnable `pome` with no manual `chmod`.
+- `npm install -g pomecli` now installs a runnable `pome` with no manual `chmod`.
 - Various run-reliability fixes: correct upload format, environment parity
   between local and hosted runs, friendlier capacity messages, and cleanup of
   abandoned sessions on error.
@@ -105,6 +88,38 @@ does; the verdict comes from Pome's hosted evaluation.
 
 - Local scoring, the built-in judge, and the `pome matrix`, `pome matrix-html`,
   and `pome eval-report` commands, superseded by the capture-only model.
+
+## Historical releases (published as `pome-sh`)
+
+Everything below shipped on npm under the previous package name `pome-sh`,
+now deprecated in favor of `pomecli`. Those version numbers belong to that
+package and are never reused.
+
+## 0.8.0
+
+### Minor Changes
+
+- [#82](https://github.com/pome-sh/pome-twins/pull/82) [`427d44e`](https://github.com/pome-sh/pome-twins/commit/427d44e46eec0c6ee3867e3273fe54ad12e6db4c) Thanks [@GaganSD](https://github.com/GaganSD)! - Capture-only run-dir trim and meta.json contract.
+
+  A completed run directory now contains exactly six files: `meta.json`, `events.jsonl`, `state_initial.json`, `state_final.json`, `stdout.txt`, and `stderr.log`. The intermediate correlation sidecars this CLI used to also write — `tool_calls.jsonl`, `state-before.json`, `state-after.json`, and `state-diff.json` — have been removed. They duplicated data already in `events.jsonl` / `state_initial.json` / `state_final.json` and only ever fed the local correlator/evaluator, which no longer runs in the OSS CLI. Consumers reading the removed files should read `events.jsonl` for the tool-call trace and `state_initial.json` / `state_final.json` for pre/post state.
+
+  `meta.json` gains two additive fields: `spec_version` (the meta.json shape version) and `twin_versions` (a map of the installed twin package versions that produced the run). Older readers that ignore unknown keys are unaffected.
+
+  `meta.json` is now uploaded alongside the trace and state blobs on the hosted `pome run`, `pome eval`, and `pome demo` paths (best-effort; a control plane that predates the meta upload route is tolerated).
+
+- [#84](https://github.com/pome-sh/pome-twins/pull/84) [`f21c05a`](https://github.com/pome-sh/pome-twins/commit/f21c05aba95a073c81d691ceac81c23df621f633) Thanks [@GaganSD](https://github.com/GaganSD)! - BREAKING: requires Node.js ≥ 24 (previously ≥ 20). `engines.node` is now `>=24`. npm only warns on an engine mismatch, so on an older Node the CLI may still install but can fail at runtime — upgrade to Node 24 before updating. Provider dependencies are refreshed in the same release.
+
+### Patch Changes
+
+- [#63](https://github.com/pome-sh/pome-twins/pull/63) [`9ad94e1`](https://github.com/pome-sh/pome-twins/commit/9ad94e1a0333a8aacc23a7a1c26a652454f8281f) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Conform the CLI to the engine-based twin-github: local Recorder interface replaces the twin's deleted type export; the standalone twin server signs with its env-pinned secret.
+
+- [#62](https://github.com/pome-sh/pome-twins/pull/62) [`b967830`](https://github.com/pome-sh/pome-twins/commit/b967830ef25517be076cb49fe89b5d5d1f1d7c1d) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Type the local slack twin harness recorder against the engine surface (the ported twin no longer exports a per-twin Recorder type).
+
+- [#64](https://github.com/pome-sh/pome-twins/pull/64) [`7be004f`](https://github.com/pome-sh/pome-twins/commit/7be004f6aa92f46dde08c4e30ba3894a3718931a) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Conform the local twin harness to the engine-based twin-stripe: the factory owns middleware, MCP mount, and the failure-injection store; the shared CLI recorder replaces the twin's deleted recorder exports.
+
+- [#61](https://github.com/pome-sh/pome-twins/pull/61) [`91eb11a`](https://github.com/pome-sh/pome-twins/commit/91eb11a9d63ccb1effa39d5140eb2471acb2ded9) Thanks [@GaganSD](https://github.com/GaganSD)! - Use exact published `@pome-sh/*` package dependencies instead of vendored tarballs.
+
+- [#85](https://github.com/pome-sh/pome-twins/pull/85) [`2b1142b`](https://github.com/pome-sh/pome-twins/commit/2b1142bffe05f798a1cf94b942502e0aa6e13a17) Thanks [@GaganSD](https://github.com/GaganSD)! - Point doctor/help copy at npm (and tsx) instead of Bun after the package-manager migration.
 
 ## [0.5.1] — 2026-05-20
 

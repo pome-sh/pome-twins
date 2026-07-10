@@ -30,7 +30,7 @@ export function demoTaskPath(): string {
   if (!existsSync(candidate)) {
     throw new Error(
       `Packaged demo task not found at ${candidate}. ` +
-        "This is a packaging bug — the demo task markdown ships with pome-sh " +
+        "This is a packaging bug — the demo task markdown ships with pomecli " +
         "(scripts/copy-prompts.mjs copies src/demo/ into dist/).",
     );
   }

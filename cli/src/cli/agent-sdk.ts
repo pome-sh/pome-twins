@@ -3,9 +3,9 @@
 // session: detect whether the user's own credentials exist, and lazily
 // provision the SDK driver into ~/.pome/agent-sdk/<version>.
 //
-// The SDK is deliberately NOT a dependency of pome-sh: its per-platform
+// The SDK is deliberately NOT a dependency of pomecli: its per-platform
 // optionalDependency bundles the Claude Code runtime (~244 MB unpacked),
-// which would sink `npx pome-sh demo` cold-start. Instead we install the
+// which would sink `npx pomecli demo` cold-start. Instead we install the
 // driver package alone (--omit=optional, a few MB) on first use, and point
 // it at the user's already-installed `claude` binary via
 // `pathToClaudeCodeExecutable` — verified against SDK 0.3.202 driving

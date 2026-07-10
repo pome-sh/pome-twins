@@ -106,7 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
-          tgz="$(ls "$RUNNER_TEMP"/pome-sh-*.tgz)"
+          tgz="$(ls "$RUNNER_TEMP"/pomecli-*.tgz)"
           # The npm registry rejects tarballs with hard-link entries (E415).
           # Fail here rather than at publish time if any slip in.
           if tar -tvf "$tgz" | grep -qE '^h'; then
@@ -119,10 +119,11 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install "$tgz" --no-audit --no-fund --ignore-scripts
           # bin resolves and dist entry is present:
-          test -f node_modules/pome-sh/dist/src/cli/main.js
-          # bundled twins made it into the tarball:
-          for t in shared-types twin-github twin-slack twin-stripe; do
-            ls node_modules/pome-sh/node_modules/@pome-sh/$t/package.json \
+          test -f node_modules/pomecli/dist/src/cli/main.js
+          # bundled packages made it into the tarball (must match
+          # bundleDependencies in cli/package.json):
+          for t in sdk shared-types twin-github twin-slack twin-stripe; do
+            ls node_modules/pomecli/node_modules/@pome-sh/$t/package.json \
               || { echo "MISSING bundled @pome-sh/$t in published tarball"; exit 1; }
           done
           echo "clean-room OK: bin + dist + bundled twins present"

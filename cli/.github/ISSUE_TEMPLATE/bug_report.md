@@ -23,7 +23,7 @@ labels: bug
 - `pome --version`:
 - Node version (`node --version`):
 - OS:
-- Install method (e.g. `npm install -g github:pome-sh/cli#v0.5.1`):
+- Install method (e.g. `npm install -g pomecli`, `npx pomecli`):
 
 ## Relevant logs / artifacts
 

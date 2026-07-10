@@ -5,7 +5,7 @@
  *
  * Defaults to symlinking each skill folder to the canonical source inside
  * this pome package install, matching the `npx skills` industry convention:
- * an `npm i -g pome-sh@latest` automatically updates every linked skill.
+ * an `npm i -g pomecli@latest` automatically updates every linked skill.
  * Pass `--copy` to fall back to independent copies (CI, Windows without
  * symlink permission, or any environment where symlinks aren't suitable).
  */
