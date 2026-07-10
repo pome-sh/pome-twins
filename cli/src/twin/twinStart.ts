@@ -100,7 +100,9 @@ export async function runTwinStartCommand(
   // suite injects PORT, same as the packaged twin entries).
   const portRaw = options.port ?? process.env.PORT ?? "3333";
   const port = Number(portRaw);
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+  // Port 0 (ephemeral) is rejected: every printed URL and the status-file
+  // token would name a port nobody can discover from outside the process.
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(`pome twin start: invalid --port "${portRaw}"`);
   }
 
