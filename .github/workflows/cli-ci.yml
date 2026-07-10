@@ -99,6 +99,13 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      # F-709 — the frozen M1 runtime-contract assertions, asserted against
+      # twins started via the CLI front door (`pome twin start <twin>`).
+      # Reuses the build above; the CLI resolves the twins from the local
+      # @pome-sh tarballs installed earlier in this job.
+      - name: Contract suite vs pome twin start
+        working-directory: ${{ github.workspace }}
+        run: node --test contract/cli-start.test.mjs
       # Former cli-publish-smoke.yml — same tarball install, so pack/clean-room
       # checks reuse this job instead of a second npm ci + pack cycle.
       - name: npm publish --dry-run (packs the real tarball)

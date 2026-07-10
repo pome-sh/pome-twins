@@ -1,13 +1,10 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-import { serve } from "@hono/node-server";
 import { Command } from "commander";
-import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sign } from "hono/jwt";
 import {
   readLatestRun,
   readMetaSummary,
@@ -67,7 +64,7 @@ import {
   writeProjectConfig,
   type ProjectConfig,
 } from "./project-config.js";
-import { createGitHubCloneApp, openGitHubCloneDatabase, seedGitHubCloneDatabase } from "../twin/githubCloneAdapter.js";
+import { createGitHubCloneApp } from "../twin/githubCloneAdapter.js";
 import {
   buildFixPrompt,
   buildGroupFixPrompt,
@@ -1095,42 +1092,14 @@ export function createProgram() {
   const twin = program.command("twin").description("Manage local twins");
   twin
     .command("start")
-    .argument("<name>", "Twin name")
-    .option("--port <port>", "Port to bind", "3333")
-    .description("Start a standalone twin")
-    .action(async (name: string, options: { port: string }) => {
-      if (name !== "github") throw new Error("Only the github twin exists in the MSP.");
-      await mkdir(".pome", { recursive: true });
-      const db = await openGitHubCloneDatabase(".pome/github.db");
-      await seedGitHubCloneDatabase(db);
-      const port = Number(options.port);
-      const app = (await createGitHubCloneApp({ db, runId: "standalone" })) as any;
-      const baseUrl = `http://127.0.0.1:${port}`;
-      const restUrl = `${baseUrl}/s/standalone`;
-      const mcpUrl = `${restUrl}/mcp`;
-      const authSecret = process.env.TWIN_AUTH_SECRET ?? randomBytes(32).toString("hex");
-      process.env.TWIN_AUTH_SECRET = authSecret;
-      const token = await sign(
-        { sid: "standalone", team_id: "tm_local", exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 },
-        // The secret was just pinned into the env above; the ported twin no
-        // longer exports resolveAuthSecret (engine-owned, F-682).
-        authSecret
-      );
-      serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });
-      await writeFile(
-        ".pome/twin-status.json",
-        JSON.stringify({ name, url: restUrl, rest_url: restUrl, mcp_url: mcpUrl, auth_token: token }, null, 2)
-      );
-      console.log(`Pome ${name} twin listening at ${restUrl}`);
-      console.log(`POME_GITHUB_REST_URL=${restUrl}`);
-      console.log(`POME_GITHUB_MCP_URL=${mcpUrl}`);
-      console.log(`POME_AUTH_TOKEN=${token}`);
-      // F28 — every `/s/<sid>/*` endpoint requires a Bearer JWT, including
-      // /s/standalone/healthz. New users curling the printed `${restUrl}`
-      // get HTTP 401 and assume the twin is broken. The unauth liveness
-      // probe lives at the root `/healthz`. Print the curl command so
-      // copy-paste debugging works without a JWT.
-      console.log(`Health check (no auth): curl ${baseUrl}/healthz`);
+    .argument("<name>", "Twin name (github | slack | stripe)")
+    .option("--port <port>", "Port to bind (default: $PORT or 3333)")
+    .description(
+      "Start a standalone twin as a long-lived foreground server (Ctrl-C to stop)",
+    )
+    .action(async (name: string, options: { port?: string }) => {
+      const { runTwinStartCommand } = await import("../twin/twinStart.js");
+      await runTwinStartCommand(name, options);
     });
 
   twin

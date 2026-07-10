@@ -65,15 +65,16 @@ export async function freePort() {
 }
 
 // A twin descriptor may carry an `entry` (repo-root-relative) to boot an
-// alternate server entry — used by the sdk-boot proof suite (FDRS-681).
-// Default is the contract's own `dist/src/server.js`.
+// alternate server entry — used by the sdk-boot proof suite (FDRS-681) and
+// the CLI front-door suite (F-709), which also appends `args` (e.g.
+// `twin start github`). Default is the contract's own `dist/src/server.js`.
 function entryArgs(twin) {
   if (twin.entry && TWIN_PKG_ROOT_OVERRIDE) {
     // Alternate entries (the sdk-boot proof suite) resolve inside this repo;
     // they cannot be rerouted through an external package root.
     throw new Error("CONTRACT_TWIN_PKG_ROOT cannot be combined with an alternate twin entry");
   }
-  return [twin.entry ? path.join(REPO_ROOT, twin.entry) : "dist/src/server.js"];
+  return [twin.entry ? path.join(REPO_ROOT, twin.entry) : "dist/src/server.js", ...(twin.args ?? [])];
 }
 
 // Package root the twin is spawned from: the repo-relative workspace dist by
@@ -88,7 +89,7 @@ function twinCwd(twin) {
  * with cwd = the package root. Resolves once GET /healthz answers 200, which
  * the contract requires within 3 seconds of spawn.
  */
-export async function spawnTwin(twin, { env = {}, port: portIn, healthzDeadlineMs = 3_000 } = {}) {
+export async function spawnTwin(twin, { env = {}, port: portIn, healthzDeadlineMs = twin.healthzDeadlineMs ?? 3_000 } = {}) {
   const port = portIn ?? (await freePort());
   const cwd = twinCwd(twin);
   // Plain `node` from PATH, never process.execPath: the contract is the cloud's
