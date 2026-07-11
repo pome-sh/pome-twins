@@ -13,6 +13,8 @@ on:
       - ".github/workflows/ci.yml"
       - ".github/workflows/secret-scan.yml"
 
+# administration:read is the least privilege needed for GET .../protection.
+# No long-lived admin PAT — default GITHUB_TOKEN only (same-repo runs).
 permissions:
   contents: read
   administration: read
@@ -20,6 +22,8 @@ permissions:
 jobs:
   assert:
     name: assert main protection
+    # Fork PRs do not receive administration:read on GITHUB_TOKEN.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

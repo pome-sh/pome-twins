@@ -41,8 +41,13 @@ const reviews = p.required_pull_request_reviews;
 if (!reviews || Number(reviews.required_approving_review_count) < 1) {
   errors.push("required_approving_review_count must be >= 1");
 }
-if (p.allow_force_pushes?.enabled) errors.push("allow_force_pushes must be false");
-if (p.allow_deletions?.enabled) errors.push("allow_deletions must be false");
+// Fail closed: missing fields mean we cannot prove the policy holds.
+if (p.allow_force_pushes?.enabled !== false) {
+  errors.push("allow_force_pushes must be false");
+}
+if (p.allow_deletions?.enabled !== false) {
+  errors.push("allow_deletions must be false");
+}
 
 const conversation =
   p.required_conversation_resolution === true ||
@@ -51,6 +56,9 @@ if (!conversation) {
   errors.push("required_conversation_resolution must be enabled");
 }
 
+if (!p.required_status_checks) {
+  errors.push("required_status_checks must be configured");
+}
 const contexts =
   p.required_status_checks?.contexts ??
   p.required_status_checks?.checks?.map((c) => c.context) ??

@@ -68,6 +68,10 @@ section in the same PR.
 The public `main` branch requires reviewed PRs and green required checks before
 merge. Direct pushes are reserved for release automation only.
 
+“Zero embedded cloud config” means no credentials and no non-overridable env
+wiring. An overrideable public API base (`https://api.pome.sh`, via
+`--api-url` / `POME_API_URL`) remains allowed.
+
 Secret scanning runs in CI via [`.github/workflows/secret-scan.yml`](.github/workflows/secret-scan.yml)
 with both gitleaks and TruffleHog. Install the local hook with
 `bash scripts/hooks/install.sh`; staged changes are blocked unless the same
