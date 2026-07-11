@@ -21,7 +21,7 @@ try {
   if (!health.ok) throw new Error(`healthz failed: ${health.status}`);
 
   const tools = await fetch(`${sessionBase}/mcp/tools`, { headers: authHeader }).then((response) => response.json()) as { tools: unknown[] };
-  if (tools.tools.length !== 62) throw new Error(`expected 62 tools, got ${tools.tools.length}`);
+  if (tools.tools.length !== 65) throw new Error(`expected 65 tools, got ${tools.tools.length}`);
 
   const issue = await fetch(`${sessionBase}/repos/acme/api/issues`, {
     method: "POST",

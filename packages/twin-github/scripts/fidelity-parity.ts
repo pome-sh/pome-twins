@@ -125,6 +125,10 @@ const steps: ParityStep[] = [
   { tool: "list_tags", arguments: { ...repo } },
   { tool: "list_releases", arguments: { ...repo } },
   { tool: "get_latest_release", arguments: { ...repo } },
+  // M5 hot gaps (F-735)
+  { tool: "get_release_by_tag", arguments: { ...repo, tag: "v0.0.1-parity" } },
+  { tool: "get_tag", arguments: { ...repo, tag: "v0.0.1-parity" } },
+  { tool: "search_commits", arguments: { query: "parity" } },
 ];
 
 function liveGitHubProbes(): unknown[] {

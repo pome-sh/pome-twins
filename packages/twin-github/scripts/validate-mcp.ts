@@ -6,7 +6,7 @@
 // the existing test fixture mints), connects an `@modelcontextprotocol/sdk`
 // `Client` over `StreamableHTTPClientTransport` with a Bearer header, and:
 //
-//   1. Verifies tools/list returns the 62-tool catalog through real
+//   1. Verifies tools/list returns the 65-tool catalog through real
 //      JSON-RPC framing (i.e. through the wire, not from internal state).
 //   2. Verifies a strict-read tools/call against a seeded PR.
 //   3. Calls the same tool via the legacy `/mcp/call` REST shim and diffs
@@ -157,7 +157,7 @@ async function main() {
     if (missing.length || extra.length) {
       throw new Error(`tool name mismatch: missing=${JSON.stringify(missing)} extra=${JSON.stringify(extra)}`);
     }
-    record("All 62 tool names match toolDefinitions ✓");
+    record("All 65 tool names match toolDefinitions ✓");
     record("Full tool list (from the wire):");
     record(pretty(listResult.tools));
 

@@ -329,6 +329,26 @@ export class GitHubDomain {
     };
   }
 
+  searchCommits(input: { query?: string; q?: string; owner?: string; repo?: string } & PageOptions) {
+    const query = (input.query ?? input.q ?? "").toLowerCase();
+    let repos = this.db.prepare("SELECT * FROM repositories ORDER BY full_name ASC").all() as RepoRow[];
+    if (input.owner) repos = repos.filter((repo) => repo.owner === input.owner);
+    if (input.repo) repos = repos.filter((repo) => repo.name === input.repo);
+    const matches: Array<{ commit: CommitRow; repo: RepoRow }> = [];
+    for (const repo of repos) {
+      const branch = this.db.prepare("SELECT * FROM branches WHERE repo_id = ? AND name = ?").get(repo.id, repo.default_branch) as BranchRow | undefined;
+      if (!branch?.head_sha) continue;
+      for (const commit of this.commitAncestry(repo.id, branch.head_sha)) {
+        if (!query || commit.message.toLowerCase().includes(query) || commit.author_login.toLowerCase().includes(query)) matches.push({ commit, repo });
+      }
+    }
+    return {
+      total_count: matches.length,
+      incomplete_results: false,
+      items: paginate(matches, input.page, input.per_page ?? input.perPage).map(({ commit, repo }) => ({ ...commitJson(commit, repo), repository: repoJson(repo), score: 1 }))
+    };
+  }
+
   getFileContents(input: { owner: string; repo: string; path?: string; ref?: string }) {
     const repo = this.requireRepo(input.owner, input.repo);
     const branch = input.ref ?? repo.default_branch;
@@ -826,9 +846,15 @@ export class GitHubDomain {
       const headBranch = this.requireBranch(headRepo.id, pr.head_ref);
       if (input.expected_head_sha && headBranch.head_sha !== input.expected_head_sha) conflict("Head SHA did not match");
       const baseBranch = this.requireBranch(repo.id, pr.base_ref);
-      const now = nowIso();
-      this.db.prepare("UPDATE branches SET head_sha = ?, updated_at = ? WHERE repo_id = ? AND name = ?").run(baseBranch.head_sha, now, headRepo.id, pr.head_ref);
-      this.db.prepare("UPDATE pull_requests SET head_sha = ?, base_sha = ?, updated_at = ? WHERE repo_id = ? AND number = ?").run(baseBranch.head_sha, baseBranch.head_sha, now, repo.id, pr.number);
+      // Semantic merge (F-735): merge base into head with a real merge commit
+      // instead of resetting the head pointer to the base head. No-op when the
+      // head branch already contains the base head (GitHub returns 422 there;
+      // documented deviation).
+      const mergeBase = this.findMergeBase(repo.id, baseBranch.head_sha, headRepo.id, headBranch.head_sha);
+      if (baseBranch.head_sha === mergeBase) return pr.number;
+      const changes = this.mergeChangesFromBase(repo, pr.base_ref, headRepo, pr.head_ref, mergeBase);
+      const mergeCommit = this.commitFiles(headRepo, pr.head_ref, `Merge branch '${pr.base_ref}' into ${pr.head_ref}`, changes, "pome-agent");
+      this.db.prepare("UPDATE pull_requests SET head_sha = ?, updated_at = ? WHERE repo_id = ? AND number = ?").run(mergeCommit.sha, nowIso(), repo.id, pr.number);
       this.replacePullFiles(repo.id, pr.number, this.calculatePullFiles(repo, pr.base_ref, headRepo, pr.head_ref));
       return pr.number;
     });
@@ -1351,6 +1377,20 @@ export class GitHubDomain {
     return releaseJson(row, repo);
   }
 
+  getReleaseByTag(input: { owner: string; repo: string; tag: string }) {
+    const repo = this.requireRepo(input.owner, input.repo);
+    const row = this.db.prepare("SELECT * FROM releases WHERE repo_id = ? AND tag_name = ?").get(repo.id, input.tag) as ReleaseRow | undefined;
+    if (!row) notFound("Not Found");
+    return releaseJson(row, repo);
+  }
+
+  getTag(input: { owner: string; repo: string; tag: string }) {
+    const repo = this.requireRepo(input.owner, input.repo);
+    const row = this.db.prepare("SELECT * FROM tags WHERE repo_id = ? AND name = ?").get(repo.id, input.tag) as TagRow | undefined;
+    if (!row) notFound("Not Found");
+    return tagJson(row, repo);
+  }
+
   createRelease(
     input: {
       owner: string;
@@ -1511,6 +1551,50 @@ export class GitHubDomain {
       cursor = commit.parent_sha;
     }
     return out;
+  }
+
+  private findMergeBase(baseRepoId: number, baseSha: string | null, headRepoId: number, headSha: string | null): string | null {
+    if (!baseSha || !headSha) return null;
+    const headShas = new Set(this.commitAncestry(headRepoId, headSha).map((commit) => commit.sha));
+    for (const commit of this.commitAncestry(baseRepoId, baseSha)) {
+      if (headShas.has(commit.sha)) return commit.sha;
+    }
+    return null;
+  }
+
+  /** File state (path → blob) as of a commit, reconstructed from file_versions. */
+  private fileStateAtCommit(repoId: number, sha: string | null): Map<string, { content: string; sha: string }> {
+    const state = new Map<string, { content: string; sha: string }>();
+    if (!sha) return state;
+    const seen = new Set<string>();
+    for (const commit of this.commitAncestry(repoId, sha)) {
+      const versions = this.db.prepare("SELECT path, content, sha, status FROM file_versions WHERE repo_id = ? AND commit_sha = ?").all(repoId, commit.sha) as Array<{ path: string; content: string; sha: string; status: string }>;
+      for (const version of versions) {
+        if (seen.has(version.path)) continue;
+        seen.add(version.path);
+        if (version.status !== "removed") state.set(version.path, { content: version.content, sha: version.sha });
+      }
+    }
+    return state;
+  }
+
+  /** Net base-branch changes since the merge base, skipping paths the head branch also touched (head wins). */
+  private mergeChangesFromBase(baseRepo: RepoRow, baseRef: string, headRepo: RepoRow, headRef: string, mergeBase: string | null): FileChange[] {
+    const branchFiles = (repoId: number, branch: string) =>
+      new Map((this.db.prepare("SELECT * FROM files WHERE repo_id = ? AND branch = ?").all(repoId, branch) as FileRow[]).map((file) => [file.path, file]));
+    const baseNow = branchFiles(baseRepo.id, baseRef);
+    const headNow = branchFiles(headRepo.id, headRef);
+    const atMergeBase = this.fileStateAtCommit(baseRepo.id, mergeBase);
+    const changes: FileChange[] = [];
+    for (const path of new Set([...baseNow.keys(), ...atMergeBase.keys()])) {
+      const current = baseNow.get(path);
+      const original = atMergeBase.get(path);
+      if (current?.sha === original?.sha) continue;
+      if (headNow.get(path)?.sha !== original?.sha) continue;
+      if (!current) changes.push({ path, content: "", delete: true });
+      else changes.push({ path, content: current.content });
+    }
+    return changes;
   }
 
   private commitsBetween(repoId: number, headSha: string, baseSha: string | null): CommitRow[] {
