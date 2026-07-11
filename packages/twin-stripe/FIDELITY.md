@@ -23,6 +23,13 @@ Each REST route and MCP tool is classified into one of three tiers:
   envelope (see below) so an agent never silently succeeds against a
   missing route.
 
+Fidelity ("how deep a surface *is*") is one of two orthogonal dimensions;
+the other is **heat** ("how deep it *should* be", `hot`/`warm`/`cold`,
+ruled per milestone). The engine-level rubric — tier criteria, target
+mapping, gap and tier-mismatch semantics — lives at
+[`packages/sdk/ENDPOINT-TIERS.md`](../sdk/ENDPOINT-TIERS.md). The `Tier`
+column below means fidelity.
+
 The bar Pome aims for: **agents written against real Stripe x402 run
 unchanged against this twin**, and trip a loud failure for anything
 outside the documented surface.
