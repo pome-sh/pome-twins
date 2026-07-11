@@ -850,9 +850,13 @@ export class GitHubDomain {
       // instead of resetting the head pointer to the base head. No-op when the
       // head branch already contains the base head (GitHub returns 422 there;
       // documented deviation).
-      const mergeBase = this.findMergeBase(repo.id, baseBranch.head_sha, headRepo.id, headBranch.head_sha);
+      const mergeBase = this.findMergeBase(repo, baseBranch.head_sha, headRepo, headBranch.head_sha);
       if (baseBranch.head_sha === mergeBase) return pr.number;
       const changes = this.mergeChangesFromBase(repo, pr.base_ref, headRepo, pr.head_ref, mergeBase);
+      // Single-parent commit model: a previous merge is invisible to the
+      // ancestry walk, so "base already merged" surfaces as an empty change
+      // set. Merge commits are only created when they change files on head.
+      if (changes.length === 0) return pr.number;
       const mergeCommit = this.commitFiles(headRepo, pr.head_ref, `Merge branch '${pr.base_ref}' into ${pr.head_ref}`, changes, "pome-agent");
       this.db.prepare("UPDATE pull_requests SET head_sha = ?, updated_at = ? WHERE repo_id = ? AND number = ?").run(mergeCommit.sha, nowIso(), repo.id, pr.number);
       this.replacePullFiles(repo.id, pr.number, this.calculatePullFiles(repo, pr.base_ref, headRepo, pr.head_ref));
@@ -1553,11 +1557,15 @@ export class GitHubDomain {
     return out;
   }
 
-  private findMergeBase(baseRepoId: number, baseSha: string | null, headRepoId: number, headSha: string | null): string | null {
+  private findMergeBase(baseRepo: RepoRow, baseSha: string | null, headRepo: RepoRow, headSha: string | null): string | null {
     if (!baseSha || !headSha) return null;
-    const headShas = new Set(this.commitAncestry(headRepoId, headSha).map((commit) => commit.sha));
-    for (const commit of this.commitAncestry(baseRepoId, baseSha)) {
+    const headShas = new Set(this.commitAncestry(headRepo.id, headSha).map((commit) => commit.sha));
+    for (const commit of this.commitAncestry(baseRepo.id, baseSha)) {
       if (headShas.has(commit.sha)) return commit.sha;
+      // Fork heads carry copies of the base commits with remapped SHAs
+      // (copyForkCommits); the remap is deterministic, so probe the
+      // fork-space SHA too. Returns the base-space SHA either way.
+      if (baseRepo.id !== headRepo.id && headShas.has(makeSha(headRepo.full_name, commit.sha))) return commit.sha;
     }
     return null;
   }

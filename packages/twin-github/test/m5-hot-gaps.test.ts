@@ -107,6 +107,15 @@ describe("get_release_by_tag and get_tag", () => {
     expect(() => domain.getTag({ ...repo, tag: "nope" })).toThrow("Not Found");
   });
 
+  it("resolves tags containing slashes over REST", async () => {
+    const app = createGitHubCloneApp();
+    await mcp(app, "create_release", { ...repo, tag_name: "release/2026-07" });
+
+    const rest = await req(app, "GET", "/repos/acme/api/releases/tags/release/2026-07");
+    expect(rest.status).toBe(200);
+    expect(rest.body.tag_name).toBe("release/2026-07");
+  });
+
   it("exposes get_release_by_tag over REST and both over MCP", async () => {
     const app = createGitHubCloneApp();
     await mcp(app, "create_release", { ...repo, tag_name: "v1.2.3", name: "Release 1.2.3" });
@@ -183,13 +192,50 @@ describe("update_pull_request_branch (semantic merge)", () => {
     domain.pushFiles({ ...repo, branch: "feature/conflict-merge", message: "Head edit", files: [{ path: "shared.txt", content: "head version\n" }] });
     domain.pushFiles({ ...repo, branch: "main", message: "Base edit", files: [{ path: "shared.txt", content: "base version\n" }] });
     const pr = domain.createPullRequest({ ...repo, title: "Conflicting merge", head: "feature/conflict-merge", base: "main" });
+    const oldHeadSha = pr.head.sha!;
 
     domain.updatePullRequestBranch({ ...repo, pull_number: pr.number });
 
-    const headCommits = domain.listCommits({ ...repo, sha: "feature/conflict-merge" });
-    expect(headCommits[0].commit.message).toBe("Merge branch 'main' into feature/conflict-merge");
+    // Head wins on the conflicting path, so there is nothing to merge: the
+    // call no-ops (no merge commit) and head keeps its version.
+    expect(domain.getPullRequest({ ...repo, pull_number: pr.number }).head.sha).toBe(oldHeadSha);
     const file = domain.getFileContents({ ...repo, path: "shared.txt", ref: "feature/conflict-merge" }) as { content: string };
     expect(Buffer.from(file.content, "base64").toString("utf8")).toBe("head version\n");
+  });
+
+  it("skips paths deleted on both sides instead of replaying the delete", () => {
+    const domain = seededDomain();
+    const seeded = domain.getFileContents({ ...repo, path: "README.md" }) as { sha: string };
+    domain.createBranch({ ...repo, branch: "feature/both-delete" });
+    domain.pushFiles({ ...repo, branch: "feature/both-delete", message: "Head work", files: [{ path: "head-only.txt", content: "head\n" }] });
+    domain.deleteFile({ ...repo, branch: "feature/both-delete", path: "README.md", message: "Head delete", sha: seeded.sha });
+    domain.deleteFile({ ...repo, branch: "main", path: "README.md", message: "Base delete", sha: seeded.sha });
+    const pr = domain.createPullRequest({ ...repo, title: "Both delete", head: "feature/both-delete", base: "main" });
+
+    expect(domain.updatePullRequestBranch({ ...repo, pull_number: pr.number })).toMatchObject({
+      message: "Updating pull request branch."
+    });
+    expect(() => domain.getFileContents({ ...repo, path: "README.md", ref: "feature/both-delete" })).toThrow("Not Found");
+  });
+
+  it("merges base into a fork head across remapped commit SHAs", () => {
+    const domain = seededDomain();
+    domain.forkRepository({ ...repo, organization: "forks" });
+    domain.pushFiles({ ...repo, branch: "main", message: "Base drift", files: [{ path: "fork-drift.txt", content: "drift\n" }] });
+    const pr = domain.createPullRequest({ ...repo, title: "Fork merge", head: "forks:main", base: "main" });
+    const oldHeadSha = pr.head.sha!;
+
+    domain.updatePullRequestBranch({ ...repo, pull_number: pr.number });
+    const forkCommits = domain.listCommits({ owner: "forks", repo: "api", sha: "main" });
+    expect(forkCommits[0].commit.message).toBe("Merge branch 'main' into main");
+    expect(forkCommits[0].parents[0].sha).toBe(oldHeadSha);
+    expect(domain.getFileContents({ owner: "forks", repo: "api", path: "fork-drift.txt", ref: "main" })).toMatchObject({ path: "fork-drift.txt" });
+
+    // The merge base is found across the fork's remapped SHA space, so a
+    // second call with no new base commits is a no-op, not another merge.
+    const headAfterFirst = domain.getPullRequest({ ...repo, pull_number: pr.number }).head.sha;
+    domain.updatePullRequestBranch({ ...repo, pull_number: pr.number });
+    expect(domain.getPullRequest({ ...repo, pull_number: pr.number }).head.sha).toBe(headAfterFirst);
   });
 
   it("no-ops when the base branch has not advanced", () => {

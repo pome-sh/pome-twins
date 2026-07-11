@@ -292,7 +292,7 @@ export function registerGitHubRoutes(session: Hono, { domain, recorder }: RouteC
   session.get("/repos/:owner/:repo/tags", handle((c) => ok(domain.listTags({ ...params(c), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
   session.get("/repos/:owner/:repo/releases", handle((c) => ok(domain.listReleases({ ...params(c), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
   session.get("/repos/:owner/:repo/releases/latest", handle((c) => ok(domain.getLatestRelease(params(c)))));
-  session.get("/repos/:owner/:repo/releases/tags/:tag", handle((c) => ok(domain.getReleaseByTag({ ...params(c), tag: requireParam(c, "tag") }))));
+  session.get("/repos/:owner/:repo/releases/tags/*", handle((c) => ok(domain.getReleaseByTag({ ...params(c), tag: routeTail(c, "releases/tags/") }))));
   session.post("/repos/:owner/:repo/releases", handle(async (c) => {
     const args = { ...params(c), ...createReleaseSchema.parse(await readJson(c)) };
     const actor = sessionLogin(c);
