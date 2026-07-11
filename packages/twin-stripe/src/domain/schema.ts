@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS charges (
   failure_code TEXT,
   failure_decline_code TEXT,
   failure_message TEXT,
+  customer_id TEXT,
   FOREIGN KEY (payment_intent_id) REFERENCES payment_intents(id) ON DELETE CASCADE
 );
 
@@ -193,6 +194,7 @@ const F731_COLUMNS: Record<string, ReadonlyArray<[column: string, ddl: string]>>
     ["failure_code", "failure_code TEXT"],
     ["failure_decline_code", "failure_decline_code TEXT"],
     ["failure_message", "failure_message TEXT"],
+    ["customer_id", "customer_id TEXT"],
   ],
 };
 

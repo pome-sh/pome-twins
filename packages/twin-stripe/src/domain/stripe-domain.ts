@@ -220,6 +220,7 @@ export class StripeDomain {
           currency: inFlight.currency,
           payment_method_id: pm.id,
           payment_method_details_json: detailsJson,
+          customer_id: inFlight.customer_id,
           status: "failed",
           failure_code: decline.code,
           failure_decline_code: decline.decline_code,
@@ -264,6 +265,7 @@ export class StripeDomain {
         balance_transaction_id: balanceTx.id,
         payment_method_id: pm.id,
         payment_method_details_json: detailsJson,
+        customer_id: inFlight.customer_id,
       });
       const pi = this.paymentIntents.finalizeCardSuccess(accountId, id, charge.id);
       this.events.create(accountId, {

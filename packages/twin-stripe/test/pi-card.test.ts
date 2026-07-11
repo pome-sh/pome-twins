@@ -578,6 +578,70 @@ describe("card PaymentIntents — review hardening (F-731)", () => {
     expect(confirm.body.status).toBe("succeeded");
   });
 
+  it("charges inherit the PI's customer and the customer filter works (Greptile P1)", async () => {
+    const app = await createStripeApp();
+    const customer = await rest(app, "POST", "/v1/customers", { name: "Charge Owner" });
+    const pm = await createPM(app, CARD_OK);
+    await rest(app, "POST", `/v1/payment_methods/${pm.id}/attach`, {
+      customer: customer.body.id,
+    });
+    const pi = await rest(app, "POST", "/v1/payment_intents", {
+      amount: 3_000,
+      currency: "usd",
+      payment_method_types: ["card"],
+      customer: customer.body.id,
+      payment_method: pm.id,
+      confirm: true,
+    });
+    expect(pi.body.status).toBe("succeeded");
+
+    // The settled charge is attributable to the customer.
+    const charge = await rest(app, "GET", `/v1/charges/${pi.body.latest_charge}`);
+    expect(charge.body.customer).toBe(customer.body.id);
+
+    // A customer-less crypto settle for contrast, then filter by customer.
+    const cryptoPi = await rest(app, "POST", "/v1/payment_intents", {
+      amount: 500,
+      currency: "usd",
+      payment_method_types: ["crypto"],
+      payment_method_options: {
+        crypto: { mode: "deposit", deposit_options: { networks: ["base"] } },
+      },
+    });
+    await rest(
+      app,
+      "POST",
+      `/v1/test_helpers/payment_intents/${cryptoPi.body.id}/simulate_crypto_deposit`
+    );
+    const all = await rest(app, "GET", "/v1/charges");
+    expect(all.body.data).toHaveLength(2);
+    const filtered = await rest(app, "GET", `/v1/charges?customer=${customer.body.id}`);
+    expect(filtered.body.data).toHaveLength(1);
+    expect(filtered.body.data[0].id).toBe(pi.body.latest_charge);
+  });
+
+  it("a declined attempt's failed charge also carries the customer (Greptile P1)", async () => {
+    const app = await createStripeApp();
+    const customer = await rest(app, "POST", "/v1/customers", { name: "Decline Owner" });
+    const pm = await createPM(app, CARD_GENERIC_DECLINE);
+    await rest(app, "POST", `/v1/payment_methods/${pm.id}/attach`, {
+      customer: customer.body.id,
+    });
+    const pi = await rest(app, "POST", "/v1/payment_intents", {
+      amount: 2_000,
+      currency: "usd",
+      payment_method_types: ["card"],
+      customer: customer.body.id,
+      payment_method: pm.id,
+    });
+    await rest(app, "POST", `/v1/payment_intents/${pi.body.id}/confirm`);
+
+    const after = await rest(app, "GET", `/v1/payment_intents/${pi.body.id}`);
+    const charge = await rest(app, "GET", `/v1/charges/${after.body.latest_charge}`);
+    expect(charge.body.status).toBe("failed");
+    expect(charge.body.customer).toBe(customer.body.id);
+  });
+
   it("confirm: true without a payment_method fails before any PI is created", async () => {
     const app = await createStripeApp();
     const r = await rest(app, "POST", "/v1/payment_intents", {

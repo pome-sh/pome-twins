@@ -157,7 +157,7 @@ export function chargeJson(row: ChargeRow) {
     captured: Boolean(row.captured),
     created: row.created,
     currency: row.currency,
-    customer: null,
+    customer: row.customer_id,
     description: null,
     disputed: false,
     failure_balance_transaction: null,

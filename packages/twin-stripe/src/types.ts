@@ -193,6 +193,7 @@ export type ChargeRow = {
   failure_code: string | null;
   failure_decline_code: string | null;
   failure_message: string | null;
+  customer_id: string | null;
 };
 
 export type BalanceTxRow = {

@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS charges (
   payment_method_details_json TEXT,
   failure_code TEXT,
   failure_decline_code TEXT,
-  failure_message TEXT
+  failure_message TEXT,
+  customer_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_charges_payment_intent ON charges(payment_intent_id);
