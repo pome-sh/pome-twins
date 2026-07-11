@@ -41,15 +41,16 @@ build depends on (port `:3333`, `/healthz`, `STRIPE_CLONE_HOST`,
 in the package README. Changing any of those is a breaking change for
 `pome-cloud` and requires a matching cloud consumer PR.
 
-## REST routes (v1 = 22 semantic + everything else loud 501)
+## REST routes (v1 = 23 semantic + everything else loud 501)
 
 | Route | Tier | Tests | Notes |
 | --- | --- | --- | --- |
-| `POST /s/:sid/v1/payment_intents` | semantic | `pi.test.ts`, `tools.test.ts` | Crypto deposit mode only. Generates deterministic Base USDC deposit address. PI status starts at `requires_action`. |
-| `GET /s/:sid/v1/payment_intents/:id` | semantic | `pi.test.ts` | |
+| `POST /s/:sid/v1/payment_intents` | semantic | `pi.test.ts`, `pi-card.test.ts`, `tools.test.ts` | Two rails (F-731): crypto deposit mode (deterministic Base USDC deposit address, starts at `requires_action`) and card (starts at `requires_payment_method`, or `requires_confirmation` with a `payment_method`; `confirm: true` runs the one-shot attempt). |
+| `GET /s/:sid/v1/payment_intents/:id` | semantic | `pi.test.ts`, `pi-card.test.ts` | Card PIs surface `last_payment_error` after a declined attempt. |
 | `GET /s/:sid/v1/payment_intents` | semantic | `pi.test.ts` | Cursor pagination on `(created, id)` via `starting_after` / `ending_before` (matches Stripe's cursor model). |
-| `POST /s/:sid/v1/payment_intents/:id/confirm` | semantic | `pi.test.ts` | For crypto-only PIs, confirm is mostly a no-op (state already `requires_action` after create). Idempotent return. |
-| `POST /s/:sid/v1/payment_intents/:id/cancel` | semantic | `pi.test.ts` | CAS-on-status; refused once `succeeded`. |
+| `POST /s/:sid/v1/payment_intents/:id/confirm` | semantic | `pi.test.ts`, `pi-card.test.ts` | Card PIs (F-731): synchronous attempt — success mints charge + balance txn + events; magic test PMs decline with a 402 `card_error` embedding the post-attempt PI. Crypto PIs: idempotent no-op. CAS picks exactly one winner among parallel confirms. |
+| `POST /s/:sid/v1/payment_intents/:id` | semantic | `pi-card.test.ts` | Update (F-731, ruled in scope by F-729 point 1) — the retry-with-new-PM step. Metadata merges per-key; attaching a PM moves `requires_payment_method → requires_confirmation`. Refused once terminal. |
+| `POST /s/:sid/v1/payment_intents/:id/cancel` | semantic | `pi.test.ts`, `pi-card.test.ts` | CAS-on-status; refused once `succeeded`. |
 | `POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit` | semantic | `pi.test.ts`, `pi-concurrency.test.ts`, `events.test.ts` | The x402 settlement entry point. CAS `requires_action → processing → succeeded`; mints charge + balance txn + 5 events synchronously. |
 | `GET /s/:sid/v1/charges/:id` | semantic | `charges.test.ts` | Latest charge of a settled PI. |
 | `GET /s/:sid/v1/charges` | semantic | `charges.test.ts` | Filter by `payment_intent`, `customer`. |
@@ -92,7 +93,7 @@ Anything else under `/v1/*` (`/v1/setup_intents`, `/v1/checkout/*`,
 
 HTTP status: 501.
 
-## MCP tools (25 live; 22 documented — names match `stripe-node` method names)
+## MCP tools (26 live; 23 documented — names match `stripe-node` method names)
 
 | Tool | Backing route | Tier |
 | --- | --- | --- |
@@ -100,6 +101,7 @@ HTTP status: 501.
 | `retrieve_payment_intent` | GET /v1/payment_intents/:id | semantic |
 | `list_payment_intents` | GET /v1/payment_intents | semantic |
 | `confirm_payment_intent` | POST /v1/payment_intents/:id/confirm | semantic |
+| `update_payment_intent` | POST /v1/payment_intents/:id | semantic |
 | `cancel_payment_intent` | POST /v1/payment_intents/:id/cancel | semantic |
 | `simulate_crypto_deposit` | POST /v1/test_helpers/.../simulate_crypto_deposit | semantic |
 | `retrieve_charge` | GET /v1/charges/:id | semantic |
@@ -162,7 +164,9 @@ plus the `examples/buyer-agent/` end-to-end demo against a running twin.
   exactly one 200 (winner of the `requires_action → processing` CAS)
   and seven 400s with `payment_intent_unexpected_state`. Single
   `charges` row, single `balance_transactions` row, balance reflects
-  the PI amount once.
+  the PI amount once. The card rail carries the same guarantee
+  (`pi-card.test.ts`): 8 parallel confirms → one winner of the
+  `requires_confirmation → processing` CAS, single charge.
 - **Idempotency-Key** (`idempotency.test.ts`): same key + same body →
   cached response. Same key + different body → 400
   `idempotency_key_in_use`. Caches 2xx/3xx; skips 4xx and 5xx so a
@@ -231,12 +235,23 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
 
 ## Known divergences from real Stripe (v1)
 
-1. **PI currency restricted to `usd`**. Non-USD returns
+1. **PI currency restricted to `usd`** on both rails. Non-USD returns
    `currency_not_supported`. (Real Stripe accepts many currencies but
-   x402's USD-priced/USDC-paid model is the v1 wedge.)
-2. **`payment_method_types` restricted to crypto**. The value must be
-   `["crypto"]`; `["card"]` and others return
-   `payment_method_type_not_supported`.
+   x402's USD-priced/USDC-paid model is the v1 wedge; card PIs keep the
+   same restriction.)
+2. **`payment_method_types` restricted to exactly `["crypto"]` or `["card"]`**
+   (F-731 added the card rail). Multi-type lists and other types return a
+   loud 400. Card attempts settle synchronously with no 3DS /
+   `requires_action` step; declines are driven by Stripe's magic test PMs
+   (`4000000000000002` generic_decline, `4000000000009995`
+   insufficient_funds, `4000000000000069` expired_card, `4000000000000127`
+   incorrect_cvc — the decline is keyed off the stored card fingerprint,
+   the PAN is never persisted). A declined confirm answers 402 with a
+   `card_error` envelope that embeds `decline_code` and the post-attempt
+   `payment_intent`, mints a `failed` charge, and records
+   `last_payment_error` — the ruled retry step is
+   `POST /v1/payment_intents/:id` with a new `payment_method`, then
+   confirm again.
 3. **Single deposit network and token**. One network (`base`), one token
    (`usdc`). Tempo and Solana from Stripe's published matrix are deferred.
 4. **`available_on` equals `created`** for balance transactions (no
@@ -246,8 +261,11 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
 6. **EIP-3009 signature verification not enforced** (x402 deviation).
 7. **`simulate_crypto_deposit` settles synchronously**; no chain-delay
    simulation.
-8. **`confirm_payment_intent` is a no-op for crypto-only PIs** (the
-   state machine doesn't need a separate confirm step in deposit mode).
+8. **`confirm_payment_intent` is a no-op for crypto PIs only** (the
+   deposit-mode state machine doesn't need a separate confirm step).
+   Card confirms are real synchronous attempts (F-731) — and unlike the
+   crypto no-op, re-confirming a settled card PI is refused with
+   `payment_intent_unexpected_state`.
 9. **`/v1/refunds` omits the legacy `count` field**. Real Stripe's
    refunds list envelope still carries a top-level `count`; the twin (like
    its other list surfaces, which match real Stripe exactly) omits this
@@ -301,7 +319,8 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
 ## Verification commands
 
 ```bash
-npm run test            # 14 files / 70 tests, all green
+npm run test            # 31 files / 194 tests, all green
 npm run smoke           # full x402 flow against built server
+npm run fidelity:parity # every inventoried MCP tool end-to-end
 npm run typecheck
 ```

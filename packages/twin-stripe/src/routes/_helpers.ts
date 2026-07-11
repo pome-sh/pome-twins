@@ -100,6 +100,10 @@ export async function handle(
     );
   } catch (error) {
     if (error instanceof TwinError) {
+      // Almost every TwinError is thrown before any write. The card
+      // decline (F-731) is the exception: it commits a failed charge +
+      // events + PI transition and then throws the 402, carrying the
+      // committed delta so the recorder logs the mutation truthfully.
       return respond(
         c,
         recorder,
@@ -108,9 +112,9 @@ export async function handle(
         requestBody,
         error.status,
         error.toEnvelope(),
-        false,
+        error.state_mutation ?? false,
         error.fidelity ?? "semantic",
-        null
+        error.state_delta ?? null
       );
     }
     if (error instanceof z.ZodError) {

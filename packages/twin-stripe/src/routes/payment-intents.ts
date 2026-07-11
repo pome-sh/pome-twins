@@ -7,6 +7,11 @@ import type { StripeDomain } from "../domain/index.js";
 import type { Recorder } from "../types.js";
 import { handle, ok, created, parseListQuery, accountId, readBodyForm } from "./_helpers.js";
 
+// Stripe's form encoding surfaces booleans as "true"/"false" strings.
+const formBool = z
+  .union([z.boolean(), z.enum(["true", "false"]).transform((v) => v === "true")])
+  .optional();
+
 const createPISchema = z.object({
   amount: z.coerce.number().int().positive(),
   currency: z.string().min(1),
@@ -23,9 +28,25 @@ const createPISchema = z.object({
       }),
     })
     .optional(),
+  payment_method: z.string().optional(),
+  customer: z.string().optional(),
+  confirm: formBool,
   metadata: z.record(z.string(), z.string()).optional(),
   capture_method: z.string().optional(),
   confirmation_method: z.string().optional(),
+});
+
+const confirmPISchema = z.object({
+  payment_method: z.string().optional(),
+});
+
+// Metadata values keep "" and null so the domain can apply Stripe's
+// per-key unset semantics, same as the customers update surface.
+const updatePISchema = z.object({
+  amount: z.coerce.number().int().optional(),
+  metadata: z.record(z.string(), z.string().nullable()).optional(),
+  payment_method: z.string().optional(),
+  customer: z.string().optional(),
 });
 
 export function registerPaymentIntentRoutes(
@@ -61,8 +82,26 @@ export function registerPaymentIntentRoutes(
 
   // 4. POST /v1/payment_intents/:id/confirm
   router.post("/v1/payment_intents/:id/confirm", (c) =>
-    handle(c, recorder, runId, () => {
-      const { body, delta } = domain.confirmPaymentIntent(accountId(c), c.req.param("id")!);
+    handle(c, recorder, runId, async () => {
+      const input = confirmPISchema.parse(await readBodyForm(c));
+      const { body, delta } = domain.confirmPaymentIntent(
+        accountId(c),
+        c.req.param("id")!,
+        input
+      );
+      return ok(body, true, delta);
+    })
+  );
+
+  // 4b. POST /v1/payment_intents/:id — update (F-731, the retry-with-new-PM step)
+  router.post("/v1/payment_intents/:id", (c) =>
+    handle(c, recorder, runId, async () => {
+      const input = updatePISchema.parse(await readBodyForm(c));
+      const { body, delta } = domain.updatePaymentIntent(
+        accountId(c),
+        c.req.param("id")!,
+        input
+      );
       return ok(body, true, delta);
     })
   );

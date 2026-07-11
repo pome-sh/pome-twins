@@ -118,7 +118,7 @@ export class PaymentMethodsDomain {
         expYear,
         // Stable per PAN, like Stripe's card fingerprint — but derived, so
         // the PAN itself is never persisted anywhere.
-        createHash("sha256").update(number).digest("hex").slice(0, 16),
+        fingerprintOf(number),
         nowUnix()
       );
     return this.requireById(accountId, id);
@@ -209,6 +209,39 @@ export class PaymentMethodsDomain {
       { sql: "customer_id = ?", args: [customerId] },
     ]);
   }
+}
+
+// ---------- magic test cards (F-731 decline/retry chain) ----------
+//
+// Stripe's published test numbers that succeed at PM creation but decline
+// at confirm time. The PAN is never stored, so the behavior is keyed by
+// the derived fingerprint (sha256(PAN) prefix — same derivation as
+// `create()` above), computed once at module load.
+
+export type CardDecline = {
+  code: "card_declined" | "expired_card" | "incorrect_cvc";
+  decline_code: string;
+  message: string;
+};
+
+const MAGIC_DECLINES: ReadonlyArray<[pan: string, decline: CardDecline]> = [
+  ["4000000000000002", { code: "card_declined", decline_code: "generic_decline", message: "Your card was declined." }],
+  ["4000000000009995", { code: "card_declined", decline_code: "insufficient_funds", message: "Your card has insufficient funds." }],
+  ["4000000000000069", { code: "expired_card", decline_code: "expired_card", message: "Your card has expired." }],
+  ["4000000000000127", { code: "incorrect_cvc", decline_code: "incorrect_cvc", message: "Your card's security code is incorrect." }],
+];
+
+const DECLINE_BY_FINGERPRINT: ReadonlyMap<string, CardDecline> = new Map(
+  MAGIC_DECLINES.map(([pan, decline]) => [fingerprintOf(pan), decline])
+);
+
+function fingerprintOf(number: string): string {
+  return createHash("sha256").update(number).digest("hex").slice(0, 16);
+}
+
+/** The decline a confirm attempt with this PM must produce, or null for a good card. */
+export function declineForFingerprint(fingerprint: string): CardDecline | null {
+  return DECLINE_BY_FINGERPRINT.get(fingerprint) ?? null;
 }
 
 function passesLuhn(number: string): boolean {

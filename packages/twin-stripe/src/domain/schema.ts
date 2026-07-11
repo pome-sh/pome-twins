@@ -29,7 +29,10 @@ CREATE TABLE IF NOT EXISTS payment_intents (
   created INTEGER NOT NULL,
   updated INTEGER NOT NULL,
   canceled_at INTEGER,
-  captured_at INTEGER
+  captured_at INTEGER,
+  payment_method_id TEXT,
+  customer_id TEXT,
+  last_payment_error_json TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_intents_created ON payment_intents(created);
@@ -48,6 +51,12 @@ CREATE TABLE IF NOT EXISTS charges (
   captured INTEGER NOT NULL DEFAULT 0,
   currency TEXT NOT NULL,
   created INTEGER NOT NULL,
+  payment_method_id TEXT,
+  payment_method_details_json TEXT,
+  failure_code TEXT,
+  failure_decline_code TEXT,
+  failure_message TEXT,
+  customer_id TEXT,
   FOREIGN KEY (payment_intent_id) REFERENCES payment_intents(id) ON DELETE CASCADE
 );
 
@@ -166,6 +175,40 @@ export function ensureStripeTables(db: TwinStripeDatabase) {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(STRIPE_TABLES_SQL);
+  ensureF731Columns(db);
+}
+
+// F-731 card-mode columns. CREATE IF NOT EXISTS never alters an existing
+// table, so a DB file minted before F-731 (STRIPE_CLONE_DB pointing at an
+// old snapshot) needs the columns added in place. Idempotent; exported so
+// db.ts's migrate() patches old files even without a domain constructor.
+const F731_COLUMNS: Record<string, ReadonlyArray<[column: string, ddl: string]>> = {
+  payment_intents: [
+    ["payment_method_id", "payment_method_id TEXT"],
+    ["customer_id", "customer_id TEXT"],
+    ["last_payment_error_json", "last_payment_error_json TEXT"],
+  ],
+  charges: [
+    ["payment_method_id", "payment_method_id TEXT"],
+    ["payment_method_details_json", "payment_method_details_json TEXT"],
+    ["failure_code", "failure_code TEXT"],
+    ["failure_decline_code", "failure_decline_code TEXT"],
+    ["failure_message", "failure_message TEXT"],
+    ["customer_id", "customer_id TEXT"],
+  ],
+};
+
+export function ensureF731Columns(db: TwinStripeDatabase) {
+  for (const [table, columns] of Object.entries(F731_COLUMNS)) {
+    const existing = new Set(
+      (db.prepare(`SELECT name FROM pragma_table_info(?)`).all(table) as Array<{ name: string }>).map(
+        (row) => row.name
+      )
+    );
+    for (const [column, ddl] of columns) {
+      if (!existing.has(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl};`);
+    }
+  }
 }
 
 /** Drop-and-recreate Stripe-domain tables. Used by `/admin/reset`. */

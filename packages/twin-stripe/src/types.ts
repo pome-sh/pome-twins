@@ -171,6 +171,9 @@ export type PIRow = {
   updated: number;
   canceled_at: number | null;
   captured_at: number | null;
+  payment_method_id: string | null;
+  customer_id: string | null;
+  last_payment_error_json: string | null;
 };
 
 export type ChargeRow = {
@@ -185,6 +188,12 @@ export type ChargeRow = {
   captured: 0 | 1;
   created: number;
   currency: string;
+  payment_method_id: string | null;
+  payment_method_details_json: string | null;
+  failure_code: string | null;
+  failure_decline_code: string | null;
+  failure_message: string | null;
+  customer_id: string | null;
 };
 
 export type BalanceTxRow = {

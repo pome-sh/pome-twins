@@ -13,7 +13,7 @@ import { TwinError } from "./errors.js";
 
 // ---------- shared shapes ----------
 
-const cryptoPMTypes = z.array(z.literal("crypto")).length(1);
+const piPMTypes = z.array(z.enum(["crypto", "card"])).length(1);
 
 const cryptoOptions = z.object({
   mode: z.literal("deposit"),
@@ -67,16 +67,20 @@ function flattenCreated(input: { created?: number | { gt?: number; gte?: number;
 export const toolDefinitions = [
   {
     name: "create_payment_intent",
-    description: "Create a crypto-deposit PaymentIntent (the x402 entry point).",
+    description:
+      "Create a PaymentIntent: crypto-deposit (the x402 entry point) or card (optionally with payment_method / customer / confirm).",
     schema: z.object({
       amount: z.coerce.number().int().positive(),
       currency: z.string().min(1),
-      payment_method_types: cryptoPMTypes,
+      payment_method_types: piPMTypes,
       payment_method_options: z
         .object({
           crypto: cryptoOptions,
         })
         .optional(),
+      payment_method: z.string().optional(),
+      customer: z.string().optional(),
+      confirm: z.boolean().optional(),
       metadata: z.record(z.string(), z.string()).optional(),
       capture_method: z.string().optional(),
       confirmation_method: z.string().optional(),
@@ -94,8 +98,21 @@ export const toolDefinitions = [
   },
   {
     name: "confirm_payment_intent",
-    description: "Confirm a PaymentIntent. Crypto-deposit PIs are idempotent here.",
-    schema: z.object({ id: z.string().min(1) }),
+    description:
+      "Confirm a PaymentIntent. Card PIs attempt the charge synchronously (magic test PMs decline); crypto-deposit PIs are idempotent here.",
+    schema: z.object({ id: z.string().min(1), payment_method: z.string().optional() }),
+  },
+  {
+    name: "update_payment_intent",
+    description:
+      "Update a non-terminal PaymentIntent (amount, metadata, payment_method, customer). The card retry step: attach a new PM after a decline, then confirm again.",
+    schema: z.object({
+      id: z.string().min(1),
+      amount: z.coerce.number().int().optional(),
+      metadata: z.record(z.string(), z.string().nullable()).optional(),
+      payment_method: z.string().optional(),
+      customer: z.string().optional(),
+    }),
   },
   {
     name: "cancel_payment_intent",
@@ -275,6 +292,7 @@ export function isMutatingTool(name: string): boolean {
   return [
     "create_payment_intent",
     "confirm_payment_intent",
+    "update_payment_intent",
     "cancel_payment_intent",
     "simulate_crypto_deposit",
     "create_refund",
@@ -314,7 +332,13 @@ export function executeTool(
       return domain.listPaymentIntents(accountId, { ...parsed, ...flat } as never);
     }
     case "confirm_payment_intent":
-      return domain.confirmPaymentIntent(accountId, parsed.id as string).body;
+      return domain.confirmPaymentIntent(accountId, parsed.id as string, {
+        payment_method: parsed.payment_method as string | undefined,
+      }).body;
+    case "update_payment_intent": {
+      const { id, ...fields } = parsed as { id: string } & Record<string, unknown>;
+      return domain.updatePaymentIntent(accountId, id, fields as never).body;
+    }
     case "cancel_payment_intent":
       return domain.cancelPaymentIntent(accountId, parsed.id as string).body;
     case "simulate_crypto_deposit":

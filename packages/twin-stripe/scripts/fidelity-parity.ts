@@ -3,14 +3,15 @@
 // fidelity:parity — declarative parity scenario for twin-stripe (F-730).
 // The runner lives in @pome-sh/sdk/parity; this file is scenario data only:
 // the crypto-deposit money chain (create PI → confirm → settle → charge →
-// refund → ledger → events), a second PI for the cancel path, and the
+// refund → ledger → events), a second PI for the cancel path, the
 // customer-management chain (F-732: customer CRUD + card-on-file
-// attach/detach), covering every MCP tool in fidelity.inventory.json —
-// including the refunds chain that is live in code but still absent from
-// FIDELITY.md (declared as doc_drift, reconciliation owned by F-733). The
-// loud-501 probe pins the Stripe-shaped unsupported envelope on
-// /v1/checkout/sessions (it moved off /v1/customers when F-732 made
-// customers a supported surface).
+// attach/detach), and the card collect-payment chain (F-731: card PI →
+// update-with-PM → confirm → succeeded), covering every MCP tool in
+// fidelity.inventory.json — including the refunds chain that is live in
+// code but still absent from FIDELITY.md (declared as doc_drift,
+// reconciliation owned by F-733). The loud-501 probe pins the
+// Stripe-shaped unsupported envelope on /v1/checkout/sessions (it moved
+// off /v1/customers when F-732 made customers a supported surface).
 
 import { join } from "node:path";
 import { loadFidelityInventory, runParityCli, type ParityStep } from "@pome-sh/sdk/parity";
@@ -121,6 +122,42 @@ const steps: ParityStep[] = [
       (body as { customer?: string | null }).customer === null ? undefined : "detach should clear customer",
   },
   { tool: "delete_customer", arguments: (state) => ({ id: state.customer }) },
+  // Card collect-payment chain (F-731): create bare card PI → attach a PM
+  // via update (the ruled retry step) → confirm → synchronous settle.
+  {
+    tool: "create_payment_intent",
+    arguments: { amount: 12000, currency: "usd", payment_method_types: ["card"] },
+    capture: (body, state) => {
+      state.cardPi = (body as { id?: string }).id;
+    },
+    verify: (body) =>
+      (body as { status?: string }).status === "requires_payment_method"
+        ? undefined
+        : "a card PI without a PM should start in requires_payment_method",
+  },
+  {
+    tool: "create_payment_method",
+    arguments: { type: "card", card: { number: "4242424242424242", exp_month: 12, exp_year: 2033 } },
+    capture: (body, state) => {
+      state.cardPm = (body as { id?: string }).id;
+    },
+  },
+  {
+    tool: "update_payment_intent",
+    arguments: (state) => ({ id: state.cardPi, payment_method: state.cardPm }),
+    verify: (body) =>
+      (body as { status?: string }).status === "requires_confirmation"
+        ? undefined
+        : "attaching a PM should move the card PI to requires_confirmation",
+  },
+  {
+    tool: "confirm_payment_intent",
+    arguments: (state) => ({ id: state.cardPi }),
+    verify: (body) =>
+      (body as { status?: string }).status === "succeeded"
+        ? undefined
+        : "confirming a good card should settle synchronously",
+  },
 ];
 
 await runParityCli({

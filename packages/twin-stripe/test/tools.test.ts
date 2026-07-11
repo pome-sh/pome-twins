@@ -10,11 +10,11 @@ import { toolDefinitions } from "../src/tools.js";
 const TOOL_NAMES = toolDefinitions.map((t) => t.name);
 
 describe("MCP tools", () => {
-  it("listTools returns 25 tools", async () => {
+  it("listTools returns 26 tools", async () => {
     const app = await createStripeApp();
     const tools = await rest(app, "GET", "/mcp/tools");
     expect(tools.status).toBe(200);
-    expect(tools.body.tools).toHaveLength(25);
+    expect(tools.body.tools).toHaveLength(26);
     const names = tools.body.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
       [
@@ -43,12 +43,13 @@ describe("MCP tools", () => {
         "retrieve_refund",
         "simulate_crypto_deposit",
         "update_customer",
+        "update_payment_intent",
       ].sort()
     );
   });
 
   it("every tool is callable through /mcp/call", async () => {
-    expect(TOOL_NAMES).toHaveLength(25);
+    expect(TOOL_NAMES).toHaveLength(26);
     for (const name of TOOL_NAMES) {
       const app = await createStripeApp();
       const args = await argsFor(app, name);
@@ -144,6 +145,14 @@ async function argsFor(
       const charge = await settleCharge(app);
       const refund = await callTool(app, "create_refund", { charge });
       return { id: refund.body.id };
+    }
+    case "update_payment_intent": {
+      const pi = await rest(app, "POST", "/v1/payment_intents", {
+        amount: 100,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      return { id: pi.body.id, metadata: { note: "updated" } };
     }
     case "retrieve_payment_intent":
     case "confirm_payment_intent":

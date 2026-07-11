@@ -2,79 +2,85 @@
   "twin": "stripe",
   "package": "@pome-sh/twin-stripe",
   "updated": "2026-07-11",
-  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The refunds chain is implemented but undocumented — declared in doc_drift until F-733 reconciles the docs. The customer-management chain (F-732) carries its ruled heat (hot, F-729); the remaining pre-M5 surfaces stay unclassified until their owning tickets (F-731 payments, F-733 refunds docs, F-734 warm set) land.",
+  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The refunds chain is implemented but undocumented — declared in doc_drift until F-733 reconciles the docs (its heat stays unclassified until that ticket lands). The customer-management chain (F-732) and the payment-collection chain (F-731: PI lifecycle incl. card decline/retry + settlement/ledger/event reads) carry their ruled heat (hot, F-729); the warm set lands with F-734.",
   "tools": [
     {
       "name": "create_payment_intent",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): both rails — x402 crypto deposit and card (F-731), incl. one-shot create+confirm."
     },
     {
       "name": "retrieve_payment_intent",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): the post-attempt read agents poll for status and last_payment_error."
     },
     {
       "name": "list_payment_intents",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729); cursor pagination on (created, id)."
     },
     {
       "name": "confirm_payment_intent",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): card confirms attempt the charge synchronously with magic-PM declines (F-731); crypto confirm stays the documented idempotent no-op."
+    },
+    {
+      "name": "update_payment_intent",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment(card) (ruled F-729, ruling point 1): the retry-with-new-PM step after a decline (F-731)."
     },
     {
       "name": "cancel_payment_intent",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): abandon step; CAS-guarded, refused once succeeded."
     },
     {
       "name": "simulate_crypto_deposit",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729); SB: the sealed twin's x402 settlement entry point."
     },
     {
       "name": "retrieve_charge",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:settlement-verify (ruled F-729): agents read the minted (or failed, F-731) charge to verify the attempt."
     },
     {
       "name": "list_charges",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:settlement-verify (ruled F-729); payment_intent / customer / created filters."
     },
     {
       "name": "retrieve_balance",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:ledger-check (ruled F-729): available/pending reflect settled PIs."
     },
     {
       "name": "list_balance_transactions",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:ledger-check (ruled F-729): the ledger entries minted by settles and refunds."
     },
     {
       "name": "retrieve_event",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:poll-confirm (ruled F-729): no webhook delivery in v1, agents poll events."
     },
     {
       "name": "list_events",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:poll-confirm (ruled F-729): the polling read; type + created filters."
     },
     {
       "name": "create_refund",
@@ -134,7 +140,7 @@
       "name": "create_payment_method",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "TC:card-on-file (ruled F-729): card PMs from test card numbers; PAN never stored. Card-mode PI confirm lands in F-731."
+      "justification": "TC:card-on-file (ruled F-729): card PMs from test card numbers; PAN never stored. Magic decline PMs drive the F-731 card retry chain."
     },
     {
       "name": "retrieve_payment_method",
@@ -158,75 +164,81 @@
   "rest": [
     {
       "name": "POST /s/:sid/v1/payment_intents",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): both rails — x402 crypto deposit and card (F-731), incl. one-shot create+confirm."
     },
     {
       "name": "GET /s/:sid/v1/payment_intents/:id",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): the post-attempt read agents poll for status and last_payment_error."
     },
     {
       "name": "GET /s/:sid/v1/payment_intents",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729); cursor pagination on (created, id)."
     },
     {
       "name": "POST /s/:sid/v1/payment_intents/:id/confirm",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): card confirms attempt the charge synchronously with magic-PM declines (F-731); crypto confirm stays the documented idempotent no-op."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_intents/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment(card) (ruled F-729, ruling point 1): update — the retry-with-new-PM step after a decline (F-731)."
     },
     {
       "name": "POST /s/:sid/v1/payment_intents/:id/cancel",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729): abandon step; CAS-guarded, refused once succeeded."
     },
     {
       "name": "POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:collect-payment (ruled F-729); SB: the sealed twin's x402 settlement entry point."
     },
     {
       "name": "GET /s/:sid/v1/charges/:id",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:settlement-verify (ruled F-729): agents read the minted (or failed, F-731) charge to verify the attempt."
     },
     {
       "name": "GET /s/:sid/v1/charges",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:settlement-verify (ruled F-729); payment_intent / customer / created filters."
     },
     {
       "name": "GET /s/:sid/v1/balance",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:ledger-check (ruled F-729): available/pending reflect settled PIs."
     },
     {
       "name": "GET /s/:sid/v1/balance_transactions",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:ledger-check (ruled F-729): the ledger entries minted by settles and refunds."
     },
     {
       "name": "GET /s/:sid/v1/events/:id",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:poll-confirm (ruled F-729): no webhook delivery in v1, agents poll events."
     },
     {
       "name": "GET /s/:sid/v1/events",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+      "justification": "TC:poll-confirm (ruled F-729): the polling read; type + created filters."
     },
     {
       "name": "POST /s/:sid/v1/refunds",
@@ -286,7 +298,7 @@
       "name": "POST /s/:sid/v1/payment_methods",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "TC:card-on-file (ruled F-729): card PMs from test card numbers (Luhn + expiry card_errors); PAN never stored."
+      "justification": "TC:card-on-file (ruled F-729): card PMs from test card numbers (Luhn + expiry card_errors); PAN never stored. Magic decline PMs drive the F-731 card retry chain."
     },
     {
       "name": "GET /s/:sid/v1/payment_methods/:id",

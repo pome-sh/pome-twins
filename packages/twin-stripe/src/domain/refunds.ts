@@ -72,6 +72,16 @@ export class RefundsDomain {
 
     const tx = this.db.transaction((): CreateRefundResult => {
       const charge = this.requireCharge(accountId, input.charge);
+      // F-731 mints `failed` charges for declined card attempts; real
+      // Stripe refuses to refund a charge that never captured.
+      if (charge.status !== "succeeded") {
+        throw new TwinError(
+          "invalid_request_error",
+          "charge_not_refundable",
+          `This charge (${charge.id}) has a status of '${charge.status}' and cannot be refunded.`,
+          { param: "charge", statusCode: 400 }
+        );
+      }
       const refundable = charge.amount - charge.amount_refunded;
       const amount = input.amount ?? refundable;
       if (amount <= 0 || amount > refundable) {

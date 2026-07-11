@@ -27,6 +27,7 @@ import type {
   StripeEvent,
 } from "./upstream-types.js";
 import { STRIPE_API_VERSION } from "./domain/constants.js";
+import { piTypes } from "./domain/payment-intents.js";
 
 export function paymentIntentJson(row: PIRow) {
   // LIFT via named, type-annotated variable spread (the github `parentRef` trick:
@@ -39,16 +40,28 @@ export function paymentIntentJson(row: PIRow) {
   //   • wire-version delta (ST-DIV-015): the twin still emits `invoice` (faithful
   //     to wire apiVersion 2026-03-04.preview); the anchor library stripe@22.2.0
   //     (2026-05-27.dahlia) DROPPED `invoice` from PaymentIntent.
+  // Card PIs (F-731) carry Stripe's default card options instead of the
+  // crypto rail. piTypes is the one rail predicate (domain uses it too).
+  const types = piTypes(row);
   const wireLift: {
     payment_method_options: Record<string, unknown>;
     invoice: string | null;
   } = {
-    payment_method_options: {
-      crypto: {
-        mode: "deposit",
-        deposit_options: { networks: ["base"] },
-      },
-    },
+    payment_method_options: types.includes("card")
+      ? {
+          card: {
+            installments: null,
+            mandate_options: null,
+            network: null,
+            request_three_d_secure: "automatic",
+          },
+        }
+      : {
+          crypto: {
+            mode: "deposit",
+            deposit_options: { networks: ["base"] },
+          },
+        },
     invoice: null,
   };
   return {
@@ -71,17 +84,23 @@ export function paymentIntentJson(row: PIRow) {
     confirmation_method: row.confirmation_method as PaymentIntent["confirmation_method"],
     created: row.created,
     currency: row.currency,
-    customer: null,
+    customer: row.customer_id,
     description: null,
-    last_payment_error: null,
+    // Card declines (F-731): the last failed attempt, parsed from the row.
+    // The stored blob is Stripe's LastPaymentError shape; narrow for the
+    // type anchor only (FDRS-454), runtime unchanged.
+    last_payment_error: parseJson(
+      row.last_payment_error_json,
+      null
+    ) as PaymentIntent["last_payment_error"],
     latest_charge: row.latest_charge_id,
     livemode: false,
     metadata: parseJson(row.metadata_json, {}),
     next_action: row.status === "requires_action" ? parseJson(row.next_action_json, null) : null,
     on_behalf_of: null,
-    payment_method: null,
+    payment_method: row.payment_method_id,
     payment_method_configuration_details: null,
-    payment_method_types: parseJson(row.payment_method_types_json, ["crypto"]),
+    payment_method_types: types,
     processing: null,
     receipt_email: null,
     review: null,
@@ -102,6 +121,22 @@ export function chargeJson(row: ChargeRow) {
   // (2026-05-27.dahlia) DROPPED `invoice` from Charge. Named-variable spread so the
   // divergent field is allowed while every directly-written field stays checked.
   const wireLift: { invoice: string | null } = { invoice: null };
+  const failed = row.status === "failed";
+  // Card charges (F-731) store their PM details at mint time; crypto
+  // charges keep the x402 deposit rail shape.
+  const paymentMethodDetails = parseJson(row.payment_method_details_json, {
+    type: "crypto",
+    crypto: {
+      // Upstream `Charge.PaymentMethodDetails.Crypto.{buyer_address,transaction_hash}`
+      // are `string | undefined`; the twin surfaces `null` pre-settlement (no
+      // on-chain tx yet). Narrow the pre-resolution null for the type anchor only
+      // (FDRS-454), runtime value (null) unchanged.
+      buyer_address: null as unknown as string | undefined,
+      network: "base",
+      token_currency: "usdc",
+      transaction_hash: null as unknown as string | undefined,
+    },
+  });
   return {
     id: row.id,
     object: "charge",
@@ -122,39 +157,39 @@ export function chargeJson(row: ChargeRow) {
     captured: Boolean(row.captured),
     created: row.created,
     currency: row.currency,
-    customer: null,
+    customer: row.customer_id,
     description: null,
     disputed: false,
     failure_balance_transaction: null,
-    failure_code: null,
-    failure_message: null,
+    // Twin failure columns carry Stripe's literal decline codes; the row
+    // type is a free `string`. Narrow for the type anchor only (FDRS-454).
+    failure_code: row.failure_code as Charge["failure_code"],
+    failure_message: row.failure_message,
     fraud_details: {},
     livemode: false,
     metadata: {},
     on_behalf_of: null,
-    outcome: {
-      network_status: "approved_by_network",
-      reason: null,
-      risk_level: "normal",
-      seller_message: "Payment complete.",
-      type: "authorized",
-    },
+    outcome: failed
+      ? {
+          network_status: "declined_by_network",
+          reason: row.failure_decline_code,
+          risk_level: "normal",
+          seller_message: "The bank did not return any further details with this decline.",
+          type: "issuer_declined",
+        }
+      : {
+          network_status: "approved_by_network",
+          reason: null,
+          risk_level: "normal",
+          seller_message: "Payment complete.",
+          type: "authorized",
+        },
     paid: row.status === "succeeded",
     payment_intent: row.payment_intent_id,
-    payment_method: null,
-    payment_method_details: {
-      type: "crypto",
-      crypto: {
-        // Upstream `Charge.PaymentMethodDetails.Crypto.{buyer_address,transaction_hash}`
-        // are `string | undefined`; the twin surfaces `null` pre-settlement (no
-        // on-chain tx yet). Narrow the pre-resolution null for the type anchor only
-        // (FDRS-454), runtime value (null) unchanged.
-        buyer_address: null as unknown as string | undefined,
-        network: "base",
-        token_currency: "usdc",
-        transaction_hash: null as unknown as string | undefined,
-      },
-    },
+    payment_method: row.payment_method_id,
+    // Stored blob is spec-faithful (built from the PM row at mint time);
+    // narrow for the type anchor only (FDRS-454).
+    payment_method_details: paymentMethodDetails as Charge["payment_method_details"],
     receipt_email: null,
     receipt_number: null,
     receipt_url: null,
@@ -236,6 +271,22 @@ export function deletedCustomerJson(row: CustomerRow) {
   } satisfies DeepPartial<DeletedCustomer>;
 }
 
+/**
+ * The card block shared by PaymentMethod.card and (via the domain's
+ * cardChargeDetails) Charge.payment_method_details.card — one source so the
+ * two surfaces can never drift for the same PM.
+ */
+export function cardJson(row: PaymentMethodRow) {
+  return {
+    brand: row.card_brand,
+    exp_month: row.card_exp_month,
+    exp_year: row.card_exp_year,
+    fingerprint: row.card_fingerprint,
+    funding: "credit",
+    last4: row.card_last4,
+  };
+}
+
 export function paymentMethodJson(row: PaymentMethodRow) {
   return {
     id: row.id,
@@ -246,14 +297,7 @@ export function paymentMethodJson(row: PaymentMethodRow) {
       name: null,
       phone: null,
     },
-    card: {
-      brand: row.card_brand,
-      exp_month: row.card_exp_month,
-      exp_year: row.card_exp_year,
-      fingerprint: row.card_fingerprint,
-      funding: "credit",
-      last4: row.card_last4,
-    },
+    card: cardJson(row),
     created: row.created,
     customer: row.customer_id,
     livemode: false,
