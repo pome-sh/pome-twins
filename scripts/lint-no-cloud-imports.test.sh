@@ -39,8 +39,10 @@ assert_forbidden_in_dir packages "bare-package" "import { x } from 'pome-cloud';
 assert_forbidden_in_dir packages "side-effect-import" "import 'pome-cloud/secret';"
 assert_forbidden_in_dir packages "dynamic-import" "const m = await import('@pome-cloud/billing');"
 assert_forbidden_in_dir packages "dynamic-import-spaced" "const m = await import ('pome-cloud/billing');"
+assert_forbidden_in_dir packages "dynamic-import-template" 'const m = await import(`pome-cloud/billing`);'
 assert_forbidden_in_dir packages "require" "const m = require('pome-cloud/foo');"
 assert_forbidden_in_dir packages "require-spaced" "const m = require ('@pome-cloud/auth');"
+assert_forbidden_in_dir packages "require-template" 'const m = require(`@pome-cloud/auth`);'
 
 # Scan-dir coverage — each ADR-002 path must reject the same forbidden import.
 BAD="import { x } from '@pome-cloud/auth';"

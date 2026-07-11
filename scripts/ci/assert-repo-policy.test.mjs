@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Offline regression coverage for scripts/ci/assert-repo-policy.sh (F-696).
- * Feeds fixture protection JSON via POLICY_JSON (no live GitHub API).
+ * Feeds fixture classic protection + rulesets JSON (no live GitHub API).
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
@@ -18,10 +18,8 @@ function assert(cond, msg) {
 
 function baseProtection(overrides = {}) {
   return {
-    required_pull_request_reviews: { required_approving_review_count: 1 },
     allow_force_pushes: { enabled: false },
     allow_deletions: { enabled: false },
-    required_conversation_resolution: { enabled: true },
     required_status_checks: {
       strict: true,
       contexts: ["typecheck-test", "gitleaks + trufflehog", "dependency review"],
@@ -30,10 +28,56 @@ function baseProtection(overrides = {}) {
   };
 }
 
-function runAssert(protection) {
+function baseRulesets(overrides = {}) {
+  const ruleset = {
+    id: 18797095,
+    name: "main founder-bypass",
+    enforcement: "active",
+    target: "branch",
+    conditions: {
+      ref_name: {
+        include: ["~DEFAULT_BRANCH"],
+        exclude: [],
+      },
+    },
+    bypass_actors: [
+      { actor_id: 16601595, actor_type: "Team", bypass_mode: "always" },
+    ],
+    rules: [
+      {
+        type: "pull_request",
+        parameters: {
+          required_approving_review_count: 1,
+          required_review_thread_resolution: true,
+          dismiss_stale_reviews_on_push: true,
+          require_code_owner_review: false,
+          require_last_push_approval: false,
+        },
+      },
+      {
+        type: "required_status_checks",
+        parameters: {
+          strict_required_status_checks_policy: true,
+          required_status_checks: [
+            { context: "typecheck-test" },
+            { context: "gitleaks + trufflehog" },
+            { context: "dependency review" },
+          ],
+        },
+      },
+      { type: "non_fast_forward" },
+    ],
+    ...overrides,
+  };
+  return [ruleset];
+}
+
+function runAssert(protection, rulesets = baseRulesets()) {
   const dir = mkdtempSync(join(tmpdir(), "assert-policy-"));
   const jsonPath = join(dir, "protection.json");
+  const rulesetsPath = join(dir, "rulesets.json");
   writeFileSync(jsonPath, JSON.stringify(protection));
+  writeFileSync(rulesetsPath, JSON.stringify(rulesets));
   const result = spawnSync("bash", [SCRIPT], {
     encoding: "utf8",
     env: {
@@ -41,6 +85,7 @@ function runAssert(protection) {
       GITHUB_TOKEN: "test-token",
       GITHUB_REPOSITORY: "pome-sh/pome-twins",
       POLICY_JSON: jsonPath,
+      RULESETS_JSON: rulesetsPath,
     },
   });
   rmSync(dir, { recursive: true, force: true });
@@ -79,24 +124,6 @@ function main() {
   {
     const r = runAssert(
       baseProtection({
-        required_pull_request_reviews: { required_approving_review_count: 0 },
-      }),
-    );
-    assert(r.status === 1, "zero approving reviews must fail");
-  }
-
-  {
-    const r = runAssert(
-      baseProtection({
-        required_conversation_resolution: { enabled: false },
-      }),
-    );
-    assert(r.status === 1, "disabled conversation resolution must fail");
-  }
-
-  {
-    const r = runAssert(
-      baseProtection({
         allow_deletions: { enabled: true },
       }),
     );
@@ -119,10 +146,132 @@ function main() {
   }
 
   {
+    // GitHub may return contexts: [] while listing required checks under checks[].
+    const r = runAssert(
+      baseProtection({
+        required_status_checks: {
+          strict: true,
+          contexts: [],
+          checks: [
+            { context: "typecheck-test", app_id: 15368 },
+            { context: "gitleaks + trufflehog", app_id: 15368 },
+            { context: "dependency review", app_id: 15368 },
+          ],
+        },
+      }),
+    );
+    assert(
+      r.status === 0,
+      `empty contexts with populated checks must pass: ${r.stderr}\n${r.stdout}`,
+    );
+  }
+
+  {
     const p = baseProtection();
     delete p.allow_force_pushes;
     const r = runAssert(p);
     assert(r.status === 1, "missing allow_force_pushes must fail closed");
+  }
+
+  {
+    const r = runAssert(baseProtection(), []);
+    assert(r.status === 1, "missing founder ruleset must fail");
+    assert(`${r.stdout}\n${r.stderr}`.includes("main founder-bypass"), r.stderr);
+  }
+
+  {
+    const r = runAssert(
+      baseProtection(),
+      baseRulesets({
+        conditions: {
+          ref_name: {
+            include: ["refs/heads/release/*"],
+            exclude: [],
+          },
+        },
+      }),
+    );
+    assert(r.status === 1, "ruleset scoped away from main must fail");
+    assert(`${r.stdout}\n${r.stderr}`.includes("must target branch main"), r.stderr);
+  }
+
+  {
+    const r = runAssert(
+      baseProtection(),
+      baseRulesets({
+        target: "tag",
+      }),
+    );
+    assert(r.status === 1, "non-branch ruleset target must fail");
+    assert(`${r.stdout}\n${r.stderr}`.includes("must target branch main"), r.stderr);
+  }
+
+  {
+    const r = runAssert(
+      baseProtection(),
+      baseRulesets({
+        bypass_actors: [],
+      }),
+    );
+    assert(r.status === 1, "ruleset without founder bypass must fail");
+  }
+
+  {
+    const r = runAssert(
+      baseProtection(),
+      baseRulesets({
+        rules: [
+          {
+            type: "pull_request",
+            parameters: {
+              required_approving_review_count: 0,
+              required_review_thread_resolution: true,
+            },
+          },
+          {
+            type: "required_status_checks",
+            parameters: {
+              strict_required_status_checks_policy: true,
+              required_status_checks: [
+                { context: "typecheck-test" },
+                { context: "gitleaks + trufflehog" },
+                { context: "dependency review" },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    assert(r.status === 1, "zero approving reviews on ruleset must fail");
+  }
+
+  {
+    const r = runAssert(
+      baseProtection(),
+      baseRulesets({
+        rules: [
+          {
+            type: "pull_request",
+            parameters: {
+              required_approving_review_count: 1,
+              required_review_thread_resolution: false,
+            },
+          },
+          {
+            type: "required_status_checks",
+            parameters: {
+              strict_required_status_checks_policy: true,
+              required_status_checks: [
+                { context: "typecheck-test" },
+                { context: "gitleaks + trufflehog" },
+                { context: "dependency review" },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    assert(r.status === 1, "disabled conversation resolution on ruleset must fail");
   }
 
   {
