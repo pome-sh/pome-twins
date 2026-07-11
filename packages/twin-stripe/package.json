@@ -23,7 +23,8 @@
   "files": [
     "dist",
     "README.md",
-    "FIDELITY.md"
+    "FIDELITY.md",
+    "fidelity.inventory.json"
   ],
   "publishConfig": {
     "access": "public"
@@ -36,7 +37,8 @@
     "start": "node dist/src/server.js",
     "prepack": "npm run build",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "fidelity:parity": "tsx scripts/fidelity-parity.ts"
   },
   "keywords": [
     "stripe",

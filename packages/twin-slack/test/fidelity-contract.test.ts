@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Asserts FIDELITY.md exists and stays in sync with the actual code:
-//   - References every visible MCP tool
-//   - Lists every shipped REST surface area
-//   - Calls out the fidelity tiers
-//
-// If FIDELITY.md drifts from src/tools.ts the contract test fails loudly,
-// which forces a deliberate doc update on any tool surface change.
+// Fidelity contract (F-730): the structured inventory is the hub — it must
+// match the live tool list exactly, and the FIDELITY.md tables must match
+// the inventory 1:1 (tier included). This replaces the old soft "docs
+// mention the tool name" check, which could not see undocumented surfaces.
+// The slack-specific doc pins (tier vocabulary, required REST surfaces, ts
+// invariant, mutating tool set) stay.
 
 import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toolDefinitions, MUTATING_TOOL_NAMES } from "../src/tools.js";
+import {
+  compareToolNames,
+  lintFidelityInventory,
+  loadFidelityInventory,
+} from "@pome-sh/sdk/parity";
+import { listTools, MUTATING_TOOL_NAMES } from "../src/tools.js";
 
 const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FIDELITY_PATH = join(PKG_ROOT, "FIDELITY.md");
@@ -22,14 +26,25 @@ describe("FIDELITY.md contract", () => {
     expect(existsSync(FIDELITY_PATH)).toBe(true);
   });
 
-  it("FIDELITY.md mentions every visible MCP tool by name", () => {
+  it("keeps fidelity.inventory.json 1:1 with the live tool list", () => {
+    const inventory = loadFidelityInventory(join(PKG_ROOT, "fidelity.inventory.json"));
+    expect(
+      compareToolNames(
+        inventory.tools.map((tool) => tool.name),
+        listTools().map((tool) => tool.name)
+      )
+    ).toEqual({ missing: [], extra: [] });
+  });
+
+  it("keeps the FIDELITY.md tables 1:1 with fidelity.inventory.json", () => {
+    const inventory = loadFidelityInventory(join(PKG_ROOT, "fidelity.inventory.json"));
     const body = readFileSync(FIDELITY_PATH, "utf8");
-    for (const tool of toolDefinitions) {
-      expect(
-        body.includes("`" + tool.name + "`"),
-        `FIDELITY.md is missing the tool '${tool.name}'`
-      ).toBe(true);
-    }
+    expect(
+      lintFidelityInventory(inventory, [
+        { label: "FIDELITY.md", kind: "tool", markdown: body },
+        { label: "FIDELITY.md", kind: "rest", markdown: body },
+      ])
+    ).toEqual([]);
   });
 
   it("FIDELITY.md declares the three fidelity tiers", () => {

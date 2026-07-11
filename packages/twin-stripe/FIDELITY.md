@@ -96,6 +96,15 @@ Every MCP tool is callable via both `POST /s/:sid/mcp/call` (with
 `{tool, arguments}` body) and `POST /s/:sid/mcp/tools/:name` (with the
 arguments as the body). Coverage in `tools.test.ts`.
 
+The tables above are 1:1-linted against the structured inventory
+[`fidelity.inventory.json`](fidelity.inventory.json) (which also carries the
+hot/warm/cold heat tier per F-729) by `test/fidelity-contract.test.ts`, and
+`npm run fidelity:parity` (shared runner in `@pome-sh/sdk/parity`, F-730)
+exercises every inventoried tool end-to-end. Known gaps between code and
+these tables — today, the implemented refunds chain — are declared in the
+inventory's `doc_drift` with their owning ticket (F-733) and fail the lint
+the moment the docs catch up.
+
 ## x402 middleware (`src/x402.ts`)
 
 `paymentMiddleware(routeMap, twinOptions)` is a Hono helper that:

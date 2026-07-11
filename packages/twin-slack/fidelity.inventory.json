@@ -1,0 +1,287 @@
+{
+  "twin": "slack",
+  "package": "@pome-sh/twin-slack",
+  "updated": "2026-07-11",
+  "notes": "Both tables lint 1:1 against FIDELITY.md. REST names are Slack Web API method names. Heat tiers await the F-729 rubric ruling.",
+  "tools": [
+    {
+      "name": "slack_post_message",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_reply_to_thread",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_add_reaction",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_get_channel_history",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_get_thread_replies",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_list_channels",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_get_users",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "slack_get_user_profile",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    }
+  ],
+  "rest": [
+    {
+      "name": "auth.test",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "chat.postMessage",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "chat.update",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "chat.delete",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "chat.scheduleMessage",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "chat.deleteScheduledMessage",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.list",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.info",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.create",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.history",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.replies",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.invite",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.join",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.leave",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.kick",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.archive",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.members",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "conversations.open",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "reactions.add",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "reactions.remove",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "reactions.get",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "users.list",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "users.info",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "users.lookupByEmail",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "users.profile.get",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "users.profile.set",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "pins.add",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "pins.remove",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "pins.list",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "search.messages",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "files.upload",
+      "heat": "unclassified",
+      "fidelity": "shape",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "files.info",
+      "heat": "unclassified",
+      "fidelity": "shape",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "files.list",
+      "heat": "unclassified",
+      "fidelity": "shape",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "files.delete",
+      "heat": "unclassified",
+      "fidelity": "shape",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "bookmarks.add",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "bookmarks.remove",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "bookmarks.list",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "team.info",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    }
+  ],
+  "doc_drift": []
+}

@@ -254,6 +254,14 @@ npm run typecheck                       # zero TS errors
 npm run test                            # all tests pass
 npm run test:coverage                   # ≥ 90% lines, ≥ 90% funcs
 npm run validate:mcp                    # JSON-RPC SDK round-trip
+npm run fidelity:parity                 # every MCP tool through /mcp/call (F-730)
 TWIN_AUTH_SECRET=dev SLACK_DETERMINISTIC_TS=1 npm run smoke
 npm run verify:cloud-token              # cloud xoxb-pome-* token validates
 ```
+
+The tables above are 1:1-linted against the structured inventory
+[`fidelity.inventory.json`](fidelity.inventory.json) (which also carries the
+hot/warm/cold heat tier per F-729) by `test/fidelity-contract.test.ts`; the
+shared parity runner (`@pome-sh/sdk/parity`) asserts the same inventory
+matches the live tool list and that a declarative scenario exercises every
+tool.

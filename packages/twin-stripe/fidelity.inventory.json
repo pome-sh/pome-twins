@@ -1,0 +1,228 @@
+{
+  "twin": "stripe",
+  "package": "@pome-sh/twin-stripe",
+  "updated": "2026-07-11",
+  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The refunds chain is implemented but undocumented — declared in doc_drift until F-733 reconciles the docs. Heat tiers await the F-729 rubric ruling.",
+  "tools": [
+    {
+      "name": "create_payment_intent",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "retrieve_payment_intent",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "list_payment_intents",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "confirm_payment_intent",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "cancel_payment_intent",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "simulate_crypto_deposit",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "retrieve_charge",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "list_charges",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "retrieve_balance",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "list_balance_transactions",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "retrieve_event",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "list_events",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "create_refund",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+    },
+    {
+      "name": "retrieve_refund",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+    },
+    {
+      "name": "list_refunds",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+    }
+  ],
+  "rest": [
+    {
+      "name": "POST /s/:sid/v1/payment_intents",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/payment_intents/:id",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/payment_intents",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_intents/:id/confirm",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_intents/:id/cancel",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/charges/:id",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/charges",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/balance",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/balance_transactions",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/events/:id",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "GET /s/:sid/v1/events",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Pre-M5 baseline (F-730): fidelity mirrors the documented tier; heat awaits the F-729 rubric ruling."
+    },
+    {
+      "name": "POST /s/:sid/v1/refunds",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+    },
+    {
+      "name": "GET /s/:sid/v1/refunds/:id",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+    },
+    {
+      "name": "GET /s/:sid/v1/refunds",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+    }
+  ],
+  "doc_drift": [
+    {
+      "kind": "tool",
+      "name": "create_refund",
+      "reason": "refunds chain shipped without FIDELITY.md rows",
+      "ticket": "F-733"
+    },
+    {
+      "kind": "tool",
+      "name": "retrieve_refund",
+      "reason": "refunds chain shipped without FIDELITY.md rows",
+      "ticket": "F-733"
+    },
+    {
+      "kind": "tool",
+      "name": "list_refunds",
+      "reason": "refunds chain shipped without FIDELITY.md rows",
+      "ticket": "F-733"
+    },
+    {
+      "kind": "rest",
+      "name": "POST /s/:sid/v1/refunds",
+      "reason": "refunds chain shipped without FIDELITY.md rows",
+      "ticket": "F-733"
+    },
+    {
+      "kind": "rest",
+      "name": "GET /s/:sid/v1/refunds/:id",
+      "reason": "refunds chain shipped without FIDELITY.md rows",
+      "ticket": "F-733"
+    },
+    {
+      "kind": "rest",
+      "name": "GET /s/:sid/v1/refunds",
+      "reason": "refunds chain shipped without FIDELITY.md rows",
+      "ticket": "F-733"
+    }
+  ]
+}

@@ -278,8 +278,17 @@ CLI auth available. The fixture set is the contract.
 
 ### 2. MCP parity (`scripts/fidelity-parity.ts`)
 
-`scripts/fidelity-parity.ts` exercises all 62 MCP tools end-to-end against
-a freshly seeded local twin. It runs in two modes:
+`scripts/fidelity-parity.ts` is declarative scenario data for the shared
+engine runner (`@pome-sh/sdk/parity`, F-730): an ordered, stateful call
+chain that exercises every MCP tool end-to-end against a freshly seeded
+local twin. The runner fails unless three rings agree — the live
+`listTools()` surface, the structured inventory
+([`fidelity.inventory.json`](fidelity.inventory.json), which also carries
+the hot/warm/cold heat tier per F-729), and the scenario's tool coverage —
+and every call must answer 2xx through `POST /s/:sid/mcp/call`. The tables
+above are 1:1-linted against the same inventory by
+`test/fidelity-contract.test.ts`, so an implemented-but-undocumented
+surface fails CI instead of drifting silently. It runs in two modes:
 
 - **Local-only** — every tool is invoked locally; success means the contract
   surface is reachable and produces a well-typed response.
