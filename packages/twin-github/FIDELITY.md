@@ -20,6 +20,13 @@ Each MCP tool and REST route is classified into one of three tiers:
 - **`unsupported`** — not implemented. The clone returns a loud 501 envelope
   (see below) so an agent never silently succeeds against a missing route.
 
+Fidelity ("how deep a surface *is*") is one of two orthogonal dimensions; the
+other is **heat** ("how deep it *should* be", `hot`/`warm`/`cold`, ruled per
+milestone). The engine-level rubric — tier criteria, target mapping, gap and
+tier-mismatch semantics — lives at
+[`packages/sdk/ENDPOINT-TIERS.md`](../sdk/ENDPOINT-TIERS.md). The `Tier`
+column below means fidelity.
+
 The bar Pome aims for is: **agents written against real GitHub run unchanged
 against the local twin for the surfaces below**, and trip a loud failure for
 anything outside them.
