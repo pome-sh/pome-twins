@@ -83,6 +83,7 @@ export type SeedRefund = {
   currency: string;
   status: RefundStatus;
   reason?: string | null;
+  balance_transaction_id?: string | null;
   idempotency_key?: string | null;
   created: number;
 };
@@ -259,6 +260,7 @@ export type RefundRow = {
   currency: string;
   status: RefundStatus;
   reason: string | null;
+  balance_transaction_id: string | null;
   idempotency_key: string | null;
   created: number;
 };

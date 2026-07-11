@@ -1,8 +1,8 @@
 {
   "twin": "stripe",
   "package": "@pome-sh/twin-stripe",
-  "updated": "2026-07-11",
-  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The refunds chain is implemented but undocumented — declared in doc_drift until F-733 reconciles the docs (its heat stays unclassified until that ticket lands). The customer-management chain (F-732) and the payment-collection chain (F-731: PI lifecycle incl. card decline/retry + settlement/ledger/event reads) carry their ruled heat (hot, F-729); the warm set lands with F-734.",
+  "updated": "2026-07-12",
+  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The payment-collection chain (F-731: PI lifecycle incl. card decline/retry + settlement/ledger/event reads), the customer-management chain (F-732), and the refunds chain (F-733 reconciliation: ledger + events closed, docs synced) carry their ruled heat (hot, F-729); the warm set lands with F-734. Disputes are unlisted cold per the F-729 ruled list (catch-all 501), not warm — see the F-733 [DECISION].",
   "tools": [
     {
       "name": "create_payment_intent",
@@ -84,21 +84,21 @@
     },
     {
       "name": "create_refund",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+      "justification": "TC:refund (ruled F-729); MCP:create_refund — the only resource keeping a dedicated tool on Stripe's official MCP server. F-733: mints the negative refund-type ledger entry and emits charge.refunded + refund.created in one transaction."
     },
     {
       "name": "retrieve_refund",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+      "justification": "TC:refund (ruled F-729): the post-refund verify read."
     },
     {
       "name": "list_refunds",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+      "justification": "TC:refund (ruled F-729); charge + payment_intent filters."
     },
     {
       "name": "create_customer",
@@ -242,21 +242,21 @@
     },
     {
       "name": "POST /s/:sid/v1/refunds",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+      "justification": "TC:refund (ruled F-729); MCP:create_refund corroborates. F-733: full/partial refunds, over-refund + failed-charge refusals, negative refund-type ledger entry, charge.refunded + refund.created events — all in one transaction. Refund partial ops (POST /v1/refunds/:id, /cancel) stay unlisted per F-729 ruling point 4."
     },
     {
       "name": "GET /s/:sid/v1/refunds/:id",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+      "justification": "TC:refund (ruled F-729): the post-refund verify read."
     },
     {
       "name": "GET /s/:sid/v1/refunds",
-      "heat": "unclassified",
+      "heat": "hot",
       "fidelity": "semantic",
-      "justification": "Implemented and tested in code but absent from the FIDELITY.md tables; doc reconciliation owned by F-733."
+      "justification": "TC:refund (ruled F-729); charge + payment_intent filters. Omits the legacy count field (FIDELITY.md divergence #9)."
     },
     {
       "name": "POST /s/:sid/v1/customers",
@@ -319,42 +319,5 @@
       "justification": "TC:card-on-file (ruled F-729)."
     }
   ],
-  "doc_drift": [
-    {
-      "kind": "tool",
-      "name": "create_refund",
-      "reason": "refunds chain shipped without FIDELITY.md rows",
-      "ticket": "F-733"
-    },
-    {
-      "kind": "tool",
-      "name": "retrieve_refund",
-      "reason": "refunds chain shipped without FIDELITY.md rows",
-      "ticket": "F-733"
-    },
-    {
-      "kind": "tool",
-      "name": "list_refunds",
-      "reason": "refunds chain shipped without FIDELITY.md rows",
-      "ticket": "F-733"
-    },
-    {
-      "kind": "rest",
-      "name": "POST /s/:sid/v1/refunds",
-      "reason": "refunds chain shipped without FIDELITY.md rows",
-      "ticket": "F-733"
-    },
-    {
-      "kind": "rest",
-      "name": "GET /s/:sid/v1/refunds/:id",
-      "reason": "refunds chain shipped without FIDELITY.md rows",
-      "ticket": "F-733"
-    },
-    {
-      "kind": "rest",
-      "name": "GET /s/:sid/v1/refunds",
-      "reason": "refunds chain shipped without FIDELITY.md rows",
-      "ticket": "F-733"
-    }
-  ]
+  "doc_drift": []
 }

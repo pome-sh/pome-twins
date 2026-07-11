@@ -441,15 +441,36 @@ export class StripeDomain {
 
   /**
    * Create a refund. Returns the serialized API shape plus a canonical
-   * `state_delta` so the route can hand both to `respond()`. The INSERT
-   * + charges.amount_refunded UPDATE happen in one better-sqlite3
-   * transaction inside `refunds.create()`.
+   * `state_delta` so the route can hand both to `respond()`.
+   *
+   * F-733: the whole flow — refund INSERT + charges.amount_refunded UPDATE
+   * (inside `refunds.create()`, nested as a savepoint), the negative
+   * refund-type balance transaction, the ledger link backfill, and the
+   * charge.refunded / refund.created events — commits in one better-sqlite3
+   * transaction, mirroring the settle flows.
    */
   createRefund(
     accountId: string,
     input: CreateRefundInput
   ): { body: unknown; delta: StateDelta } {
-    const { row } = this.refunds.create(accountId, input);
+    const tx = this.db.transaction((): RefundRow => {
+      const { row, charge } = this.refunds.create(accountId, input);
+      const balanceTx = this.balance.create(accountId, {
+        type: "refund",
+        amount: -row.amount,
+        fee: 0,
+        currency: row.currency,
+        source_id: row.id,
+        source_type: "refund",
+      });
+      const linked = this.refunds.linkBalanceTransaction(accountId, row.id, balanceTx.id);
+      // v1 has no webhook delivery; these are the poll-chain signals agents
+      // read after a refund (charge carries the post-refund amount_refunded).
+      this.events.create(accountId, { type: "charge.refunded", object: chargeJson(charge) });
+      this.events.create(accountId, { type: "refund.created", object: refundJson(linked) });
+      return linked;
+    });
+    const row = tx();
     return {
       body: refundJson(row),
       delta: { before: null, after: rowToRecord(row) },

@@ -22,6 +22,7 @@ export type EventType =
   | "charge.succeeded"
   | "charge.failed"
   | "charge.refunded"
+  | "refund.created"
   | "customer.created"
   | "customer.updated"
   | "customer.deleted"

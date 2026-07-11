@@ -80,6 +80,7 @@ const refundSeedSchema = z.object({
   currency: z.string().min(1),
   status: z.enum(REFUND_STATUSES),
   reason: z.string().nullable().optional(),
+  balance_transaction_id: z.string().nullable().optional(),
   idempotency_key: z.string().nullable().optional(),
   created: z.number().int(),
 });
@@ -286,8 +287,8 @@ function insertSeedRefund(db: TwinStripeDatabase, row: RefundSeed): void {
   db.prepare(
     `INSERT INTO refunds (
       id, account_id, charge_id, payment_intent_id, amount, currency,
-      status, reason, idempotency_key, created
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      status, reason, balance_transaction_id, idempotency_key, created
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     row.id,
     row.account_id,
@@ -297,6 +298,7 @@ function insertSeedRefund(db: TwinStripeDatabase, row: RefundSeed): void {
     row.currency,
     row.status,
     row.reason ?? null,
+    row.balance_transaction_id ?? null,
     row.idempotency_key ?? null,
     row.created
   );

@@ -5,7 +5,7 @@
 page documents exactly which surfaces are faithful to real Stripe today,
 at what tier, and how fidelity is verified.
 
-Last verified: 2026-07-11.
+Last verified: 2026-07-12.
 Stripe API version pinned: `2026-03-04.preview`.
 
 ## What "fidelity" means here
@@ -41,7 +41,7 @@ build depends on (port `:3333`, `/healthz`, `STRIPE_CLONE_HOST`,
 in the package README. Changing any of those is a breaking change for
 `pome-cloud` and requires a matching cloud consumer PR.
 
-## REST routes (v1 = 23 semantic + everything else loud 501)
+## REST routes (v1 = 26 semantic + everything else loud 501)
 
 | Route | Tier | Tests | Notes |
 | --- | --- | --- | --- |
@@ -54,6 +54,9 @@ in the package README. Changing any of those is a breaking change for
 | `POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit` | semantic | `pi.test.ts`, `pi-concurrency.test.ts`, `events.test.ts` | The x402 settlement entry point. CAS `requires_action → processing → succeeded`; mints charge + balance txn + 5 events synchronously. |
 | `GET /s/:sid/v1/charges/:id` | semantic | `charges.test.ts` | Latest charge of a settled PI. |
 | `GET /s/:sid/v1/charges` | semantic | `charges.test.ts` | Filter by `payment_intent`, `customer`. |
+| `POST /s/:sid/v1/refunds` | semantic | `refunds.test.ts`, `refund-abuse-trap.test.ts` | F-733 (heat: hot, ruled F-729). Full or partial; `amount` defaults to the remaining refundable. Refuses over-refunds (`charge_already_refunded`) and failed charges (`charge_not_refundable`). Mints a negative `refund`-type balance transaction and emits `charge.refunded` + `refund.created` in the same transaction. |
+| `GET /s/:sid/v1/refunds/:id` | semantic | `refunds.test.ts` | |
+| `GET /s/:sid/v1/refunds` | semantic | `refunds.test.ts` | Filter by `charge`, `payment_intent`. Omits the legacy `count` field (divergence #9). |
 | `GET /s/:sid/v1/balance` | semantic | `balance.test.ts` | Available + pending; updated as PIs settle. |
 | `GET /s/:sid/v1/balance_transactions` | semantic | `balance.test.ts` | Ledger entries. |
 | `GET /s/:sid/v1/events/:id` | semantic | `events.test.ts` | |
@@ -93,7 +96,7 @@ Anything else under `/v1/*` (`/v1/setup_intents`, `/v1/checkout/*`,
 
 HTTP status: 501.
 
-## MCP tools (26 live; 23 documented — names match `stripe-node` method names)
+## MCP tools (26, 1:1 with the live tool list — names match `stripe-node` method names)
 
 | Tool | Backing route | Tier |
 | --- | --- | --- |
@@ -106,6 +109,9 @@ HTTP status: 501.
 | `simulate_crypto_deposit` | POST /v1/test_helpers/.../simulate_crypto_deposit | semantic |
 | `retrieve_charge` | GET /v1/charges/:id | semantic |
 | `list_charges` | GET /v1/charges | semantic |
+| `create_refund` | POST /v1/refunds | semantic |
+| `retrieve_refund` | GET /v1/refunds/:id | semantic |
+| `list_refunds` | GET /v1/refunds | semantic |
 | `retrieve_balance` | GET /v1/balance | semantic |
 | `list_balance_transactions` | GET /v1/balance_transactions | semantic |
 | `retrieve_event` | GET /v1/events/:id | semantic |
@@ -130,9 +136,9 @@ The tables above are 1:1-linted against the structured inventory
 hot/warm/cold heat tier per F-729) by `test/fidelity-contract.test.ts`, and
 `npm run fidelity:parity` (shared runner in `@pome-sh/sdk/parity`, F-730)
 exercises every inventoried tool end-to-end. Known gaps between code and
-these tables — today, the implemented refunds chain — are declared in the
-inventory's `doc_drift` with their owning ticket (F-733) and fail the lint
-the moment the docs catch up.
+these tables must be declared in the inventory's `doc_drift` with their
+owning ticket, and the lint fails the moment the docs catch up. None are
+declared today — F-733 reconciled the refunds chain, the last such gap.
 
 ## x402 middleware (`src/x402.ts`)
 
@@ -319,7 +325,7 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
 ## Verification commands
 
 ```bash
-npm run test            # 31 files / 194 tests, all green
+npm run test            # 31 files / 214 tests, all green
 npm run smoke           # full x402 flow against built server
 npm run fidelity:parity # every inventoried MCP tool end-to-end
 npm run typecheck

@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS refunds (
   currency TEXT NOT NULL,
   status TEXT NOT NULL,
   reason TEXT,
+  balance_transaction_id TEXT,
   idempotency_key TEXT,
   created INTEGER NOT NULL,
   FOREIGN KEY (charge_id) REFERENCES charges(id) ON DELETE CASCADE
@@ -175,14 +176,16 @@ export function ensureStripeTables(db: TwinStripeDatabase) {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(STRIPE_TABLES_SQL);
-  ensureF731Columns(db);
+  ensureMigratedColumns(db);
 }
 
-// F-731 card-mode columns. CREATE IF NOT EXISTS never alters an existing
-// table, so a DB file minted before F-731 (STRIPE_CLONE_DB pointing at an
-// old snapshot) needs the columns added in place. Idempotent; exported so
-// db.ts's migrate() patches old files even without a domain constructor.
-const F731_COLUMNS: Record<string, ReadonlyArray<[column: string, ddl: string]>> = {
+// Columns added after a table first shipped. CREATE IF NOT EXISTS never
+// alters an existing table, so a DB file minted earlier (STRIPE_CLONE_DB
+// pointing at an old snapshot) needs the columns added in place.
+// Idempotent; exported so db.ts's migrate() patches old files even without
+// a domain constructor. F-731 added the card-mode columns; F-733 links
+// refunds to their ledger entry.
+const MIGRATED_COLUMNS: Record<string, ReadonlyArray<[column: string, ddl: string]>> = {
   payment_intents: [
     ["payment_method_id", "payment_method_id TEXT"],
     ["customer_id", "customer_id TEXT"],
@@ -196,15 +199,20 @@ const F731_COLUMNS: Record<string, ReadonlyArray<[column: string, ddl: string]>>
     ["failure_message", "failure_message TEXT"],
     ["customer_id", "customer_id TEXT"],
   ],
+  refunds: [["balance_transaction_id", "balance_transaction_id TEXT"]],
 };
 
-export function ensureF731Columns(db: TwinStripeDatabase) {
-  for (const [table, columns] of Object.entries(F731_COLUMNS)) {
+export function ensureMigratedColumns(db: TwinStripeDatabase) {
+  for (const [table, columns] of Object.entries(MIGRATED_COLUMNS)) {
     const existing = new Set(
       (db.prepare(`SELECT name FROM pragma_table_info(?)`).all(table) as Array<{ name: string }>).map(
         (row) => row.name
       )
     );
+    // A table this migration knows about but the DB doesn't have yet is
+    // created later (db.ts's chassis migrate() runs before the domain DDL);
+    // its CREATE TABLE already carries the column.
+    if (existing.size === 0) continue;
     for (const [column, ddl] of columns) {
       if (!existing.has(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl};`);
     }
