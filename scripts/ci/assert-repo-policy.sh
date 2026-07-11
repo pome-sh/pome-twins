@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 # F-696 — assert public-repo policy for pome-twins main.
 # Documents and verifies: PR required, 1 approving review, conversation
-# resolution, no force-push/deletion, and always-present required checks.
+# resolution, no force-push/deletion, strict required checks, and
+# always-present required check contexts.
+#
+# GET .../branches/{branch}/protection needs Administration:read. The default
+# Actions GITHUB_TOKEN cannot be granted that scope (invalid in workflow
+# `permissions:`). Pass a fine-grained PAT via GITHUB_TOKEN / REPO_POLICY_TOKEN.
 set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:-pome-sh/pome-twins}"
 BRANCH="${POLICY_BRANCH:-main}"
-TOKEN="${GITHUB_TOKEN:?GITHUB_TOKEN required}"
+TOKEN="${GITHUB_TOKEN:?GITHUB_TOKEN required (fine-grained PAT with Administration: Read-only)}"
+OUT="$(mktemp)"
+trap 'rm -f "${OUT}"' EXIT
 
 api() {
   curl -sS \
@@ -18,18 +25,34 @@ api() {
 
 echo "Asserting branch protection for ${REPO}@${BRANCH}"
 
-code="$(api -o /tmp/pome-twins-protection.json -w '%{http_code}' \
-  "https://api.github.com/repos/${REPO}/branches/${BRANCH}/protection")"
+if [[ -n "${POLICY_JSON:-}" ]]; then
+  cp "${POLICY_JSON}" "${OUT}"
+else
+  code="$(api -o "${OUT}" -w '%{http_code}' \
+    "https://api.github.com/repos/${REPO}/branches/${BRANCH}/protection")"
 
-if [[ "${code}" != "200" ]]; then
-  echo "::error::branch ${BRANCH} is not protected (HTTP ${code})"
-  cat /tmp/pome-twins-protection.json >&2 || true
-  exit 1
+  if [[ "${code}" == "403" ]]; then
+    echo "::error::HTTP 403 reading branch protection — token lacks Administration:read."
+    echo "Create a fine-grained PAT (Administration: Read-only) and set repo secret REPO_POLICY_TOKEN."
+    cat "${OUT}" >&2 || true
+    exit 1
+  fi
+  if [[ "${code}" == "404" ]]; then
+    echo "::error::branch ${BRANCH} is not protected (HTTP 404)"
+    cat "${OUT}" >&2 || true
+    exit 1
+  fi
+  if [[ "${code}" != "200" ]]; then
+    echo "::error::unexpected HTTP ${code} reading branch protection for ${BRANCH}"
+    cat "${OUT}" >&2 || true
+    exit 1
+  fi
 fi
 
-node <<'NODE'
+POLICY_JSON_PATH="${OUT}" node <<'NODE'
 const fs = require("fs");
-const p = JSON.parse(fs.readFileSync("/tmp/pome-twins-protection.json", "utf8"));
+const path = process.env.POLICY_JSON_PATH;
+const p = JSON.parse(fs.readFileSync(path, "utf8"));
 const required = [
   "typecheck-test",
   "gitleaks + trufflehog",
@@ -58,7 +81,10 @@ if (!conversation) {
 
 if (!p.required_status_checks) {
   errors.push("required_status_checks must be configured");
+} else if (p.required_status_checks.strict !== true) {
+  errors.push("required_status_checks.strict must be true");
 }
+
 const contexts =
   p.required_status_checks?.contexts ??
   p.required_status_checks?.checks?.map((c) => c.context) ??
@@ -75,7 +101,7 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(
-  "ok: PR reviews, conversation resolution, no force-push/delete, required checks present",
+  "ok: PR reviews, conversation resolution, no force-push/delete, strict required checks present",
 );
 console.log("required contexts:", contexts.join(", "));
 NODE
