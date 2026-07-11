@@ -256,3 +256,76 @@ describe("parseFidelityDocRows / lintFidelityInventory", () => {
     );
   });
 });
+
+// ENDPOINT-TIERS.md lint rule 5: when a FIDELITY table carries the optional
+// Heat column, its values must equal the inventory's — heat and fidelity are
+// lintable independently. Tables without a Heat column stay legal (pre-M5
+// twins), so the column is parsed only when the header names it.
+const HEAT_DOC = `
+## MCP Tools
+
+| Tool | Backing surface | Heat | Tier | Tests |
+| --- | --- | --- | --- | --- |
+| \`add_item\` | in-memory list | hot | semantic | \`x.test.ts\` |
+| \`count_items\` | in-memory list | warm | semantic | \`x.test.ts\` |
+
+## REST routes
+
+| Endpoint | Heat | Tier | Notes |
+| --- | --- | --- | --- |
+| \`GET /items\` | hot | semantic | — |
+`;
+
+describe("heat column lint (ENDPOINT-TIERS.md rule 5)", () => {
+  function ruledInventory(): FidelityInventory {
+    const inventory = toyInventory();
+    inventory.tools[0].heat = "hot";
+    inventory.tools[1].heat = "warm";
+    inventory.rest[0].heat = "hot";
+    return inventory;
+  }
+
+  it("parses the Heat column when the header names it, omits it otherwise", () => {
+    expect(parseFidelityDocRows(HEAT_DOC, "tool")).toEqual([
+      { name: "add_item", fidelity: "semantic", heat: "hot" },
+      { name: "count_items", fidelity: "semantic", heat: "warm" },
+    ]);
+    expect(parseFidelityDocRows(DOC, "tool")).toEqual([
+      { name: "add_item", fidelity: "semantic" },
+      { name: "count_items", fidelity: "semantic" },
+    ]);
+  });
+
+  it("passes when documented heat matches the inventory", () => {
+    const docs = [
+      { label: "FIDELITY.md", kind: "tool" as const, markdown: HEAT_DOC },
+      { label: "FIDELITY.md", kind: "rest" as const, markdown: HEAT_DOC },
+    ];
+    expect(lintFidelityInventory(ruledInventory(), docs)).toEqual([]);
+  });
+
+  it("reports heat mismatches between inventory and docs", () => {
+    const docs = [{ label: "FIDELITY.md", kind: "tool" as const, markdown: HEAT_DOC }];
+    const inventory = ruledInventory();
+    inventory.tools[0].heat = "warm";
+    expect(lintFidelityInventory(inventory, docs).join("\n")).toContain(
+      "inventory says heat 'warm' but FIDELITY.md says 'hot'"
+    );
+  });
+
+  it("does not lint heat when the doc table has no Heat column", () => {
+    const docs = [{ label: "FIDELITY.md", kind: "tool" as const, markdown: DOC }];
+    expect(lintFidelityInventory(ruledInventory(), docs)).toEqual([]);
+  });
+
+  it("reports duplicate doc rows with conflicting heat", () => {
+    const conflicting = HEAT_DOC.replace(
+      "| `count_items` | in-memory list | warm | semantic | `x.test.ts` |",
+      "| `count_items` | in-memory list | warm | semantic | `x.test.ts` |\n| `count_items` | in-memory list | cold | semantic | `x.test.ts` |"
+    );
+    const docs = [{ label: "FIDELITY.md", kind: "tool" as const, markdown: conflicting }];
+    expect(lintFidelityInventory(ruledInventory(), docs).join("\n")).toContain(
+      "documented twice with conflicting heat ('warm' vs 'cold')"
+    );
+  });
+});

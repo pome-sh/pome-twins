@@ -60,6 +60,8 @@ export function loadFidelityInventory(path: string): FidelityInventory {
 export interface FidelityDocRow {
   name: string;
   fidelity: string;
+  /** Present only when the table carries the optional Heat column. */
+  heat?: string;
 }
 
 export interface FidelityDocSource {
@@ -108,19 +110,25 @@ export function expandSurfaceCell(cell: string): string[] {
   ];
 }
 
-/** Parse every markdown table whose header names surfaces of `kind` + Tier. */
+/**
+ * Parse every markdown table whose header names surfaces of `kind` + Tier.
+ * The Heat column (ENDPOINT-TIERS.md) is optional: parsed when the header
+ * names it, omitted otherwise, so pre-heat tables stay legal.
+ */
 export function parseFidelityDocRows(markdown: string, kind: "tool" | "rest"): FidelityDocRow[] {
   const nameHeaders = kind === "tool" ? TOOL_NAME_HEADERS : REST_NAME_HEADERS;
   const rows: FidelityDocRow[] = [];
   const lines = markdown.split("\n");
   let nameIdx = -1;
   let tierIdx = -1;
+  let heatIdx = -1;
   let inTable = false;
   for (const line of lines) {
     if (!line.trimStart().startsWith("|")) {
       inTable = false;
       nameIdx = -1;
       tierIdx = -1;
+      heatIdx = -1;
       continue;
     }
     const cells = splitTableRow(line);
@@ -128,13 +136,15 @@ export function parseFidelityDocRows(markdown: string, kind: "tool" | "rest"): F
       const headers = cells.map((cell) => cell.toLowerCase());
       nameIdx = headers.findIndex((header) => nameHeaders.has(header));
       tierIdx = headers.findIndex((header) => header === "tier");
+      heatIdx = headers.findIndex((header) => header === "heat");
       inTable = true;
       continue;
     }
     if (isSeparatorRow(cells) || nameIdx < 0 || tierIdx < 0) continue;
     const fidelity = cells[tierIdx] ?? "";
+    const heat = heatIdx >= 0 ? { heat: cells[heatIdx] ?? "" } : {};
     for (const name of expandSurfaceCell(cells[nameIdx] ?? "")) {
-      rows.push({ name, fidelity });
+      rows.push({ name, fidelity, ...heat });
     }
   }
   return rows;
@@ -182,6 +192,17 @@ export function lintFidelityInventory(
           );
           continue;
         }
+        if (
+          existing &&
+          existing.heat !== undefined &&
+          row.heat !== undefined &&
+          existing.heat !== row.heat
+        ) {
+          problems.push(
+            `${labels}: ${kind} '${row.name}' is documented twice with conflicting heat ('${existing.heat}' vs '${row.heat}')`
+          );
+          continue;
+        }
         documented.set(row.name, row);
       }
     }
@@ -195,6 +216,11 @@ export function lintFidelityInventory(
       if (entry.fidelity !== row.fidelity) {
         problems.push(
           `${kind} '${name}': inventory says fidelity '${entry.fidelity}' but ${labels} says '${row.fidelity}'`
+        );
+      }
+      if (row.heat !== undefined && entry.heat !== row.heat) {
+        problems.push(
+          `${kind} '${name}': inventory says heat '${entry.heat}' but ${labels} says '${row.heat}'`
         );
       }
     }
