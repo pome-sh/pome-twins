@@ -4,8 +4,10 @@
 
 ### Added
 
-- Strict accepted and status response schemas for asynchronous managed
-  evaluation finalization, including the legacy scored-response fallback.
+- Accepted and status response schemas for asynchronous managed evaluation
+  finalization (`Prefer: respond-async`), including relative same-origin
+  `status_url` paths and `{ type, message, details? }` failure errors, plus
+  the legacy scored-response fallback.
 
 ## 0.6.0
 

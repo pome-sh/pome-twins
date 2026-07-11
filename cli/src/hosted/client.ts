@@ -248,22 +248,43 @@ export interface HostedClient {
   deleteSession(sessionId: string, bestEffort?: boolean): Promise<void>;
 }
 
-// Keep these readers strict and wire-identical to the additive exports in
+// Keep these readers wire-identical to the additive exports in
 // @pome-sh/shared-types 0.6.1. The CLI intentionally remains installable
 // against 0.6.0 until that package batch has published.
-const strictFinalizeResponseSchema = finalizeResponseSchema.strict();
+// Scored finalize responses stay non-strict so additive M7 keys strip.
+const finalizeStatusUrlSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      if (value.startsWith("/") && !value.startsWith("//")) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Invalid status_url" },
+  );
 
 const finalizeAcceptedResponseSchema = z.object({
   evaluation_id: z.string().min(1),
   run_id: z.string().min(1),
   status: z.literal("queued"),
-  status_url: z.string().url(),
+  status_url: finalizeStatusUrlSchema,
 }).strict();
 
 const finalizeStatusIdentitySchema = {
   evaluation_id: z.string().min(1),
   run_id: z.string().min(1),
 };
+
+const finalizeFailureErrorSchema = z.object({
+  type: z.string().min(1),
+  message: z.string().min(1),
+  details: z.record(z.string(), z.unknown()).optional(),
+}).strict();
 
 const finalizeStatusResponseSchema = z.discriminatedUnion("status", [
   z.object({
@@ -277,16 +298,12 @@ const finalizeStatusResponseSchema = z.discriminatedUnion("status", [
   z.object({
     ...finalizeStatusIdentitySchema,
     status: z.literal("failed"),
-    error: z.object({
-      code: z.string().min(1),
-      message: z.string().min(1),
-      retryable: z.boolean(),
-    }).strict(),
+    error: finalizeFailureErrorSchema,
   }).strict(),
   z.object({
     ...finalizeStatusIdentitySchema,
     status: z.literal("completed"),
-    result: strictFinalizeResponseSchema,
+    result: finalizeResponseSchema,
   }).strict(),
 ]);
 
@@ -466,7 +483,26 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         reject(new HostedOrchError("finalize aborted"));
       };
       signal?.addEventListener("abort", onAbort, { once: true });
+      // Re-check after subscribe — abort between the early check and
+      // addEventListener would otherwise hang until the delay elapses.
+      if (signal?.aborted) onAbort();
     });
+  }
+
+  function resolveFinalizeStatusUrl(statusUrl: string): URL {
+    const apiOrigin = new URL(config.baseUrl).origin;
+    let resolved: URL;
+    try {
+      resolved = new URL(statusUrl, apiOrigin);
+    } catch {
+      throw new HostedOrchError("finalize status_url is not a valid URL");
+    }
+    if (resolved.origin !== apiOrigin) {
+      throw new HostedOrchError(
+        "finalize status_url must use the configured API origin",
+      );
+    }
+    return resolved;
   }
 
   async function getFinalizeStatus(
@@ -508,13 +544,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
     accepted: FinalizeAcceptedResponse,
     signal?: AbortSignal,
   ): Promise<FinalizeResponse> {
-    const statusUrl = new URL(accepted.status_url);
-    const apiOrigin = new URL(config.baseUrl).origin;
-    if (statusUrl.origin !== apiOrigin) {
-      throw new HostedOrchError(
-        "finalize status_url must use the configured API origin",
-      );
-    }
+    const statusUrl = resolveFinalizeStatusUrl(accepted.status_url);
 
     const deadline = Date.now() + finalizeTimeoutMs;
     let delayMs = finalizePollInitialDelayMs;
@@ -552,10 +582,11 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         return polled.status.result;
       }
       if (polled.status.status === "failed") {
-        throw new HostedOrchError(
-          `${polled.status.error.code}: ${polled.status.error.message}` +
-            (polled.status.error.retryable ? " (retryable)" : ""),
-        );
+        const { type, message, details } = polled.status.error;
+        if (type === "quota_exceeded") {
+          throw new HostedQuotaError(message, undefined, details);
+        }
+        throw new HostedOrchError(`${type}: ${message}`);
       }
       delayMs =
         polled.retryAfterMs ??
@@ -795,7 +826,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         (raw, response) =>
           response.status === 202
             ? finalizeAcceptedResponseSchema.parse(raw)
-            : strictFinalizeResponseSchema.parse(raw),
+            : finalizeResponseSchema.parse(raw),
         {
           headers: { prefer: "respond-async" },
           signal: options?.signal,

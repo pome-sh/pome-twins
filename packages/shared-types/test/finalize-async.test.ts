@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   finalizeAcceptedResponseSchema,
   finalizeInitialResponseSchema,
+  finalizeResponseSchema,
   finalizeStatusResponseSchema,
 } from "../src/index.js";
 
@@ -13,17 +14,33 @@ const legacyResult = {
 };
 
 describe("asynchronous finalize schemas", () => {
-  it("accepts the frozen accepted response and legacy scored fallback", () => {
-    const accepted = {
+  it("accepts relative and absolute status_url on the accepted response", () => {
+    const relative = {
       evaluation_id: "ev_123",
       run_id: "run_123",
-      status: "queued",
+      status: "queued" as const,
+      status_url: "/v1/sessions/ses_123/evaluation",
+    };
+    const absolute = {
+      ...relative,
       status_url: "https://api.pome.sh/v1/sessions/ses_123/evaluation",
     };
 
-    expect(finalizeAcceptedResponseSchema.parse(accepted)).toEqual(accepted);
-    expect(finalizeInitialResponseSchema.parse(accepted)).toEqual(accepted);
+    expect(finalizeAcceptedResponseSchema.parse(relative)).toEqual(relative);
+    expect(finalizeAcceptedResponseSchema.parse(absolute)).toEqual(absolute);
+    expect(finalizeInitialResponseSchema.parse(relative)).toEqual(relative);
     expect(finalizeInitialResponseSchema.parse(legacyResult)).toEqual(legacyResult);
+  });
+
+  it("strips additive M7 keys on scored finalize responses instead of rejecting", () => {
+    const withAdditive = {
+      ...legacyResult,
+      evaluator_version: "m7",
+      criteria_breakdown: [],
+      all_skipped: false,
+      provenance: "upload",
+    };
+    expect(finalizeResponseSchema.parse(withAdditive)).toEqual(legacyResult);
   });
 
   it.each([
@@ -33,7 +50,11 @@ describe("asynchronous finalize schemas", () => {
       evaluation_id: "ev_123",
       run_id: "run_123",
       status: "failed",
-      error: { code: "judge_unavailable", message: "try again", retryable: true },
+      error: {
+        type: "evaluation_failed",
+        message: "bad trace",
+        details: { reason: "invalid_otel" },
+      },
     },
     {
       evaluation_id: "ev_123",
@@ -51,8 +72,17 @@ describe("asynchronous finalize schemas", () => {
         evaluation_id: "ev_123",
         run_id: "run_123",
         status: "queued",
-        status_url: "https://api.pome.sh/v1/sessions/ses_123/evaluation",
+        status_url: "/v1/sessions/ses_123/evaluation",
         extra: true,
+      }),
+    ).toThrow();
+
+    expect(() =>
+      finalizeAcceptedResponseSchema.parse({
+        evaluation_id: "ev_123",
+        run_id: "run_123",
+        status: "queued",
+        status_url: "//evil.example/evaluation",
       }),
     ).toThrow();
 
@@ -68,9 +98,18 @@ describe("asynchronous finalize schemas", () => {
       finalizeStatusResponseSchema.parse({
         evaluation_id: "ev_123",
         run_id: "run_123",
+        status: "failed",
+        error: { code: "legacy", message: "wrong shape", retryable: true },
+      }),
+    ).toThrow();
+
+    expect(() =>
+      finalizeStatusResponseSchema.parse({
+        evaluation_id: "ev_123",
+        run_id: "run_123",
         status: "completed",
         result: legacyResult,
-        error: { code: "impossible", message: "wrong branch", retryable: false },
+        error: { type: "impossible", message: "wrong branch" },
       }),
     ).toThrow();
   });

@@ -462,14 +462,16 @@ describe("HostedClient.finalize", () => {
   });
 
   it("polls a 202 accepted response through queued/running/completed with tenant auth", async () => {
-    const statusUrl = `${BASE}/v1/sessions/ses_abc/evaluation`;
+    // F-700 returns a same-origin relative status_url.
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
+    const statusUrl = `${BASE}${statusPath}`;
     const responses = [
       new Response(
         JSON.stringify({
           evaluation_id: "ev_1",
           run_id: "run_async",
           status: "queued",
-          status_url: statusUrl,
+          status_url: statusPath,
         }),
         { status: 202 },
       ),
@@ -499,6 +501,9 @@ describe("HostedClient.finalize", () => {
             score: 92,
             judge_model: "google/gemini-2.5-flash",
             dashboard_url: "https://app.pome.sh/runs/run_async",
+            // Additive M7 keys must strip, not reject.
+            evaluator_version: "m7",
+            all_skipped: false,
           },
         }),
         { status: 200 },
@@ -522,11 +527,12 @@ describe("HostedClient.finalize", () => {
     const out = await client.finalize("ses_abc", finalizeInput);
 
     expect(out.score).toBe(92);
+    expect(out).not.toHaveProperty("evaluator_version");
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("honors Retry-After while polling", async () => {
-    const statusUrl = `${BASE}/v1/sessions/ses_abc/evaluation`;
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
     const fetchMock = mockFetch(async () => {
       if (fetchMock.mock.calls.length === 1) {
         return new Response(
@@ -534,7 +540,7 @@ describe("HostedClient.finalize", () => {
             evaluation_id: "ev_1",
             run_id: "run_async",
             status: "queued",
-            status_url: statusUrl,
+            status_url: statusPath,
           }),
           { status: 202 },
         );
@@ -576,14 +582,14 @@ describe("HostedClient.finalize", () => {
   });
 
   it("surfaces a terminal evaluation failure", async () => {
-    const statusUrl = `${BASE}/v1/sessions/ses_abc/evaluation`;
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
     const responses = [
       new Response(
         JSON.stringify({
           evaluation_id: "ev_1",
           run_id: "run_async",
           status: "queued",
-          status_url: statusUrl,
+          status_url: statusPath,
         }),
         { status: 202 },
       ),
@@ -593,9 +599,9 @@ describe("HostedClient.finalize", () => {
           run_id: "run_async",
           status: "failed",
           error: {
-            code: "judge_unavailable",
+            type: "evaluation_failed",
             message: "judge failed permanently",
-            retryable: false,
+            details: { reason: "invalid_otel" },
           },
         }),
         { status: 200 },
@@ -609,12 +615,50 @@ describe("HostedClient.finalize", () => {
     });
 
     await expect(client.finalize("ses_abc", finalizeInput)).rejects.toThrow(
-      "judge_unavailable: judge failed permanently",
+      "evaluation_failed: judge failed permanently",
+    );
+  });
+
+  it("maps async quota_exceeded failures to HostedQuotaError", async () => {
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
+    const responses = [
+      new Response(
+        JSON.stringify({
+          evaluation_id: "ev_1",
+          run_id: "run_async",
+          status: "queued",
+          status_url: statusPath,
+        }),
+        { status: 202 },
+      ),
+      new Response(
+        JSON.stringify({
+          evaluation_id: "ev_1",
+          run_id: "run_async",
+          status: "failed",
+          error: {
+            type: "quota_exceeded",
+            message: "Daily managed-judge spend cap reached for this team.",
+            details: { kind: "daily_judge_cap" },
+          },
+        }),
+        { status: 200 },
+      ),
+    ];
+    mockFetch(async () => responses.shift()!);
+    const client = createHostedClient({
+      baseUrl: BASE,
+      apiKey: KEY,
+      finalizePollInitialDelayMs: 0,
+    });
+
+    await expect(client.finalize("ses_abc", finalizeInput)).rejects.toBeInstanceOf(
+      HostedQuotaError,
     );
   });
 
   it("bounds polling with an overall finalize timeout", async () => {
-    const statusUrl = `${BASE}/v1/sessions/ses_abc/evaluation`;
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
     mockFetch(async (_url, init) => {
       if (init?.method === "POST") {
         return new Response(
@@ -622,7 +666,7 @@ describe("HostedClient.finalize", () => {
             evaluation_id: "ev_1",
             run_id: "run_async",
             status: "queued",
-            status_url: statusUrl,
+            status_url: statusPath,
           }),
           { status: 202 },
         );
@@ -650,14 +694,14 @@ describe("HostedClient.finalize", () => {
   });
 
   it("supports caller cancellation during polling", async () => {
-    const statusUrl = `${BASE}/v1/sessions/ses_abc/evaluation`;
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
     mockFetch(async () =>
       new Response(
         JSON.stringify({
           evaluation_id: "ev_1",
           run_id: "run_async",
           status: "queued",
-          status_url: statusUrl,
+          status_url: statusPath,
         }),
         { status: 202 },
       ),
@@ -677,14 +721,15 @@ describe("HostedClient.finalize", () => {
   });
 
   it("uses bearer tenant auth for demo evaluation polling", async () => {
-    const statusUrl = `${BASE}/v1/sessions/ses_abc/evaluation`;
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
+    const statusUrl = `${BASE}${statusPath}`;
     const responses = [
       new Response(
         JSON.stringify({
           evaluation_id: "ev_1",
           run_id: "run_async",
           status: "queued",
-          status_url: statusUrl,
+          status_url: statusPath,
         }),
         { status: 202 },
       ),
@@ -702,7 +747,8 @@ describe("HostedClient.finalize", () => {
         { status: 200 },
       ),
     ];
-    const fetchMock = mockFetch(async (_url, init) => {
+    const fetchMock = mockFetch(async (url, init) => {
+      expect(String(url) === `${BASE}/v1/sessions/ses_abc/finalize` || String(url) === statusUrl).toBe(true);
       expect(new Headers(init?.headers).get("authorization")).toBe(
         "Bearer demo_jwt",
       );
@@ -741,6 +787,39 @@ describe("HostedClient.finalize", () => {
       "configured API origin",
     );
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects mismatched evaluation identifiers while polling", async () => {
+    const statusPath = `/v1/sessions/ses_abc/evaluation`;
+    const responses = [
+      new Response(
+        JSON.stringify({
+          evaluation_id: "ev_1",
+          run_id: "run_async",
+          status: "queued",
+          status_url: statusPath,
+        }),
+        { status: 202 },
+      ),
+      new Response(
+        JSON.stringify({
+          evaluation_id: "ev_other",
+          run_id: "run_async",
+          status: "running",
+        }),
+        { status: 200 },
+      ),
+    ];
+    mockFetch(async () => responses.shift()!);
+    const client = createHostedClient({
+      baseUrl: BASE,
+      apiKey: KEY,
+      finalizePollInitialDelayMs: 0,
+    });
+
+    await expect(client.finalize("ses_abc", finalizeInput)).rejects.toThrow(
+      "identifiers do not match",
+    );
   });
 
   it("omits storage-key fields when undefined so cloud falls back to conventional paths", async () => {

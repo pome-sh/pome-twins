@@ -635,14 +635,36 @@ export const createEvalSessionResponseSchema = z.object({
 export type CreateEvalSessionResponse = z.infer<typeof createEvalSessionResponseSchema>;
 
 // /v1/sessions/:id/finalize — ADR-013 managed-judge response.
+// Not `.strict()`: cloud may emit additive M7 keys (`evaluator_version`,
+// `criteria_breakdown`, `all_skipped`, `provenance`) that older/newer CLIs
+// strip rather than reject.
 export const finalizeResponseSchema = z.object({
   run_id: z.string(),
   score: z.number().int().min(0).max(100),
   judge_model: z.string().nullable().optional(),
   dashboard_url: z.string().url(),
   criteria_results: z.array(criterionResultSchema).optional(),
-}).strict();
+});
 export type FinalizeResponse = z.infer<typeof finalizeResponseSchema>;
+
+// F-700: `status_url` is a same-origin absolute URL *or* an absolute-path
+// relative URL (cloud returns `/v1/sessions/:id/evaluation`).
+export const finalizeStatusUrlSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      if (value.startsWith("/") && !value.startsWith("//")) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Invalid status_url" },
+  );
+export type FinalizeStatusUrl = z.infer<typeof finalizeStatusUrlSchema>;
 
 // POST /v1/sessions/:id/finalize with `Prefer: respond-async`.
 // The legacy scored response remains in the initial-response union for the
@@ -651,7 +673,7 @@ export const finalizeAcceptedResponseSchema = z.object({
   evaluation_id: z.string().min(1),
   run_id: z.string().min(1),
   status: z.literal("queued"),
-  status_url: z.string().url(),
+  status_url: finalizeStatusUrlSchema,
 }).strict();
 export type FinalizeAcceptedResponse = z.infer<
   typeof finalizeAcceptedResponseSchema
@@ -678,10 +700,11 @@ export type FinalizeRunningStatusResponse = z.infer<
   typeof finalizeRunningStatusResponseSchema
 >;
 
+// F-700 wire error on GET .../evaluation failed status.
 export const finalizeFailureErrorSchema = z.object({
-  code: z.string().min(1),
+  type: z.string().min(1),
   message: z.string().min(1),
-  retryable: z.boolean(),
+  details: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 export type FinalizeFailureError = z.infer<
   typeof finalizeFailureErrorSchema
