@@ -1,0 +1,46 @@
+name: repo-policy
+
+# F-696 — assert protected main policy (PR + review + required checks).
+# Live GET .../protection needs Administration:read, which GITHUB_TOKEN cannot
+# hold (invalid workflow permission scope). Unit tests always run; live drift
+# checks use repo secret REPO_POLICY_TOKEN (fine-grained PAT, Administration:
+# Read-only). On PRs without that secret, only the offline validator runs.
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/ci/assert-repo-policy.sh"
+      - "scripts/ci/assert-repo-policy.test.mjs"
+      - ".github/workflows/repo-policy.yml"
+      - ".github/workflows/dependency-review.yml"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/secret-scan.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  assert:
+    name: assert main protection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Regression-test policy validator
+        run: node scripts/ci/assert-repo-policy.test.mjs
+      - name: Assert live branch protection
+        # Never expose the Administration:read PAT to code from a PR branch.
+        # Schedule/dispatch runs use the workflow and script from default branch.
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_POLICY_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+            echo "::error::REPO_POLICY_TOKEN is required for ${EVENT_NAME} drift checks (GITHUB_TOKEN cannot read branch protection)."
+            exit 1
+          fi
+          bash scripts/ci/assert-repo-policy.sh

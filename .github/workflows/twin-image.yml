@@ -15,35 +15,40 @@ on:
       - '.dockerignore'
       - '.trivyignore'
       - 'scripts/ci/wait-for-workflow.sh'
+      - 'scripts/ci/wait-for-workflow.test.mjs'
       - 'scripts/ci/sign-image-digests.sh'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/secret-scan.yml'
       - '.github/workflows/twin-image.yml'
   workflow_dispatch:
 
 jobs:
-  # Package typecheck/test live in `ci` (npm test --workspaces). This workflow
-  # waits for that SHA's `ci` run before building/scanning/pushing so a red
-  # twin cannot still ship a rolling tag to GHCR (FDRS-586) without
-  # re-running the same vitest suite. Wait once, then matrix the three twins.
-  wait-ci:
+  # Package typecheck/test live in `ci`; secret scanning is a parallel required
+  # gate. Wait for both on this SHA before building/scanning/pushing so a red
+  # twin cannot still ship a rolling tag to GHCR (FDRS-586 / F-696).
+  wait-gates:
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Wait for ci workflow on this SHA
+      - name: Wait for ci + secret-scan workflows on this SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # PRs use the merge commit as github.sha; ci runs are keyed by the head
-        # SHA. Passed as an argument — the runner silently ignores env:
+        # PRs use the merge commit as github.sha; workflow runs are keyed by the
+        # head SHA. Passed as an argument — the runner silently ignores env:
         # overrides of default GITHUB_* variables, so an `env: GITHUB_SHA:`
         # form waits on the merge SHA forever and times out on every PR.
-        run: bash scripts/ci/wait-for-workflow.sh ci.yml "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+        run: |
+          set -euo pipefail
+          sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          bash scripts/ci/wait-for-workflow.sh ci.yml "$sha"
+          bash scripts/ci/wait-for-workflow.sh secret-scan.yml "$sha"
 
   publish:
     name: ${{ matrix.twin }}
-    needs: wait-ci
+    needs: wait-gates
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

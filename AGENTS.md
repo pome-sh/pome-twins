@@ -54,7 +54,9 @@ section in the same PR.
 | --- | --- |
 | npm only | root `packageManager` is npm; CI/Docker use `npm ci` and committed `package-lock.json` |
 | Capture is open, evaluation is the product — no local eval/scoring/judging/correlation anywhere in `cli/src/**`, `cli/scripts/**`, `packages/**`, or repo-root `scripts/**` | [`scripts/no-eval-in-oss.mjs`](scripts/no-eval-in-oss.mjs) (`npm run gate:no-eval`) in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — repo-wide, path + module-name + import denylist, empty file allowlist. The module-name rule is a **prefix** match (`correlate*`/`score*`/`judge*`/`verdict*`); an infix like `runScorer.ts` relies on the import rule instead — accepted policy, not a gap. |
-| No cloud imports in OSS packages | [`scripts/lint-no-cloud-imports.sh`](scripts/lint-no-cloud-imports.sh) |
+| No cloud imports in OSS (`packages/`, `cli/src/`, `cli/scripts/`, `scripts/`) — including bare `pome-cloud/*` | [`scripts/lint-no-cloud-imports.sh`](scripts/lint-no-cloud-imports.sh) (+ fixture test `scripts/lint-no-cloud-imports.test.sh`) |
+| Public `main` protection (PR + 1 review + conversation resolution + no force-push/delete + strict always-on CI/secret-scan/dependency-review checks) | [`scripts/ci/assert-repo-policy.sh`](scripts/ci/assert-repo-policy.sh) via [`.github/workflows/repo-policy.yml`](.github/workflows/repo-policy.yml) (offline fixtures in CI; live drift needs Actions secret `REPO_POLICY_TOKEN` — fine-grained PAT with Administration: Read-only; `GITHUB_TOKEN` cannot hold that scope) |
+| Twin image publish waits for both `ci.yml` and `secret-scan.yml` on the same SHA | [`scripts/ci/wait-for-workflow.sh`](scripts/ci/wait-for-workflow.sh) in [`.github/workflows/twin-image.yml`](.github/workflows/twin-image.yml); regression: [`scripts/ci/wait-for-workflow.test.mjs`](scripts/ci/wait-for-workflow.test.mjs) |
 | No cross-package file copies | [`scripts/check-copy-markers.mjs`](scripts/check-copy-markers.mjs) (empty allowlist) |
 | Dead code / orphan packages = 0 | [`knip.json`](knip.json) via `npm run lint:dead-code` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | Zero native modules in the production dependency closure (gyp markers: `binding.gyp` / `"gypfile"`; prebuilt installers like esbuild/fsevents pass) | [`scripts/no-native-modules.mjs`](scripts/no-native-modules.mjs) via `npm run gate:no-native` in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (root closure) and [`.github/workflows/cli-ci.yml`](.github/workflows/cli-ci.yml) (CLI closure) |
@@ -66,13 +68,18 @@ section in the same PR.
 The public `main` branch requires reviewed PRs and green required checks before
 merge. Direct pushes are reserved for release automation only.
 
+“Zero embedded cloud config” means no credentials and no non-overridable env
+wiring. An overrideable public API base (`https://api.pome.sh`, via
+`--api-url` / `POME_API_URL`) remains allowed.
+
 Secret scanning runs in CI via [`.github/workflows/secret-scan.yml`](.github/workflows/secret-scan.yml)
 with both gitleaks and TruffleHog. Install the local hook with
 `bash scripts/hooks/install.sh`; staged changes are blocked unless the same
 boundary gates pass and installed secret scanners find no verified secrets.
 
-Twin images publish only after the `ci` workflow succeeds for that SHA
-(`scripts/ci/wait-for-workflow.sh`) and Trivy scans pass. Published GHCR
+Twin images publish only after both the `ci` and `secret-scan` workflows
+succeed for that SHA (`scripts/ci/wait-for-workflow.sh`) and Trivy scans pass.
+Published GHCR
 digests are cosign-signed with GitHub OIDC, and each digest receives an SPDX
 SBOM attestation. Downstream cloud snapshot promotion must pin and verify those
 signed digests before rebuilding runtime snapshots. That promotion is operated

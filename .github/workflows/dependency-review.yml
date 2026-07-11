@@ -1,11 +1,9 @@
 name: dependency-review
 
+# F-696 — run on every PR so this check is always present and can be required
+# on protected main (path filters made the check flaky/absent on unrelated PRs).
 on:
   pull_request:
-    paths:
-      - '**/package.json'
-      - '**/package-lock.json'
-      - '.github/workflows/dependency-review.yml'
 
 permissions:
   contents: read

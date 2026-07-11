@@ -24,6 +24,9 @@ jobs:
       - run: node scripts/check-copy-markers.mjs
       - run: node scripts/lint-code-health.mjs
       - run: bash scripts/lint-no-cloud-imports.sh
+      - run: bash scripts/lint-no-cloud-imports.test.sh
+      - run: node scripts/ci/wait-for-workflow.test.mjs
+      - run: node scripts/ci/assert-repo-policy.test.mjs
       - run: npm ci
       - run: npm run lint:dead-code
       # F-705 — zero native deps is an invariant: no gyp-marked package in the
