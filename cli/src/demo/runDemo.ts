@@ -54,8 +54,8 @@ import {
 } from "./render.js";
 import { DEMO_REPO, DEMO_TASK_NAME, demoTaskPath } from "./task.js";
 
-/** Explicit finalize timeout — the hosted client defaults to 30s; the demo
- *  judge measured 5-8s, 60s is belt-and-braces ([DECISION]). */
+/** Explicit overall finalize timeout — the demo judge measured 5-8s, 60s is
+ *  belt-and-braces ([DECISION]). */
 const DEMO_FINALIZE_TIMEOUT_MS = 60_000;
 
 export type DemoTrialClient = Pick<
@@ -108,6 +108,7 @@ export async function runDemo(options: RunDemoOptions): Promise<RunDemoResult> {
         apiKey: session.demo_token,
         authScheme: "bearer",
         timeoutMs: DEMO_FINALIZE_TIMEOUT_MS,
+        finalizeTimeoutMs: DEMO_FINALIZE_TIMEOUT_MS,
       }));
 
   const groupId = newGroupId();

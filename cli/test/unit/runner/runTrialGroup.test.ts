@@ -826,6 +826,7 @@ describe("runTrialGroup — dashboard link + client construction", () => {
       baseUrl: "https://api.example",
       apiKey: "pme_k",
       timeoutMs: 60_000,
+      finalizeTimeoutMs: 60_000,
     });
   });
 });

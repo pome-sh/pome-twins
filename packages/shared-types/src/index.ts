@@ -641,8 +641,87 @@ export const finalizeResponseSchema = z.object({
   judge_model: z.string().nullable().optional(),
   dashboard_url: z.string().url(),
   criteria_results: z.array(criterionResultSchema).optional(),
-});
+}).strict();
 export type FinalizeResponse = z.infer<typeof finalizeResponseSchema>;
+
+// POST /v1/sessions/:id/finalize with `Prefer: respond-async`.
+// The legacy scored response remains in the initial-response union for the
+// synchronous N-1 compatibility window.
+export const finalizeAcceptedResponseSchema = z.object({
+  evaluation_id: z.string().min(1),
+  run_id: z.string().min(1),
+  status: z.literal("queued"),
+  status_url: z.string().url(),
+}).strict();
+export type FinalizeAcceptedResponse = z.infer<
+  typeof finalizeAcceptedResponseSchema
+>;
+
+const finalizeStatusIdentitySchema = {
+  evaluation_id: z.string().min(1),
+  run_id: z.string().min(1),
+};
+
+export const finalizeQueuedStatusResponseSchema = z.object({
+  ...finalizeStatusIdentitySchema,
+  status: z.literal("queued"),
+}).strict();
+export type FinalizeQueuedStatusResponse = z.infer<
+  typeof finalizeQueuedStatusResponseSchema
+>;
+
+export const finalizeRunningStatusResponseSchema = z.object({
+  ...finalizeStatusIdentitySchema,
+  status: z.literal("running"),
+}).strict();
+export type FinalizeRunningStatusResponse = z.infer<
+  typeof finalizeRunningStatusResponseSchema
+>;
+
+export const finalizeFailureErrorSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  retryable: z.boolean(),
+}).strict();
+export type FinalizeFailureError = z.infer<
+  typeof finalizeFailureErrorSchema
+>;
+
+export const finalizeFailedStatusResponseSchema = z.object({
+  ...finalizeStatusIdentitySchema,
+  status: z.literal("failed"),
+  error: finalizeFailureErrorSchema,
+}).strict();
+export type FinalizeFailedStatusResponse = z.infer<
+  typeof finalizeFailedStatusResponseSchema
+>;
+
+export const finalizeCompletedStatusResponseSchema = z.object({
+  ...finalizeStatusIdentitySchema,
+  status: z.literal("completed"),
+  result: finalizeResponseSchema,
+}).strict();
+export type FinalizeCompletedStatusResponse = z.infer<
+  typeof finalizeCompletedStatusResponseSchema
+>;
+
+export const finalizeStatusResponseSchema = z.discriminatedUnion("status", [
+  finalizeQueuedStatusResponseSchema,
+  finalizeRunningStatusResponseSchema,
+  finalizeFailedStatusResponseSchema,
+  finalizeCompletedStatusResponseSchema,
+]);
+export type FinalizeStatusResponse = z.infer<
+  typeof finalizeStatusResponseSchema
+>;
+
+export const finalizeInitialResponseSchema = z.union([
+  finalizeResponseSchema,
+  finalizeAcceptedResponseSchema,
+]);
+export type FinalizeInitialResponse = z.infer<
+  typeof finalizeInitialResponseSchema
+>;
 
 export const criterionDefSchema = z.object({
   id: z.string().min(1),

@@ -1,5 +1,12 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.6.1
+
+### Added
+
+- Strict accepted and status response schemas for asynchronous managed
+  evaluation finalization, including the legacy scored-response fallback.
+
 ## 0.6.0
 
 First npm-published release (F-714).

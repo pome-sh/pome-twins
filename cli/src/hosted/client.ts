@@ -15,6 +15,7 @@ import {
   type Lane,
   type Step,
 } from "../types/shared.js";
+import { z } from "zod";
 import {
   HostedAuthError,
   HostedOrchError,
@@ -29,6 +30,13 @@ export interface HostedClientConfig {
   /** Per-request timeout. Defaults to 30s; the cloud's own twin spawn is
    *  ~2s cold but we leave headroom for GHCR pulls.  */
   timeoutMs?: number;
+  /** Overall time allowed for an accepted asynchronous finalize to reach a
+   * terminal state. Defaults to five minutes. */
+  finalizeTimeoutMs?: number;
+  /** Initial async-finalize polling delay. Defaults to 500ms. */
+  finalizePollInitialDelayMs?: number;
+  /** Maximum async-finalize polling delay. Defaults to 5s. */
+  finalizePollMaxDelayMs?: number;
   /** FDRS-643 — how the credential travels. "x-api-key" (default) is the
    *  team-key contract. "bearer" sends `Authorization: Bearer <apiKey>` for
    *  the session-token surface (upload-url/finalize accept a sid-scoped JWT
@@ -184,6 +192,11 @@ export interface FinalizeInput {
   signalsStorageKey?: string;
 }
 
+export interface FinalizeOptions {
+  /** Cancels the finalize POST, any status request, or a pending poll delay. */
+  signal?: AbortSignal;
+}
+
 export interface HostedClient {
   createSession(input: CreateSessionInput): Promise<CreateSessionResponse>;
   /** FDRS-655/656 — POST /v1/eval-sessions. Mints a twin-less session for
@@ -200,6 +213,7 @@ export interface HostedClient {
   finalize(
     sessionId: string,
     input: FinalizeInput,
+    options?: FinalizeOptions,
   ): Promise<FinalizeResponse>;
   /**
    * @deprecated Use `finalize` instead. `/v1/sessions/:id/result` is a shim
@@ -234,8 +248,56 @@ export interface HostedClient {
   deleteSession(sessionId: string, bestEffort?: boolean): Promise<void>;
 }
 
+// Keep these readers strict and wire-identical to the additive exports in
+// @pome-sh/shared-types 0.6.1. The CLI intentionally remains installable
+// against 0.6.0 until that package batch has published.
+const strictFinalizeResponseSchema = finalizeResponseSchema.strict();
+
+const finalizeAcceptedResponseSchema = z.object({
+  evaluation_id: z.string().min(1),
+  run_id: z.string().min(1),
+  status: z.literal("queued"),
+  status_url: z.string().url(),
+}).strict();
+
+const finalizeStatusIdentitySchema = {
+  evaluation_id: z.string().min(1),
+  run_id: z.string().min(1),
+};
+
+const finalizeStatusResponseSchema = z.discriminatedUnion("status", [
+  z.object({
+    ...finalizeStatusIdentitySchema,
+    status: z.literal("queued"),
+  }).strict(),
+  z.object({
+    ...finalizeStatusIdentitySchema,
+    status: z.literal("running"),
+  }).strict(),
+  z.object({
+    ...finalizeStatusIdentitySchema,
+    status: z.literal("failed"),
+    error: z.object({
+      code: z.string().min(1),
+      message: z.string().min(1),
+      retryable: z.boolean(),
+    }).strict(),
+  }).strict(),
+  z.object({
+    ...finalizeStatusIdentitySchema,
+    status: z.literal("completed"),
+    result: strictFinalizeResponseSchema,
+  }).strict(),
+]);
+
+type FinalizeAcceptedResponse = z.infer<typeof finalizeAcceptedResponseSchema>;
+type FinalizeStatusResponse = z.infer<typeof finalizeStatusResponseSchema>;
+
 export function createHostedClient(config: HostedClientConfig): HostedClient {
   const timeoutMs = config.timeoutMs ?? 30_000;
+  const finalizeTimeoutMs = config.finalizeTimeoutMs ?? 5 * 60_000;
+  const finalizePollInitialDelayMs = config.finalizePollInitialDelayMs ?? 500;
+  const finalizePollMaxDelayMs = config.finalizePollMaxDelayMs ?? 5_000;
   const authHeaders: Record<string, string> =
     config.authScheme === "bearer"
       ? { authorization: `Bearer ${config.apiKey}` }
@@ -243,7 +305,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
 
   async function readResponse<T>(
     res: Response,
-    parse: (raw: unknown) => T
+    parse: (raw: unknown, response: Response) => T
   ): Promise<T> {
     const text = await res.text();
     let json: unknown;
@@ -275,7 +337,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       throw new HostedOrchError(msg, reqId, res.status);
     }
     try {
-      return parse(json);
+      return parse(json, res);
     } catch (err) {
       throw new HostedOrchError(
         `unexpected response shape: ${err instanceof Error ? err.message : String(err)}`
@@ -286,10 +348,18 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
   async function postJson<T>(
     path: string,
     body: unknown,
-    parse: (raw: unknown) => T
+    parse: (raw: unknown, response: Response) => T,
+    options?: {
+      headers?: Record<string, string>;
+      signal?: AbortSignal;
+      acceptedStatuses?: readonly number[];
+    },
   ): Promise<T> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const abortFromCaller = () => ctrl.abort(options?.signal?.reason);
+    options?.signal?.addEventListener("abort", abortFromCaller, { once: true });
+    if (options?.signal?.aborted) abortFromCaller();
     let res: Response;
     try {
       res = await fetch(`${config.baseUrl}${path}`, {
@@ -297,6 +367,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         headers: {
           ...authHeaders,
           "content-type": "application/json",
+          ...options?.headers,
         },
         body: JSON.stringify(body),
         signal: ctrl.signal,
@@ -307,6 +378,18 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       );
     } finally {
       clearTimeout(timer);
+      options?.signal?.removeEventListener("abort", abortFromCaller);
+    }
+    if (
+      res.ok &&
+      options?.acceptedStatuses &&
+      !options.acceptedStatuses.includes(res.status)
+    ) {
+      throw new HostedOrchError(
+        `unexpected HTTP status ${res.status}`,
+        undefined,
+        res.status,
+      );
     }
     return readResponse(res, parse);
   }
@@ -314,7 +397,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
   async function getJsonBearer<T>(
     url: string,
     bearer: string,
-    parse: (raw: unknown) => T
+    parse: (raw: unknown, response: Response) => T
   ): Promise<T> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -337,7 +420,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
 
   async function getJsonWithApiKey<T>(
     path: string,
-    parse: (raw: unknown) => T,
+    parse: (raw: unknown, response: Response) => T,
   ): Promise<T> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -356,6 +439,131 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       clearTimeout(timer);
     }
     return readResponse(res, parse);
+  }
+
+  function retryAfterMs(value: string | null): number | null {
+    if (value === null) return null;
+    const seconds = Number(value);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return seconds * 1_000;
+    }
+    const at = Date.parse(value);
+    return Number.isNaN(at) ? null : Math.max(0, at - Date.now());
+  }
+
+  async function sleepForPoll(ms: number, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) {
+      throw new HostedOrchError("finalize aborted");
+    }
+    if (ms <= 0) return;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(new HostedOrchError("finalize aborted"));
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
+  }
+
+  async function getFinalizeStatus(
+    url: URL,
+    signal: AbortSignal | undefined,
+    requestTimeoutMs: number,
+  ): Promise<{ status: FinalizeStatusResponse; retryAfterMs: number | null }> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), requestTimeoutMs);
+    const abortFromCaller = () => ctrl.abort(signal?.reason);
+    signal?.addEventListener("abort", abortFromCaller, { once: true });
+    if (signal?.aborted) abortFromCaller();
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "GET",
+        headers: authHeaders,
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      if (signal?.aborted) {
+        throw new HostedOrchError("finalize aborted");
+      }
+      throw new HostedOrchError(
+        err instanceof Error ? err.message : "network error",
+      );
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abortFromCaller);
+    }
+    const delay = retryAfterMs(res.headers.get("retry-after"));
+    const status = await readResponse(res, (raw) =>
+      finalizeStatusResponseSchema.parse(raw),
+    );
+    return { status, retryAfterMs: delay };
+  }
+
+  async function pollFinalize(
+    accepted: FinalizeAcceptedResponse,
+    signal?: AbortSignal,
+  ): Promise<FinalizeResponse> {
+    const statusUrl = new URL(accepted.status_url);
+    const apiOrigin = new URL(config.baseUrl).origin;
+    if (statusUrl.origin !== apiOrigin) {
+      throw new HostedOrchError(
+        "finalize status_url must use the configured API origin",
+      );
+    }
+
+    const deadline = Date.now() + finalizeTimeoutMs;
+    let delayMs = finalizePollInitialDelayMs;
+    while (true) {
+      const remainingBeforeDelay = deadline - Date.now();
+      if (remainingBeforeDelay <= 0) {
+        throw new HostedOrchError("asynchronous finalize timed out");
+      }
+      await sleepForPoll(Math.min(delayMs, remainingBeforeDelay), signal);
+
+      const remainingBeforeRequest = deadline - Date.now();
+      if (remainingBeforeRequest <= 0) {
+        throw new HostedOrchError("asynchronous finalize timed out");
+      }
+      const polled = await getFinalizeStatus(
+        statusUrl,
+        signal,
+        Math.min(timeoutMs, remainingBeforeRequest),
+      );
+      if (
+        polled.status.evaluation_id !== accepted.evaluation_id ||
+        polled.status.run_id !== accepted.run_id
+      ) {
+        throw new HostedOrchError(
+          "finalize status identifiers do not match the accepted evaluation",
+        );
+      }
+
+      if (polled.status.status === "completed") {
+        if (polled.status.result.run_id !== accepted.run_id) {
+          throw new HostedOrchError(
+            "finalize result run_id does not match the accepted evaluation",
+          );
+        }
+        return polled.status.result;
+      }
+      if (polled.status.status === "failed") {
+        throw new HostedOrchError(
+          `${polled.status.error.code}: ${polled.status.error.message}` +
+            (polled.status.error.retryable ? " (retryable)" : ""),
+        );
+      }
+      delayMs =
+        polled.retryAfterMs ??
+        Math.min(
+          Math.max(delayMs * 2, finalizePollInitialDelayMs),
+          finalizePollMaxDelayMs,
+        );
+    }
   }
 
   return {
@@ -556,7 +764,7 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       );
     },
 
-    async finalize(sessionId, input) {
+    async finalize(sessionId, input, options) {
       const body: Record<string, unknown> = {
         stop_reason: input.stopReason,
         exit_code: input.exitCode,
@@ -581,11 +789,22 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       if (input.signalsStorageKey !== undefined) {
         body.signals_storage_key = input.signalsStorageKey;
       }
-      return postJson(
+      const initial = await postJson(
         `/v1/sessions/${encodeURIComponent(sessionId)}/finalize`,
         body,
-        (raw) => finalizeResponseSchema.parse(raw),
+        (raw, response) =>
+          response.status === 202
+            ? finalizeAcceptedResponseSchema.parse(raw)
+            : strictFinalizeResponseSchema.parse(raw),
+        {
+          headers: { prefer: "respond-async" },
+          signal: options?.signal,
+          acceptedStatuses: [200, 201, 202],
+        },
       );
+      return "status_url" in initial
+        ? pollFinalize(initial, options?.signal)
+        : initial;
     },
 
     async submitResult(sessionId, input) {

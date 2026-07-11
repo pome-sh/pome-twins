@@ -63,9 +63,9 @@ import {
 } from "./groupRender.js";
 import type { CreateSessionResponse } from "../types/shared.js";
 
-/** Explicit finalize timeout for -n runs ([DECISION]) — the hosted client
- *  defaults to 30s; the judge measured 5-8s, 60s is belt-and-braces (same
- *  constant `pome demo` locked for its trial finalizes). */
+/** Explicit overall finalize timeout for -n runs ([DECISION]) — the judge
+ *  measured 5-8s, 60s is belt-and-braces (same constant `pome demo` locked
+ *  for its trial finalizes). */
 export const GROUP_FINALIZE_TIMEOUT_MS = 60_000;
 
 /** FDRS-663 — a lazy mint can quota-fail even though a trial just finished:
@@ -126,6 +126,7 @@ export async function runTrialGroup(
       baseUrl: options.hosted.baseUrl,
       apiKey: options.hosted.apiKey,
       timeoutMs: GROUP_FINALIZE_TIMEOUT_MS,
+      finalizeTimeoutMs: GROUP_FINALIZE_TIMEOUT_MS,
     });
   const groupId = options.groupId ?? newGroupId();
   const agentCommandSource = options.agentCommandSource ?? "pome.config.json";
