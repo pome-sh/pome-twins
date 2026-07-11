@@ -32,7 +32,7 @@ describe("github_clone adapter", () => {
     const tools = (await toolsResponse.json()) as { tools: Array<{ name: string }> };
     // Full packaged twin-github surface (consolidated in FDRS-648): the CLI now
     // serves @pome-sh/twin-github, not the former in-CLI subset (was 37).
-    expect(tools.tools).toHaveLength(62);
+    expect(tools.tools).toHaveLength(65);
     const toolNames = tools.tools.map((tool) => tool.name);
     expect(toolNames).toContain("merge_pull_request");
     expect(toolNames).toContain("create_commit_status");
@@ -72,7 +72,7 @@ describe("github_clone adapter", () => {
       body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" })
     });
     const listJson = (await listRes.json()) as { result: { tools: Array<{ name: string; inputSchema: unknown }> } };
-    expect(listJson.result.tools).toHaveLength(62);
+    expect(listJson.result.tools).toHaveLength(65);
     expect(listJson.result.tools[0]).toHaveProperty("inputSchema");
     expect(listJson.result.tools[0]).not.toHaveProperty("input_schema");
 
