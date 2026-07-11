@@ -244,4 +244,15 @@ describe("parseFidelityDocRows / lintFidelityInventory", () => {
       "inventory says fidelity 'shape' but FIDELITY.md says 'semantic'"
     );
   });
+
+  it("reports duplicate doc rows with conflicting tiers instead of last-row-wins", () => {
+    const conflicting = DOC.replace(
+      "| `count_items` | in-memory list | semantic | `x.test.ts` | — |",
+      "| `count_items` | in-memory list | shape | `x.test.ts` | — |\n| `count_items` | in-memory list | semantic | `x.test.ts` | — |"
+    );
+    const docs = [{ label: "FIDELITY.md", kind: "tool" as const, markdown: conflicting }];
+    expect(lintFidelityInventory(toyInventory(), docs).join("\n")).toContain(
+      "documented twice with conflicting tiers ('shape' vs 'semantic')"
+    );
+  });
 });

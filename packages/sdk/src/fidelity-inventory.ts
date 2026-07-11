@@ -175,6 +175,13 @@ export function lintFidelityInventory(
     const documented = new Map<string, FidelityDocRow>();
     for (const source of sources) {
       for (const row of parseFidelityDocRows(source.markdown, kind)) {
+        const existing = documented.get(row.name);
+        if (existing && existing.fidelity !== row.fidelity) {
+          problems.push(
+            `${labels}: ${kind} '${row.name}' is documented twice with conflicting tiers ('${existing.fidelity}' vs '${row.fidelity}')`
+          );
+          continue;
+        }
         documented.set(row.name, row);
       }
     }
