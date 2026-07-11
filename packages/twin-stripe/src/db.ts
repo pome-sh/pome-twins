@@ -10,7 +10,7 @@
 // prices, checkout_sessions, SPT, webhook_endpoints) are deferred to v2.
 import { openTwinDatabase } from "@pome-sh/sdk";
 import type { TwinStripeDatabase } from "./types.js";
-import { ensureF731Columns } from "./domain/schema.js";
+import { ensureF731Columns, ensureStripeTables } from "./domain/schema.js";
 
 const MIGRATION_SQL = `
 -- ----- chassis tables -------------------------------------------------------
@@ -137,10 +137,16 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 const RESET_SQL = `
 DELETE FROM audit_log;
+DELETE FROM refunds;
 DELETE FROM events;
 DELETE FROM balance_transactions;
 DELETE FROM charges;
 DELETE FROM payment_intents;
+DELETE FROM payment_methods;
+DELETE FROM customers;
+DELETE FROM subscriptions;
+DELETE FROM prices;
+DELETE FROM products;
 DELETE FROM idempotency_keys;
 DELETE FROM api_keys;
 `;
@@ -159,5 +165,10 @@ export function migrate(db: TwinStripeDatabase) {
 }
 
 export function resetDatabase(db: TwinStripeDatabase) {
+  // MIGRATION_SQL doesn't create every Stripe domain table (refunds,
+  // customers, payment_methods, and the F-734 billing tables come from
+  // ensureStripeTables via domain constructors / applySeed) — ensure them
+  // so reset is safe on a db that hasn't constructed a domain yet.
+  ensureStripeTables(db);
   db.exec(RESET_SQL);
 }

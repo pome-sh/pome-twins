@@ -56,6 +56,16 @@ import {
   type CreatePaymentMethodInput,
   type ListCustomerPaymentMethodsInput,
 } from "./payment-methods.js";
+import {
+  BillingDomain,
+  noSuch,
+  type CreatePriceInput,
+  type CreateSubscriptionInput,
+  type ListBillingInput,
+  type ProductFieldsInput,
+  type SubscriptionItem,
+  type UpdateSubscriptionInput,
+} from "./billing.js";
 import { ensureStripeTables, resetStripeTables } from "./schema.js";
 import {
   paymentIntentJson,
@@ -67,9 +77,13 @@ import {
   deletedCustomerJson,
   eventJson,
   paymentMethodJson,
+  priceJson,
+  productJson,
   refundJson,
   serializedList,
+  subscriptionJson,
 } from "../serializers.js";
+import type { PriceRow, ProductRow, SubscriptionRow } from "../types.js";
 
 export class StripeDomain {
   readonly paymentIntents: PaymentIntentsDomain;
@@ -79,6 +93,7 @@ export class StripeDomain {
   readonly refunds: RefundsDomain;
   readonly customers: CustomersDomain;
   readonly paymentMethods: PaymentMethodsDomain;
+  readonly billing: BillingDomain;
 
   constructor(readonly db: TwinStripeDatabase) {
     ensureStripeTables(db);
@@ -89,6 +104,7 @@ export class StripeDomain {
     this.refunds = new RefundsDomain(db);
     this.customers = new CustomersDomain(db);
     this.paymentMethods = new PaymentMethodsDomain(db);
+    this.billing = new BillingDomain(db);
   }
 
   /** Reset Stripe-domain state. Used by `/admin/reset`. */
@@ -636,6 +652,121 @@ export class StripeDomain {
     return serializedList(rows.map(eventJson), hasMore, limit, "/v1/events");
   }
 
+  // ---------- Billing (F-734, shape tier) ----------
+  //
+  // Warm surfaces per the F-729 ruling: stored rows served in Stripe shape,
+  // deliberately WITHOUT the semantic billing machine — creating a product,
+  // price, or subscription emits no events and mints no invoices; the
+  // recorder deltas stay truthful to the single-row writes.
+
+  createProduct(accountId: string, input: ProductFieldsInput): { body: unknown; delta: StateDelta } {
+    const row = this.billing.createProduct(accountId, input);
+    return { body: productJson(row), delta: { before: null, after: rowToRecord(row) } };
+  }
+
+  retrieveProduct(accountId: string, id: string) {
+    return productJson(this.billing.requireProduct(accountId, id));
+  }
+
+  listProducts(accountId: string, input: ListBillingInput & { active?: boolean }) {
+    const { rows, hasMore, limit } = this.billing.listProducts(accountId, input);
+    return serializedList(rows.map(productJson), hasMore, limit, "/v1/products");
+  }
+
+  createPrice(accountId: string, input: CreatePriceInput): { body: unknown; delta: StateDelta } {
+    const row = this.billing.createPrice(accountId, input);
+    return { body: priceJson(row), delta: { before: null, after: rowToRecord(row) } };
+  }
+
+  retrievePrice(accountId: string, id: string) {
+    return priceJson(this.billing.requirePrice(accountId, id));
+  }
+
+  listPrices(accountId: string, input: ListBillingInput & { product?: string; active?: boolean }) {
+    const { rows, hasMore, limit } = this.billing.listPrices(accountId, input);
+    return serializedList(rows.map(priceJson), hasMore, limit, "/v1/prices");
+  }
+
+  createSubscription(
+    accountId: string,
+    input: CreateSubscriptionInput
+  ): { body: unknown; delta: StateDelta } {
+    // Referential check: subscription.customer must be a live customer
+    // (deleted customers 404 like real Stripe).
+    if (input.customer) this.customers.requireLive(accountId, input.customer);
+    const row = this.billing.createSubscription(accountId, input);
+    return {
+      body: this.subscriptionBody(accountId, row),
+      delta: { before: null, after: rowToRecord(row) },
+    };
+  }
+
+  retrieveSubscription(accountId: string, id: string) {
+    return this.subscriptionBody(accountId, this.billing.requireSubscription(accountId, id));
+  }
+
+  updateSubscription(
+    accountId: string,
+    id: string,
+    input: UpdateSubscriptionInput
+  ): { body: unknown; delta: StateDelta } {
+    const before = this.billing.requireSubscription(accountId, id);
+    const row = this.billing.updateSubscription(accountId, id, input);
+    return {
+      body: this.subscriptionBody(accountId, row),
+      delta: { before: rowToRecord(before), after: rowToRecord(row) },
+    };
+  }
+
+  cancelSubscription(accountId: string, id: string): { body: unknown; delta: StateDelta } {
+    const before = this.billing.requireSubscription(accountId, id);
+    const row = this.billing.cancelSubscription(accountId, id);
+    return {
+      body: this.subscriptionBody(accountId, row),
+      delta: { before: rowToRecord(before), after: rowToRecord(row) },
+    };
+  }
+
+  listSubscriptions(
+    accountId: string,
+    input: ListBillingInput & { customer?: string; status?: string }
+  ) {
+    const { rows, hasMore, limit } = this.billing.listSubscriptions(accountId, input);
+    return serializedList(
+      rows.map((row) => this.subscriptionBody(accountId, row)),
+      hasMore,
+      limit,
+      "/v1/subscriptions"
+    );
+  }
+
+  /** Resolve item price rows so the serializer can expand SubscriptionItem.price. */
+  private subscriptionBody(accountId: string, row: SubscriptionRow) {
+    const items = JSON.parse(row.items_json) as SubscriptionItem[];
+    const prices = new Map<string, PriceRow>();
+    for (const item of items) {
+      if (!prices.has(item.price)) {
+        prices.set(item.price, this.billing.requirePrice(accountId, item.price));
+      }
+    }
+    return subscriptionJson(row, prices);
+  }
+
+  // Invoices are reads-only (F-729 ruling point 2: create/finalize/pay stay
+  // unlisted-cold) and nothing in the twin mints one, so the list is always
+  // empty and retrieve always 404s — loud, Stripe-shaped, documented.
+
+  retrieveInvoice(accountId: string, id: string): never {
+    void accountId;
+    throw noSuch("invoice", id);
+  }
+
+  listInvoices(accountId: string, input: ListBillingInput) {
+    void accountId;
+    const limit = Math.min(100, Math.max(1, Math.floor(input.limit ?? 10)));
+    return serializedList([], false, limit, "/v1/invoices");
+  }
+
   // ---------- State export (for _pome/state) ----------
 
   /**
@@ -677,6 +808,17 @@ export class StripeDomain {
         "SELECT * FROM payment_methods WHERE account_id = ? ORDER BY created DESC, rowid DESC"
       )
       .all(accountId) as PaymentMethodRow[];
+    const products = this.db
+      .prepare("SELECT * FROM products WHERE account_id = ? ORDER BY created DESC, rowid DESC")
+      .all(accountId) as ProductRow[];
+    const prices = this.db
+      .prepare("SELECT * FROM prices WHERE account_id = ? ORDER BY created DESC, rowid DESC")
+      .all(accountId) as PriceRow[];
+    const subscriptions = this.db
+      .prepare(
+        "SELECT * FROM subscriptions WHERE account_id = ? ORDER BY created DESC, rowid DESC"
+      )
+      .all(accountId) as SubscriptionRow[];
     return {
       payment_intents: pis.map(paymentIntentJson),
       charges: charges.map(chargeJson),
@@ -685,6 +827,9 @@ export class StripeDomain {
       refunds: refunds.map(refundJson),
       customers: customers.map((row) => (row.deleted ? deletedCustomerJson(row) : customerJson(row))),
       payment_methods: paymentMethods.map(paymentMethodJson),
+      products: products.map(productJson),
+      prices: prices.map(priceJson),
+      subscriptions: subscriptions.map((row) => this.subscriptionBody(accountId, row)),
     };
   }
 }

@@ -5,7 +5,7 @@
 page documents exactly which surfaces are faithful to real Stripe today,
 at what tier, and how fidelity is verified.
 
-Last verified: 2026-07-11.
+Last verified: 2026-07-12.
 Stripe API version pinned: `2026-03-04.preview`.
 
 ## What "fidelity" means here
@@ -16,9 +16,12 @@ Each REST route and MCP tool is classified into one of three tiers:
   covered by tests. PaymentIntent state-machine transitions, balance
   arithmetic, idempotency-key dedupe, and the rest behave the way agents
   expect when they call real Stripe.
-- **`shape`** — the response shape is checked against captured real
-  Stripe fixtures, but the underlying behavior is not fully semantic.
-  v1 has no shape-tier routes.
+- **`shape`** — the response shape is faithful (compile-anchored against
+  the official `stripe` types, FDRS-478) but the underlying behavior is
+  deliberately not semantic. The billing surfaces (products, prices,
+  subscriptions, invoice reads — F-734, ruled warm by F-729) sit here:
+  stored rows served back in Stripe shape, with referential 404s, but no
+  events emitted, no invoices minted, no billing-cycle arithmetic.
 - **`unsupported`** — not implemented. The clone returns a loud 501
   envelope (see below) so an agent never silently succeeds against a
   missing route.
@@ -41,38 +44,65 @@ build depends on (port `:3333`, `/healthz`, `STRIPE_CLONE_HOST`,
 in the package README. Changing any of those is a breaking change for
 `pome-cloud` and requires a matching cloud consumer PR.
 
-## REST routes (v1 = 23 semantic + everything else loud 501)
+## REST routes (v1 = 23 semantic + 13 shape + everything else loud 501)
 
-| Route | Tier | Tests | Notes |
-| --- | --- | --- | --- |
-| `POST /s/:sid/v1/payment_intents` | semantic | `pi.test.ts`, `pi-card.test.ts`, `tools.test.ts` | Two rails (F-731): crypto deposit mode (deterministic Base USDC deposit address, starts at `requires_action`) and card (starts at `requires_payment_method`, or `requires_confirmation` with a `payment_method`; `confirm: true` runs the one-shot attempt). |
-| `GET /s/:sid/v1/payment_intents/:id` | semantic | `pi.test.ts`, `pi-card.test.ts` | Card PIs surface `last_payment_error` after a declined attempt. |
-| `GET /s/:sid/v1/payment_intents` | semantic | `pi.test.ts` | Cursor pagination on `(created, id)` via `starting_after` / `ending_before` (matches Stripe's cursor model). |
-| `POST /s/:sid/v1/payment_intents/:id/confirm` | semantic | `pi.test.ts`, `pi-card.test.ts` | Card PIs (F-731): synchronous attempt — success mints charge + balance txn + events; magic test PMs decline with a 402 `card_error` embedding the post-attempt PI. Crypto PIs: idempotent no-op. CAS picks exactly one winner among parallel confirms. |
-| `POST /s/:sid/v1/payment_intents/:id` | semantic | `pi-card.test.ts` | Update (F-731, ruled in scope by F-729 point 1) — the retry-with-new-PM step. Metadata merges per-key; attaching a PM moves `requires_payment_method → requires_confirmation`. Refused once terminal. |
-| `POST /s/:sid/v1/payment_intents/:id/cancel` | semantic | `pi.test.ts`, `pi-card.test.ts` | CAS-on-status; refused once `succeeded`. |
-| `POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit` | semantic | `pi.test.ts`, `pi-concurrency.test.ts`, `events.test.ts` | The x402 settlement entry point. CAS `requires_action → processing → succeeded`; mints charge + balance txn + 5 events synchronously. |
-| `GET /s/:sid/v1/charges/:id` | semantic | `charges.test.ts` | Latest charge of a settled PI. |
-| `GET /s/:sid/v1/charges` | semantic | `charges.test.ts` | Filter by `payment_intent`, `customer`. |
-| `GET /s/:sid/v1/balance` | semantic | `balance.test.ts` | Available + pending; updated as PIs settle. |
-| `GET /s/:sid/v1/balance_transactions` | semantic | `balance.test.ts` | Ledger entries. |
-| `GET /s/:sid/v1/events/:id` | semantic | `events.test.ts` | |
-| `GET /s/:sid/v1/events` | semantic | `events.test.ts` | Filter by `type`, `created`. **No webhook delivery in v1** — agents poll this. |
-| `POST /s/:sid/v1/customers` | semantic | `customers.test.ts` | F-732 (heat: hot, ruled F-729). Every field optional, like real Stripe. Emits `customer.created`. |
-| `GET /s/:sid/v1/customers/:id` | semantic | `customers.test.ts` | Deleted customers serve the `{deleted: true}` stub, like real Stripe. |
-| `GET /s/:sid/v1/customers` | semantic | `customers.test.ts` | Cursor pagination on `(created, id)`; `email` filter; deleted rows excluded. |
-| `POST /s/:sid/v1/customers/:id` | semantic | `customers.test.ts` | Update. Metadata merges per-key; an empty value unsets the key (Stripe's metadata contract). |
-| `DELETE /s/:sid/v1/customers/:id` | semantic | `customers.test.ts` | Soft delete; detaches the customer's payment methods in the same transaction. Idempotent. |
-| `GET /s/:sid/v1/customers/:id/payment_methods` | semantic | `payment-methods.test.ts` | The hot card-on-file read. `type` filter. 404 for deleted customers. |
-| `POST /s/:sid/v1/payment_methods` | semantic | `payment-methods.test.ts` | Card only (F-731 adds card PIs). Test card numbers → brand/last4; Luhn + expiry `card_error`s; PAN never stored. |
-| `GET /s/:sid/v1/payment_methods/:id` | semantic | `payment-methods.test.ts` | Top-level `GET /v1/payment_methods` (list) stays loud 501 per the F-729 ruling. |
-| `POST /s/:sid/v1/payment_methods/:id/attach` | semantic | `payment-methods.test.ts` | One customer per PM; a previously-detached PM can never be reattached. Emits `payment_method.attached`. |
-| `POST /s/:sid/v1/payment_methods/:id/detach` | semantic | `payment-methods.test.ts` | Emits `payment_method.detached`. |
+| Route | Heat | Tier | Tests | Notes |
+| --- | --- | --- | --- | --- |
+| `POST /s/:sid/v1/payment_intents` | hot | semantic | `pi.test.ts`, `pi-card.test.ts`, `tools.test.ts` | Two rails (F-731): crypto deposit mode (deterministic Base USDC deposit address, starts at `requires_action`) and card (starts at `requires_payment_method`, or `requires_confirmation` with a `payment_method`; `confirm: true` runs the one-shot attempt). |
+| `GET /s/:sid/v1/payment_intents/:id` | hot | semantic | `pi.test.ts`, `pi-card.test.ts` | Card PIs surface `last_payment_error` after a declined attempt. |
+| `GET /s/:sid/v1/payment_intents` | hot | semantic | `pi.test.ts` | Cursor pagination on `(created, id)` via `starting_after` / `ending_before` (matches Stripe's cursor model). |
+| `POST /s/:sid/v1/payment_intents/:id/confirm` | hot | semantic | `pi.test.ts`, `pi-card.test.ts` | Card PIs (F-731): synchronous attempt — success mints charge + balance txn + events; magic test PMs decline with a 402 `card_error` embedding the post-attempt PI. Crypto PIs: idempotent no-op. CAS picks exactly one winner among parallel confirms. |
+| `POST /s/:sid/v1/payment_intents/:id` | hot | semantic | `pi-card.test.ts` | Update (F-731, ruled in scope by F-729 point 1) — the retry-with-new-PM step. Metadata merges per-key; attaching a PM moves `requires_payment_method → requires_confirmation`. Refused once terminal. |
+| `POST /s/:sid/v1/payment_intents/:id/cancel` | hot | semantic | `pi.test.ts`, `pi-card.test.ts` | CAS-on-status; refused once `succeeded`. |
+| `POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit` | hot | semantic | `pi.test.ts`, `pi-concurrency.test.ts`, `events.test.ts` | The x402 settlement entry point. CAS `requires_action → processing → succeeded`; mints charge + balance txn + 5 events synchronously. |
+| `GET /s/:sid/v1/charges/:id` | hot | semantic | `charges.test.ts` | Latest charge of a settled PI. |
+| `GET /s/:sid/v1/charges` | hot | semantic | `charges.test.ts` | Filter by `payment_intent`, `customer`. |
+| `GET /s/:sid/v1/balance` | hot | semantic | `balance.test.ts` | Available + pending; updated as PIs settle. |
+| `GET /s/:sid/v1/balance_transactions` | hot | semantic | `balance.test.ts` | Ledger entries. |
+| `GET /s/:sid/v1/events/:id` | hot | semantic | `events.test.ts` | |
+| `GET /s/:sid/v1/events` | hot | semantic | `events.test.ts` | Filter by `type`, `created`. **No webhook delivery in v1** — agents poll this. |
+| `POST /s/:sid/v1/customers` | hot | semantic | `customers.test.ts` | F-732 (heat: hot, ruled F-729). Every field optional, like real Stripe. Emits `customer.created`. |
+| `GET /s/:sid/v1/customers/:id` | hot | semantic | `customers.test.ts` | Deleted customers serve the `{deleted: true}` stub, like real Stripe. |
+| `GET /s/:sid/v1/customers` | hot | semantic | `customers.test.ts` | Cursor pagination on `(created, id)`; `email` filter; deleted rows excluded. |
+| `POST /s/:sid/v1/customers/:id` | hot | semantic | `customers.test.ts` | Update. Metadata merges per-key; an empty value unsets the key (Stripe's metadata contract). |
+| `DELETE /s/:sid/v1/customers/:id` | hot | semantic | `customers.test.ts` | Soft delete; detaches the customer's payment methods in the same transaction. Idempotent. |
+| `GET /s/:sid/v1/customers/:id/payment_methods` | hot | semantic | `payment-methods.test.ts` | The hot card-on-file read. `type` filter. 404 for deleted customers. |
+| `POST /s/:sid/v1/payment_methods` | hot | semantic | `payment-methods.test.ts` | Card only (F-731 adds card PIs). Test card numbers → brand/last4; Luhn + expiry `card_error`s; PAN never stored. |
+| `GET /s/:sid/v1/payment_methods/:id` | hot | semantic | `payment-methods.test.ts` | Top-level `GET /v1/payment_methods` (list) stays loud 501 per the F-729 ruling. |
+| `POST /s/:sid/v1/payment_methods/:id/attach` | hot | semantic | `payment-methods.test.ts` | One customer per PM; a previously-detached PM can never be reattached. Emits `payment_method.attached`. |
+| `POST /s/:sid/v1/payment_methods/:id/detach` | hot | semantic | `payment-methods.test.ts` | Emits `payment_method.detached`. |
+| `POST /s/:sid/v1/products` | warm | shape | `billing-shape.test.ts` | F-734 (heat: warm, ruled F-729). `name` required; unknown params accepted-and-ignored per the twin's v1 policy. Product/price updates stay unlisted-cold (501). |
+| `GET /s/:sid/v1/products/:id` | warm | shape | `billing-shape.test.ts` | 404 `resource_missing` for unknown ids. |
+| `GET /s/:sid/v1/products` | warm | shape | `billing-shape.test.ts` | Cursor pagination on `(created, id)`; `active` filter. |
+| `POST /s/:sid/v1/prices` | warm | shape | `billing-shape.test.ts` | `currency` + `product` required; the product must exist (referential 404). `recurring.interval` makes it a `recurring` price, otherwise `one_time`. |
+| `GET /s/:sid/v1/prices/:id` | warm | shape | `billing-shape.test.ts` | |
+| `GET /s/:sid/v1/prices` | warm | shape | `billing-shape.test.ts` | Cursor pagination; `product` + `active` filters. |
+| `POST /s/:sid/v1/subscriptions` | warm | shape | `billing-shape.test.ts` | `customer` (live) + `items[][price]` required, both referentially checked. Created `active` immediately — no invoice minted, no event emitted (shape tier). |
+| `GET /s/:sid/v1/subscriptions/:id` | warm | shape | `billing-shape.test.ts` | `items.data[].price` is the expanded Price object, like real Stripe. |
+| `GET /s/:sid/v1/subscriptions` | warm | shape | `billing-shape.test.ts` | Excludes canceled by default; `status=canceled` selects them, `status=all` lifts the filter; `customer` filter. |
+| `POST /s/:sid/v1/subscriptions/:id` | warm | shape | `billing-shape.test.ts` | Update: metadata merges per-key (empty value unsets), `cancel_at_period_end` flips. Canceled subscriptions refuse updates. |
+| `DELETE /s/:sid/v1/subscriptions/:id` | warm | shape | `billing-shape.test.ts` | Immediate cancel: `status → canceled`, `canceled_at`/`ended_at` stamped. Idempotent; no proration, no final invoice (shape tier). |
+| `GET /s/:sid/v1/invoices/:id` | warm | shape | `billing-shape.test.ts` | Always 404 `resource_missing`: invoices are reads-only (F-729 ruling point 2) and nothing in the twin mints one. |
+| `GET /s/:sid/v1/invoices` | warm | shape | `billing-shape.test.ts` | Always the empty Stripe list envelope — see the invoice note under Known divergences. |
 
-Anything else under `/v1/*` (`/v1/setup_intents`, `/v1/checkout/*`,
-`/v1/products`, `/v1/prices`, `/v1/webhook_endpoints`,
-`/v1/shared_payment/*`, `/v1/profiles`, the top-level
-`GET /v1/payment_methods` list, etc.) returns:
+### Named cold surfaces (loud 501, test-backed)
+
+Per the F-729 ruling these families are cold — outside the twin's
+machine-payments product scope — but agents plausibly probe them, so the
+501 is documented here and pinned by `unsupported.test.ts` (and the
+`fidelity:parity` 501 probe for checkout sessions):
+
+| Route | Heat | Tier | Tests | Notes |
+| --- | --- | --- | --- | --- |
+| `ALL /s/:sid/v1/checkout/sessions*` | cold | unsupported | `unsupported.test.ts` | PS: human-redirect flow. |
+| `ALL /s/:sid/v1/payment_links*` | cold | unsupported | `unsupported.test.ts` | PS: human-redirect flow. |
+| `ALL /s/:sid/v1/setup_intents*` | cold | unsupported | `unsupported.test.ts` | PS: card-on-file is modeled via direct PM attach (F-732). |
+| `ALL /s/:sid/v1/webhook_endpoints*` | cold | unsupported | `unsupported.test.ts` | PS: no webhook delivery loop in v1 (divergence #5); agents poll `GET /v1/events`. |
+
+Anything else under `/v1/*` (`/v1/shared_payment/*`, `/v1/profiles`,
+invoice writes like `POST /v1/invoices` or `.../finalize`/`.../pay`,
+product/price updates, the top-level `GET /v1/payment_methods` list,
+etc.) is the unlisted cold tail and returns:
 
 ```json
 {
@@ -95,31 +125,31 @@ HTTP status: 501.
 
 ## MCP tools (26 live; 23 documented — names match `stripe-node` method names)
 
-| Tool | Backing route | Tier |
-| --- | --- | --- |
-| `create_payment_intent` | POST /v1/payment_intents | semantic |
-| `retrieve_payment_intent` | GET /v1/payment_intents/:id | semantic |
-| `list_payment_intents` | GET /v1/payment_intents | semantic |
-| `confirm_payment_intent` | POST /v1/payment_intents/:id/confirm | semantic |
-| `update_payment_intent` | POST /v1/payment_intents/:id | semantic |
-| `cancel_payment_intent` | POST /v1/payment_intents/:id/cancel | semantic |
-| `simulate_crypto_deposit` | POST /v1/test_helpers/.../simulate_crypto_deposit | semantic |
-| `retrieve_charge` | GET /v1/charges/:id | semantic |
-| `list_charges` | GET /v1/charges | semantic |
-| `retrieve_balance` | GET /v1/balance | semantic |
-| `list_balance_transactions` | GET /v1/balance_transactions | semantic |
-| `retrieve_event` | GET /v1/events/:id | semantic |
-| `list_events` | GET /v1/events | semantic |
-| `create_customer` | POST /v1/customers | semantic |
-| `retrieve_customer` | GET /v1/customers/:id | semantic |
-| `update_customer` | POST /v1/customers/:id | semantic |
-| `delete_customer` | DELETE /v1/customers/:id | semantic |
-| `list_customers` | GET /v1/customers | semantic |
-| `list_customer_payment_methods` | GET /v1/customers/:id/payment_methods | semantic |
-| `create_payment_method` | POST /v1/payment_methods | semantic |
-| `retrieve_payment_method` | GET /v1/payment_methods/:id | semantic |
-| `attach_payment_method` | POST /v1/payment_methods/:id/attach | semantic |
-| `detach_payment_method` | POST /v1/payment_methods/:id/detach | semantic |
+| Tool | Backing route | Heat | Tier |
+| --- | --- | --- | --- |
+| `create_payment_intent` | POST /v1/payment_intents | hot | semantic |
+| `retrieve_payment_intent` | GET /v1/payment_intents/:id | hot | semantic |
+| `list_payment_intents` | GET /v1/payment_intents | hot | semantic |
+| `confirm_payment_intent` | POST /v1/payment_intents/:id/confirm | hot | semantic |
+| `update_payment_intent` | POST /v1/payment_intents/:id | hot | semantic |
+| `cancel_payment_intent` | POST /v1/payment_intents/:id/cancel | hot | semantic |
+| `simulate_crypto_deposit` | POST /v1/test_helpers/.../simulate_crypto_deposit | hot | semantic |
+| `retrieve_charge` | GET /v1/charges/:id | hot | semantic |
+| `list_charges` | GET /v1/charges | hot | semantic |
+| `retrieve_balance` | GET /v1/balance | hot | semantic |
+| `list_balance_transactions` | GET /v1/balance_transactions | hot | semantic |
+| `retrieve_event` | GET /v1/events/:id | hot | semantic |
+| `list_events` | GET /v1/events | hot | semantic |
+| `create_customer` | POST /v1/customers | hot | semantic |
+| `retrieve_customer` | GET /v1/customers/:id | hot | semantic |
+| `update_customer` | POST /v1/customers/:id | hot | semantic |
+| `delete_customer` | DELETE /v1/customers/:id | hot | semantic |
+| `list_customers` | GET /v1/customers | hot | semantic |
+| `list_customer_payment_methods` | GET /v1/customers/:id/payment_methods | hot | semantic |
+| `create_payment_method` | POST /v1/payment_methods | hot | semantic |
+| `retrieve_payment_method` | GET /v1/payment_methods/:id | hot | semantic |
+| `attach_payment_method` | POST /v1/payment_methods/:id/attach | hot | semantic |
+| `detach_payment_method` | POST /v1/payment_methods/:id/detach | hot | semantic |
 
 Every MCP tool is callable via both `POST /s/:sid/mcp/call` (with
 `{tool, arguments}` body) and `POST /s/:sid/mcp/tools/:name` (with the
@@ -312,6 +342,16 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
     anchor). Bumping `stripe` re-runs the anchor — the FDRS-476 bump → tsc →
     cover-or-register loop — surfacing every upstream shape change by name.
 
+16. **Billing surfaces are shape tier — no billing machine behind them**
+    (F-734, ruled warm by F-729). Creating a product / price / subscription
+    emits **no events** and mints **no invoices**; real Stripe emits
+    `product.created` etc. and invoices a new subscription immediately.
+    `GET /v1/invoices` is therefore always the empty list and
+    `GET /v1/invoices/:id` always 404s (invoice writes are unlisted-cold per
+    ruling point 2). Subscription items omit `current_period_start/end` —
+    the shape tier carries no billing-cycle arithmetic, so no period is
+    fabricated. Cancellation is an immediate status flip with no proration.
+
 > Pagination is **not** a divergence: `GET /v1/payment_intents` (and the
 > other list surfaces) use real cursor pagination keyed on `(created, id)`
 > via `starting_after` / `ending_before`, matching Stripe's cursor model.
@@ -319,7 +359,7 @@ not exposed at the root mount — those remain at `/s/:sid/_pome/*` and
 ## Verification commands
 
 ```bash
-npm run test            # 31 files / 194 tests, all green
+npm run test            # 32 files / 226 tests, all green
 npm run smoke           # full x402 flow against built server
 npm run fidelity:parity # every inventoried MCP tool end-to-end
 npm run typecheck

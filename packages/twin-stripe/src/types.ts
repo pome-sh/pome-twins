@@ -263,6 +263,54 @@ export type RefundRow = {
   created: number;
 };
 
+// ----- Billing rows (F-734, shape tier) --------------------------------------
+//
+// Products / prices / subscriptions are warm surfaces (ruled F-729):
+// stored rows served back in Stripe shape, no semantic state machine —
+// no events emitted, no invoices minted, no billing-cycle arithmetic.
+
+export type ProductRow = {
+  id: string;
+  account_id: string;
+  name: string;
+  description: string | null;
+  active: 0 | 1;
+  metadata_json: string;
+  created: number;
+  updated: number;
+};
+
+export type PriceRow = {
+  id: string;
+  account_id: string;
+  product_id: string;
+  currency: string;
+  unit_amount: number | null;
+  recurring_interval: string | null;
+  recurring_interval_count: number | null;
+  active: 0 | 1;
+  nickname: string | null;
+  lookup_key: string | null;
+  metadata_json: string;
+  created: number;
+};
+
+export type SubscriptionStatus = "active" | "canceled";
+
+export type SubscriptionRow = {
+  id: string;
+  account_id: string;
+  customer_id: string;
+  status: SubscriptionStatus;
+  /** JSON array of {id, price, quantity} subscription items. */
+  items_json: string;
+  cancel_at_period_end: 0 | 1;
+  canceled_at: number | null;
+  ended_at: number | null;
+  metadata_json: string;
+  created: number;
+};
+
 // ----- Bearer session -------------------------------------------------------
 
 // The shape the engine's bearerAuth resolves for stripe: the F-712 hooks

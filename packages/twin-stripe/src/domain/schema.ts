@@ -150,6 +150,60 @@ CREATE TABLE IF NOT EXISTS payment_methods (
 CREATE INDEX IF NOT EXISTS idx_payment_methods_customer ON payment_methods(customer_id);
 CREATE INDEX IF NOT EXISTS idx_payment_methods_created ON payment_methods(created);
 CREATE INDEX IF NOT EXISTS idx_payment_methods_account_id ON payment_methods(account_id);
+
+-- F-734 billing tables (warm surfaces, shape tier): plain stored rows served
+-- back in Stripe shape. No invoices table — invoices are reads-only and
+-- nothing in the twin mints one (loud shape divergence, see FIDELITY.md).
+
+CREATE TABLE IF NOT EXISTS products (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created INTEGER NOT NULL,
+  updated INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_products_created ON products(created);
+CREATE INDEX IF NOT EXISTS idx_products_account_id ON products(account_id);
+
+CREATE TABLE IF NOT EXISTS prices (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
+  currency TEXT NOT NULL,
+  unit_amount INTEGER,
+  recurring_interval TEXT,
+  recurring_interval_count INTEGER,
+  active INTEGER NOT NULL DEFAULT 1,
+  nickname TEXT,
+  lookup_key TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prices_created ON prices(created);
+CREATE INDEX IF NOT EXISTS idx_prices_product ON prices(product_id);
+CREATE INDEX IF NOT EXISTS idx_prices_account_id ON prices(account_id);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  items_json TEXT NOT NULL,
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+  canceled_at INTEGER,
+  ended_at INTEGER,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_created ON subscriptions(created);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer ON subscriptions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_account_id ON subscriptions(account_id);
 `;
 
 // Delete order matters for foreign-key cascades: refunds → charges → PIs.
@@ -164,6 +218,9 @@ const STRIPE_TABLES = [
   "payment_intents",
   "payment_methods",
   "customers",
+  "subscriptions",
+  "prices",
+  "products",
 ];
 
 /**

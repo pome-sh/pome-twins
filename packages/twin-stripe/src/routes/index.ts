@@ -19,6 +19,7 @@ import { registerEventsRoutes } from "./events.js";
 import { registerRefundsRoutes } from "./refunds.js";
 import { registerCustomersRoutes } from "./customers.js";
 import { registerPaymentMethodsRoutes } from "./payment-methods.js";
+import { registerBillingRoutes } from "./billing.js";
 
 export function registerStripeRoutes(
   router: Hono,
@@ -32,6 +33,7 @@ export function registerStripeRoutes(
   registerRefundsRoutes(router, domain, recorder, runId);
   registerCustomersRoutes(router, domain, recorder, runId);
   registerPaymentMethodsRoutes(router, domain, recorder, runId);
+  registerBillingRoutes(router, domain, recorder, runId);
   registerBalanceRoutes(router, domain, recorder, runId);
   registerEventsRoutes(router, domain, recorder, runId);
 

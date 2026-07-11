@@ -21,4 +21,12 @@ export type {
   CreatePaymentMethodInput,
   ListCustomerPaymentMethodsInput,
 } from "./payment-methods.js";
+export { BillingDomain } from "./billing.js";
+export type {
+  CreatePriceInput,
+  CreateSubscriptionInput,
+  ListBillingInput,
+  ProductFieldsInput,
+  UpdateSubscriptionInput,
+} from "./billing.js";
 export { ensureStripeTables, resetStripeTables } from "./schema.js";
