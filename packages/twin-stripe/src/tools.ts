@@ -166,14 +166,15 @@ export const toolDefinitions = [
   {
     name: "update_customer",
     description:
-      "Update a customer's fields. Metadata merges per-key; an empty value unsets the key.",
+      "Update a customer's fields. Metadata merges per-key; a null or empty value unsets the key.",
     schema: z.object({
       id: z.string().min(1),
       name: z.string().optional(),
       email: z.string().optional(),
       description: z.string().optional(),
       phone: z.string().optional(),
-      metadata: z.record(z.string(), z.string()).optional(),
+      // Nullable values mirror the REST surface: null (or "") unsets the key.
+      metadata: z.record(z.string(), z.string().nullable()).optional(),
     }),
   },
   {

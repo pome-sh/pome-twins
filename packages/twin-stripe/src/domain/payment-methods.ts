@@ -80,13 +80,24 @@ export class PaymentMethodsDomain {
       );
     }
     const expYear = Number(card.exp_year);
-    const currentYear = new Date(nowUnix() * 1000).getUTCFullYear();
+    const now = new Date(nowUnix() * 1000);
+    const currentYear = now.getUTCFullYear();
     if (!Number.isInteger(expYear) || expYear < currentYear) {
       throw new TwinError(
         "card_error",
         "invalid_expiry_year",
         "Your card's expiration year is invalid.",
         { param: "card[exp_year]", statusCode: 402 }
+      );
+    }
+    // Cards expire at end-of-month: the current month is still valid, a past
+    // month of the current year is not.
+    if (expYear === currentYear && expMonth < now.getUTCMonth() + 1) {
+      throw new TwinError(
+        "card_error",
+        "invalid_expiry_month",
+        "Your card's expiration month is invalid.",
+        { param: "card[exp_month]", statusCode: 402 }
       );
     }
 
@@ -179,6 +190,14 @@ export class PaymentMethodsDomain {
       )
       .run(id, accountId);
     return this.requireById(accountId, id);
+  }
+
+  /** All PMs currently attached to a customer (no pagination — used by
+   *  customer deletion to emit one detached event per PM). */
+  allAttachedToCustomer(accountId: string, customerId: string): PaymentMethodRow[] {
+    return this.db
+      .prepare("SELECT * FROM payment_methods WHERE customer_id = ? AND account_id = ?")
+      .all(customerId, accountId) as PaymentMethodRow[];
   }
 
   listForCustomer(

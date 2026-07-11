@@ -6,7 +6,7 @@
 // rule, no reattach after detach, loud errors), the customer PM listing, and
 // attach/detach events.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createStripeApp, rest, type StripeTestApp } from "./_appHelper.js";
 
 const VISA = "4242424242424242";
@@ -101,6 +101,38 @@ describe("Payment methods — POST/GET /v1/payment_methods", () => {
     });
     expect(pastYear.status).toBe(402);
     expect(pastYear.body.error.code).toBe("invalid_expiry_year");
+  });
+
+  describe("current-year expiry", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("rejects a past month of the current year; accepts a future month", async () => {
+      // Fake Date only — faking timers wholesale would stall the app's async plumbing.
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-07-15T12:00:00Z") });
+      const app = await createStripeApp();
+
+      const past = await rest(app, "POST", "/v1/payment_methods", {
+        type: "card",
+        card: { number: VISA, exp_month: 3, exp_year: 2026 },
+      });
+      expect(past.status).toBe(402);
+      expect(past.body.error.code).toBe("invalid_expiry_month");
+
+      const future = await rest(app, "POST", "/v1/payment_methods", {
+        type: "card",
+        card: { number: VISA, exp_month: 12, exp_year: 2026 },
+      });
+      expect(future.status).toBe(200);
+
+      // The current month itself is still valid (cards expire end-of-month).
+      const thisMonth = await rest(app, "POST", "/v1/payment_methods", {
+        type: "card",
+        card: { number: VISA, exp_month: 7, exp_year: 2026 },
+      });
+      expect(thisMonth.status).toBe(200);
+    });
   });
 
   it("retrieves a payment method by id; 404 for unknown", async () => {
@@ -207,6 +239,25 @@ describe("Attach / detach — POST /v1/payment_methods/:id/attach|detach", () =>
     // The PM list of a deleted customer 404s like the customer itself.
     const list = await rest(app, "GET", `/v1/customers/${customer}/payment_methods`);
     expect(list.status).toBe(404);
+  });
+
+  it("deleting a customer emits payment_method.detached per attached PM", async () => {
+    const app = await createStripeApp();
+    const customer = await createCustomer(app);
+    const pm1 = await createCardPM(app);
+    const pm2 = await createCardPM(app, "5555555555554444");
+    await rest(app, "POST", `/v1/payment_methods/${pm1}/attach`, { customer });
+    await rest(app, "POST", `/v1/payment_methods/${pm2}/attach`, { customer });
+
+    await rest(app, "DELETE", `/v1/customers/${customer}`);
+
+    const events = await rest(app, "GET", "/v1/events?limit=100");
+    const detached = (events.body.data as Array<{ type: string; data: { object: { id: string; customer: string | null } } }>)
+      .filter((e) => e.type === "payment_method.detached");
+    expect(detached.map((e) => e.data.object.id).sort()).toEqual([pm1, pm2].sort());
+    for (const event of detached) {
+      expect(event.data.object.customer).toBeNull();
+    }
   });
 
   it("emits payment_method.attached / payment_method.detached events", async () => {

@@ -6,7 +6,7 @@
 // events, and F1 account scoping.
 
 import { describe, expect, it } from "vitest";
-import { createStripeApp, rest } from "./_appHelper.js";
+import { callTool, createStripeApp, rest } from "./_appHelper.js";
 import { createTwinStripeApp } from "../src/twin.js";
 import { openTwinStripeDatabase } from "../src/db.js";
 
@@ -130,6 +130,17 @@ describe("Customers — POST/GET/DELETE /v1/customers", () => {
     expect(types).toContain("customer.created");
     expect(types).toContain("customer.updated");
     expect(types).toContain("customer.deleted");
+  });
+
+  it("MCP update_customer accepts metadata nulls to unset keys, like the REST surface", async () => {
+    const app = await createStripeApp();
+    const c = await callTool(app, "create_customer", { metadata: { a: "1", b: "2" } });
+    const u = await callTool(app, "update_customer", {
+      id: c.body.id,
+      metadata: { a: null, c: "3" },
+    });
+    expect(u.status).toBe(200);
+    expect(u.body.metadata).toEqual({ b: "2", c: "3" });
   });
 
   it("honors Idempotency-Key on POST /v1/customers", async () => {

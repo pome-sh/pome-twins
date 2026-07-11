@@ -288,9 +288,19 @@ export class StripeDomain {
 
   deleteCustomer(accountId: string, id: string): { body: unknown; delta: StateDelta } {
     const before = this.customers.requireById(accountId, id);
+    const attached = this.paymentMethods.allAttachedToCustomer(accountId, id);
     const { row, alreadyDeleted } = this.customers.delete(accountId, id);
     if (!alreadyDeleted) {
       this.events.create(accountId, { type: "customer.deleted", object: deletedCustomerJson(row) });
+      // Deletion detached every attached PM (inside customers.delete's
+      // transaction); event-polling consumers see one detached event per PM,
+      // carrying the post-detach shape.
+      for (const pm of attached) {
+        this.events.create(accountId, {
+          type: "payment_method.detached",
+          object: paymentMethodJson(this.paymentMethods.requireById(accountId, pm.id)),
+        });
+      }
     }
     return {
       body: deletedCustomerJson(row),
