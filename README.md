@@ -24,45 +24,73 @@ This repository contains the core digital twins and the CLI. To supercharge your
 
 ⚠️ Pome is in Beta. It's dependencies and CLI shape might change in the future. For questions or suggestions, email: `founders@pome.sh`
 
-## CLI Installation
+## Quickstart
 
-Install the `pome` command before running scenarios or hosted twins. Until the
-first npm registry release ships, install from the GitHub source checkout.
+Prerequisites: [Node.js ≥ 24](https://nodejs.org/). Nothing else — no
+installs, no git clone.
+
+Start a twin (GitHub, Stripe, or Slack):
 
 ```bash
-git clone --depth 1 https://github.com/pome-sh/pome-twins.git
-cd pome-twins/cli
-npm install
-npm install -g .
+npx @pome-sh/cli twin start github         # GitHub twin on http://127.0.0.1:3333
+curl http://127.0.0.1:3333/healthz
+```
+
+It runs in the foreground (Ctrl-C to stop) and prints the twin's MCP URL plus
+a ready-minted `POME_AUTH_TOKEN` for the session it serves — everything an
+agent needs to connect.
+
+Then run your first agent scenario. `pome init` scaffolds the scenario
+library and a scripted example agent; `pome run --local` boots its own twin
+in-process, seeds the scenario, runs the agent, and records the trace:
+
+```bash
+npx @pome-sh/cli init
+npx @pome-sh/cli run --local scenarios/01-bug-happy-path.md   # captures a trace
+npx @pome-sh/cli inspect latest                               # read it back
+```
+
+Run each twin on its own port with `--port` (e.g.
+`npx @pome-sh/cli twin start stripe --port 3334`). To develop a twin from
+source: `npm run dev -w @pome-sh/twin-github`. Each twin has its own README
+under [`packages/`](./packages/).
+
+**State, persistence, auth.** Each `pome twin start` boot serves a fresh copy
+of the twin's seeded demo world; `POST /admin/reset` returns to it in place.
+The GitHub twin's SQLite can live on disk via `GITHUB_CLONE_DB=<path>`. Auth
+is env-first: an exported `TWIN_AUTH_SECRET` (≥ 32 chars) always wins;
+otherwise the CLI reuses a secret a previous twin boot persisted under
+`.pome-data/<twin>/secret` (`POME_TWIN_DATA_DIR` overrides the directory),
+else it generates a per-boot secret — either way it prints a ready-to-use
+`POME_AUTH_TOKEN`.
+
+## CLI Installation
+
+The quickstart's `npx @pome-sh/cli` needs no install. For a persistent `pome`
+command:
+
+```bash
+npm install -g @pome-sh/cli
 pome --help
 ```
 
-After installation, run `pome login` once to connect the CLI to your Pome
-account, then run `pome init` in any project where you want scenarios and run
-artifacts.
+Run `pome login` once to connect the CLI to your Pome account, then `pome init`
+in any project where you want scenarios and run artifacts.
 
-## Quickstart
+## The example agents
 
-Prerequisites: [Docker](https://docs.docker.com/get-docker/), [Node.js ≥ 24](https://nodejs.org/),
-and an [Anthropic API key](https://console.anthropic.com/) for the bundled example agent.
+[`examples/triage-agent`](./examples/triage-agent/) is the worked
+Claude Agent SDK example: with a twin running (see quickstart) and an
+[Anthropic API key](https://console.anthropic.com/), it triages the seeded
+issues on `acme/api` end-to-end:
 
 ```bash
-git clone https://github.com/pome-sh/pome-twins.git && cd pome-twins
-docker compose up -d                       # GitHub twin on :3333
-curl http://127.0.0.1:3333/healthz
-
-cd examples/triage-agent
+git clone https://github.com/pome-sh/pome-twins.git && cd pome-twins/examples/triage-agent
 npm install
+export POME_AUTH_TOKEN=…                   # printed by `npx @pome-sh/cli twin start github`
 export ANTHROPIC_API_KEY=sk-ant-...
-npm start                                  # triages a seeded issue on acme/api
+npm start
 ```
-
-Run all three twins with `docker compose --profile twins up -d` (ports 3333 /
-3334 / 3335). All twins ship from one GHCR package, one tag per twin
-(`ghcr.io/pome-sh/twins:github` / `:stripe` / `:slack`); it is private until
-launch, so run `docker login ghcr.io` first. To develop a twin from
-source: `npm run dev -w @pome-sh/twin-github`. Each twin has its own README
-under [`packages/`](./packages/).
 
 ## The twins
 

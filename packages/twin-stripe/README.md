@@ -28,8 +28,8 @@ cd pome-twins && npm install
 npm run -w @pome-sh/twin-stripe dev &   # starts on :3333
 sleep 2
 
-# Or via Docker (host port 3334 when using root docker-compose --profile twins):
-# docker compose --profile twins up -d twin-stripe
+# Or with zero installs (only Node ≥ 24 required):
+# npx @pome-sh/cli twin start stripe --port 3334
 # curl http://127.0.0.1:3334/healthz
 
 # Real Stripe SDKs work via host override — they hit /v1/* directly

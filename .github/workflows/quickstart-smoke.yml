@@ -1,19 +1,19 @@
 name: quickstart-smoke
-# The clean-clone quickstart (README): `docker compose up` then the bundled
-# triage agent must locate the twin's auto-generated secret and reach the twin.
-# FDRS-604 broke exactly this (secret moved to a per-twin subdir); this gate
-# keeps it from silently re-breaking. FDRS-647.
+# The clean-machine quickstart (README): `npx @pome-sh/cli twin start github`
+# then the bundled triage agent must reach the twin with env-only auth.
+# F-604 broke the old quickstart via agent↔twin disk-path coupling; F-647
+# replaced disk probing with env auth — this gate keeps the npx-equivalent
+# flow from silently re-breaking. F-647.
 on:
   pull_request:
     paths:
       - 'README.md'
       - 'examples/triage-agent/**'
-      - 'packages/twin-github/**'
       - 'packages/shared-types/**'
       - 'packages/adapter-claude-sdk/**'
       - 'package.json'
       - 'package-lock.json'
-      - 'docker-compose.yml'
+      - 'cli/**'
       - '.github/workflows/quickstart-smoke.yml'
   push:
     branches: [main]
@@ -24,13 +24,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # End-to-end: hermetic secret-path unit test, then build the GitHub twin image
-  # from this checkout, compose it up, and run the agent in PREFLIGHT mode
-  # (POME_PREFLIGHT=1). The agent resolves the on-disk secret, mints a JWT,
-  # probes the twin's /tools with that token, and exits 0. That path never
-  # calls Claude, but the code asserts ANTHROPIC_API_KEY is set, so we pass a
-  # throwaway value. Former separate `unit` job folded in here to keep one
-  # required check.
+  # End-to-end: hermetic auth-token unit test, then build the CLI from this
+  # checkout and run `twin start github` — the same in-process boot path the
+  # published `npx @pome-sh/cli` front door uses (the twins themselves ride in
+  # via the CLI's published @pome-sh/* deps, exactly as they do for an npx
+  # user). The agent mints a JWT from the shared TWIN_AUTH_SECRET env, probes
+  # the twin's /tools with it in PREFLIGHT mode (POME_PREFLIGHT=1), and exits
+  # 0. That path never calls Claude, but the code asserts ANTHROPIC_API_KEY is
+  # set, so we pass a throwaway value.
   smoke:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
@@ -44,6 +45,7 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
+            cli/package-lock.json
             examples/triage-agent/package-lock.json
       # Root install so the example's adapter dep resolves. The example's
       # `file:` adapter dep resolves its own @anthropic-ai/claude-agent-sdk
@@ -57,27 +59,36 @@ jobs:
       # (`Cannot find module '@pome-sh/adapter-claude-sdk'`). Build must precede
       # the example's `npm ci` so the pack includes dist/.
       - run: npm run build -w @pome-sh/adapter-claude-sdk
-      - name: Secret-path unit test
+      - name: Auth-token unit test
         working-directory: examples/triage-agent
         run: |
           npm ci
           npm test
-      - name: Build GitHub twin image for compose
-        run: docker build -t ghcr.io/pome-sh/twins:github -f packages/twin-github/Dockerfile .
-      - name: Start the GitHub twin
-        run: docker compose up --pull never -d twin-github
-      - name: Wait for the twin secret + health
+      - name: Build the CLI from this checkout
+        working-directory: cli
+        run: |
+          npm ci
+          npm run build
+      # One secret, shared via env by the twin and the agent — the README's
+      # TWIN_AUTH_SECRET flow. (Not a real credential: generated per run,
+      # loopback twin, torn down with the job.)
+      - name: Generate the shared twin auth secret
+        run: echo "TWIN_AUTH_SECRET=$(node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))')" >> "$GITHUB_ENV"
+      - name: Start the GitHub twin via the CLI
+        run: |
+          nohup node cli/dist/src/cli/main.js twin start github > twin.log 2>&1 &
+      - name: Wait for twin health
         run: |
           for i in $(seq 1 60); do
-            if [ -f .pome-data/github/secret ] && curl -fsS http://127.0.0.1:3333/healthz >/dev/null 2>&1; then
+            if curl -fsS http://127.0.0.1:3333/healthz >/dev/null 2>&1; then
               echo "twin ready after ${i} tries"; exit 0
             fi
             sleep 2
           done
-          echo "::error::twin secret/health not ready within 120s"
-          docker compose logs twin-github
+          echo "::error::twin health not ready within 120s"
+          cat twin.log
           exit 1
-      - name: Quickstart preflight (resolve secret + reach twin)
+      - name: Quickstart preflight (env-secret JWT mint + reach twin)
         working-directory: examples/triage-agent
         env:
           POME_PREFLIGHT: "1"
@@ -87,4 +98,4 @@ jobs:
         run: npm start
       - name: Twin logs on failure
         if: failure()
-        run: docker compose logs twin-github
+        run: cat twin.log

@@ -28,7 +28,7 @@ Minimal steps. Code snippets, commands, or a link to a small repo are best.
 
 ## Environment
 
-- Pome component: <!-- cli / twin-github / shared-types / docker compose -->
+- Pome component: <!-- cli / twin-github / shared-types / twin start -->
 - Version or image digest: <!-- `pome --version`, image sha256, or commit SHA -->
 - OS / arch: <!-- e.g. macOS 14 arm64, Ubuntu 22.04 x86_64 -->
 - Node.js / npm version (if relevant):

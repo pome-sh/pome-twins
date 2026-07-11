@@ -20,9 +20,9 @@ is sourced from **Infisical or your local environment**.
 
 ## Prerequisites
 
-- A running Pome twin (the Pome CLI boots its own per run; standalone use needs
-  `docker compose up` from the repo root, which writes
-  `<repo-root>/.pome-data/secret`).
+- A running Pome twin (the Pome CLI boots its own per run; for standalone use,
+  start one with `npx @pome-sh/cli twin start github` — it prints a
+  ready-minted `POME_AUTH_TOKEN` on boot).
 - Node.js 24+ and npm 11.5+.
 - An Anthropic API key — from your environment **or** Infisical (see below).
 
@@ -101,7 +101,7 @@ pome run .
 
 ## Configuration
 
-All optional. Defaults match the repo-root `docker compose up`.
+All optional. Defaults match `npx @pome-sh/cli twin start github`.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
@@ -111,9 +111,8 @@ All optional. Defaults match the repo-root `docker compose up`.
 | `POME_INFISICAL_SECRET_NAME` | `ANTHROPIC_API_KEY` | Secret name to fetch from Infisical. |
 | `POME_OTEL_EXPORTER_OTLP_ENDPOINT` | — | Session-scoped OTLP/JSON traces endpoint for agent telemetry (per-task tokens/latency/errors on the dashboard). Set by hosted `pome run`; `withPome()` emits `gen_ai` spans here. When unset, telemetry stays off. |
 | `POME_OTEL_EXPORTER_OTLP_HEADERS` | — | OTLP request headers (the `x-api-key=<team key>` auth that the session traces endpoint accepts), `key=value,…` format. Set by hosted `pome run`. |
-| `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/demo/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
-| `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. Pome CLI sets this; otherwise the agent mints its own. |
+| `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/standalone/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
+| `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. `pome twin start` prints one; Pome CLI sets it automatically. When unset, the agent mints its own from `TWIN_AUTH_SECRET`. |
 | `POME_TASK` | bundled summarize+review prompt | Override the agent's task. Pome CLI sets this from the scenario file. |
 | `POME_REPO_OWNER` / `POME_REPO_NAME` | `acme` / `api` | Override the default repo named in the bundled task. |
-| `TWIN_AUTH_SECRET` | — | Override the on-disk secret when minting the JWT locally. |
-| `POME_DATA_SECRET_PATH` | `<repo-root>/.pome-data/secret` | Override where the agent looks for the on-disk secret. |
+| `TWIN_AUTH_SECRET` | — | The secret the twin was started with. Used to mint the JWT locally when `POME_AUTH_TOKEN` is unset. |

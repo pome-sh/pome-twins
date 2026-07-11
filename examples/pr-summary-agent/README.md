@@ -12,9 +12,9 @@ shape applied to pull requests — and how to source the Claude API key from
 
 ## Prerequisites
 
-- A running Pome twin on `http://127.0.0.1:3333` — the easiest way is the
-  repo-root `docker compose up`. The twin auto-generates a bearer secret at
-  `<repo-root>/.pome-data/secret` on first run.
+- A running Pome twin on `http://127.0.0.1:3333` — start one with
+  `npx @pome-sh/cli twin start github` (only Node ≥ 24 required). It prints
+  the twin URL and a ready-minted `POME_AUTH_TOKEN` on boot.
 - Node.js 24+ and npm 11.5+.
 - An Anthropic API key for the agent loop — from your environment **or**
   Infisical (see below).
@@ -54,19 +54,24 @@ Infisical lookups honor `INFISICAL_ENV` (default `dev`),
 `INFISICAL_PROJECT_ID`, and `POME_INFISICAL_SECRET_NAME` (default
 `ANTHROPIC_API_KEY`).
 
-## Run (standalone, against `docker compose up`)
+## Run (standalone, against `pome twin start`)
 
 ```bash
-# 1. From the repo root, in another terminal:
-docker compose up
+# 1. In another terminal — start the GitHub twin:
+npx @pome-sh/cli twin start github
+# it prints POME_AUTH_TOKEN=… (a ready-minted bearer JWT)
 
-# 2. From this directory (key from env or Infisical, see above):
+# 2. From this directory (Claude key from env or Infisical, see above):
+export POME_AUTH_TOKEN=…            # paste from the twin start output
 npm run start
 ```
 
-The agent reads the secret from `<repo-root>/.pome-data/secret`, mints its own
-bearer JWT (`sid: "demo"`, matching the docker-compose `/s/demo` URL), then
-talks to the twin's MCP at `http://127.0.0.1:3333/s/demo/mcp`.
+The agent's auth comes from **env only** — it never reads the twin's on-disk
+state. Instead of pasting the token, you can export the same
+`TWIN_AUTH_SECRET` (≥ 32 chars) in both terminals before starting the twin;
+the agent then mints its own bearer JWT (`sid: "standalone"`, matching the
+`/s/standalone` session `pome twin start` serves) and talks to the twin's MCP
+at `http://127.0.0.1:3333/s/standalone/mcp`.
 
 By default it summarizes open PRs in `acme/api`. Point it at another repo with
 `POME_REPO_OWNER` / `POME_REPO_NAME`, or override the whole task with
@@ -98,12 +103,12 @@ trace under `runs/<scenario-slug>/<run-id>/`.
 | Wrapping PR endpoints (`list_pull_requests`, `get_pull_request_files`, `get_file_contents`, …) | `src/index.ts` — `buildTwinTools` |
 | Calling the twin's MCP surface (`POST /s/:sid/mcp/call`) | `src/index.ts` — `TwinMcpClient` |
 | Claude key from Infisical or local env | `src/index.ts` — `resolveAnthropicKey` |
-| Local JWT mint compatible with the docker-compose entrypoint | `src/index.ts` — `resolveAuthToken` |
+| Env-only twin auth (token pass-through or local JWT mint) | `src/index.ts` — `resolveAuthToken` |
 | Pome CLI compatibility (`POME_TASK`, `POME_GITHUB_MCP_URL`, `POME_AUTH_TOKEN`, `POME_PREFLIGHT`) | `src/index.ts` — env reads + `preflight` |
 
 ## Configuration
 
-All optional. Defaults match the repo-root `docker compose up`.
+All optional. Defaults match `npx @pome-sh/cli twin start github`.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
@@ -111,11 +116,10 @@ All optional. Defaults match the repo-root `docker compose up`.
 | `INFISICAL_ENV` | `dev` | Infisical environment slug for the key lookup. |
 | `INFISICAL_PROJECT_ID` | — | Infisical project ID (if not inferred from `.infisical.json`). |
 | `POME_INFISICAL_SECRET_NAME` | `ANTHROPIC_API_KEY` | Secret name to fetch from Infisical. |
-| `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/demo/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
-| `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. Pome CLI sets this; otherwise the agent mints its own. |
+| `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/standalone/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
+| `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. `pome twin start` prints one; Pome CLI sets it automatically. When unset, the agent mints its own from `TWIN_AUTH_SECRET`. |
 | `POME_TASK` | bundled PR-summary prompt | Override the agent's task. Pome CLI sets this from the scenario file. |
 | `POME_TWIN_BASE_URL` | `http://127.0.0.1:3333` | Used to derive the MCP URL when `POME_GITHUB_MCP_URL` is unset. |
-| `POME_TWIN_SID` | `demo` | Used to derive the MCP URL when `POME_GITHUB_MCP_URL` is unset. |
+| `POME_TWIN_SID` | `standalone` | Used to derive the MCP URL when `POME_GITHUB_MCP_URL` is unset. |
 | `POME_REPO_OWNER` / `POME_REPO_NAME` | `acme` / `api` | Override the default repo named in the bundled task. |
-| `TWIN_AUTH_SECRET` | — | Override the on-disk secret when minting the JWT locally. |
-| `POME_DATA_SECRET_PATH` | `<repo-root>/.pome-data/secret` | Override where the agent looks for the on-disk secret. |
+| `TWIN_AUTH_SECRET` | — | The secret the twin was started with. Used to mint the JWT locally when `POME_AUTH_TOKEN` is unset. |

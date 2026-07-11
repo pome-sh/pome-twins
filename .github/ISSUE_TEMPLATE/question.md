@@ -27,6 +27,6 @@ Security questions: email founders@pome.sh, do NOT file here.
 
 ## Environment (if relevant)
 
-- Pome component: <!-- cli / twin-github / shared-types / docker compose -->
+- Pome component: <!-- cli / twin-github / shared-types / twin start -->
 - Version or image digest:
 - OS / arch:

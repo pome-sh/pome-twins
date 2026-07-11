@@ -17,9 +17,11 @@
  *
  * Two run modes share the same code path:
  *
- * 1. Standalone — `docker compose up` from the repo root, then `npm run start`.
- *    The agent reads <repo-root>/.pome-data/secret, mints its own bearer JWT,
- *    and talks to the twin at http://127.0.0.1:3333/s/demo/mcp.
+ * 1. Standalone — `npx @pome-sh/cli twin start github`, then `npm run start`.
+ *    Auth comes from env only (F-647): either paste the POME_AUTH_TOKEN the
+ *    CLI prints, or export the same TWIN_AUTH_SECRET in both terminals and
+ *    the agent mints its own bearer JWT. The agent talks to the twin at
+ *    http://127.0.0.1:3333/s/standalone/mcp.
  *
  * 2. Pome CLI evaluator — `pome run <scenario>.md`. The CLI boots its own twin,
  *    seeds the scenario, mints the JWT, and injects POME_GITHUB_MCP_URL /
@@ -30,9 +32,6 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { flushPomeTelemetry, query, tool, withPome } from "@pome-sh/adapter-claude-sdk";
@@ -41,10 +40,9 @@ import { z } from "zod";
 
 withPome();
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 const TWIN_BASE_URL = process.env.POME_TWIN_BASE_URL ?? "http://127.0.0.1:3333";
-const SID = process.env.POME_TWIN_SID ?? "demo";
+// `pome twin start` serves the fixed session `/s/standalone`.
+const SID = process.env.POME_TWIN_SID ?? "standalone";
 const REPO_OWNER = process.env.POME_REPO_OWNER ?? "acme";
 const REPO_NAME = process.env.POME_REPO_NAME ?? "api";
 
@@ -331,40 +329,30 @@ function readKeyFromInfisical(): string | null {
   }
 }
 
+// Auth is env-only (F-647): the agent never probes the twin's on-disk state —
+// the persisted-secret location is a server↔CLI internal contract.
 async function resolveAuthToken(): Promise<string> {
+  // Pome CLI evaluator (and `pome twin start`'s printed line) pre-mint the
+  // token and pass it as POME_AUTH_TOKEN.
   if (process.env.POME_AUTH_TOKEN) return process.env.POME_AUTH_TOKEN;
 
-  const secret = process.env.TWIN_AUTH_SECRET ?? readSecretFromDisk();
+  // Standalone: mint a JWT from the same TWIN_AUTH_SECRET the twin was
+  // started with (`export TWIN_AUTH_SECRET=… && npx @pome-sh/cli twin start github`).
+  const secret = process.env.TWIN_AUTH_SECRET;
+  if (!secret) {
+    throw new Error(
+      "No twin auth in the environment.\n" +
+        "Either:\n" +
+        "  • export POME_AUTH_TOKEN — `npx @pome-sh/cli twin start github` prints a ready-minted one, or\n" +
+        "  • export the same TWIN_AUTH_SECRET (>= 32 chars) the twin was started with; the agent mints its own JWT."
+    );
+  }
+  if (secret.length < 32) {
+    throw new Error("TWIN_AUTH_SECRET is shorter than 32 characters.");
+  }
   return sign(
     { sid: MCP_SID, team_id: "tm_local", exp: Math.floor(Date.now() / 1000) + 3600 },
     secret
-  );
-}
-
-function readSecretFromDisk(): string {
-  const explicit = process.env.POME_DATA_SECRET_PATH;
-  // Default location: <repo-root>/.pome-data/secret. From this file
-  // (examples/pr-summary-review/src/index.ts) the repo root is three levels up.
-  const candidates = [
-    explicit,
-    resolve(process.cwd(), ".pome-data/secret"),
-    resolve(__dirname, "../../../.pome-data/secret")
-  ].filter((p): p is string => Boolean(p));
-
-  for (const path of candidates) {
-    if (existsSync(path)) {
-      const value = readFileSync(path, "utf8").trim();
-      if (value.length >= 32) return value;
-      throw new Error(`Twin secret at ${path} is shorter than 32 characters.`);
-    }
-  }
-
-  throw new Error(
-    "Could not locate the twin auth secret.\n" +
-      "Either:\n" +
-      "  • run `docker compose up` from the repo root (writes .pome-data/secret), or\n" +
-      "  • export TWIN_AUTH_SECRET (>= 32 chars), or\n" +
-      "  • export POME_AUTH_TOKEN with a pre-minted JWT."
   );
 }
 

@@ -15,15 +15,14 @@ Run `pome --help` (or `pome help <command>`) for the CLI reference, and
 
 ## Install
 
-Until the first npm release ships, install from the GitHub source checkout:
-
 ```bash
-git clone --depth 1 https://github.com/pome-sh/pome-twins.git
-cd pome-twins/cli
-npm install        # installs deps + runs the `prepare` build
-npm install -g .
+npm install -g @pome-sh/cli
 pome --help
 ```
+
+Or run it without installing: `npx @pome-sh/cli <command>` — e.g.
+`npx @pome-sh/cli twin start github` boots a local GitHub twin with nothing
+but Node ≥ 24.
 
 ## Quickstart
 
