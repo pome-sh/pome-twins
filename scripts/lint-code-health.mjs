@@ -15,6 +15,7 @@ const BARREL_PATHS = [
   "packages/twin-stripe/src/index.ts",
   "packages/twin-stripe/src/domain/index.ts",
   "packages/adapter-claude-sdk/src/index.ts",
+  "packages/shared-types/src/index.ts",
 ];
 
 // Existing large modules — shrink this list as files are split (F-679).
@@ -25,7 +26,6 @@ const FILE_SIZE_ALLOWLIST = new Set([
   "cli/src/cli/install.ts",
   "cli/src/hosted/client.ts",
   "cli/src/runner/runScenarioHosted.ts",
-  "packages/shared-types/src/index.ts",
   "packages/shared-types/src/otel/fixtures/data.ts",
   "packages/twin-github/src/domain.ts",
   "packages/twin-github/src/serializers.ts",
