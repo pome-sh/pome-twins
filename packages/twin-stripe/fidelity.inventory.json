@@ -2,7 +2,7 @@
   "twin": "stripe",
   "package": "@pome-sh/twin-stripe",
   "updated": "2026-07-12",
-  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The payment-collection chain (F-731: PI lifecycle incl. card decline/retry + settlement/ledger/event reads), the customer-management chain (F-732), and the refunds chain (F-733 reconciliation: ledger + events closed, docs synced) carry their ruled heat (hot, F-729); the warm set lands with F-734. Disputes are unlisted cold per the F-729 ruled list (catch-all 501), not warm — see the F-733 [DECISION].",
+  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The payment-collection chain (F-731: PI lifecycle incl. card decline/retry + settlement/ledger/event reads), the customer-management chain (F-732), and the refunds chain (F-733 reconciliation: ledger + events closed, docs synced) carry their ruled heat (hot, F-729); the warm billing set (products/prices/subscriptions/invoice reads, shape tier) landed with F-734, which also added the named cold rows (checkout sessions, payment links, setup intents, webhook endpoints). Disputes are unlisted cold per the F-729 ruled list (catch-all 501), not warm — see the F-733 [DECISION].",
   "tools": [
     {
       "name": "create_payment_intent",
@@ -317,6 +317,108 @@
       "heat": "hot",
       "fidelity": "semantic",
       "justification": "TC:card-on-file (ruled F-729)."
+    },
+    {
+      "name": "POST /s/:sid/v1/products",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729): chain too long for semantic in the M5 window; shape keeps agents off 501s. Vendor MCP: meta-tools only. F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/products/:id",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729). F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/products",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729); cursor pagination + active filter. F-734."
+    },
+    {
+      "name": "POST /s/:sid/v1/prices",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729): referential check on product; recurring vs one_time from recurring.interval. F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/prices/:id",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729). F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/prices",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729); cursor pagination + product/active filters. F-734."
+    },
+    {
+      "name": "POST /s/:sid/v1/subscriptions",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729): live customer + existing item prices referentially checked; created active with no invoice minted and no event emitted (shape tier). F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/subscriptions/:id",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729); items carry the expanded Price object like real Stripe. F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/subscriptions",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729); excludes canceled by default, status/customer filters. F-734."
+    },
+    {
+      "name": "POST /s/:sid/v1/subscriptions/:id",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729): per-key metadata merge + cancel_at_period_end flip; canceled subscriptions accept metadata-only updates like real Stripe. F-734."
+    },
+    {
+      "name": "DELETE /s/:sid/v1/subscriptions/:id",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729): immediate cancel, no proration or final invoice (shape tier). F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/invoices/:id",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729, ruling point 2: reads only). Always 404 resource_missing — nothing in the twin mints an invoice; invoice writes stay unlisted-cold. F-734."
+    },
+    {
+      "name": "GET /s/:sid/v1/invoices",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "TC:subscription-billing (ruled F-729, ruling point 2: reads only). Always the empty Stripe list envelope (documented divergence). F-734."
+    },
+    {
+      "name": "ALL /s/:sid/v1/checkout/sessions*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729): human-redirect flow outside the machine-payments scope. Named cold — agents plausibly probe it; loud 501 pinned by unsupported.test.ts and the fidelity:parity probe. F-734."
+    },
+    {
+      "name": "ALL /s/:sid/v1/payment_links*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729): human-redirect flow. Named cold; loud 501 pinned by unsupported.test.ts. F-734."
+    },
+    {
+      "name": "ALL /s/:sid/v1/setup_intents*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729, ruling point 3): card-on-file is modeled via direct PM attach (F-732); agents plausibly probe SetupIntents. Named cold; loud 501 pinned by unsupported.test.ts. F-734."
+    },
+    {
+      "name": "ALL /s/:sid/v1/webhook_endpoints*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729, ruling point 3): no webhook delivery loop in v1 (divergence #5), agents poll /v1/events. Named cold; loud 501 pinned by unsupported.test.ts. F-734."
     }
   ],
   "doc_drift": []

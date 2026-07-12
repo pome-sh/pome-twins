@@ -116,7 +116,8 @@ async function main() {
       assertOk(body.twin === "stripe", `1. healthz twin=${body.twin}, expected "stripe"`);
       assertOk(body.implementation === "stripe_clone", `1. implementation=${body.implementation}`);
       // Deliberate magic-number pin (same tripwire as tools.test.ts): bump it
-      // when a ticket adds tools. 26 since F-731/F-732 (F-733 added none).
+      // when a ticket adds tools. 26 since F-731/F-732 (F-733/F-734 added none
+      // — the F-734 warm billing surfaces are REST-only).
       assertOk(body.tools === 26, `1. tools=${body.tools}, expected 26`);
       log("ok", `healthz: tools=${body.tools}, fidelity=${body.fidelity}, tthw=${(body.tthw_seconds as number).toFixed(2)}s`);
     }

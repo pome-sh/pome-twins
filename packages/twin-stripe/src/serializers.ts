@@ -1,3 +1,4 @@
+// file-size: one serializer per Stripe resource the twin emits — splitting the anchored emitters would scatter the FDRS-478 shape-anchor discipline across modules.
 // SPDX-License-Identifier: Apache-2.0
 //
 // Row → Stripe-shape JSON serializers. Owned by AGENT-B.
@@ -11,7 +12,10 @@ import type {
   CustomerRow,
   EventRow,
   PaymentMethodRow,
+  PriceRow,
+  ProductRow,
   RefundRow,
+  SubscriptionRow,
 } from "./types.js";
 import type {
   ApiList,
@@ -23,9 +27,15 @@ import type {
   DeletedCustomer,
   PaymentIntent,
   PaymentMethod,
+  Price,
+  PriceRecurring,
+  Product,
   Refund,
   StripeEvent,
+  Subscription,
+  SubscriptionItem,
 } from "./upstream-types.js";
+import type { SubscriptionItem as SubscriptionItemRecord } from "./domain/billing.js";
 import { STRIPE_API_VERSION } from "./domain/constants.js";
 import { piTypes } from "./domain/payment-intents.js";
 
@@ -353,6 +363,127 @@ export function eventJson(row: EventRow) {
     // is the `Event.Type` literal union. Narrow for the anchor only (FDRS-454).
     type: row.type as StripeEvent["type"],
   } satisfies DeepPartial<StripeEvent>;
+}
+
+// ---------- Billing serializers (F-734, shape tier) ----------
+//
+// Faithful subsets served off stored rows — the anchor is the entire shape
+// check here; there is no semantic machine behind these objects (no events,
+// no invoices, no billing-cycle arithmetic; see FIDELITY.md).
+
+export function productJson(row: ProductRow) {
+  return {
+    id: row.id,
+    object: "product",
+    active: Boolean(row.active),
+    created: row.created,
+    default_price: null,
+    description: row.description,
+    images: [],
+    livemode: false,
+    marketing_features: [],
+    metadata: parseJson(row.metadata_json, {}),
+    name: row.name,
+    package_dimensions: null,
+    shippable: null,
+    tax_code: null,
+    type: "service",
+    unit_label: null,
+    updated: row.updated,
+    url: null,
+  } satisfies DeepPartial<Product>;
+}
+
+export function priceJson(row: PriceRow) {
+  const recurring = row.recurring_interval
+    ? {
+        // Twin row `recurring_interval` is a free `string`; upstream
+        // `Price.Recurring.interval` is a literal union. Narrow for the type
+        // anchor only (FDRS-454), runtime unchanged.
+        interval: row.recurring_interval as PriceRecurring["interval"],
+        interval_count: row.recurring_interval_count ?? 1,
+        meter: null,
+        usage_type: "licensed" as const,
+      }
+    : null;
+  return {
+    id: row.id,
+    object: "price",
+    active: Boolean(row.active),
+    billing_scheme: "per_unit",
+    created: row.created,
+    currency: row.currency,
+    custom_unit_amount: null,
+    livemode: false,
+    lookup_key: row.lookup_key,
+    metadata: parseJson(row.metadata_json, {}),
+    nickname: row.nickname,
+    product: row.product_id,
+    recurring,
+    tax_behavior: "unspecified",
+    tiers_mode: null,
+    transform_quantity: null,
+    type: recurring ? ("recurring" as const) : ("one_time" as const),
+    unit_amount: row.unit_amount,
+    unit_amount_decimal: row.unit_amount === null ? null : String(row.unit_amount),
+  } satisfies DeepPartial<Price>;
+}
+
+/**
+ * Subscription with expanded item prices (upstream `SubscriptionItem.price`
+ * is the full Price object, so the caller resolves each item's PriceRow).
+ * `current_period_start/end` are deliberately OMITTED from the items — the
+ * shape tier carries no billing-cycle arithmetic (documented divergence).
+ */
+export function subscriptionJson(
+  row: SubscriptionRow,
+  itemPrices: Map<string, PriceRow>
+) {
+  const items = parseJson<SubscriptionItemRecord[]>(row.items_json, []);
+  const firstPrice = items[0] ? itemPrices.get(items[0].price) : undefined;
+  const itemsData = items.map((item) => {
+    const price = itemPrices.get(item.price);
+    return {
+      id: item.id,
+      object: "subscription_item" as const,
+      created: row.created,
+      metadata: {},
+      // Anchor bridge: every stored item price resolves (referential check at
+      // create time); the Map lookup type keeps `undefined` in the signature.
+      price: (price ? priceJson(price) : undefined) as DeepPartial<SubscriptionItem>["price"],
+      quantity: item.quantity,
+      subscription: row.id,
+    };
+  });
+  return {
+    id: row.id,
+    object: "subscription",
+    billing_cycle_anchor: row.created,
+    cancel_at: null,
+    cancel_at_period_end: Boolean(row.cancel_at_period_end),
+    canceled_at: row.canceled_at,
+    collection_method: "charge_automatically",
+    created: row.created,
+    currency: firstPrice?.currency ?? "usd",
+    customer: row.customer_id,
+    days_until_due: null,
+    default_payment_method: null,
+    description: null,
+    ended_at: row.ended_at,
+    items: {
+      object: "list" as const,
+      data: itemsData,
+      has_more: false,
+      url: `/v1/subscription_items?subscription=${row.id}`,
+    },
+    latest_invoice: null,
+    livemode: false,
+    metadata: parseJson(row.metadata_json, {}),
+    start_date: row.created,
+    status: row.status,
+    trial_end: null,
+    trial_start: null,
+  } satisfies DeepPartial<Subscription>;
 }
 
 /**

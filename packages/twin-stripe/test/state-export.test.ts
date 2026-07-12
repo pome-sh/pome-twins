@@ -100,6 +100,9 @@ describe("state export determinism (F-684)", () => {
       refunds: [],
       customers: [],
       payment_methods: [],
+      products: [],
+      prices: [],
+      subscriptions: [],
     });
   });
 });

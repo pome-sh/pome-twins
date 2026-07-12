@@ -12,6 +12,8 @@ export const ID_PREFIXES = {
   refund: "re_",
   product: "prod_",
   price: "price_",
+  subscription: "sub_",
+  subscription_item: "si_",
   setup_intent: "seti_",
   checkout_session: "cs_test_",
   webhook_endpoint: "we_",

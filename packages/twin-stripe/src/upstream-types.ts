@@ -28,6 +28,15 @@ export type Balance = Stripe.Balance;
 export type Customer = Stripe.Customer;
 export type DeletedCustomer = Stripe.DeletedCustomer;
 export type PaymentMethod = Stripe.PaymentMethod;
+// F-734 warm surfaces (shape tier): the anchor is the shape check for these —
+// the serializers emit faithful subsets with no semantic machine behind them.
+export type Product = Stripe.Product;
+export type Price = Stripe.Price;
+// Re-exported from the `Stripe.Price` namespace (a bare type alias can't be
+// used as a namespace at the use site).
+export type PriceRecurring = Stripe.Price.Recurring;
+export type Subscription = Stripe.Subscription;
+export type SubscriptionItem = Stripe.SubscriptionItem;
 
 // Stripe's paginated list envelope (object: "list", data, has_more, url). Generic
 // over the element type so the twin's `serializedList<T>` anchors against it.

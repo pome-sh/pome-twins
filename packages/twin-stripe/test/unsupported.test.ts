@@ -8,14 +8,25 @@ import { createStripeApp, rest } from "./_appHelper.js";
 
 // /v1/refunds moved off this list when M3a Lane B (FDRS-338) landed the
 // refunds resource; /v1/customers moved off when F-732 landed the customer
-// chain. GET /v1/payment_methods (the top-level list) stays 501 per the
+// chain; /v1/products moved off when F-734 landed the warm billing
+// surfaces. GET /v1/payment_methods (the top-level list) stays 501 per the
 // F-729 ruling — only the customer-scoped list is implemented. Anything
 // still on the list returns the loud 501.
+//
+// The first four families are the F-729 NAMED COLD rows (agents plausibly
+// probe them, so the loud 501 is documented in FIDELITY.md and inventory-
+// backed): checkout sessions + payment links (human-redirect flows),
+// setup intents (card-on-file goes via direct PM attach), webhook
+// endpoints (no delivery loop in v1 — agents poll /v1/events).
 const UNSUPPORTED_PATHS: Array<[string, string]> = [
-  ["POST", "/v1/setup_intents"],
-  ["GET", "/v1/products"],
+  ["POST", "/v1/checkout/sessions"],
   ["GET", "/v1/checkout/sessions"],
+  ["POST", "/v1/payment_links"],
+  ["GET", "/v1/payment_links"],
+  ["POST", "/v1/setup_intents"],
+  ["GET", "/v1/setup_intents"],
   ["POST", "/v1/webhook_endpoints"],
+  ["GET", "/v1/webhook_endpoints"],
   ["GET", "/v1/payment_methods"],
   ["GET", "/v1/shared_payment_tokens"],
 ];
