@@ -23,6 +23,10 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: node scripts/check-copy-markers.mjs
       - run: node scripts/lint-code-health.mjs
+      # F-745 / D4 — no catch-and-continue in the SDK twin engine
+      # (packages/sdk/src): every statement catch must throw, return an
+      # error/sentinel, or reject. Dependency-free, runs before `npm ci`.
+      - run: node scripts/no-catch-and-continue.mjs
       - run: bash scripts/lint-no-cloud-imports.sh
       - run: bash scripts/lint-no-cloud-imports.test.sh
       - run: node scripts/ci/wait-for-workflow.test.mjs
