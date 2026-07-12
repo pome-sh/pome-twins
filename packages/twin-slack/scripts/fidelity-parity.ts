@@ -44,6 +44,34 @@ const steps: ParityStep[] = [
     },
   },
   { tool: "slack_get_user_profile", arguments: (state) => ({ user_id: state.aliceId }) },
+  // F-736 hot-gap read tools: search the posted message, read back the
+  // reaction added above, list the members of the channel we posted into.
+  {
+    tool: "slack_search_messages",
+    arguments: { query: "Parity" },
+    verify: (body) => {
+      const matches = (body as { messages?: { matches?: unknown[] } }).messages?.matches ?? [];
+      return matches.length > 0 ? undefined : "search returned no match for the posted message";
+    },
+  },
+  {
+    tool: "slack_get_reactions",
+    arguments: (state) => ({ channel_id: state.channelId, timestamp: state.ts }),
+    verify: (body) => {
+      const reactions = (body as { message?: { reactions?: Array<{ name?: string }> } }).message?.reactions ?? [];
+      return reactions.some((r) => r.name === "thumbsup")
+        ? undefined
+        : "reactions read did not include the thumbsup added earlier";
+    },
+  },
+  {
+    tool: "slack_list_channel_members",
+    arguments: (state) => ({ channel_id: state.channelId }),
+    verify: (body) => {
+      const members = (body as { members?: string[] }).members ?? [];
+      return members.length > 0 ? undefined : "channel member list came back empty";
+    },
+  },
 ];
 
 await runParityCli({
@@ -59,5 +87,10 @@ await runParityCli({
   },
   restProbes: [
     { surface: "unsupported-rest", method: "POST", path: "/admin.conversations.search", status: 501, expectUnsupportedEnvelope: true },
+    // Named cold rows (F-729 ruling / F-736): the loud 501 is part of the contract.
+    { surface: "cold:chat.postEphemeral", method: "POST", path: "/chat.postEphemeral", status: 501, expectUnsupportedEnvelope: true },
+    { surface: "cold:files.getUploadURLExternal", method: "GET", path: "/files.getUploadURLExternal", status: 501, expectUnsupportedEnvelope: true },
+    { surface: "cold:usergroups.list", method: "GET", path: "/usergroups.list", status: 501, expectUnsupportedEnvelope: true },
+    { surface: "cold:views.publish", method: "POST", path: "/views.publish", status: 501, expectUnsupportedEnvelope: true },
   ],
 });

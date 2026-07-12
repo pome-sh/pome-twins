@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { StateDelta } from "@pome-sh/shared-types";
 import type { SlackDomain } from "./domain.js";
 
-// Slack MCP tools — the 8 visible Slack-agent tools exposed by tools/list.
+// Slack MCP tools — the 11 visible Slack-agent tools exposed by tools/list.
 // Schemas use z.strictObject so toJSONSchema emits `additionalProperties:false`.
 
 export const toolDefinitions = [
@@ -93,6 +93,41 @@ export const toolDefinitions = [
     schema: z
       .strictObject({
         user_id: z.string(),
+      })
+      .strict(),
+  },
+  {
+    name: "slack_search_messages",
+    description: "Search messages in the workspace by text query",
+    readOnly: true,
+    schema: z
+      .strictObject({
+        query: z.string(),
+        count: z.number().optional(),
+        page: z.number().optional(),
+      })
+      .strict(),
+  },
+  {
+    name: "slack_get_reactions",
+    description: "Get all reactions on a specific message",
+    readOnly: true,
+    schema: z
+      .strictObject({
+        channel_id: z.string(),
+        timestamp: z.string(),
+      })
+      .strict(),
+  },
+  {
+    name: "slack_list_channel_members",
+    description: "List the member user IDs of a channel with pagination",
+    readOnly: true,
+    schema: z
+      .strictObject({
+        channel_id: z.string(),
+        limit: z.number().optional(),
+        cursor: z.string().optional(),
       })
       .strict(),
   },
@@ -194,6 +229,21 @@ export function executeTool(
     case "slack_get_user_profile": {
       const p = parsed as { user_id: string };
       return domain.usersProfileGet({ user: p.user_id }, actor);
+    }
+    case "slack_search_messages": {
+      const p = parsed as { query: string; count?: number; page?: number };
+      return domain.searchMessages({ query: p.query, count: p.count, page: p.page }, actor);
+    }
+    case "slack_get_reactions": {
+      const p = parsed as { channel_id: string; timestamp: string };
+      return domain.reactionsGet({ channel: p.channel_id, timestamp: p.timestamp }, actor);
+    }
+    case "slack_list_channel_members": {
+      const p = parsed as { channel_id: string; limit?: number; cursor?: string };
+      return domain.conversationsMembers(
+        { channel: p.channel_id, limit: p.limit, cursor: p.cursor },
+        actor
+      );
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

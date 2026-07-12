@@ -48,7 +48,7 @@ function assert(condition: unknown, message: string) {
   const body = (await res.json()) as Record<string, unknown>;
   assert(res.status === 200, "GET /healthz returns 200");
   assert(body.twin === "slack", "healthz reports twin=slack");
-  assert(body.tools === 8, "healthz reports 8 tools");
+  assert(body.tools === 11, "healthz reports 11 tools");
 }
 
 // 2. auth.test
@@ -140,7 +140,7 @@ let threadParentTs = "";
   const { status, body } = await call("/mcp/tools");
   assert(status === 200, "GET /mcp/tools 200");
   const tools = (body as { tools: Array<{ name: string }> }).tools;
-  assert(tools.length === 8, `8 tools listed (got ${tools.length})`);
+  assert(tools.length === 11, `11 tools listed (got ${tools.length})`);
   assert(tools.every((t) => t.name.startsWith("slack_")), "all tools prefixed slack_");
 }
 
@@ -153,7 +153,7 @@ let threadParentTs = "";
   });
   const body = (await res.json()) as { result: { tools: Array<{ name: string; inputSchema: { additionalProperties: false } }> } };
   assert(res.status === 200, "MCP tools/list 200");
-  assert(body.result.tools.length === 8, "MCP lists 8 tools");
+  assert(body.result.tools.length === 11, "MCP lists 11 tools");
   assert(body.result.tools.every((t) => t.inputSchema?.additionalProperties === false), "all tools have additionalProperties:false");
 }
 

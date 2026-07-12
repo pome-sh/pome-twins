@@ -10,7 +10,7 @@
 // prices, checkout_sessions, SPT, webhook_endpoints) are deferred to v2.
 import { openTwinDatabase } from "@pome-sh/sdk";
 import type { TwinStripeDatabase } from "./types.js";
-import { ensureF731Columns, ensureStripeTables } from "./domain/schema.js";
+import { ensureMigratedColumns, ensureStripeTables } from "./domain/schema.js";
 
 const MIGRATION_SQL = `
 -- ----- chassis tables -------------------------------------------------------
@@ -159,9 +159,9 @@ export function openTwinStripeDatabase(
 
 export function migrate(db: TwinStripeDatabase) {
   db.exec(MIGRATION_SQL);
-  // CREATE IF NOT EXISTS can't add columns to a pre-F-731 DB file; patch
+  // CREATE IF NOT EXISTS can't add columns to an older DB file; patch
   // them in place so external migrate() callers get the full schema.
-  ensureF731Columns(db);
+  ensureMigratedColumns(db);
 }
 
 export function resetDatabase(db: TwinStripeDatabase) {

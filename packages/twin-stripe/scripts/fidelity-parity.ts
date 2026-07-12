@@ -7,9 +7,9 @@
 // customer-management chain (F-732: customer CRUD + card-on-file
 // attach/detach), and the card collect-payment chain (F-731: card PI →
 // update-with-PM → confirm → succeeded), covering every MCP tool in
-// fidelity.inventory.json — including the refunds chain that is live in
-// code but still absent from FIDELITY.md (declared as doc_drift,
-// reconciliation owned by F-733). The loud-501 probe pins the
+// fidelity.inventory.json. The refund steps assert the F-733 semantics:
+// the ledger link on the refund body and the post-refund available
+// balance. The loud-501 probe pins the
 // Stripe-shaped unsupported envelope on /v1/checkout/sessions (it moved
 // off /v1/customers when F-732 made customers a supported surface).
 
@@ -51,11 +51,35 @@ const steps: ParityStep[] = [
     capture: (body, state) => {
       state.refund = (body as { id?: string }).id;
     },
+    verify: (body) =>
+      typeof (body as { balance_transaction?: string | null }).balance_transaction === "string"
+        ? undefined
+        : "a refund should link its negative refund-type balance transaction (F-733)",
   },
   { tool: "retrieve_refund", arguments: (state) => ({ id: state.refund }) },
   { tool: "list_refunds", arguments: (state) => ({ charge: state.charge }) },
-  { tool: "retrieve_balance" },
-  { tool: "list_balance_transactions", arguments: { limit: 10 } },
+  {
+    tool: "retrieve_balance",
+    verify: (body) => {
+      const usd = (body as { available?: Array<{ currency: string; amount: number }> }).available?.find(
+        (b) => b.currency === "usd"
+      );
+      // 20000 settled minus the 7500 refund above.
+      return usd?.amount === 12500
+        ? undefined
+        : `available balance should reflect the refund (expected 12500, got ${usd?.amount})`;
+    },
+  },
+  {
+    tool: "list_balance_transactions",
+    arguments: { limit: 10 },
+    verify: (body) => {
+      const data = (body as { data?: Array<{ type: string; amount: number }> }).data ?? [];
+      return data.some((t) => t.type === "refund" && t.amount === -7500)
+        ? undefined
+        : "the ledger should carry the negative refund-type entry (F-733)";
+    },
+  },
   {
     tool: "list_events",
     arguments: { limit: 10 },

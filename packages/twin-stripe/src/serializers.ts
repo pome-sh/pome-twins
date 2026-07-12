@@ -223,7 +223,7 @@ export function refundJson(row: RefundRow) {
     id: row.id,
     object: "refund",
     amount: row.amount,
-    balance_transaction: null,
+    balance_transaction: row.balance_transaction_id,
     charge: row.charge_id,
     created: row.created,
     currency: row.currency,

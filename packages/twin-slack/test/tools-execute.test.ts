@@ -14,7 +14,7 @@ function fresh() {
 describe("executeTool", () => {
   const actor = { login: "pome-agent" };
 
-  it("runs all 8 tools", () => {
+  it("runs all 11 tools", () => {
     const domain = fresh();
     const parent = executeTool(
       domain,
@@ -72,5 +72,34 @@ describe("executeTool", () => {
       actor
     ) as { profile: { real_name: string } };
     expect(profile.profile.real_name).toBe("Alice");
+
+    const search = executeTool(
+      domain,
+      "slack_search_messages",
+      { query: "parent" },
+      undefined,
+      actor
+    ) as { messages: { matches: Array<{ text: string }> } };
+    expect(search.messages.matches.some((m) => m.text === "parent")).toBe(true);
+
+    const reactions = executeTool(
+      domain,
+      "slack_get_reactions",
+      { channel_id: "C_GENERAL", timestamp: parent.ts },
+      undefined,
+      actor
+    ) as { message: { reactions: Array<{ name: string; count: number }> } };
+    expect(reactions.message.reactions).toEqual([
+      expect.objectContaining({ name: "eyes", count: 1 }),
+    ]);
+
+    const members = executeTool(
+      domain,
+      "slack_list_channel_members",
+      { channel_id: "C_GENERAL" },
+      undefined,
+      actor
+    ) as { members: string[] };
+    expect(members.members).toContain("U_ALICE");
   });
 });

@@ -87,3 +87,70 @@ describe("FIDELITY.md contract", () => {
     }
   });
 });
+
+// Heat discipline (F-736): every surface carries its ruled heat tier and the
+// exact target mapping from packages/sdk/ENDPOINT-TIERS.md holds — hot must
+// be semantic (F-736 filled the last hot gaps), cold must be unsupported,
+// and warm surfaces sitting above their shape target must each appear in
+// FIDELITY.md's tier-mismatch ledger (M5 additive-only ruling: visible in
+// the ledger, never demoted in code).
+describe("heat tiers (F-729 ruling, F-736 re-cut)", () => {
+  const inventory = loadFidelityInventory(join(PKG_ROOT, "fidelity.inventory.json"));
+  const surfaces = [...inventory.tools, ...inventory.rest];
+
+  function ledgerSection(): string {
+    const body = readFileSync(FIDELITY_PATH, "utf8");
+    const start = body.indexOf("## Tier-mismatch ledger");
+    expect(start, "FIDELITY.md is missing the '## Tier-mismatch ledger' section").toBeGreaterThan(-1);
+    const rest = body.slice(start + 1);
+    const end = rest.indexOf("\n## ");
+    return end === -1 ? rest : rest.slice(0, end);
+  }
+
+  it("no surface is left unclassified", () => {
+    const unclassified = surfaces.filter((s) => s.heat === "unclassified").map((s) => s.name);
+    expect(unclassified).toEqual([]);
+  });
+
+  it("every justification cites a rubric evidence code", () => {
+    for (const surface of surfaces) {
+      expect(
+        /\b(TC|MCP|TR|SB|PS)\b/.test(surface.justification),
+        `'${surface.name}' justification cites no ENDPOINT-TIERS.md evidence code`
+      ).toBe(true);
+    }
+  });
+
+  it("hot surfaces are all semantic (no open hot gaps after F-736)", () => {
+    const gaps = surfaces.filter((s) => s.heat === "hot" && s.fidelity !== "semantic");
+    expect(gaps.map((s) => s.name)).toEqual([]);
+  });
+
+  it("named cold surfaces are all unsupported", () => {
+    const mismatches = surfaces.filter((s) => s.heat === "cold" && s.fidelity !== "unsupported");
+    expect(mismatches.map((s) => s.name)).toEqual([]);
+  });
+
+  it("warm surfaces above their shape target each appear in the tier-mismatch ledger", () => {
+    const ledger = ledgerSection();
+    const overTarget = surfaces.filter((s) => s.heat === "warm" && s.fidelity === "semantic");
+    expect(overTarget.length).toBeGreaterThan(0);
+    for (const surface of overTarget) {
+      expect(
+        ledger.includes("`" + surface.name + "`"),
+        `warm surface '${surface.name}' is above its shape target but missing from the ledger`
+      ).toBe(true);
+    }
+  });
+
+  it("the ledger names no surface that is actually at or below target", () => {
+    const ledger = ledgerSection();
+    const atTarget = surfaces.filter((s) => !(s.heat === "warm" && s.fidelity === "semantic"));
+    for (const surface of atTarget) {
+      expect(
+        ledger.includes("`" + surface.name + "`"),
+        `'${surface.name}' is at/below target but listed in the ledger`
+      ).toBe(false);
+    }
+  });
+});

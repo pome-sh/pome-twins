@@ -128,6 +128,24 @@ export class RefundsDomain {
     return tx();
   }
 
+  /**
+   * Backfill the ledger link after StripeDomain mints the refund's balance
+   * transaction (the txn needs the refund row's id/amount first, so the two
+   * inserts can't be reordered). Runs inside the coordinator's transaction.
+   */
+  linkBalanceTransaction(
+    accountId: string,
+    id: string,
+    balanceTransactionId: string
+  ): RefundRow {
+    this.db
+      .prepare(
+        "UPDATE refunds SET balance_transaction_id = ? WHERE id = ? AND account_id = ?"
+      )
+      .run(balanceTransactionId, id, accountId);
+    return this.requireById(accountId, id);
+  }
+
   getById(accountId: string, id: string): RefundRow | null {
     return (
       (this.db

@@ -60,10 +60,10 @@ describe("MCP JSON-RPC dispatch", () => {
     expect((body as { result: unknown }).result).toEqual({});
   });
 
-  it("tools/list returns 8 tools with inputSchema", async () => {
+  it("tools/list returns 11 tools with inputSchema", async () => {
     const { body } = await jsonRpc(token, { jsonrpc: "2.0", id: 1, method: "tools/list" });
     const tools = (body as { result: { tools: Array<{ name: string; inputSchema: unknown }> } }).result.tools;
-    expect(tools.length).toBe(8);
+    expect(tools.length).toBe(11);
     expect(tools.every((t) => Boolean(t.inputSchema))).toBe(true);
   });
 

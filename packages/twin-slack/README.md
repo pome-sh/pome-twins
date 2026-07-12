@@ -2,7 +2,7 @@
 
 > One of three twins in this repository (GitHub, Stripe x402, Slack).
 
-`@pome-sh/twin-slack` is a local, stateful Slack twin for agent testing. It exposes Slack Web API–shaped REST routes plus an 8-tool MCP-style API backed by the same SQLite domain services. The 8 visible MCP tools mirror the canonical Slack agent toolset (post message, reply to thread, add reaction, get channel history, get thread replies, list channels, list users, get user profile).
+`@pome-sh/twin-slack` is a local, stateful Slack twin for agent testing. It exposes Slack Web API–shaped REST routes plus an 11-tool MCP-style API backed by the same SQLite domain services. The 11 visible MCP tools mirror the canonical Slack agent toolset (post message, reply to thread, add reaction, get channel history, get thread replies, list channels, list users, get user profile, search messages, get reactions, list channel members).
 
 ## Quickstart
 
@@ -57,7 +57,7 @@ The default seed creates:
 - **Real MCP (JSON-RPC, Streamable HTTP, stateless):** `POST /s/:sid/mcp`
   — speaks the protocol the `@modelcontextprotocol/sdk` `Client` +
   `StreamableHTTPClientTransport` expect (`initialize`, `tools/list`,
-  `tools/call`, `ping`, `notifications/*`). 8 visible tools returned via
+  `tools/call`, `ping`, `notifications/*`). 11 visible tools returned via
   `tools/list` with camelCase `inputSchema`.
 - Legacy custom MCP routes:
   - `GET  /s/:sid/mcp/tools` — returns `{ tools: [{ name, description, input_schema }, ...] }`

@@ -75,6 +75,7 @@ export function registerGitHubRoutes(session: Hono, { domain, recorder }: RouteC
   session.get("/search/code", handle((c) => ok(domain.searchCode({ q: c.req.query("q"), owner: c.req.query("owner"), repo: c.req.query("repo"), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
   session.get("/search/issues", handle((c) => ok(domain.searchIssues({ q: c.req.query("q"), owner: c.req.query("owner"), repo: c.req.query("repo"), state: stateQuery(c), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
   session.get("/search/users", handle((c) => ok(domain.searchUsers({ q: c.req.query("q"), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
+  session.get("/search/commits", handle((c) => ok(domain.searchCommits({ q: c.req.query("q"), owner: c.req.query("owner"), repo: c.req.query("repo"), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
 
   session.get("/repos/:owner/:repo", handle((c) => ok(domain.getRepository(params(c)))));
   session.post("/user/repos", handle(async (c) => {
@@ -291,6 +292,7 @@ export function registerGitHubRoutes(session: Hono, { domain, recorder }: RouteC
   session.get("/repos/:owner/:repo/tags", handle((c) => ok(domain.listTags({ ...params(c), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
   session.get("/repos/:owner/:repo/releases", handle((c) => ok(domain.listReleases({ ...params(c), page: numberQuery(c, "page"), per_page: numberQuery(c, "per_page") }))));
   session.get("/repos/:owner/:repo/releases/latest", handle((c) => ok(domain.getLatestRelease(params(c)))));
+  session.get("/repos/:owner/:repo/releases/tags/*", handle((c) => ok(domain.getReleaseByTag({ ...params(c), tag: routeTail(c, "releases/tags/") }))));
   session.post("/repos/:owner/:repo/releases", handle(async (c) => {
     const args = { ...params(c), ...createReleaseSchema.parse(await readJson(c)) };
     const actor = sessionLogin(c);

@@ -115,8 +115,9 @@ async function main() {
       const body = await r.json() as Record<string, unknown>;
       assertOk(body.twin === "stripe", `1. healthz twin=${body.twin}, expected "stripe"`);
       assertOk(body.implementation === "stripe_clone", `1. implementation=${body.implementation}`);
-      // 26 since F-731/F-732 (customers + payment methods + card PI tools);
-      // F-734 adds REST-only warm surfaces, no new MCP tools.
+      // Deliberate magic-number pin (same tripwire as tools.test.ts): bump it
+      // when a ticket adds tools. 26 since F-731/F-732 (F-733/F-734 added none
+      // — the F-734 warm billing surfaces are REST-only).
       assertOk(body.tools === 26, `1. tools=${body.tools}, expected 26`);
       log("ok", `healthz: tools=${body.tools}, fidelity=${body.fidelity}, tthw=${(body.tthw_seconds as number).toFixed(2)}s`);
     }

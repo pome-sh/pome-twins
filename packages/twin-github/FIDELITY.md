@@ -4,7 +4,7 @@
 universal clone. This page documents exactly which surfaces are faithful to
 GitHub today, at what tier, and how fidelity is verified.
 
-Last verified: 2026-05-27.
+Last verified: 2026-07-12.
 
 ## What "fidelity" means here
 
@@ -25,7 +25,12 @@ other is **heat** ("how deep it *should* be", `hot`/`warm`/`cold`, ruled per
 milestone). The engine-level rubric — tier criteria, target mapping, gap and
 tier-mismatch semantics — lives at
 [`packages/sdk/ENDPOINT-TIERS.md`](../sdk/ENDPOINT-TIERS.md). The `Tier`
-column below means fidelity.
+column below means fidelity; the `Heat` column carries the F-729 ruling
+(2026-07-11, list 2/3 + `[DECISION]` on that ticket), with per-surface
+evidence recorded in [`fidelity.inventory.json`](fidelity.inventory.json).
+Surfaces where the two dimensions disagree are tracked in the
+[tier-mismatch ledger](#tier-mismatch-ledger) (fidelity above target) or as
+explicitly deferred hot gaps (fidelity below target).
 
 The bar Pome aims for is: **agents written against real GitHub run unchanged
 against the local twin for the surfaces below**, and trip a loud failure for
@@ -40,70 +45,73 @@ in the package README. Changing any of those is a breaking change for
 
 ## MCP Tools
 
-| Tool | Backing surface | Tier | Tests | Known deviations |
-| --- | --- | --- | --- | --- |
-| `search_repositories` | SQLite repositories | semantic | `mcp-contract.test.ts`, `fixture-shape.test.ts` | Search query support is intentionally smaller than GitHub search syntax. |
-| `create_repository` | SQLite repositories, branches, commits, files | semantic | `mcp-contract.test.ts`, `concurrency.test.ts` | Creates a deterministic README and main branch. |
-| `fork_repository` | SQLite repository/file/commit copy | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Fork permissions and network metadata are simplified. |
-| `get_repository` | SQLite repositories | semantic | `mcp-contract.test.ts`, `fixture-shape.test.ts` | Repository object contains the fields agents use, not every GitHub field. |
-| `search_code` | SQLite default-branch files | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `performance.test.ts` | Query syntax is substring based; search is scoped to the default branch. |
-| `search_users` | SQLite users | semantic | `mcp-contract.test.ts` | Organization/user scoring is simplified. |
-| `get_file_contents` | SQLite files/directories | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `fixture-shape.test.ts` | Symlinks, submodules, and media/raw modes are not implemented. |
-| `list_commits` | SQLite commit graph | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `fixture-shape.test.ts` | Commit listing follows the selected branch ancestry only. |
-| `create_or_update_file` | SQLite files/commits | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Requires `sha` for updates to preserve optimistic locking. |
-| `create_branch` | SQLite branches/files | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `concurrency.test.ts` | Branch protection is not modeled. |
-| `push_files` | SQLite files/commits | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Multi-file pushes are one local commit; Git object APIs are simplified. |
-| `get_issue` | SQLite issues | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Issue timeline/events are not modeled. |
-| `update_issue` | SQLite issues, labels, assignees | semantic | `mcp-contract.test.ts`, `mcp-error-semantics.test.ts` | Milestones/projects are not implemented. |
-| `search_issues` | SQLite issues | semantic | `mcp-contract.test.ts`, `performance.test.ts`, `fixture-shape.test.ts` | Query syntax is substring based. |
-| `list_issues` | SQLite issues | semantic | `mcp-contract.test.ts`, `performance.test.ts`, `fixture-shape.test.ts` | Only state, labels, assignee, and pagination filters are supported. |
-| `add_issue_comment` | SQLite issue comments | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Comment edit/delete APIs are not implemented. |
-| `list_issue_comments` | SQLite issue comments | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Pagination is supported; reactions are not. |
-| `create_issue` | SQLite issues | semantic | `mcp-contract.test.ts` | Issue templates and milestones are not modeled. |
-| `list_repository_labels` | SQLite labels | semantic | `mcp-contract.test.ts` | Label URLs use deterministic local IDs. |
-| `create_label` | SQLite labels | semantic | `mcp-contract.test.ts` | Color validation is intentionally permissive. |
-| `list_issue_labels` | SQLite issue labels | semantic | `mcp-contract.test.ts` | Returns current issue label set only. |
-| `add_issue_labels` | SQLite issue labels | semantic | `mcp-contract.test.ts` | Missing labels return GitHub-shaped 422s. |
-| `remove_issue_label` | SQLite issue labels | semantic | `mcp-contract.test.ts` | Removing a missing label returns 404. |
-| `list_collaborators` | SQLite collaborators | semantic | `mcp-contract.test.ts` | Permission filtering is not implemented. |
-| `add_assignees` | SQLite issue assignees | semantic | `mcp-contract.test.ts` | Requires seeded collaborators. |
-| `get_pull_request` | SQLite pull requests | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Drafts, mergeability background jobs, and review decisions are simplified. |
-| `get_pull_request_reviews` | SQLite PR reviews | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Review dismissal is not implemented. |
-| `create_pull_request_review` | SQLite PR reviews | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Inline review comments are not created by this tool. |
-| `get_pull_request_comments` | SQLite PR review comments | semantic | `mcp-contract.test.ts` | Review comment creation is not exposed yet. |
-| `get_pull_request_files` | SQLite computed PR files | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Patches are simplified placeholders. |
-| `get_pull_request_status` | SQLite commit statuses | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Check suites and check runs are not modeled. |
-| `list_pull_requests` | SQLite pull requests | semantic | `mcp-contract.test.ts` | Sorting and advanced filters are simplified. |
-| `merge_pull_request` | SQLite merge mutation | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Merge methods are simplified to one deterministic local merge. |
-| `update_pull_request_branch` | SQLite branch head update | shape | `mcp-contract.test.ts`, `domain.test.ts` | Updates the local branch pointer and response shape, but does not create GitHub's merge commit or async update job. |
-| `create_pull_request` | SQLite pull requests/files | semantic | `mcp-contract.test.ts`, `concurrency.test.ts` | Cross-repo forks are supported only when the fork exists in the clone. |
-| `list_branches` | SQLite branches | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Pagination supported; protection metadata always false. |
-| `get_branch` | SQLite branches | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns shape-compatible commit object with head SHA. |
-| `delete_branch` | SQLite branches/files | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 on default branch or branch backing an open PR; cascades file rows. |
-| `delete_file` | SQLite files/commits | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Requires `sha` for optimistic locking; advances branch head atomically. |
-| `get_commit` | SQLite commits/file_versions | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Resolves ref by SHA, branch, or tag. Stats/files reflect file_versions diff. |
-| `compare_commits` | SQLite commits (ancestry walk) | shape | `mcp-contract.test.ts`, `domain.test.ts` | First-parent ancestry only; capped at `MAX_COMPARE_DEPTH=2000`; merge-base is approximated. |
-| `get_pull_request_diff` | SQLite pull_request_files | shape | `mcp-contract.test.ts`, `domain.test.ts` | Returns a unified-diff-shaped envelope; patches are simplified placeholders. |
-| `update_pull_request` | SQLite pull requests | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Updates title/body/state/base; recomputes PR files on base change; cannot reopen a merged PR. |
-| `get_pull_request_commits` | SQLite commits walk | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Oldest-first ordering between base_sha..head_sha. |
-| `create_pull_request_review_comment` | SQLite PR review comments | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 if path is not part of the PR; line/side stored. |
-| `add_reply_to_pull_request_comment` | SQLite PR review comments | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Inherits path/line/side from parent comment; sets `in_reply_to_id`. |
-| `update_issue_comment` | SQLite issue comments | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Updates body and `updated_at`. |
-| `delete_issue_comment` | SQLite issue comments | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 404 on unknown comment. |
-| `list_milestones` | SQLite milestones | semantic | `mcp-contract.test.ts`, `domain.test.ts` | State filter (`open`/`closed`/`all`) + pagination supported. |
-| `create_milestone` | SQLite milestones | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 on duplicate title; default state is `open`. |
-| `update_milestone` | SQLite milestones | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Closing sets `closed_at`; reopening clears it. |
-| `delete_milestone` | SQLite milestones | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 404 on unknown milestone. |
-| `create_commit_status` | SQLite commit_statuses | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 404 if SHA not in repo; default context is `default`. |
-| `get_combined_status_for_ref` | SQLite commit_statuses | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Combined state follows GitHub rule; empty status set returns `pending`. |
-| `create_check_run` | SQLite check_runs | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 if `status=completed` without `conclusion`; no check_suites modeled. |
-| `list_check_runs_for_ref` | SQLite check_runs | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Pagination supported; ordered most-recent-started first. |
-| `list_tags` | SQLite tags | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns tag → commit SHA; tarball/zipball URLs are shaped placeholders. |
-| `list_releases` | SQLite releases | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Newest-first; includes drafts and prereleases. |
-| `get_latest_release` | SQLite releases | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Skips drafts and prereleases; 404 if none. |
-| `create_release` | SQLite releases/tags | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Auto-creates the tag from `target_commitish` if missing; 422 on duplicate tag. |
-| `get_me` | SQLite users + JWT actor | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns the JWT-claimed `login` (default `pome-agent`). |
-| `add_collaborator` | SQLite collaborators | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns 201 invitation envelope for new users; 204 for existing collaborators. |
+| Tool | Backing surface | Heat | Tier | Tests | Known deviations |
+| --- | --- | --- | --- | --- | --- |
+| `search_repositories` | SQLite repositories | hot | semantic | `mcp-contract.test.ts`, `fixture-endpoints.test.ts` | Search query support is intentionally smaller than GitHub search syntax. |
+| `create_repository` | SQLite repositories, branches, commits, files | hot | semantic | `mcp-contract.test.ts`, `concurrency.test.ts` | Creates a deterministic README and main branch. |
+| `fork_repository` | SQLite repository/file/commit copy | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Fork permissions and network metadata are simplified. |
+| `get_repository` | SQLite repositories | hot | semantic | `mcp-contract.test.ts`, `fixture-endpoints.test.ts` | Repository object contains the fields agents use, not every GitHub field. |
+| `search_code` | SQLite default-branch files | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `performance.test.ts` | Query syntax is substring based; search is scoped to the default branch. |
+| `search_users` | SQLite users | hot | semantic | `mcp-contract.test.ts` | Organization/user scoring is simplified. |
+| `get_file_contents` | SQLite files/directories | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `fixture-endpoints.test.ts` | Symlinks, submodules, and media/raw modes are not implemented. |
+| `list_commits` | SQLite commit graph | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `fixture-endpoints.test.ts` | Commit listing follows the selected branch ancestry only. |
+| `create_or_update_file` | SQLite files/commits | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Requires `sha` for updates to preserve optimistic locking. |
+| `create_branch` | SQLite branches/files | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `concurrency.test.ts` | Branch protection is not modeled. |
+| `push_files` | SQLite files/commits | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Multi-file pushes are one local commit; Git object APIs are simplified. |
+| `get_issue` | SQLite issues | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Issue timeline/events are not modeled. |
+| `update_issue` | SQLite issues, labels, assignees | hot | semantic | `mcp-contract.test.ts`, `mcp-error-semantics.test.ts` | Milestones/projects are not implemented. |
+| `search_issues` | SQLite issues | hot | semantic | `mcp-contract.test.ts`, `performance.test.ts`, `fixture-endpoints.test.ts` | Query syntax is substring based. |
+| `list_issues` | SQLite issues | hot | semantic | `mcp-contract.test.ts`, `performance.test.ts`, `fixture-endpoints.test.ts` | Only state, labels, assignee, and pagination filters are supported. |
+| `add_issue_comment` | SQLite issue comments | hot | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Comment edit/delete APIs are not implemented. |
+| `list_issue_comments` | SQLite issue comments | hot | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Pagination is supported; reactions are not. |
+| `create_issue` | SQLite issues | hot | semantic | `mcp-contract.test.ts` | Issue templates and milestones are not modeled. |
+| `list_repository_labels` | SQLite labels | hot | semantic | `mcp-contract.test.ts` | Label URLs use deterministic local IDs. |
+| `create_label` | SQLite labels | warm | semantic | `mcp-contract.test.ts` | Color validation is intentionally permissive. |
+| `list_issue_labels` | SQLite issue labels | hot | semantic | `mcp-contract.test.ts` | Returns current issue label set only. |
+| `add_issue_labels` | SQLite issue labels | hot | semantic | `mcp-contract.test.ts` | Missing labels return GitHub-shaped 422s. |
+| `remove_issue_label` | SQLite issue labels | hot | semantic | `mcp-contract.test.ts` | Removing a missing label returns 404. |
+| `list_collaborators` | SQLite collaborators | hot | semantic | `mcp-contract.test.ts` | Permission filtering is not implemented. |
+| `add_assignees` | SQLite issue assignees | hot | semantic | `mcp-contract.test.ts` | Requires seeded collaborators. |
+| `get_pull_request` | SQLite pull requests | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Drafts, mergeability background jobs, and review decisions are simplified. |
+| `get_pull_request_reviews` | SQLite PR reviews | hot | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Review dismissal is not implemented. |
+| `create_pull_request_review` | SQLite PR reviews | hot | semantic | `mcp-contract.test.ts`, `state-export.test.ts` | Inline review comments are not created by this tool. |
+| `get_pull_request_comments` | SQLite PR review comments | hot | semantic | `mcp-contract.test.ts` | Review comment creation is not exposed yet. |
+| `get_pull_request_files` | SQLite computed PR files | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Patches are simplified placeholders. |
+| `get_pull_request_status` | SQLite commit statuses | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Check suites and check runs are not modeled. |
+| `list_pull_requests` | SQLite pull requests | hot | semantic | `mcp-contract.test.ts` | Sorting and advanced filters are simplified. |
+| `merge_pull_request` | SQLite merge mutation | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Merge methods are simplified to one deterministic local merge. |
+| `update_pull_request_branch` | SQLite merge of base into head | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts`, `m5-hot-gaps.test.ts` | Merge commit carries a single parent; conflicting paths resolve head-wins (no 422 merge-conflict); 202-shaped no-op instead of GitHub's 422 when base has no new commits or when its changes are already contained on head (merge commits are only created when files change); no async update job. |
+| `create_pull_request` | SQLite pull requests/files | hot | semantic | `mcp-contract.test.ts`, `concurrency.test.ts` | Cross-repo forks are supported only when the fork exists in the clone. |
+| `list_branches` | SQLite branches | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Pagination supported; protection metadata always false. |
+| `get_branch` | SQLite branches | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns shape-compatible commit object with head SHA. |
+| `delete_branch` | SQLite branches/files | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 on default branch or branch backing an open PR; cascades file rows. |
+| `delete_file` | SQLite files/commits | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Requires `sha` for optimistic locking; advances branch head atomically. |
+| `get_commit` | SQLite commits/file_versions | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Resolves ref by SHA, branch, or tag. Stats/files reflect file_versions diff. |
+| `compare_commits` | SQLite commits (ancestry walk) | warm | shape | `mcp-contract.test.ts`, `domain.test.ts` | First-parent ancestry only; capped at `MAX_COMPARE_DEPTH=2000`; merge-base is approximated. |
+| `get_pull_request_diff` | SQLite pull_request_files | hot | shape | `mcp-contract.test.ts`, `domain.test.ts` | Returns a unified-diff-shaped envelope; patches are simplified placeholders. |
+| `update_pull_request` | SQLite pull requests | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Updates title/body/state/base; recomputes PR files on base change; cannot reopen a merged PR. |
+| `get_pull_request_commits` | SQLite commits walk | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Oldest-first ordering between base_sha..head_sha. |
+| `create_pull_request_review_comment` | SQLite PR review comments | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 if path is not part of the PR; line/side stored. |
+| `add_reply_to_pull_request_comment` | SQLite PR review comments | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Inherits path/line/side from parent comment; sets `in_reply_to_id`. |
+| `update_issue_comment` | SQLite issue comments | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Updates body and `updated_at`. |
+| `delete_issue_comment` | SQLite issue comments | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 404 on unknown comment. |
+| `list_milestones` | SQLite milestones | warm | semantic | `mcp-contract.test.ts`, `domain.test.ts` | State filter (`open`/`closed`/`all`) + pagination supported. |
+| `create_milestone` | SQLite milestones | warm | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 on duplicate title; default state is `open`. |
+| `update_milestone` | SQLite milestones | warm | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Closing sets `closed_at`; reopening clears it. |
+| `delete_milestone` | SQLite milestones | warm | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 404 on unknown milestone. |
+| `create_commit_status` | SQLite commit_statuses | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 404 if SHA not in repo; default context is `default`. |
+| `get_combined_status_for_ref` | SQLite commit_statuses | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Combined state follows GitHub rule; empty status set returns `pending`. |
+| `create_check_run` | SQLite check_runs | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | 422 if `status=completed` without `conclusion`; no check_suites modeled. |
+| `list_check_runs_for_ref` | SQLite check_runs | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Pagination supported; ordered most-recent-started first. |
+| `list_tags` | SQLite tags | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns tag → commit SHA; tarball/zipball URLs are shaped placeholders. |
+| `list_releases` | SQLite releases | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Newest-first; includes drafts and prereleases. |
+| `get_latest_release` | SQLite releases | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Skips drafts and prereleases; 404 if none. |
+| `create_release` | SQLite releases/tags | warm | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Auto-creates the tag from `target_commitish` if missing; 422 on duplicate tag. |
+| `get_me` | SQLite users + JWT actor | hot | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns the JWT-claimed `login` (default `pome-agent`). |
+| `add_collaborator` | SQLite collaborators | warm | semantic | `mcp-contract.test.ts`, `domain.test.ts` | Returns 201 invitation envelope for new users; 204 for existing collaborators. |
+| `search_commits` | SQLite commit graph (default branches) | hot | semantic | `mcp-contract.test.ts`, `m5-hot-gaps.test.ts` | Substring match over commit message/author on default-branch ancestry; GitHub search qualifiers are not parsed. |
+| `get_release_by_tag` | SQLite releases | hot | semantic | `mcp-contract.test.ts`, `m5-hot-gaps.test.ts` | 404 for unknown tag. |
+| `get_tag` | SQLite tags | hot | semantic | `mcp-contract.test.ts`, `m5-hot-gaps.test.ts` | MCP-only (no REST route; git-plumbing REST stays cold per F-729); returns the lightweight tag object, not the annotated-tag git object. |
 
 ## REST Surfaces
 
@@ -133,6 +141,42 @@ Twin-only fields are namespaced under `_twin.*`, matching `twin-slack` and
 
 If you hit this envelope and the route is one your agent needs, that's a
 fidelity gap worth filing — open an issue or a PR adding the route.
+
+## Tier-mismatch ledger
+
+Surfaces whose measured fidelity sits **above** their ruled heat target
+(warm → target `shape`), per the F-729 ruling (2026-07-11) and the M5
+additive-only project `[DECISION]`: nothing is demoted in code this
+milestone — the ledger makes over-investment visible while the Twin
+Fidelity Watch launch gate (F-440) counts consecutive green runs. Demotions,
+if any, become follow-up tickets after that gate closes.
+
+| Ledger entry | Kind | Ruled heat | Current fidelity | Ruling |
+| --- | --- | --- | --- | --- |
+| `create_label` | MCP tool | warm | semantic | F-729 G4 |
+| `POST /repos/:owner/:repo/labels` | REST | warm | semantic | F-729 G4 |
+| `list_milestones` | MCP tool | warm | semantic | F-729 G2 |
+| `create_milestone` | MCP tool | warm | semantic | F-729 G2 |
+| `update_milestone` | MCP tool | warm | semantic | F-729 G2 |
+| `delete_milestone` | MCP tool | warm | semantic | F-729 G2 |
+| `GET /repos/:owner/:repo/milestones` | REST | warm | semantic | F-729 G2 |
+| `POST /repos/:owner/:repo/milestones` | REST | warm | semantic | F-729 G2 |
+| `PATCH /repos/:owner/:repo/milestones/:number` | REST | warm | semantic | F-729 G2 |
+| `DELETE /repos/:owner/:repo/milestones/:number` | REST | warm | semantic | F-729 G2 |
+| `create_release` | MCP tool | warm | semantic | F-729 G4 |
+| `POST /repos/:owner/:repo/releases` | REST | warm | semantic | F-729 G4 |
+| `add_collaborator` | MCP tool | warm | semantic | F-729 G4 |
+| `PUT /repos/:owner/:repo/collaborators/:username` | REST | warm | semantic | F-729 G4 |
+
+### Hot-gap deferrals
+
+Hot surfaces still **below** their `semantic` target, deferred by explicit
+ruling rather than filled in M5:
+
+- `get_pull_request_diff` / `GET /repos/:owner/:repo/pulls/:number/diff`
+  (fidelity `shape`) — F-729 ruling point G1: byte-accurate patch modeling is
+  out of the M5 window; placeholder patches remain (divergence #2). The gap
+  stays visible here and in the inventory; follow-up post-M5.
 
 ## Known divergences from real GitHub
 
