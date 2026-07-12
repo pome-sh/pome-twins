@@ -13,6 +13,118 @@
 
 import { describe, expect, it } from "vitest";
 import * as api from "../src/index.js";
+// TYPE-surface guard: `Object.keys` only sees runtime values, so dropping an
+// `export type` / `export interface` — or the whole type-only
+// `export * from "./evaluator-hooks.js"` line — would pass the runtime snapshot
+// silently. This type-only import enumerates every `export type` /
+// `export interface` declared inline in the pre-refactor index.ts
+// (grep-grounded from `origin/main`). It is enforced when `npm run typecheck`
+// compiles this test: a dropped or renamed type breaks the build.
+import type {
+  AcceptInviteRequest,
+  AcceptInviteResponse,
+  ApiError,
+  ApiErrorType,
+  ApiKey,
+  ApiKeyCreated,
+  CreateEvalSessionResponse,
+  CreateInviteRequest,
+  CreateInviteResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  CriterionDef,
+  EvaluatorHooks,
+  FinalizeAcceptedResponse,
+  FinalizeCompletedStatusResponse,
+  FinalizeFailedStatusResponse,
+  FinalizeFailureError,
+  FinalizeInitialResponse,
+  FinalizeQueuedStatusResponse,
+  FinalizeResponse,
+  FinalizeRunningStatusResponse,
+  FinalizeStatusResponse,
+  FinalizeStatusUrl,
+  GithubSeedState,
+  MeResponse,
+  PersistedScenario,
+  PersistedTask,
+  PlanTier,
+  Scenario,
+  ScenarioConfig,
+  SeedState,
+  Session,
+  SessionPublic,
+  SessionState,
+  SlackSeedState,
+  StripeSeedState,
+  SubmitResultRequest,
+  SubmitResultResponse,
+  Task,
+  TaskConfig,
+  Team,
+  TeamInvite,
+  TeamMember,
+  TeamRole,
+  TraceUploadContext,
+  UsageResponse,
+  User,
+} from "../src/index.js";
+
+// Referencing every imported type keeps the guard alive under
+// noUnusedLocals-style settings; the tuple is never instantiated.
+type _TypeSurfaceAssert = [
+  AcceptInviteRequest,
+  AcceptInviteResponse,
+  ApiError,
+  ApiErrorType,
+  ApiKey,
+  ApiKeyCreated,
+  CreateEvalSessionResponse,
+  CreateInviteRequest,
+  CreateInviteResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  CriterionDef,
+  EvaluatorHooks,
+  FinalizeAcceptedResponse,
+  FinalizeCompletedStatusResponse,
+  FinalizeFailedStatusResponse,
+  FinalizeFailureError,
+  FinalizeInitialResponse,
+  FinalizeQueuedStatusResponse,
+  FinalizeResponse,
+  FinalizeRunningStatusResponse,
+  FinalizeStatusResponse,
+  FinalizeStatusUrl,
+  GithubSeedState,
+  MeResponse,
+  PersistedScenario,
+  PersistedTask,
+  PlanTier,
+  Scenario,
+  ScenarioConfig,
+  SeedState,
+  Session,
+  SessionPublic,
+  SessionState,
+  SlackSeedState,
+  StripeSeedState,
+  SubmitResultRequest,
+  SubmitResultResponse,
+  Task,
+  TaskConfig,
+  Team,
+  TeamInvite,
+  TeamMember,
+  TeamRole,
+  TraceUploadContext,
+  UsageResponse,
+  User,
+];
+// Compile-time anchor: exactly one tuple entry per guarded type. The literal
+// type on the left fails to compile if an entry is added or removed above
+// without updating the count.
+const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 47;
 
 // Runtime value exports (types are erased and cannot appear on `Object.keys`).
 const EXPECTED_EXPORTS = [
@@ -155,5 +267,12 @@ const EXPECTED_EXPORTS = [
 describe("@pome-sh/shared-types barrel export surface (F-754)", () => {
   it("re-exports exactly the pre-refactor runtime value surface", () => {
     expect(Object.keys(api).sort()).toEqual([...EXPECTED_EXPORTS]);
+  });
+
+  it("guards the pre-refactor TYPE surface (47 inline types/interfaces)", () => {
+    // The real guard is the type-only import + _TypeSurfaceAssert tuple above,
+    // enforced at typecheck time. This assertion just anchors the count at
+    // runtime so the guard's scope is visible in test output.
+    expect(TYPE_SURFACE_SIZE).toBe(47);
   });
 });

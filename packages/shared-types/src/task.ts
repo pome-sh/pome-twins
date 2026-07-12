@@ -18,7 +18,8 @@ import { seedStateSchema } from "./seed-state.js";
 // consumers).
 //
 // `criterionSchema` and `judgeModelSchema` were moved to `./run.ts` (2026-05-11
-// split) because CriterionResult depends on them; re-exported above via barrel.
+// split) because CriterionResult depends on them; imported here from `./run.js`
+// and re-exported to consumers via the index.ts barrel.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const taskConfigSchema = z.object({
