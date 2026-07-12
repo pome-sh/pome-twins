@@ -7,9 +7,11 @@ x402 machine payments**. Real Stripe sandbox doesn't auto-settle crypto
 deposits, the CDP facilitator settles on real Base, and `stripe-mock`
 has no x402 support — so without this twin there is nowhere to run agent
 tests against the x402 protocol that aren't either flaky, slow, or
-expensive. v1 ships **12 REST endpoints + 12 MCP tools + the
-`paymentMiddleware()` Hono helper**, all stateful, all tested, all loud
-about what they don't do.
+expensive. Today it ships **26 semantic REST routes + 26 MCP tools + the
+`paymentMiddleware()` Hono helper** (card and crypto PaymentIntents,
+customers, payment methods, refunds, charges, balance, events), plus 13
+shape-tier billing routes — all stateful, all tested, all loud about what
+they don't do.
 
 ## Quickstart
 
@@ -20,17 +22,16 @@ twin URL. Skip ahead to [Auth](#auth--works-with-real-stripe-sdks) for
 how to wire your existing Stripe SDK.
 
 To run the twin yourself locally (e.g., in CI or against an offline
-agent), clone this repo and run:
+agent), the zero-install path needs only Node ≥ 24:
 
 ```bash
-git clone https://github.com/pome-sh/pome-twins.git
-cd pome-twins && npm install
-npm run -w @pome-sh/twin-stripe dev &   # starts on :3333
-sleep 2
+npx @pome-sh/cli twin start stripe      # starts on :3333
+curl http://127.0.0.1:3333/healthz
 
-# Or with zero installs (only Node ≥ 24 required):
-# npx @pome-sh/cli twin start stripe --port 3334
-# curl http://127.0.0.1:3334/healthz
+# Or, to develop the twin from source:
+# git clone https://github.com/pome-sh/pome-twins.git
+# cd pome-twins && npm install
+# npm run -w @pome-sh/twin-stripe dev
 
 # Real Stripe SDKs work via host override — they hit /v1/* directly
 # (no /s/:sid prefix) and the bearer alone resolves the session:
@@ -58,22 +59,17 @@ deployments (e.g., the pome-cloud per-session proxy, where the `:sid`
 in the URL must match the bearer). Pick whichever shape your client
 prefers — they share handlers and produce identical responses.
 
-> **npm publish status**: this package is currently `private: true` in
-> `package.json` pending OSS Stage 1 + legal review (see plan §22). After
-> Stage 1, `npx @pome-sh/twin-stripe` will be the one-line install path;
-> until then, the monorepo clone above or the hosted twin on
-> pome.sh is the supported route.
-
-## What ships in v1
+## What ships today
 
 | Surface | Count | Tier |
 | --- | --- | --- |
-| REST endpoints under `/s/:sid/v1/*` | 12 | semantic |
-| MCP tools (1:1 with stripe-node) | 12 | semantic |
+| REST routes under `/s/:sid/v1/*` (payments, customers, payment methods, refunds, charges, balance, events) | 26 | semantic |
+| Billing reads/writes (products, prices, subscriptions, invoice reads) | 13 | shape |
+| MCP tools (1:1 with stripe-node) | 26 | semantic |
 | `paymentMiddleware()` Hono helper | 1 | semantic |
 | Pome introspection (`_pome/{health,state,events}`) | 3 | n/a |
 | Admin (`/admin/{reset,seed}`, localhost-only) | 2 | n/a |
-| Anything else under `/v1/*` | many | **loud 501 with `fidelity:"unsupported"`** |
+| Named cold surfaces (checkout, payment links, setup intents, webhook endpoints) + anything else under `/v1/*` | many | **loud 501 with `fidelity:"unsupported"`** |
 
 See [FIDELITY.md](./FIDELITY.md) for the full route table and known
 deviations from real Stripe.
@@ -137,19 +133,20 @@ Either way, the resolved session id must match the `:sid` in the URL.
 
 ## MCP
 
-15 tools available at `GET /s/:sid/mcp/tools`. Tool names match
+26 tools available at `GET /s/:sid/mcp/tools`. Tool names match
 `stripe-node` method names so an agent's mental model translates 1:1:
 
 ```
-create_payment_intent
-retrieve_payment_intent
-list_payment_intents
-confirm_payment_intent
-cancel_payment_intent
-simulate_crypto_deposit
-retrieve_charge
-list_charges
-retrieve_balance
+create_payment_intent          create_customer
+retrieve_payment_intent        retrieve_customer
+list_payment_intents           update_customer
+update_payment_intent          delete_customer
+confirm_payment_intent         list_customers
+cancel_payment_intent          list_customer_payment_methods
+simulate_crypto_deposit        create_payment_method
+retrieve_charge                retrieve_payment_method
+list_charges                   attach_payment_method
+retrieve_balance               detach_payment_method
 list_balance_transactions
 retrieve_event
 list_events
@@ -205,14 +202,19 @@ that pins and verifies the new signed digest.
 - The snapshot manifest at `pome-cloud/infra/twin-stripe-snapshot.json`
   records the OSS git sha and signed OCI digest each snapshot was built from.
 
-## What v1 does NOT do
+## What it does NOT do
+
+Shape tier (faithful response shape, deliberately no billing semantics —
+no events emitted, no invoices minted, no billing-cycle arithmetic):
+
+- Products, prices, subscriptions, invoice reads (F-734).
 
 Loud 501 with `fidelity: "unsupported"`:
 
-- All `/v1/shared_payment/*` (SPT) — deferred to v2.
-- Customer / payment-method CRUD — not on the x402 path.
-- Setup intents, refunds, products, prices, checkout sessions — v2.
-- Webhook delivery loop — agents poll `GET /v1/events` in v1.
+- Checkout sessions, payment links, setup intents, webhook endpoints —
+  named cold surfaces, test-backed.
+- All `/v1/shared_payment/*` (SPT) — deferred.
+- Webhook delivery loop — agents poll `GET /v1/events`.
 - Profiles, Connect, Issuing, Treasury, Tax, Climate, Identity — out forever
   for this twin.
 
@@ -235,26 +237,21 @@ Other deviations from real Stripe:
 npm install
 npm run dev                        # boot on :3333 with default seed
 npm run typecheck                  # tsc --noEmit
-npm run test                       # vitest, 17 files / 87 tests
+npm run test                       # vitest, 32 files / 237 tests
 npm run build                      # tsc → dist/src/server.js
 node dist/src/server.js            # production-shape boot
 ```
 
 ## Use it as a Stripe test double in your tests
 
-Until the package is on npm (post-Stage-1), the cleanest way is to clone
-this monorepo and shell out to `npm run dev` from your test setup:
+The cleanest way is to boot the published twin from your test setup; all
+it needs is Node ≥ 24:
 
 ```ts
 // In your test setup
 import { spawn } from "node:child_process";
-import { join } from "node:path";
 
-// Path to where you cloned pome-sh/pome-twins on disk
-const POME_REPO = process.env.POME_REPO ?? "/path/to/pome-twins";
-
-const twin = spawn("npm", ["run", "dev"], {
-  cwd: join(POME_REPO, "packages/twin-stripe"),
+const twin = spawn("npx", ["@pome-sh/cli", "twin", "start", "stripe"], {
   env: { ...process.env, PORT: "3333", STRIPE_CLONE_DB: ":memory:" },
 });
 // wait for /healthz before running your suite
