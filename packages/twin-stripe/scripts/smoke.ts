@@ -115,7 +115,9 @@ async function main() {
       const body = await r.json() as Record<string, unknown>;
       assertOk(body.twin === "stripe", `1. healthz twin=${body.twin}, expected "stripe"`);
       assertOk(body.implementation === "stripe_clone", `1. implementation=${body.implementation}`);
-      assertOk(body.tools === 15, `1. tools=${body.tools}, expected 15`);
+      // Deliberate magic-number pin (same tripwire as tools.test.ts): bump it
+      // when a ticket adds tools. 26 since F-731/F-732 (F-733 added none).
+      assertOk(body.tools === 26, `1. tools=${body.tools}, expected 26`);
       log("ok", `healthz: tools=${body.tools}, fidelity=${body.fidelity}, tthw=${(body.tthw_seconds as number).toFixed(2)}s`);
     }
 
@@ -196,10 +198,11 @@ async function main() {
       log("ok", `5 events emitted: ${types.join(", ")}`);
     }
 
-    // 6. unsupported route → loud 501
+    // 6. unsupported route → loud 501. (/v1/customers became a supported
+    // surface in F-732; probe a path still on the catch-all.)
     {
-      const r = await fetch(`${baseUrl}/s/${sid}/v1/customers`, { headers });
-      assertOk(r.status === 501, `6. /v1/customers returned ${r.status}, expected 501`);
+      const r = await fetch(`${baseUrl}/s/${sid}/v1/checkout/sessions`, { headers });
+      assertOk(r.status === 501, `6. /v1/checkout/sessions returned ${r.status}, expected 501`);
       const env = await r.json() as { error: { code: string; fidelity: string } };
       assertOk(env.error.code === "endpoint_not_supported", `6. error.code=${env.error.code}`);
       assertOk(env.error.fidelity === "unsupported", `6. error.fidelity=${env.error.fidelity}`);

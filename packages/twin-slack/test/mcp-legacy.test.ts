@@ -21,7 +21,7 @@ describe("legacy MCP routes", () => {
     token = await signTestToken();
   });
 
-  it("GET /mcp/tools lists 8 tools", async () => {
+  it("GET /mcp/tools lists 11 tools", async () => {
     const app = freshApp();
     const res = await app.request(`${base}/mcp/tools`, withAuth(token, {}));
     expect(res.status).toBe(200);

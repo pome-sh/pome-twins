@@ -1,0 +1,773 @@
+{
+  "twin": "github",
+  "package": "@pome-sh/twin-github",
+  "updated": "2026-07-12",
+  "notes": "Tool surface lints 1:1 against FIDELITY.md; REST surface lints 1:1 against FIDELITY_MATRIX.md (FIDELITY.md documents REST as prose). Heat tiers ruled 2026-07-11 on F-729 (list 2/3 + [DECISION], approve-as-drafted); annotations landed via F-735. Evidence codes per packages/sdk/ENDPOINT-TIERS.md. Warm surfaces implemented at semantic stay code-unchanged per the M5 additive-only ruling and are listed in FIDELITY.md's tier-mismatch ledger.",
+  "tools": [
+    {
+      "name": "search_repositories",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "create_repository",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "fork_repository",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "get_repository",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "search_code",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "search_users",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:users."
+    },
+    {
+      "name": "get_file_contents",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "list_commits",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "create_or_update_file",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "create_branch",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "push_files",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos. MCP-only surface — no REST route backs it, which the rubric treats as legal (kind: mcp, ruled F-729)."
+    },
+    {
+      "name": "get_issue",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "update_issue",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "search_issues",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "list_issues",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "add_issue_comment",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "list_issue_comments",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "create_issue",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "list_repository_labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729): label reads+apply are on the triage chain; vendor puts label writes opt-in — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "create_label",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G4): taxonomy authoring, a rare side step off TC:issue-triage; MCP: vendor label writes are opt-in. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "list_issue_labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729)."
+    },
+    {
+      "name": "add_issue_labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); vendor label writes are opt-in — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "remove_issue_label",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); vendor label writes are opt-in — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "list_collaborators",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:repos (ruled F-729); collaborator reads sit on triage and review chains."
+    },
+    {
+      "name": "add_assignees",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "get_pull_request",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "get_pull_request_reviews",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "create_pull_request_review",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "get_pull_request_comments",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "get_pull_request_files",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "get_pull_request_status",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:merge-gate (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "list_pull_requests",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "merge_pull_request",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "update_pull_request_branch",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests (default-on). Hot gap filled by F-735: semantic merge of base into head with a real merge commit."
+    },
+    {
+      "name": "create_pull_request",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "list_branches",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "get_branch",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "delete_branch",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:cleanup-after-merge (ruled F-729); no vendor tool — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "delete_file",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "get_commit",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "compare_commits",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "Warm (ruled F-729): occasional cross-branch inspection off the TC:code-read chain. Shape is exactly at target."
+    },
+    {
+      "name": "get_pull_request_diff",
+      "heat": "hot",
+      "fidelity": "shape",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests. Hot gap, explicitly deferred (F-729 ruling point G1): byte-accurate patch modeling is out of the M5 window; placeholder patches remain (divergence #2). Follow-up post-M5."
+    },
+    {
+      "name": "update_pull_request",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "get_pull_request_commits",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "create_pull_request_review_comment",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "add_reply_to_pull_request_comment",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "update_issue_comment",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "delete_issue_comment",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "list_milestones",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): adjacent to TC:issue-triage (triage-filter reads), warm over cold; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "create_milestone",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): weak chain adjacent to TC:issue-triage; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "update_milestone",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): weak chain adjacent to TC:issue-triage; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "delete_milestone",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): weak chain adjacent to TC:issue-triage; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "create_commit_status",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "SB (ruled F-729): the sealed twin must mint CI state for the merge-gate chain to be exercisable; vendor actions toolset is opt-in — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "get_combined_status_for_ref",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:merge-gate (ruled F-729)."
+    },
+    {
+      "name": "create_check_run",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "SB (ruled F-729): mints check state so the merge-gate chain is exercisable; vendor actions toolset is opt-in — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "list_check_runs_for_ref",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:merge-gate (ruled F-729)."
+    },
+    {
+      "name": "list_tags",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "list_releases",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "get_latest_release",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "create_release",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G4): rarer chain adjacent to TC:release-notes; MCP: no vendor write tool. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "get_me",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:bootstrap (ruled F-729); MCP:context."
+    },
+    {
+      "name": "add_collaborator",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G4): admin-flavored and rare; MCP: no vendor tool. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "search_commits",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729, G3); MCP:repos (default-on). Hot gap filled by F-735: substring search over default-branch commit messages and authors."
+    },
+    {
+      "name": "get_release_by_tag",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729, G3); MCP:repos (default-on). Hot gap filled by F-735."
+    },
+    {
+      "name": "get_tag",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729, G3); MCP:repos (default-on). Hot gap filled by F-735. MCP-only surface (kind: mcp): backed by the tags table; git-plumbing REST stays cold per the ruling."
+    }
+  ],
+  "rest": [
+    {
+      "name": "GET /repos/:owner/:repo",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "POST /user/repos",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos. Row added by F-735 (doc-drift fix: implemented route was missing from FIDELITY_MATRIX.md)."
+    },
+    {
+      "name": "POST /orgs/:owner/repos",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/forks",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/commits",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/git/refs",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos (create_branch counterpart). Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/issues",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/issues",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/issues/:number",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "PATCH /repos/:owner/:repo/issues/:number",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/issues/:number/comments",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/issues/:number/comments",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "PATCH /repos/:owner/:repo/issues/comments/:comment_id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "DELETE /repos/:owner/:repo/issues/comments/:comment_id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729): label reads are on the triage chain. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/labels",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G4, create_label counterpart): taxonomy authoring, a rare side step off TC:issue-triage; MCP: vendor label writes are opt-in. Fidelity semantic > shape target → tier-mismatch ledger. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/issues/:number/labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729). Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/issues/:number/labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); vendor label writes are opt-in — task chain wins (disagreement noted). Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "DELETE /repos/:owner/:repo/issues/:number/labels/:name",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); vendor label writes are opt-in — task chain wins (disagreement noted). Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/issues/:number/assignees",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:issue-triage (ruled F-729); MCP:issues. Row added by F-735 (doc-drift fix)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/collaborators",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:repos (ruled F-729); collaborator reads sit on triage and review chains."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/collaborators/:username",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:repos (ruled F-729); collaborator membership probe on review chains."
+    },
+    {
+      "name": "PUT /repos/:owner/:repo/collaborators/:username",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G4, add_collaborator counterpart): admin-flavored and rare; MCP: no vendor tool. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/pulls",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/pulls",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "PATCH /repos/:owner/:repo/pulls/:number",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/pulls/:number/*",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests. Covers PR detail/files/reviews/comments/status reads plus the PUT merge and update-branch mutations; update-branch upgraded to a semantic merge by F-735."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/pulls/:number/commits",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/pulls/:number/diff",
+      "heat": "hot",
+      "fidelity": "shape",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests. Hot gap, explicitly deferred (F-729 ruling point G1): byte-accurate patches are out of the M5 window (divergence #2). Follow-up post-M5."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/pulls/:number/comments",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/pulls/:number/comments/:comment_id/replies",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:author-review-merge (ruled F-729); MCP:pull_requests."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/branches",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/branches/:branch",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "DELETE /repos/:owner/:repo/git/refs/heads/:branch",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:cleanup-after-merge (ruled F-729); no vendor tool — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/contents/*",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "PUT /repos/:owner/:repo/contents/*",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "DELETE /repos/:owner/:repo/contents/*",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:authoring (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/commits/:ref",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/compare/:basehead",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "Warm (ruled F-729): occasional cross-branch inspection off the TC:code-read chain. Shape is exactly at target."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/statuses/:sha",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "SB (ruled F-729): mints CI state so the merge-gate chain is exercisable; vendor actions toolset is opt-in — task chain wins (disagreement noted)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/commits/:ref/status",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:merge-gate (ruled F-729)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/check-runs",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "SB (ruled F-729): mints check state so the merge-gate chain is exercisable."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/commits/:ref/check-runs",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:merge-gate (ruled F-729)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/milestones",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): adjacent to TC:issue-triage (triage-filter reads), warm over cold; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/milestones",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): weak chain adjacent to TC:issue-triage; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "PATCH /repos/:owner/:repo/milestones/:number",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): weak chain adjacent to TC:issue-triage; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "DELETE /repos/:owner/:repo/milestones/:number",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G2): weak chain adjacent to TC:issue-triage; MCP: no vendor milestone tools. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/tags",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/releases",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/releases/latest",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729); MCP:repos."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/releases/tags/:tag",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:release-notes (ruled F-729, G3); MCP:repos (default-on). Hot gap filled by F-735 (get_release_by_tag counterpart)."
+    },
+    {
+      "name": "POST /repos/:owner/:repo/releases",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Warm (ruled F-729, G4, create_release counterpart): rarer chain adjacent to TC:release-notes; MCP: no vendor write tool. Fidelity semantic > shape target → tier-mismatch ledger (additive-only, no demotion this milestone)."
+    },
+    {
+      "name": "GET /user",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:bootstrap (ruled F-729); MCP:context."
+    },
+    {
+      "name": "GET /search/*",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:code-read + TC:issue-triage (ruled F-729); MCP:repos,issues,users. Covers /search/repositories, /search/code, /search/issues, /search/users and, since F-735, /search/commits."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/actions/*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729): Actions runs/jobs/logs are cold now — top post-M5 promotion candidate (CI-debugging chain is real; vendor ships an opt-in toolset). Named cold row: agents probe it, so the loud 501 is documented and test-backed."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/git/trees/:sha",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729): git plumbing (trees/blobs) stays cold; agents probe occasionally. Named cold row: loud 501 documented and test-backed."
+    },
+    {
+      "name": "GET /orgs/:org/teams",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729, G5): the twin models a single-actor repo sandbox, so teams/orgs stay cold despite the vendor's default-on get_teams — disagreement recorded as input to the next ruling. Named cold row: loud 501 documented and test-backed."
+    },
+    {
+      "name": "GET /repos/:owner/:repo/issues/:number/sub_issues",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729, G5): sub-issues stay cold despite the vendor's default-on sub_issue_write — disagreement recorded. Named cold row: loud 501 documented and test-backed."
+    },
+    {
+      "name": "GET /orgs/:org/issue-types",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729, G5): issue types/fields stay cold despite the vendor's default-on list_issue_types — disagreement recorded. Named cold row: loud 501 documented and test-backed."
+    },
+    {
+      "name": "POST /mcp/call",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Engine introspection (pome transport, not upstream GitHub surface) — outside the rubric's inventory scope per ENDPOINT-TIERS.md. Row retained until the post-F-440 surface-count reconcile (additive-only, same rationale as the twin-slack denominator deferral)."
+    },
+    {
+      "name": "POST /mcp/tools/:name",
+      "heat": "unclassified",
+      "fidelity": "semantic",
+      "justification": "Engine introspection (pome transport, not upstream GitHub surface) — outside the rubric's inventory scope per ENDPOINT-TIERS.md. Row retained until the post-F-440 surface-count reconcile (additive-only)."
+    },
+    {
+      "name": "Any unsupported path",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS (ruled F-729): the loud-501 catch-all is the documented cold tail; unlisted surfaces (notifications, gists, discussions, projects, security families, stargazers) are implicitly cold and gain named rows only if traces show probes."
+    }
+  ],
+  "doc_drift": []
+}

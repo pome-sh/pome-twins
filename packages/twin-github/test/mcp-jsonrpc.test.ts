@@ -123,12 +123,12 @@ describe("MCP JSON-RPC — /s/:sid/mcp", () => {
     expect(body).toEqual({ jsonrpc: "2.0", id: "p1", result: {} });
   });
 
-  it("tools/list returns all 62 tools with camelCase inputSchema", async () => {
+  it("tools/list returns all 65 tools with camelCase inputSchema", async () => {
     const app = createGitHubCloneApp({ seed: seedWithPullRequest() });
     const response = await rpc(app, { jsonrpc: "2.0", id: 2, method: "tools/list" });
     const body = (await response.json()) as any;
     expect(body.result.tools).toHaveLength(toolDefinitions.length);
-    expect(toolDefinitions.length).toBe(62);
+    expect(toolDefinitions.length).toBe(65);
     expect(body.result.tools.map((t: any) => t.name)).toEqual(toolDefinitions.map((t) => t.name));
     for (const tool of body.result.tools) {
       expect(tool).toHaveProperty("inputSchema");

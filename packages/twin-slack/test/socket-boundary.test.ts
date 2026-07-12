@@ -73,7 +73,7 @@ function authHeaders(extra: Record<string, string> = {}) {
 }
 
 describe("socket boundary — real MCP SDK client over @hono/node-server", () => {
-  it("completes the initialize handshake and lists the 8 agent tools through JSON-RPC framing", async () => {
+  it("completes the initialize handshake and lists the 11 agent tools through JSON-RPC framing", async () => {
     const transport = new StreamableHTTPClientTransport(new URL(mcpUrl), {
       requestInit: { headers: authHeaders() }
     });
@@ -87,7 +87,7 @@ describe("socket boundary — real MCP SDK client over @hono/node-server", () =>
       // Pin the catalog size independently of toolDefinitions so a silent
       // catalog shrink cannot self-verify (both sides derive from the same
       // array otherwise).
-      expect(toolDefinitions.length).toBe(8);
+      expect(toolDefinitions.length).toBe(11);
       expect(listResult.tools).toHaveLength(toolDefinitions.length);
       expect(listResult.tools.map((t) => t.name)).toEqual(toolDefinitions.map((t) => t.name));
     } finally {

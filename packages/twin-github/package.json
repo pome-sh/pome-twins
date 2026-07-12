@@ -23,7 +23,8 @@
   "files": [
     "dist",
     "README.md",
-    "FIDELITY.md"
+    "FIDELITY.md",
+    "fidelity.inventory.json"
   ],
   "publishConfig": {
     "access": "public"

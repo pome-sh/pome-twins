@@ -10,6 +10,7 @@
 // prices, checkout_sessions, SPT, webhook_endpoints) are deferred to v2.
 import { openTwinDatabase } from "@pome-sh/sdk";
 import type { TwinStripeDatabase } from "./types.js";
+import { ensureMigratedColumns } from "./domain/schema.js";
 
 const MIGRATION_SQL = `
 -- ----- chassis tables -------------------------------------------------------
@@ -56,7 +57,10 @@ CREATE TABLE IF NOT EXISTS payment_intents (
   created INTEGER NOT NULL,
   updated INTEGER NOT NULL,
   canceled_at INTEGER,
-  captured_at INTEGER
+  captured_at INTEGER,
+  payment_method_id TEXT,
+  customer_id TEXT,
+  last_payment_error_json TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_intents_created ON payment_intents(created);
@@ -74,7 +78,13 @@ CREATE TABLE IF NOT EXISTS charges (
   balance_transaction_id TEXT,
   captured INTEGER NOT NULL DEFAULT 0,
   created INTEGER NOT NULL,
-  currency TEXT NOT NULL
+  currency TEXT NOT NULL,
+  payment_method_id TEXT,
+  payment_method_details_json TEXT,
+  failure_code TEXT,
+  failure_decline_code TEXT,
+  failure_message TEXT,
+  customer_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_charges_payment_intent ON charges(payment_intent_id);
@@ -143,6 +153,9 @@ export function openTwinStripeDatabase(
 
 export function migrate(db: TwinStripeDatabase) {
   db.exec(MIGRATION_SQL);
+  // CREATE IF NOT EXISTS can't add columns to an older DB file; patch
+  // them in place so external migrate() callers get the full schema.
+  ensureMigratedColumns(db);
 }
 
 export function resetDatabase(db: TwinStripeDatabase) {

@@ -133,7 +133,7 @@ describe("socket boundary — real MCP SDK client over @hono/node-server", () =>
       // Pin the catalog size independently of listTools() so a silent catalog
       // shrink cannot self-verify (both sides derive from the same array
       // otherwise).
-      expect(catalog.length).toBe(15);
+      expect(catalog.length).toBe(26);
       expect(listResult.tools).toHaveLength(catalog.length);
       expect(listResult.tools.map((t) => t.name)).toEqual(catalog.map((t) => t.name));
       for (const tool of listResult.tools) {

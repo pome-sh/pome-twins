@@ -36,7 +36,7 @@ describe("twin-slack HTTP contract", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.twin).toBe("slack");
-    expect(body.tools).toBe(8);
+    expect(body.tools).toBe(11);
     expect(body.ok).toBe(true);
   });
 
@@ -156,6 +156,29 @@ describe("twin-slack HTTP contract", () => {
     expect(body.ok).toBe(false);
     expect(body.error).toBe("unsupported_endpoint");
     expect(body._twin.fidelity).toBe("unsupported");
+  });
+
+  it("named cold surfaces (F-736 ruling) return the loud 501 unsupported envelope", async () => {
+    const { app } = freshApp();
+    const coldProbes: Array<{ path: string; method: string }> = [
+      { path: "chat.postEphemeral", method: "POST" },
+      { path: "files.getUploadURLExternal", method: "GET" },
+      { path: "files.completeUploadExternal", method: "POST" },
+      { path: "admin.users.list", method: "GET" },
+      { path: "usergroups.list", method: "GET" },
+      { path: "views.publish", method: "POST" },
+    ];
+    for (const probe of coldProbes) {
+      const res = await app.request(
+        `/s/${TEST_SID}/${probe.path}`,
+        withAuth(token, { method: probe.method })
+      );
+      expect(res.status, `${probe.path} should 501`).toBe(501);
+      const body = (await res.json()) as { ok: boolean; error: string; _twin: { fidelity: string } };
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe("unsupported_endpoint");
+      expect(body._twin.fidelity).toBe("unsupported");
+    }
   });
 
   it("admin/reset only allowed from localhost (no remoteAddress in app.request)", async () => {

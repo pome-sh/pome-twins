@@ -72,6 +72,16 @@ export class RefundsDomain {
 
     const tx = this.db.transaction((): CreateRefundResult => {
       const charge = this.requireCharge(accountId, input.charge);
+      // F-731 mints `failed` charges for declined card attempts; real
+      // Stripe refuses to refund a charge that never captured.
+      if (charge.status !== "succeeded") {
+        throw new TwinError(
+          "invalid_request_error",
+          "charge_not_refundable",
+          `This charge (${charge.id}) has a status of '${charge.status}' and cannot be refunded.`,
+          { param: "charge", statusCode: 400 }
+        );
+      }
       const refundable = charge.amount - charge.amount_refunded;
       const amount = input.amount ?? refundable;
       if (amount <= 0 || amount > refundable) {
@@ -116,6 +126,24 @@ export class RefundsDomain {
       return { row, charge: updatedCharge };
     });
     return tx();
+  }
+
+  /**
+   * Backfill the ledger link after StripeDomain mints the refund's balance
+   * transaction (the txn needs the refund row's id/amount first, so the two
+   * inserts can't be reordered). Runs inside the coordinator's transaction.
+   */
+  linkBalanceTransaction(
+    accountId: string,
+    id: string,
+    balanceTransactionId: string
+  ): RefundRow {
+    this.db
+      .prepare(
+        "UPDATE refunds SET balance_transaction_id = ? WHERE id = ? AND account_id = ?"
+      )
+      .run(balanceTransactionId, id, accountId);
+    return this.requireById(accountId, id);
   }
 
   getById(accountId: string, id: string): RefundRow | null {

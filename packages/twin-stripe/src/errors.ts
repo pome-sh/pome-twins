@@ -18,12 +18,26 @@ export type StripeErrorType =
 // looser union here would let invalid events slip onto the wire.
 export type StripeErrorFidelity = "semantic" | "unsupported";
 
+import type { StateDelta } from "@pome-sh/shared-types";
+
 export type StripeErrorOpts = {
   param?: string;
   doc_url?: string;
   statusCode?: number;
   fidelity?: StripeErrorFidelity;
   supported_surfaces?: string[];
+  /** Card declines: Stripe's issuer decline reason (`generic_decline`, …). */
+  decline_code?: string;
+  /** Card declines: real Stripe embeds the post-attempt PaymentIntent. */
+  payment_intent?: unknown;
+  /**
+   * Card declines commit real state (failed charge, events, PI transition)
+   * before the 402 is thrown — the only error path in the twin that
+   * mutates. These recorder-only fields let handle() log the truth; they
+   * never serialize into the wire envelope.
+   */
+  state_mutation?: boolean;
+  state_delta?: StateDelta;
 };
 
 export type StripeErrorEnvelope = {
@@ -35,6 +49,8 @@ export type StripeErrorEnvelope = {
     doc_url?: string;
     fidelity?: StripeErrorFidelity;
     supported_surfaces?: string[];
+    decline_code?: string;
+    payment_intent?: unknown;
   };
 };
 
@@ -51,6 +67,10 @@ export class TwinError extends Error {
   readonly doc_url?: string;
   readonly fidelity?: StripeErrorFidelity;
   readonly supported_surfaces?: string[];
+  readonly decline_code?: string;
+  readonly payment_intent?: unknown;
+  readonly state_mutation?: boolean;
+  readonly state_delta?: StateDelta;
 
   constructor(
     type: StripeErrorType,
@@ -66,6 +86,10 @@ export class TwinError extends Error {
     this.doc_url = opts.doc_url;
     this.fidelity = opts.fidelity;
     this.supported_surfaces = opts.supported_surfaces;
+    this.decline_code = opts.decline_code;
+    this.payment_intent = opts.payment_intent;
+    this.state_mutation = opts.state_mutation;
+    this.state_delta = opts.state_delta;
   }
 
   toEnvelope(): StripeErrorEnvelope {
@@ -73,7 +97,9 @@ export class TwinError extends Error {
       param: this.param,
       doc_url: this.doc_url,
       fidelity: this.fidelity,
-      supported_surfaces: this.supported_surfaces
+      supported_surfaces: this.supported_surfaces,
+      decline_code: this.decline_code,
+      payment_intent: this.payment_intent
     }).body;
   }
 }
@@ -92,6 +118,8 @@ export function stripeError(
   if (opts.supported_surfaces !== undefined) {
     error.supported_surfaces = opts.supported_surfaces;
   }
+  if (opts.decline_code !== undefined) error.decline_code = opts.decline_code;
+  if (opts.payment_intent !== undefined) error.payment_intent = opts.payment_intent;
   return {
     status: opts.statusCode ?? 400,
     body: { error }

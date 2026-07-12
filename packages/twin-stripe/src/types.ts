@@ -83,6 +83,7 @@ export type SeedRefund = {
   currency: string;
   status: RefundStatus;
   reason?: string | null;
+  balance_transaction_id?: string | null;
   idempotency_key?: string | null;
   created: number;
 };
@@ -171,6 +172,9 @@ export type PIRow = {
   updated: number;
   canceled_at: number | null;
   captured_at: number | null;
+  payment_method_id: string | null;
+  customer_id: string | null;
+  last_payment_error_json: string | null;
 };
 
 export type ChargeRow = {
@@ -185,6 +189,12 @@ export type ChargeRow = {
   captured: 0 | 1;
   created: number;
   currency: string;
+  payment_method_id: string | null;
+  payment_method_details_json: string | null;
+  failure_code: string | null;
+  failure_decline_code: string | null;
+  failure_message: string | null;
+  customer_id: string | null;
 };
 
 export type BalanceTxRow = {
@@ -213,6 +223,32 @@ export type EventRow = {
   api_version: string;
 };
 
+export type CustomerRow = {
+  id: string;
+  account_id: string;
+  name: string | null;
+  email: string | null;
+  description: string | null;
+  phone: string | null;
+  metadata_json: string;
+  deleted: 0 | 1;
+  created: number;
+};
+
+export type PaymentMethodRow = {
+  id: string;
+  account_id: string;
+  type: string;
+  card_brand: string;
+  card_last4: string;
+  card_exp_month: number;
+  card_exp_year: number;
+  card_fingerprint: string;
+  customer_id: string | null;
+  detached: 0 | 1;
+  created: number;
+};
+
 export type RefundStatus = "succeeded" | "pending" | "failed" | "canceled";
 
 export type RefundRow = {
@@ -224,6 +260,7 @@ export type RefundRow = {
   currency: string;
   status: RefundStatus;
   reason: string | null;
+  balance_transaction_id: string | null;
   idempotency_key: string | null;
   created: number;
 };

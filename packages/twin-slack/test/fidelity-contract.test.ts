@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Asserts FIDELITY.md exists and stays in sync with the actual code:
-//   - References every visible MCP tool
-//   - Lists every shipped REST surface area
-//   - Calls out the fidelity tiers
-//
-// If FIDELITY.md drifts from src/tools.ts the contract test fails loudly,
-// which forces a deliberate doc update on any tool surface change.
+// Fidelity contract (F-730): the structured inventory is the hub — it must
+// match the live tool list exactly, and the FIDELITY.md tables must match
+// the inventory 1:1 (tier included). This replaces the old soft "docs
+// mention the tool name" check, which could not see undocumented surfaces.
+// The slack-specific doc pins (tier vocabulary, required REST surfaces, ts
+// invariant, mutating tool set) stay.
 
 import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toolDefinitions, MUTATING_TOOL_NAMES } from "../src/tools.js";
+import {
+  compareToolNames,
+  lintFidelityInventory,
+  loadFidelityInventory,
+} from "@pome-sh/sdk/parity";
+import { listTools, MUTATING_TOOL_NAMES } from "../src/tools.js";
 
 const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FIDELITY_PATH = join(PKG_ROOT, "FIDELITY.md");
@@ -22,14 +26,25 @@ describe("FIDELITY.md contract", () => {
     expect(existsSync(FIDELITY_PATH)).toBe(true);
   });
 
-  it("FIDELITY.md mentions every visible MCP tool by name", () => {
+  it("keeps fidelity.inventory.json 1:1 with the live tool list", () => {
+    const inventory = loadFidelityInventory(join(PKG_ROOT, "fidelity.inventory.json"));
+    expect(
+      compareToolNames(
+        inventory.tools.map((tool) => tool.name),
+        listTools().map((tool) => tool.name)
+      )
+    ).toEqual({ missing: [], extra: [] });
+  });
+
+  it("keeps the FIDELITY.md tables 1:1 with fidelity.inventory.json", () => {
+    const inventory = loadFidelityInventory(join(PKG_ROOT, "fidelity.inventory.json"));
     const body = readFileSync(FIDELITY_PATH, "utf8");
-    for (const tool of toolDefinitions) {
-      expect(
-        body.includes("`" + tool.name + "`"),
-        `FIDELITY.md is missing the tool '${tool.name}'`
-      ).toBe(true);
-    }
+    expect(
+      lintFidelityInventory(inventory, [
+        { label: "FIDELITY.md", kind: "tool", markdown: body },
+        { label: "FIDELITY.md", kind: "rest", markdown: body },
+      ])
+    ).toEqual([]);
   });
 
   it("FIDELITY.md declares the three fidelity tiers", () => {
@@ -69,6 +84,73 @@ describe("FIDELITY.md contract", () => {
     const body = readFileSync(FIDELITY_PATH, "utf8");
     for (const name of MUTATING_TOOL_NAMES) {
       expect(body.includes(name)).toBe(true);
+    }
+  });
+});
+
+// Heat discipline (F-736): every surface carries its ruled heat tier and the
+// exact target mapping from packages/sdk/ENDPOINT-TIERS.md holds — hot must
+// be semantic (F-736 filled the last hot gaps), cold must be unsupported,
+// and warm surfaces sitting above their shape target must each appear in
+// FIDELITY.md's tier-mismatch ledger (M5 additive-only ruling: visible in
+// the ledger, never demoted in code).
+describe("heat tiers (F-729 ruling, F-736 re-cut)", () => {
+  const inventory = loadFidelityInventory(join(PKG_ROOT, "fidelity.inventory.json"));
+  const surfaces = [...inventory.tools, ...inventory.rest];
+
+  function ledgerSection(): string {
+    const body = readFileSync(FIDELITY_PATH, "utf8");
+    const start = body.indexOf("## Tier-mismatch ledger");
+    expect(start, "FIDELITY.md is missing the '## Tier-mismatch ledger' section").toBeGreaterThan(-1);
+    const rest = body.slice(start + 1);
+    const end = rest.indexOf("\n## ");
+    return end === -1 ? rest : rest.slice(0, end);
+  }
+
+  it("no surface is left unclassified", () => {
+    const unclassified = surfaces.filter((s) => s.heat === "unclassified").map((s) => s.name);
+    expect(unclassified).toEqual([]);
+  });
+
+  it("every justification cites a rubric evidence code", () => {
+    for (const surface of surfaces) {
+      expect(
+        /\b(TC|MCP|TR|SB|PS)\b/.test(surface.justification),
+        `'${surface.name}' justification cites no ENDPOINT-TIERS.md evidence code`
+      ).toBe(true);
+    }
+  });
+
+  it("hot surfaces are all semantic (no open hot gaps after F-736)", () => {
+    const gaps = surfaces.filter((s) => s.heat === "hot" && s.fidelity !== "semantic");
+    expect(gaps.map((s) => s.name)).toEqual([]);
+  });
+
+  it("named cold surfaces are all unsupported", () => {
+    const mismatches = surfaces.filter((s) => s.heat === "cold" && s.fidelity !== "unsupported");
+    expect(mismatches.map((s) => s.name)).toEqual([]);
+  });
+
+  it("warm surfaces above their shape target each appear in the tier-mismatch ledger", () => {
+    const ledger = ledgerSection();
+    const overTarget = surfaces.filter((s) => s.heat === "warm" && s.fidelity === "semantic");
+    expect(overTarget.length).toBeGreaterThan(0);
+    for (const surface of overTarget) {
+      expect(
+        ledger.includes("`" + surface.name + "`"),
+        `warm surface '${surface.name}' is above its shape target but missing from the ledger`
+      ).toBe(true);
+    }
+  });
+
+  it("the ledger names no surface that is actually at or below target", () => {
+    const ledger = ledgerSection();
+    const atTarget = surfaces.filter((s) => !(s.heat === "warm" && s.fidelity === "semantic"));
+    for (const surface of atTarget) {
+      expect(
+        ledger.includes("`" + surface.name + "`"),
+        `'${surface.name}' is at/below target but listed in the ledger`
+      ).toBe(false);
     }
   });
 });

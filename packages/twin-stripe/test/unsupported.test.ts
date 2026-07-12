@@ -7,10 +7,11 @@ import { describe, expect, it } from "vitest";
 import { createStripeApp, rest } from "./_appHelper.js";
 
 // /v1/refunds moved off this list when M3a Lane B (FDRS-338) landed the
-// refunds resource. Anything still on the list returns the loud 501.
+// refunds resource; /v1/customers moved off when F-732 landed the customer
+// chain. GET /v1/payment_methods (the top-level list) stays 501 per the
+// F-729 ruling — only the customer-scoped list is implemented. Anything
+// still on the list returns the loud 501.
 const UNSUPPORTED_PATHS: Array<[string, string]> = [
-  ["GET", "/v1/customers"],
-  ["POST", "/v1/customers"],
   ["POST", "/v1/setup_intents"],
   ["GET", "/v1/products"],
   ["GET", "/v1/checkout/sessions"],

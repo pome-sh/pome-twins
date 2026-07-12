@@ -110,7 +110,7 @@ function authHeaders(extra: Record<string, string> = {}) {
 }
 
 describe("socket boundary — real MCP SDK client over @hono/node-server", () => {
-  it("completes the initialize handshake and lists all 62 tools through JSON-RPC framing", async () => {
+  it("completes the initialize handshake and lists all 65 tools through JSON-RPC framing", async () => {
     const transport = new StreamableHTTPClientTransport(new URL(mcpUrl), {
       requestInit: { headers: authHeaders() }
     });
@@ -122,7 +122,7 @@ describe("socket boundary — real MCP SDK client over @hono/node-server", () =>
 
       const listResult = await client.listTools();
       expect(listResult.tools).toHaveLength(toolDefinitions.length);
-      expect(toolDefinitions.length).toBe(62);
+      expect(toolDefinitions.length).toBe(65);
       expect(listResult.tools.map((t) => t.name)).toEqual(toolDefinitions.map((t) => t.name));
       for (const tool of listResult.tools) {
         expect(tool.inputSchema).toEqual(expect.objectContaining({ type: "object" }));

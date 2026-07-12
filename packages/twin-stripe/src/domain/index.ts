@@ -14,4 +14,11 @@ export { EventsDomain } from "./events.js";
 export type { ListEventsInput } from "./events.js";
 export { RefundsDomain } from "./refunds.js";
 export type { CreateRefundInput, ListRefundsInput } from "./refunds.js";
+export { CustomersDomain } from "./customers.js";
+export type { CustomerFieldsInput, ListCustomersInput } from "./customers.js";
+export { PaymentMethodsDomain } from "./payment-methods.js";
+export type {
+  CreatePaymentMethodInput,
+  ListCustomerPaymentMethodsInput,
+} from "./payment-methods.js";
 export { ensureStripeTables, resetStripeTables } from "./schema.js";

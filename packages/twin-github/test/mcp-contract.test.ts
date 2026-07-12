@@ -18,7 +18,7 @@ afterAll(() => {
 const base = `/s/${TEST_SID}`;
 
 describe("MCP tool contract", () => {
-  it("lists and executes all 62 GitHub twin tools", async () => {
+  it("lists and executes all 65 GitHub twin tools", async () => {
     const app = createGitHubCloneApp();
     expect(listTools().map((tool) => tool.name)).toEqual([
       "search_repositories",
@@ -83,7 +83,11 @@ describe("MCP tool contract", () => {
       "get_latest_release",
       "create_release",
       "get_me",
-      "add_collaborator"
+      "add_collaborator",
+      // M5 hot gaps (F-735)
+      "search_commits",
+      "get_release_by_tag",
+      "get_tag"
     ]);
 
     await call(app, "search_repositories", { query: "acme" });
@@ -163,6 +167,10 @@ describe("MCP tool contract", () => {
     await call(app, "list_tags", { owner: "acme", repo: "api" });
     await call(app, "list_releases", { owner: "acme", repo: "api" });
     await call(app, "get_latest_release", { owner: "acme", repo: "api" });
+    // M5 hot gaps (F-735)
+    await call(app, "search_commits", { query: "contract" });
+    await call(app, "get_release_by_tag", { owner: "acme", repo: "api", tag: "v1.0.0" });
+    await call(app, "get_tag", { owner: "acme", repo: "api", tag: "v1.0.0" });
     // Cluster H
     await call(app, "get_me", {});
     await call(app, "add_collaborator", { owner: "acme", repo: "api", username: "newbie", permission: "push" });

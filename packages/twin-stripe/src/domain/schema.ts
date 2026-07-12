@@ -29,7 +29,10 @@ CREATE TABLE IF NOT EXISTS payment_intents (
   created INTEGER NOT NULL,
   updated INTEGER NOT NULL,
   canceled_at INTEGER,
-  captured_at INTEGER
+  captured_at INTEGER,
+  payment_method_id TEXT,
+  customer_id TEXT,
+  last_payment_error_json TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_intents_created ON payment_intents(created);
@@ -48,6 +51,12 @@ CREATE TABLE IF NOT EXISTS charges (
   captured INTEGER NOT NULL DEFAULT 0,
   currency TEXT NOT NULL,
   created INTEGER NOT NULL,
+  payment_method_id TEXT,
+  payment_method_details_json TEXT,
+  failure_code TEXT,
+  failure_decline_code TEXT,
+  failure_message TEXT,
+  customer_id TEXT,
   FOREIGN KEY (payment_intent_id) REFERENCES payment_intents(id) ON DELETE CASCADE
 );
 
@@ -98,6 +107,7 @@ CREATE TABLE IF NOT EXISTS refunds (
   currency TEXT NOT NULL,
   status TEXT NOT NULL,
   reason TEXT,
+  balance_transaction_id TEXT,
   idempotency_key TEXT,
   created INTEGER NOT NULL,
   FOREIGN KEY (charge_id) REFERENCES charges(id) ON DELETE CASCADE
@@ -107,15 +117,54 @@ CREATE INDEX IF NOT EXISTS idx_refunds_charge ON refunds(charge_id);
 CREATE INDEX IF NOT EXISTS idx_refunds_payment_intent ON refunds(payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_refunds_created ON refunds(created);
 CREATE INDEX IF NOT EXISTS idx_refunds_account_id ON refunds(account_id);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  name TEXT,
+  email TEXT,
+  description TEXT,
+  phone TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  deleted INTEGER NOT NULL DEFAULT 0,
+  created INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_customers_created ON customers(created);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_account_id ON customers(account_id);
+
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  card_brand TEXT NOT NULL,
+  card_last4 TEXT NOT NULL,
+  card_exp_month INTEGER NOT NULL,
+  card_exp_year INTEGER NOT NULL,
+  card_fingerprint TEXT NOT NULL,
+  customer_id TEXT,
+  detached INTEGER NOT NULL DEFAULT 0,
+  created INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_methods_customer ON payment_methods(customer_id);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_created ON payment_methods(created);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_account_id ON payment_methods(account_id);
 `;
 
 // Delete order matters for foreign-key cascades: refunds → charges → PIs.
+// payment_methods reference customers by plain column (no FK), but clear
+// them before customers anyway so a mid-reset read never sees an attached
+// PM whose customer row is gone.
 const STRIPE_TABLES = [
   "refunds",
   "events",
   "balance_transactions",
   "charges",
   "payment_intents",
+  "payment_methods",
+  "customers",
 ];
 
 /**
@@ -127,6 +176,47 @@ export function ensureStripeTables(db: TwinStripeDatabase) {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(STRIPE_TABLES_SQL);
+  ensureMigratedColumns(db);
+}
+
+// Columns added after a table first shipped. CREATE IF NOT EXISTS never
+// alters an existing table, so a DB file minted earlier (STRIPE_CLONE_DB
+// pointing at an old snapshot) needs the columns added in place.
+// Idempotent; exported so db.ts's migrate() patches old files even without
+// a domain constructor. F-731 added the card-mode columns; F-733 links
+// refunds to their ledger entry.
+const MIGRATED_COLUMNS: Record<string, ReadonlyArray<[column: string, ddl: string]>> = {
+  payment_intents: [
+    ["payment_method_id", "payment_method_id TEXT"],
+    ["customer_id", "customer_id TEXT"],
+    ["last_payment_error_json", "last_payment_error_json TEXT"],
+  ],
+  charges: [
+    ["payment_method_id", "payment_method_id TEXT"],
+    ["payment_method_details_json", "payment_method_details_json TEXT"],
+    ["failure_code", "failure_code TEXT"],
+    ["failure_decline_code", "failure_decline_code TEXT"],
+    ["failure_message", "failure_message TEXT"],
+    ["customer_id", "customer_id TEXT"],
+  ],
+  refunds: [["balance_transaction_id", "balance_transaction_id TEXT"]],
+};
+
+export function ensureMigratedColumns(db: TwinStripeDatabase) {
+  for (const [table, columns] of Object.entries(MIGRATED_COLUMNS)) {
+    const existing = new Set(
+      (db.prepare(`SELECT name FROM pragma_table_info(?)`).all(table) as Array<{ name: string }>).map(
+        (row) => row.name
+      )
+    );
+    // A table this migration knows about but the DB doesn't have yet is
+    // created later (db.ts's chassis migrate() runs before the domain DDL);
+    // its CREATE TABLE already carries the column.
+    if (existing.size === 0) continue;
+    for (const [column, ddl] of columns) {
+      if (!existing.has(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl};`);
+    }
+  }
 }
 
 /** Drop-and-recreate Stripe-domain tables. Used by `/admin/reset`. */

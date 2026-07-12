@@ -1,0 +1,377 @@
+{
+  "twin": "slack",
+  "package": "@pome-sh/twin-slack",
+  "updated": "2026-07-12",
+  "notes": "Re-cut against packages/sdk/ENDPOINT-TIERS.md per the F-729 twin-slack ruling (SL1-SL5), implemented by F-736. Heat is ruled, fidelity is measured; both tables lint 1:1 against FIDELITY.md. The hot and warm sets are exhaustive (ruled-but-unimplemented warm gaps carry fidelity 'unsupported' plus a defer note); cold rows are named-only — the remaining upstream tail stays implicitly cold via the 501 catch-all. Warm surfaces above their shape target are mirrored in FIDELITY.md's tier-mismatch ledger (M5 additive-only ruling: no code demotions this milestone). Message drafts have no Web API analog to name a row for (PS, client-UI concept) — recorded here, not as a surface.",
+  "tools": [
+    {
+      "name": "slack_post_message",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read — the core agent messaging chain; MCP: vendor first-party server ships the message write."
+    },
+    {
+      "name": "slack_reply_to_thread",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read — threaded follow-up on the messaging chain; MCP: vendor thread read/write tools."
+    },
+    {
+      "name": "slack_add_reaction",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): MCP:add_reaction (vendor first-party tool); TC:post-and-read — ack/verify step on the messaging chain."
+    },
+    {
+      "name": "slack_get_channel_history",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read — the channel read agents poll after posting; MCP: vendor channel-read tool."
+    },
+    {
+      "name": "slack_get_thread_replies",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read — thread read on the messaging chain; MCP: vendor thread-read tool."
+    },
+    {
+      "name": "slack_list_channels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery — channel lookup precedes nearly every chain; MCP: vendor channel search/read tools."
+    },
+    {
+      "name": "slack_get_users",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery — user lookup precedes DMs, invites, and mentions; MCP: vendor user-search tool."
+    },
+    {
+      "name": "slack_get_user_profile",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP:read_user_profile (vendor first-party tool)."
+    },
+    {
+      "name": "slack_search_messages",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729, SL2): TC:discovery; MCP: vendor search suite (5 search tools). F-736 hot-gap fill — an MCP-only agent could not search before this tool; backed by the existing semantic search.messages domain."
+    },
+    {
+      "name": "slack_get_reactions",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729, SL2): MCP:get_reactions (vendor first-party tool); TC:post-and-read verify step. F-736 hot-gap fill backed by the existing semantic reactions.get domain."
+    },
+    {
+      "name": "slack_list_channel_members",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729, SL2): MCP:list_channel_members (vendor first-party tool); TC:discovery. F-736 hot-gap fill backed by the existing semantic conversations.members domain."
+    }
+  ],
+  "rest": [
+    {
+      "name": "auth.test",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:sdk-bootstrap — every @slack/web-api client calls it first."
+    },
+    {
+      "name": "chat.postMessage",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read — the core agent messaging chain; MCP: mirrored by the message-write tool."
+    },
+    {
+      "name": "chat.update",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729, SL1): TC:agents-edit-own-updates — agents editing their own progress/status messages is a real chain; no vendor MCP tool, task chain wins per the rubric."
+    },
+    {
+      "name": "chat.delete",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729, SL1): TC:agents-edit-own-updates — retract/replace step of the same chain; no vendor MCP tool, task chain wins per the rubric."
+    },
+    {
+      "name": "chat.scheduleMessage",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:schedule-then-adjust; MCP:schedule_message (vendor first-party tool)."
+    },
+    {
+      "name": "chat.deleteScheduledMessage",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:schedule-then-adjust — one chain with chat.scheduleMessage (schedule, then adjust)."
+    },
+    {
+      "name": "conversations.list",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP: vendor channel search/read tools."
+    },
+    {
+      "name": "conversations.info",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP: vendor channel-read tools."
+    },
+    {
+      "name": "conversations.create",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:channel-setup; MCP:create_conversation (covers channel/group-DM/IM)."
+    },
+    {
+      "name": "conversations.history",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read; MCP: vendor channel-read tool."
+    },
+    {
+      "name": "conversations.replies",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:post-and-read; MCP: vendor thread-read tool."
+    },
+    {
+      "name": "conversations.invite",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:channel-setup; MCP:create_conversation covers membership setup."
+    },
+    {
+      "name": "conversations.join",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:channel-setup — the agent joins before posting."
+    },
+    {
+      "name": "conversations.leave",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: rare cleanup chain; no vendor MCP tool. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "conversations.kick",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: rare moderation chain; no vendor MCP tool. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "conversations.archive",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: rare cleanup chain; no vendor MCP tool. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "conversations.members",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP:list_channel_members (vendor first-party tool)."
+    },
+    {
+      "name": "conversations.open",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:channel-setup — DM open precedes direct-message chains; MCP:create_conversation covers IM/group-DM."
+    },
+    {
+      "name": "reactions.add",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): MCP:add_reaction (vendor first-party tool); TC:post-and-read ack step."
+    },
+    {
+      "name": "reactions.remove",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: undo chain, rare; no vendor MCP tool. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "reactions.get",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): MCP:get_reactions (vendor first-party tool); TC:post-and-read verify step."
+    },
+    {
+      "name": "users.list",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP: vendor user-search tool."
+    },
+    {
+      "name": "users.info",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP: vendor profile-read tool."
+    },
+    {
+      "name": "users.lookupByEmail",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery — email is the id agents usually start from."
+    },
+    {
+      "name": "users.profile.get",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP:read_user_profile (vendor first-party tool)."
+    },
+    {
+      "name": "users.profile.set",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC:set-own-status is plausible but no vendor MCP write exists. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "pins.add",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: occasional chain; MCP: conspicuously absent from the vendor's first-party server. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "pins.remove",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: occasional chain; MCP: absent from the vendor's first-party server. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "pins.list",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: occasional chain; MCP: absent from the vendor's first-party server. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "search.messages",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "Ruled hot (F-729): TC:discovery; MCP: vendor search suite (5 search tools)."
+    },
+    {
+      "name": "files.upload",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL5): metadata-only legacy v1 upload (divergence #7), no binary storage — fidelity shape, at target; MCP: vendor ships only the read side (read_file)."
+    },
+    {
+      "name": "files.info",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL5): metadata-only, no binary storage — fidelity shape, at target; MCP:read_file (vendor first-party tool)."
+    },
+    {
+      "name": "files.list",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL5): TC: occasional file-context read; metadata-only, no binary storage — fidelity shape, at target."
+    },
+    {
+      "name": "files.delete",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL5): TC: rare cleanup step on the file chain; metadata-only, no binary storage — fidelity shape, at target."
+    },
+    {
+      "name": "bookmarks.add",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: occasional chain; MCP: absent from the vendor's first-party server. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "bookmarks.remove",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: occasional chain; MCP: absent from the vendor's first-party server. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "bookmarks.list",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: occasional chain; MCP: absent from the vendor's first-party server. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "team.info",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729): TC: context read adjacent to hot chains; no vendor MCP tool. Fidelity semantic > shape target → tier-mismatch ledger (M5 additive-only)."
+    },
+    {
+      "name": "canvases.create",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "Ruled warm (F-729, SL3): MCP: vendor first-party server ships 3 canvas tools; growing agent chain. Gap (unsupported < shape target) deferred — F-736 fills hot gaps only; strongest post-M5 promotion candidate."
+    },
+    {
+      "name": "canvases.edit",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "Ruled warm (F-729, SL3): MCP: vendor first-party server ships 3 canvas tools. Gap (unsupported < shape target) deferred — F-736 fills hot gaps only; strongest post-M5 promotion candidate."
+    },
+    {
+      "name": "canvases.delete",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "Ruled warm (F-729, SL3): MCP: vendor canvas toolset implies lifecycle cleanup. Gap (unsupported < shape target) deferred — F-736 fills hot gaps only."
+    },
+    {
+      "name": "conversations.setTopic",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "Ruled warm (F-729, SL4): TC:set-channel-topic — a classic agent task; no vendor MCP tool. Gap (unsupported < shape target) deferred post-M5."
+    },
+    {
+      "name": "conversations.setPurpose",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "Ruled warm (F-729, SL4): TC:set-channel-topic sibling; no vendor MCP tool. Gap (unsupported < shape target) deferred post-M5."
+    },
+    {
+      "name": "emoji.list",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "Ruled warm (F-729, SL4): MCP:search_emojis (vendor first-party tool); trivial read. Gap (unsupported < shape target) deferred post-M5."
+    },
+    {
+      "name": "chat.postEphemeral",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "Ruled cold (F-729): PS — the twin has no per-viewer visibility model. Loud 501 envelope test-backed (app.test.ts)."
+    },
+    {
+      "name": "files.getUploadURLExternal",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "Ruled cold (F-729): PS — the twin serves the legacy v1 upload (divergence #7); promotion candidate when v1 sunsets. Loud 501 envelope test-backed (app.test.ts)."
+    },
+    {
+      "name": "files.completeUploadExternal",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "Ruled cold (F-729): PS — second half of the modern upload flow the twin does not model (divergence #7). Loud 501 envelope test-backed (app.test.ts)."
+    },
+    {
+      "name": "admin.*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "Ruled cold (F-729): PS — no admin scopes modeled (divergence #6); vendor first-party server ships no admin tools. Representative loud-501 probes test-backed (app.test.ts, fidelity-parity)."
+    },
+    {
+      "name": "usergroups.*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "Ruled cold (F-729): PS — outside the single-workspace twin scope; vendor first-party server ships no usergroup tools. Representative loud-501 probe test-backed (app.test.ts)."
+    },
+    {
+      "name": "views.*",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "Ruled cold (F-729): PS — client-UI modal surface, not on an autonomous agent chain. Representative loud-501 probe test-backed (app.test.ts)."
+    }
+  ],
+  "doc_drift": []
+}

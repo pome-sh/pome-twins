@@ -25,6 +25,9 @@ export type Charge = Stripe.Charge;
 export type Refund = Stripe.Refund;
 export type BalanceTransaction = Stripe.BalanceTransaction;
 export type Balance = Stripe.Balance;
+export type Customer = Stripe.Customer;
+export type DeletedCustomer = Stripe.DeletedCustomer;
+export type PaymentMethod = Stripe.PaymentMethod;
 
 // Stripe's paginated list envelope (object: "list", data, has_more, url). Generic
 // over the element type so the twin's `serializedList<T>` anchors against it.

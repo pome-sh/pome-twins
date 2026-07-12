@@ -8,7 +8,8 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" }
+    "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" },
+    "./parity": { "types": "./dist/parity.d.ts", "default": "./dist/parity.js" }
   },
   "publishConfig": { "access": "public" },
   "repository": {

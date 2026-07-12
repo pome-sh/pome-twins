@@ -370,6 +370,22 @@ export const toolDefinitions = [
     name: "add_collaborator",
     description: "Add a collaborator to a repository. Returns 201 + invitation envelope for new users, 204 when already a collaborator.",
     schema: z.object({ ...ownerRepo, username: z.string().min(1), permission: z.enum(["pull", "push", "admin", "maintain", "triage"]).optional() })
+  },
+  // M5 hot gaps (F-735)
+  {
+    name: "search_commits",
+    description: "Search commits on repository default branches by message or author.",
+    schema: z.object({ query: z.string().optional(), q: z.string().optional(), owner: z.string().optional(), repo: z.string().optional(), ...pageShape })
+  },
+  {
+    name: "get_release_by_tag",
+    description: "Get a release by its tag name.",
+    schema: z.object({ ...ownerRepo, tag: z.string().min(1) })
+  },
+  {
+    name: "get_tag",
+    description: "Get a tag by name, including the commit it points at.",
+    schema: z.object({ ...ownerRepo, tag: z.string().min(1) })
   }
 ] as const;
 
@@ -599,5 +615,12 @@ export function executeTool(
         throw new TwinError("Must have push access to the repository to add collaborators.", 403);
       }
       return domain.addCollaboratorAction({ ...parsed, actor: options.actor }, onDelta);
+    // M5 hot gaps (F-735)
+    case "search_commits":
+      return domain.searchCommits(parsed);
+    case "get_release_by_tag":
+      return domain.getReleaseByTag(parsed);
+    case "get_tag":
+      return domain.getTag(parsed);
   }
 }

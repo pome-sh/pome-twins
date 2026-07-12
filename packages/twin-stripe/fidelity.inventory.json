@@ -1,0 +1,323 @@
+{
+  "twin": "stripe",
+  "package": "@pome-sh/twin-stripe",
+  "updated": "2026-07-12",
+  "notes": "Both tables lint 1:1 against FIDELITY.md; FIDELITY_MATRIX.md stays a legacy pinned matrix. The payment-collection chain (F-731: PI lifecycle incl. card decline/retry + settlement/ledger/event reads), the customer-management chain (F-732), and the refunds chain (F-733 reconciliation: ledger + events closed, docs synced) carry their ruled heat (hot, F-729); the warm set lands with F-734. Disputes are unlisted cold per the F-729 ruled list (catch-all 501), not warm — see the F-733 [DECISION].",
+  "tools": [
+    {
+      "name": "create_payment_intent",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): both rails — x402 crypto deposit and card (F-731), incl. one-shot create+confirm."
+    },
+    {
+      "name": "retrieve_payment_intent",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): the post-attempt read agents poll for status and last_payment_error."
+    },
+    {
+      "name": "list_payment_intents",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729); cursor pagination on (created, id)."
+    },
+    {
+      "name": "confirm_payment_intent",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): card confirms attempt the charge synchronously with magic-PM declines (F-731); crypto confirm stays the documented idempotent no-op."
+    },
+    {
+      "name": "update_payment_intent",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment(card) (ruled F-729, ruling point 1): the retry-with-new-PM step after a decline (F-731)."
+    },
+    {
+      "name": "cancel_payment_intent",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): abandon step; CAS-guarded, refused once succeeded."
+    },
+    {
+      "name": "simulate_crypto_deposit",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729); SB: the sealed twin's x402 settlement entry point."
+    },
+    {
+      "name": "retrieve_charge",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:settlement-verify (ruled F-729): agents read the minted (or failed, F-731) charge to verify the attempt."
+    },
+    {
+      "name": "list_charges",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:settlement-verify (ruled F-729); payment_intent / customer / created filters."
+    },
+    {
+      "name": "retrieve_balance",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:ledger-check (ruled F-729): available/pending reflect settled PIs."
+    },
+    {
+      "name": "list_balance_transactions",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:ledger-check (ruled F-729): the ledger entries minted by settles and refunds."
+    },
+    {
+      "name": "retrieve_event",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:poll-confirm (ruled F-729): no webhook delivery in v1, agents poll events."
+    },
+    {
+      "name": "list_events",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:poll-confirm (ruled F-729): the polling read; type + created filters."
+    },
+    {
+      "name": "create_refund",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:refund (ruled F-729); MCP:create_refund — the only resource keeping a dedicated tool on Stripe's official MCP server. F-733: mints the negative refund-type ledger entry and emits charge.refunded + refund.created in one transaction."
+    },
+    {
+      "name": "retrieve_refund",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:refund (ruled F-729): the post-refund verify read."
+    },
+    {
+      "name": "list_refunds",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:refund (ruled F-729); charge + payment_intent filters."
+    },
+    {
+      "name": "create_customer",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729): customer management is the precondition of nearly every collection chain. Vendor MCP has meta-tools only; task chain wins per rubric."
+    },
+    {
+      "name": "retrieve_customer",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729)."
+    },
+    {
+      "name": "update_customer",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); Stripe per-key metadata merge modeled semantically."
+    },
+    {
+      "name": "delete_customer",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); soft delete serves the {deleted: true} stub and detaches PMs like real Stripe."
+    },
+    {
+      "name": "list_customers",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); cursor pagination + email filter."
+    },
+    {
+      "name": "list_customer_payment_methods",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729): the customer-scoped PM list is the hot read; the top-level PM list stays cold."
+    },
+    {
+      "name": "create_payment_method",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729): card PMs from test card numbers; PAN never stored. Magic decline PMs drive the F-731 card retry chain."
+    },
+    {
+      "name": "retrieve_payment_method",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729)."
+    },
+    {
+      "name": "attach_payment_method",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729): one customer per PM; a detached PM can never be reattached (Stripe lifecycle rule)."
+    },
+    {
+      "name": "detach_payment_method",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729)."
+    }
+  ],
+  "rest": [
+    {
+      "name": "POST /s/:sid/v1/payment_intents",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): both rails — x402 crypto deposit and card (F-731), incl. one-shot create+confirm."
+    },
+    {
+      "name": "GET /s/:sid/v1/payment_intents/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): the post-attempt read agents poll for status and last_payment_error."
+    },
+    {
+      "name": "GET /s/:sid/v1/payment_intents",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729); cursor pagination on (created, id)."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_intents/:id/confirm",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): card confirms attempt the charge synchronously with magic-PM declines (F-731); crypto confirm stays the documented idempotent no-op."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_intents/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment(card) (ruled F-729, ruling point 1): update — the retry-with-new-PM step after a decline (F-731)."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_intents/:id/cancel",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729): abandon step; CAS-guarded, refused once succeeded."
+    },
+    {
+      "name": "POST /s/:sid/v1/test_helpers/payment_intents/:id/simulate_crypto_deposit",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:collect-payment (ruled F-729); SB: the sealed twin's x402 settlement entry point."
+    },
+    {
+      "name": "GET /s/:sid/v1/charges/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:settlement-verify (ruled F-729): agents read the minted (or failed, F-731) charge to verify the attempt."
+    },
+    {
+      "name": "GET /s/:sid/v1/charges",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:settlement-verify (ruled F-729); payment_intent / customer / created filters."
+    },
+    {
+      "name": "GET /s/:sid/v1/balance",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:ledger-check (ruled F-729): available/pending reflect settled PIs."
+    },
+    {
+      "name": "GET /s/:sid/v1/balance_transactions",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:ledger-check (ruled F-729): the ledger entries minted by settles and refunds."
+    },
+    {
+      "name": "GET /s/:sid/v1/events/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:poll-confirm (ruled F-729): no webhook delivery in v1, agents poll events."
+    },
+    {
+      "name": "GET /s/:sid/v1/events",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:poll-confirm (ruled F-729): the polling read; type + created filters."
+    },
+    {
+      "name": "POST /s/:sid/v1/refunds",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:refund (ruled F-729); MCP:create_refund corroborates. F-733: full/partial refunds, over-refund + failed-charge refusals, negative refund-type ledger entry, charge.refunded + refund.created events — all in one transaction. Refund partial ops (POST /v1/refunds/:id, /cancel) stay unlisted per F-729 ruling point 4."
+    },
+    {
+      "name": "GET /s/:sid/v1/refunds/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:refund (ruled F-729): the post-refund verify read."
+    },
+    {
+      "name": "GET /s/:sid/v1/refunds",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:refund (ruled F-729); charge + payment_intent filters. Omits the legacy count field (FIDELITY.md divergence #9)."
+    },
+    {
+      "name": "POST /s/:sid/v1/customers",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729): customer management is the precondition of nearly every collection chain."
+    },
+    {
+      "name": "GET /s/:sid/v1/customers/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); deleted customers serve the {deleted: true} stub like real Stripe."
+    },
+    {
+      "name": "GET /s/:sid/v1/customers",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); cursor pagination + email filter, deleted rows excluded."
+    },
+    {
+      "name": "POST /s/:sid/v1/customers/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); Stripe per-key metadata merge (empty value unsets)."
+    },
+    {
+      "name": "DELETE /s/:sid/v1/customers/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:customer-mgmt (ruled F-729); soft delete detaches the customer's PMs in the same transaction."
+    },
+    {
+      "name": "GET /s/:sid/v1/customers/:id/payment_methods",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729): the customer-scoped PM list is the hot read; the top-level GET /v1/payment_methods stays cold (loud 501)."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_methods",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729): card PMs from test card numbers (Luhn + expiry card_errors); PAN never stored. Magic decline PMs drive the F-731 card retry chain."
+    },
+    {
+      "name": "GET /s/:sid/v1/payment_methods/:id",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729)."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_methods/:id/attach",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729): one customer per PM; a detached PM can never be reattached."
+    },
+    {
+      "name": "POST /s/:sid/v1/payment_methods/:id/detach",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "TC:card-on-file (ruled F-729)."
+    }
+  ],
+  "doc_drift": []
+}

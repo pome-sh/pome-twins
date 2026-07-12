@@ -244,7 +244,7 @@ describe("GitHubDomain edge cases", () => {
     expect(() => domain.mergePullRequest({ owner: "acme", repo: "api", pull_number: pr.number })).toThrow("Pull request is closed");
   });
 
-  it("pins updatePullRequestBranch as a documented shape-tier branch pointer update", () => {
+  it("pins updatePullRequestBranch as a semantic merge of base into head (F-735)", () => {
     const domain = new GitHubDomain(openGitHubCloneDatabase());
     domain.seed();
 
@@ -256,6 +256,13 @@ describe("GitHubDomain edge cases", () => {
       message: "Update branch fixture",
       files: [{ path: "update-branch.txt", content: "head-only\n" }]
     });
+    domain.pushFiles({
+      owner: "acme",
+      repo: "api",
+      branch: "main",
+      message: "Base drift",
+      files: [{ path: "base-drift.txt", content: "drift\n" }]
+    });
     const pr = domain.createPullRequest({ owner: "acme", repo: "api", title: "Update branch fixture", head: "feature/update-branch", base: "main" });
     expect(pr.head.sha).toEqual(expect.any(String));
 
@@ -264,7 +271,10 @@ describe("GitHubDomain edge cases", () => {
     });
     const updated = domain.getPullRequest({ owner: "acme", repo: "api", pull_number: pr.number });
 
-    expect(updated.head.sha).toBe(updated.base.sha);
+    // Head gains a merge commit: it advances past the old head instead of being
+    // reset to the base pointer, and the PR diff keeps the PR's own change.
+    expect(updated.head.sha).not.toBe(pr.head.sha);
+    expect(updated.head.sha).not.toBe(updated.base.sha);
     expect(domain.getPullRequestFiles({ owner: "acme", repo: "api", pull_number: pr.number }).map((file) => file.filename)).toContain("update-branch.txt");
   });
 

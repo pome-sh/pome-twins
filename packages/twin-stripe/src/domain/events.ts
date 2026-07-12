@@ -17,9 +17,17 @@ export type EventType =
   | "payment_intent.requires_action"
   | "payment_intent.processing"
   | "payment_intent.succeeded"
+  | "payment_intent.payment_failed"
   | "payment_intent.canceled"
   | "charge.succeeded"
-  | "charge.refunded";
+  | "charge.failed"
+  | "charge.refunded"
+  | "refund.created"
+  | "customer.created"
+  | "customer.updated"
+  | "customer.deleted"
+  | "payment_method.attached"
+  | "payment_method.detached";
 
 export type CreateEventInput = {
   type: EventType;

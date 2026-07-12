@@ -6,7 +6,7 @@
 // `@modelcontextprotocol/sdk` `Client` over `StreamableHTTPClientTransport`
 // with a Bearer header, and:
 //
-//   1. Verifies tools/list returns the 8 visible Slack-agent tools via
+//   1. Verifies tools/list returns the 11 visible Slack-agent tools via
 //      real JSON-RPC framing.
 //   2. Calls slack_list_channels and slack_post_message end-to-end.
 //   3. Calls the same tools via the legacy `/mcp/call` REST shim and diffs

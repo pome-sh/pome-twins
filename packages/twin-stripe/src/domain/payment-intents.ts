@@ -1,11 +1,12 @@
+// file-size: the PI state machine intentionally keeps both rails (x402 crypto + F-731 card) on one CAS core, plus the listPaginated helper every sibling domain imports.
 // SPDX-License-Identifier: Apache-2.0
 //
 // PaymentIntent state machine + CAS, owned by AGENT-B.
-// v1 scope: x402 crypto-deposit PIs only.
+// Two rails: x402 crypto-deposit PIs (v1) and card PIs (F-731).
 //
-// State machine (v1, crypto-deposit only):
+// Crypto rail (x402):
 //
-//      create (with payment_method_types: ["crypto"])
+//      create (payment_method_types: ["crypto"])
 //         │
 //         ▼
 //   requires_action  ◀──── confirm (idempotent no-op for crypto)
@@ -19,11 +20,25 @@
 //         ▼  (simulate_crypto_deposit, leg 2 — synchronous)
 //      succeeded                  ← terminal
 //
+// Card rail (F-731):
+//
+//      create (payment_method_types: ["card"])
+//         │ no payment_method            │ payment_method
+//         ▼                              ▼
+//   requires_payment_method  ──update──▶ requires_confirmation
+//         ▲                              │ confirm (leg 1 CAS → processing)
+//         │ decline (magic test PM;      ▼
+//         │  failed charge +          processing
+//         │  last_payment_error)         │ leg 2 (synchronous outcome)
+//         └──────────────────────────────┤
+//                                        ▼
+//                                    succeeded                ← terminal
+//
 // All status transitions go through `casStatus()`, a SQL UPDATE with a
 // `WHERE status = ?` predicate. Zero rows updated ⇒ another writer beat us
-// ⇒ 409 with `payment_intent_unexpected_state`. This is the
+// ⇒ 400 with `payment_intent_unexpected_state`. This is the
 // "exactly one of N parallel confirms wins" guarantee that the
-// concurrency test depends on.
+// concurrency tests depend on.
 
 import { createHash } from "node:crypto";
 import type { TwinStripeDatabase, PIRow, PIStatus } from "../types.js";
@@ -51,10 +66,20 @@ export type CreatePIInput = {
   currency: string;
   payment_method_types: ReadonlyArray<string>;
   payment_method_options?: { crypto?: PaymentMethodOptionsCrypto };
+  payment_method?: string;
+  customer?: string;
+  confirm?: boolean;
   metadata?: Record<string, string>;
   capture_method?: string;
   confirmation_method?: string;
   idempotency_key?: string | null;
+};
+
+export type UpdatePIInput = {
+  amount?: number;
+  metadata?: Record<string, string | null>;
+  payment_method?: string;
+  customer?: string;
 };
 
 export type ListPIsInput = {
@@ -79,7 +104,17 @@ export class PaymentIntentsDomain {
 
   // ---------- create ----------
 
-  create(accountId: string, input: CreatePIInput): PIRow {
+  /**
+   * Insert a fresh PI. The caller (StripeDomain) has already resolved and
+   * cross-validated `payment_method` / `customer` for the card rail —
+   * `resolved` carries the validated ids so this module stays free of the
+   * sibling domains.
+   */
+  create(
+    accountId: string,
+    input: CreatePIInput,
+    resolved: { paymentMethodId: string | null; customerId: string | null }
+  ): PIRow {
     if (!Number.isInteger(input.amount) || input.amount <= 0) {
       throw new TwinError(
         "invalid_request_error",
@@ -106,31 +141,13 @@ export class PaymentIntentsDomain {
       );
     }
     const pmTypes = input.payment_method_types ?? [];
-    if (!Array.isArray(pmTypes) || pmTypes.length !== 1 || pmTypes[0] !== "crypto") {
+    const pmType = pmTypes.length === 1 ? pmTypes[0] : undefined;
+    if (pmType !== "crypto" && pmType !== "card") {
       throw new TwinError(
         "invalid_request_error",
         "parameter_invalid_string",
-        "payment_method_types must be exactly [\"crypto\"] for v1 of this twin.",
+        "payment_method_types must be exactly [\"crypto\"] or [\"card\"] for this twin.",
         { param: "payment_method_types", statusCode: 400 }
-      );
-    }
-    const cryptoOpts = input.payment_method_options?.crypto;
-    if (!cryptoOpts || cryptoOpts.mode !== "deposit") {
-      throw new TwinError(
-        "invalid_request_error",
-        "parameter_invalid_string",
-        "payment_method_options.crypto.mode must be \"deposit\" for v1 of this twin.",
-        { param: "payment_method_options[crypto][mode]", statusCode: 400 }
-      );
-    }
-    const networks = cryptoOpts.deposit_options?.networks ?? [];
-    const network = networks[0];
-    if (!network || !SUPPORTED_NETWORKS.includes(network as (typeof SUPPORTED_NETWORKS)[number])) {
-      throw new TwinError(
-        "invalid_request_error",
-        "parameter_invalid_string",
-        `payment_method_options.crypto.deposit_options.networks must include one of: ${SUPPORTED_NETWORKS.join(", ")}.`,
-        { param: "payment_method_options[crypto][deposit_options][networks]", statusCode: 400 }
       );
     }
 
@@ -138,27 +155,74 @@ export class PaymentIntentsDomain {
     const clientSecret = newClientSecret(id);
     const now = nowUnix();
 
-    // Deterministic 0x deposit address derived from the PI ID. 40 hex chars.
-    const address = depositAddressFromId(id);
+    let status: PIStatus;
+    let nextActionJson: string | null = null;
+    let cryptoDepositJson: string | null = null;
 
-    const cryptoDeposit = {
-      deposit_addresses: {
-        [network]: {
-          address,
-          supported_tokens: [
-            {
-              token_currency: "usdc",
-              token_contract_address: BASE_USDC_CONTRACT_ADDRESS,
-            },
-          ],
+    if (pmType === "crypto") {
+      // Mirror image of the card rail's crypto-options rejection: the
+      // card-only params fail loudly instead of being silently dropped.
+      if (input.payment_method || input.customer || input.confirm) {
+        throw new TwinError(
+          "invalid_request_error",
+          "parameter_invalid_string",
+          "payment_method, customer, and confirm are only valid with payment_method_types [\"card\"].",
+          { param: "payment_method", statusCode: 400 }
+        );
+      }
+      const cryptoOpts = input.payment_method_options?.crypto;
+      if (!cryptoOpts || cryptoOpts.mode !== "deposit") {
+        throw new TwinError(
+          "invalid_request_error",
+          "parameter_invalid_string",
+          "payment_method_options.crypto.mode must be \"deposit\" for crypto PaymentIntents.",
+          { param: "payment_method_options[crypto][mode]", statusCode: 400 }
+        );
+      }
+      const networks = cryptoOpts.deposit_options?.networks ?? [];
+      const network = networks[0];
+      if (!network || !SUPPORTED_NETWORKS.includes(network as (typeof SUPPORTED_NETWORKS)[number])) {
+        throw new TwinError(
+          "invalid_request_error",
+          "parameter_invalid_string",
+          `payment_method_options.crypto.deposit_options.networks must include one of: ${SUPPORTED_NETWORKS.join(", ")}.`,
+          { param: "payment_method_options[crypto][deposit_options][networks]", statusCode: 400 }
+        );
+      }
+
+      // Deterministic 0x deposit address derived from the PI ID. 40 hex chars.
+      const address = depositAddressFromId(id);
+      const cryptoDeposit = {
+        deposit_addresses: {
+          [network]: {
+            address,
+            supported_tokens: [
+              {
+                token_currency: "usdc",
+                token_contract_address: BASE_USDC_CONTRACT_ADDRESS,
+              },
+            ],
+          },
         },
-      },
-    };
-
-    const nextAction = {
-      type: "display_crypto_deposit_information",
-      crypto_display_details: cryptoDeposit,
-    };
+      };
+      status = "requires_action";
+      nextActionJson = JSON.stringify({
+        type: "display_crypto_deposit_information",
+        crypto_display_details: cryptoDeposit,
+      });
+      cryptoDepositJson = JSON.stringify(cryptoDeposit);
+    } else {
+      // Card rail: the crypto deposit options are the x402 rail only.
+      if (input.payment_method_options?.crypto) {
+        throw new TwinError(
+          "invalid_request_error",
+          "parameter_invalid_string",
+          "payment_method_options.crypto is only valid with payment_method_types [\"crypto\"].",
+          { param: "payment_method_options[crypto]", statusCode: 400 }
+        );
+      }
+      status = resolved.paymentMethodId ? "requires_confirmation" : "requires_payment_method";
+    }
 
     this.db
       .prepare(
@@ -167,24 +231,28 @@ export class PaymentIntentsDomain {
           payment_method_types_json, next_action_json,
           latest_charge_id, capture_method, confirmation_method,
           idempotency_key, metadata_json, crypto_deposit_json,
-          client_secret, created, updated, canceled_at, captured_at
-        ) VALUES (?, ?, ?, ?, 'requires_action', ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
+          client_secret, created, updated, canceled_at, captured_at,
+          payment_method_id, customer_id, last_payment_error_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, NULL)`
       )
       .run(
         id,
         accountId,
         input.amount,
         currency,
+        status,
         JSON.stringify(pmTypes),
-        JSON.stringify(nextAction),
+        nextActionJson,
         input.capture_method ?? DEFAULT_CAPTURE_METHOD,
         input.confirmation_method ?? DEFAULT_CONFIRMATION_METHOD,
         input.idempotency_key ?? null,
         JSON.stringify(input.metadata ?? {}),
-        JSON.stringify(cryptoDeposit),
+        cryptoDepositJson,
         clientSecret,
         now,
-        now
+        now,
+        resolved.paymentMethodId,
+        resolved.customerId
       );
 
     return this.requireById(accountId, id);
@@ -203,6 +271,144 @@ export class PaymentIntentsDomain {
       throw piUnexpectedState(pi.status);
     }
     return pi;
+  }
+
+  /**
+   * Card confirm leg 1: CAS the observed pre-confirm status
+   * (`requires_confirmation` or `requires_payment_method`) → `processing`,
+   * stamping the PM being attempted. Exactly one of N parallel confirms
+   * wins this CAS; losers see `payment_intent_unexpected_state`.
+   */
+  confirmCardLeg1(
+    accountId: string,
+    id: string,
+    expected: PIStatus,
+    paymentMethodId: string
+  ): PIRow {
+    return this.casStatusOrThrow(accountId, id, expected, "processing", {
+      payment_method_id: paymentMethodId,
+    });
+  }
+
+  /** Card confirm leg 2, success: processing → succeeded with the charge. */
+  finalizeCardSuccess(accountId: string, id: string, latestChargeId: string): PIRow {
+    return this.casStatusOrThrow(accountId, id, "processing", "succeeded", {
+      latest_charge_id: latestChargeId,
+      captured_at: nowUnix(),
+      last_payment_error_json: null,
+    });
+  }
+
+  /**
+   * Card confirm leg 2, decline: processing → requires_payment_method with
+   * the failed charge and `last_payment_error` on the record. The declined
+   * PM is dropped from the PI, like real Stripe.
+   */
+  finalizeCardDecline(
+    accountId: string,
+    id: string,
+    failedChargeId: string,
+    lastPaymentErrorJson: string
+  ): PIRow {
+    return this.casStatusOrThrow(accountId, id, "processing", "requires_payment_method", {
+      latest_charge_id: failedChargeId,
+      payment_method_id: null,
+      last_payment_error_json: lastPaymentErrorJson,
+    });
+  }
+
+  // ---------- update (POST /v1/payment_intents/:id, F-731) ----------
+
+  /**
+   * Update a non-terminal PI. Metadata merges per-key (empty/null unsets,
+   * Stripe's metadata contract). `payment_method` / `customer` are only
+   * valid on the card rail and have been resolved by the caller;
+   * attaching a PM moves requires_payment_method → requires_confirmation.
+   * The UPDATE is guarded on the observed status so a racing confirm wins.
+   */
+  update(
+    accountId: string,
+    id: string,
+    input: UpdatePIInput,
+    resolved: { paymentMethodId?: string | null; customerId?: string | null } = {}
+  ): PIRow {
+    const pi = this.requireById(accountId, id);
+    const updatable: ReadonlySet<PIStatus> = new Set([
+      "requires_payment_method",
+      "requires_confirmation",
+      "requires_action",
+    ]);
+    if (!updatable.has(pi.status)) {
+      throw piUnexpectedState(pi.status);
+    }
+    const isCard = piTypes(pi).includes("card");
+    // Crypto PIs accept metadata-only updates: the x402 challenge (amount,
+    // deposit address) is minted at create time and must stay consistent
+    // with the middleware's cached challenge.
+    if (
+      !isCard &&
+      (input.amount !== undefined ||
+        input.payment_method !== undefined ||
+        input.customer !== undefined)
+    ) {
+      throw new TwinError(
+        "invalid_request_error",
+        "parameter_invalid_string",
+        "Only metadata can be updated on crypto PaymentIntents.",
+        { param: "payment_method", statusCode: 400 }
+      );
+    }
+    if (input.amount !== undefined && (!Number.isInteger(input.amount) || input.amount <= 0)) {
+      throw new TwinError(
+        "invalid_request_error",
+        "parameter_invalid_integer",
+        "Amount must be a positive integer.",
+        { param: "amount", statusCode: 400 }
+      );
+    }
+
+    const metadata = JSON.parse(pi.metadata_json) as Record<string, string>;
+    for (const [key, value] of Object.entries(input.metadata ?? {})) {
+      if (value === null || value === "") delete metadata[key];
+      else metadata[key] = value;
+    }
+
+    const nextPaymentMethodId =
+      input.payment_method !== undefined ? (resolved.paymentMethodId ?? null) : pi.payment_method_id;
+    const nextCustomerId =
+      input.customer !== undefined ? (resolved.customerId ?? null) : pi.customer_id;
+    let nextStatus = pi.status;
+    if (isCard) {
+      if (nextPaymentMethodId && pi.status === "requires_payment_method") {
+        nextStatus = "requires_confirmation";
+      } else if (!nextPaymentMethodId && pi.status === "requires_confirmation") {
+        nextStatus = "requires_payment_method";
+      }
+    }
+
+    const updated = this.db
+      .prepare(
+        `UPDATE payment_intents SET
+           amount = ?, metadata_json = ?, payment_method_id = ?, customer_id = ?,
+           status = ?, updated = ?
+         WHERE id = ? AND account_id = ? AND status = ? RETURNING *`
+      )
+      .get(
+        input.amount ?? pi.amount,
+        JSON.stringify(metadata),
+        nextPaymentMethodId,
+        nextCustomerId,
+        nextStatus,
+        nowUnix(),
+        id,
+        accountId,
+        pi.status
+      ) as PIRow | undefined;
+    if (!updated) {
+      const fresh = this.requireById(accountId, id);
+      throw piUnexpectedState(fresh.status);
+    }
+    return updated;
   }
 
   // ---------- cancel ----------
@@ -243,26 +449,15 @@ export class PaymentIntentsDomain {
     if (pi.status !== "requires_action") {
       throw piUnexpectedState(pi.status);
     }
-    const updated = this.casStatus(accountId, id, "requires_action", "processing");
-    if (!updated) {
-      // Lost the race. Read fresh state for the error message.
-      const fresh = this.requireById(accountId, id);
-      throw piUnexpectedState(fresh.status);
-    }
-    return updated;
+    return this.casStatusOrThrow(accountId, id, "requires_action", "processing");
   }
 
   /** Second CAS leg: processing → succeeded. */
   simulateCryptoDepositLeg2(accountId: string, id: string, latestChargeId: string): PIRow {
-    const updated = this.casStatus(accountId, id, "processing", "succeeded", {
+    return this.casStatusOrThrow(accountId, id, "processing", "succeeded", {
       latest_charge_id: latestChargeId,
       captured_at: nowUnix(),
     });
-    if (!updated) {
-      const fresh = this.requireById(accountId, id);
-      throw piUnexpectedState(fresh.status);
-    }
-    return updated;
   }
 
   // ---------- read ----------
@@ -295,6 +490,26 @@ export class PaymentIntentsDomain {
   // ---------- internals ----------
 
   /**
+   * casStatus + the shared lost-the-race contract: re-read the fresh row
+   * so the loser's `payment_intent_unexpected_state` names the status that
+   * actually beat it. Every CAS leg on both rails goes through here.
+   */
+  private casStatusOrThrow(
+    accountId: string,
+    id: string,
+    expected: PIStatus,
+    next: PIStatus,
+    extras: Partial<PIRow> = {}
+  ): PIRow {
+    const updated = this.casStatus(accountId, id, expected, next, extras);
+    if (!updated) {
+      const fresh = this.requireById(accountId, id);
+      throw piUnexpectedState(fresh.status);
+    }
+    return updated;
+  }
+
+  /**
    * Compare-and-swap on `status`. Returns the new row, or `null` if no row
    * matched the predicate. The predicate is `(id = ? AND account_id = ? AND status = ?)`.
    */
@@ -319,6 +534,14 @@ export class PaymentIntentsDomain {
       sets.push("captured_at = ?");
       values.push(extras.captured_at ?? null);
     }
+    if ("payment_method_id" in extras) {
+      sets.push("payment_method_id = ?");
+      values.push(extras.payment_method_id ?? null);
+    }
+    if ("last_payment_error_json" in extras) {
+      sets.push("last_payment_error_json = ?");
+      values.push(extras.last_payment_error_json ?? null);
+    }
     const sql = `UPDATE payment_intents SET ${sets.join(", ")} WHERE id = ? AND account_id = ? AND status = ? RETURNING *`;
     values.push(id, accountId, expected);
     return (
@@ -329,6 +552,16 @@ export class PaymentIntentsDomain {
 }
 
 // ---------- helpers used by routes/serializers too ----------
+
+/** Parsed payment_method_types for a PI row (["crypto"] fallback, pre-F-731 rows). */
+export function piTypes(pi: PIRow): string[] {
+  try {
+    const parsed = JSON.parse(pi.payment_method_types_json) as unknown;
+    return Array.isArray(parsed) ? (parsed as string[]) : ["crypto"];
+  } catch {
+    return ["crypto"];
+  }
+}
 
 export function piUnexpectedState(currentStatus: string, message?: string): TwinError {
   return new TwinError(
@@ -357,12 +590,17 @@ export function depositAddressFromId(id: string): string {
  *
  * `accountId` scopes results to the calling session's account so two
  * sessions sharing a DB file cannot see each other's rows.
+ *
+ * `extraWheres` lets a caller inject table-specific predicates (e.g. the
+ * customers table's `deleted = 0`, payment_methods' `customer_id = ?`)
+ * without teaching this generic helper every column name.
  */
 export function listPaginated<T extends { id: string; created: number }>(
   db: TwinStripeDatabase,
   table: string,
   accountId: string,
-  input: ListPIsInput & { type?: string; payment_intent?: string; customer?: string }
+  input: ListPIsInput & { type?: string; payment_intent?: string; customer?: string },
+  extraWheres: Array<{ sql: string; args: unknown[] }> = []
 ): { rows: T[]; hasMore: boolean; limit: number } {
   const limitRaw = input.limit ?? 10;
   const limit = Math.min(100, Math.max(1, Math.floor(limitRaw)));
@@ -407,6 +645,10 @@ export function listPaginated<T extends { id: string; created: number }>(
   if (input.payment_intent) {
     wheres.push("payment_intent_id = ?");
     args.push(input.payment_intent);
+  }
+  for (const extra of extraWheres) {
+    wheres.push(extra.sql);
+    args.push(...extra.args);
   }
 
   const where = `WHERE ${wheres.join(" AND ")}`;

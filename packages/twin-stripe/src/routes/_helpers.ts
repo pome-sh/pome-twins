@@ -100,6 +100,10 @@ export async function handle(
     );
   } catch (error) {
     if (error instanceof TwinError) {
+      // Almost every TwinError is thrown before any write. The card
+      // decline (F-731) is the exception: it commits a failed charge +
+      // events + PI transition and then throws the 402, carrying the
+      // committed delta so the recorder logs the mutation truthfully.
       return respond(
         c,
         recorder,
@@ -108,9 +112,9 @@ export async function handle(
         requestBody,
         error.status,
         error.toEnvelope(),
-        false,
+        error.state_mutation ?? false,
         error.fidelity ?? "semantic",
-        null
+        error.state_delta ?? null
       );
     }
     if (error instanceof z.ZodError) {
@@ -245,6 +249,104 @@ export function parseListQuery(c: Context) {
     ending_before: c.req.query("ending_before"),
     ...created,
   } as Record<string, unknown>;
+}
+
+/**
+ * Stripe accepts both JSON and form-urlencoded bodies. Real Stripe bills
+ * itself as form-only on POST; the SDKs tend to send form. For agent-friendly
+ * v1 we accept JSON too. Return whichever parses; empty-body POSTs return
+ * `{}`. (Moved here from routes/payment-intents.ts when F-732 gave it a
+ * second and third consumer.)
+ */
+export async function readBodyForm(c: Context): Promise<unknown> {
+  const contentType = c.req.header("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      return await c.req.json();
+    } catch {
+      return {};
+    }
+  }
+  if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+    try {
+      const form = await c.req.parseBody({ all: true });
+      return formToObject(form as Record<string, unknown>);
+    } catch {
+      return {};
+    }
+  }
+  // No content-type or unknown: try JSON, fall back to form, fall back to {}.
+  try {
+    return await c.req.json();
+  } catch {
+    try {
+      const form = await c.req.parseBody({ all: true });
+      return formToObject(form as Record<string, unknown>);
+    } catch {
+      return {};
+    }
+  }
+}
+
+/**
+ * Stripe's bracket-form encoding: `payment_method_types[0]=crypto&
+ * payment_method_options[crypto][mode]=deposit`. Convert to nested object.
+ */
+function formToObject(form: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [rawKey, value] of Object.entries(form)) {
+    const path = parseBracketPath(rawKey);
+    setDeep(out, path, value);
+  }
+  return out;
+}
+
+/** Keys that walk Object.prototype and would let a request pollute every
+ *  other object in the same JS process. Real Stripe form-encoding never
+ *  uses these names; rejecting them costs nothing and closes the
+ *  prototype-pollution primitive. */
+const POLLUTION_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function parseBracketPath(key: string): Array<string | number> {
+  const parts: Array<string | number> = [];
+  const regex = /([^\[\]]+)|\[([^\[\]]*)\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(key)) !== null) {
+    const piece = match[1] ?? match[2] ?? "";
+    if (/^\d+$/.test(piece)) parts.push(Number(piece));
+    else parts.push(piece);
+  }
+  return parts;
+}
+
+function setDeep(target: Record<string, unknown>, path: Array<string | number>, value: unknown) {
+  // Reject any path that walks through __proto__, constructor, or
+  // prototype. A malicious form body with `__proto__[polluted]=pwned`
+  // would otherwise mutate Object.prototype and corrupt every other
+  // object in this process for the rest of the sandbox's lifetime.
+  for (const key of path) {
+    if (typeof key === "string" && POLLUTION_KEYS.has(key)) {
+      // Drop the assignment silently — the field would not be a real
+      // Stripe parameter anyway. Real Stripe returns 400 for unknown
+      // params; v1 deliberately accepts unknowns to keep the agent
+      // surface flexible, so silent drop is the closest fidelity.
+      return;
+    }
+  }
+  let cursor: Record<string | number, unknown> = target;
+  for (let i = 0; i < path.length; i++) {
+    const key = path[i]!;
+    const isLast = i === path.length - 1;
+    if (isLast) {
+      cursor[key] = value;
+    } else {
+      const nextKey = path[i + 1]!;
+      if (cursor[key] === undefined) {
+        cursor[key] = typeof nextKey === "number" ? [] : {};
+      }
+      cursor = cursor[key] as Record<string | number, unknown>;
+    }
+  }
 }
 
 function createdRangeFromQuery(c: Context) {

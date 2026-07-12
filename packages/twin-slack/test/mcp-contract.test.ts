@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// MCP tools contract — pins the 8 visible Slack-agent tools' shapes so any
+// MCP tools contract — pins the 11 visible Slack-agent tools' shapes so any
 // drift (added/removed/renamed tool, changed description, changed required
 // fields, changed mutating set) breaks this test loudly. Constants are
 // declared in-test so the contract has no external dependency.
@@ -64,15 +64,33 @@ const EXPECTED_TOOLS: ExpectedTool[] = [
     required: ["user_id"],
     readOnly: true,
   },
+  {
+    name: "slack_search_messages",
+    description: "Search messages in the workspace by text query",
+    required: ["query"],
+    readOnly: true,
+  },
+  {
+    name: "slack_get_reactions",
+    description: "Get all reactions on a specific message",
+    required: ["channel_id", "timestamp"],
+    readOnly: true,
+  },
+  {
+    name: "slack_list_channel_members",
+    description: "List the member user IDs of a channel with pagination",
+    required: ["channel_id"],
+    readOnly: true,
+  },
 ];
 
 const EXPECTED_NAMES = EXPECTED_TOOLS.map((t) => t.name).sort();
 const EXPECTED_MUTATORS = new Set(EXPECTED_TOOLS.filter((t) => !t.readOnly).map((t) => t.name));
 
 describe("MCP tools contract", () => {
-  it("exposes exactly the 8 visible Slack-agent tools", () => {
+  it("exposes exactly the 11 visible Slack-agent tools", () => {
     expect(toolDefinitions.map((t) => t.name).sort()).toEqual(EXPECTED_NAMES);
-    expect(EXPECTED_TOOLS.length).toBe(8);
+    expect(EXPECTED_TOOLS.length).toBe(11);
   });
 
   it("MUTATING_TOOL_NAMES contains the 3 write tools (no readOnlyHint)", () => {
@@ -108,13 +126,13 @@ describe("MCP tools contract", () => {
 
   it("listTools() returns snake_case input_schema (legacy)", () => {
     const tools = listTools();
-    expect(tools.length).toBe(8);
+    expect(tools.length).toBe(11);
     expect(tools[0]).toHaveProperty("input_schema");
   });
 
   it("listToolsForMcp() returns camelCase inputSchema (MCP spec)", () => {
     const tools = listToolsForMcp();
-    expect(tools.length).toBe(8);
+    expect(tools.length).toBe(11);
     expect(tools[0]).toHaveProperty("inputSchema");
   });
 
@@ -123,6 +141,6 @@ describe("MCP tools contract", () => {
     const mutators = tools.filter((t) => !("annotations" in t));
     const readers = tools.filter((t) => t.annotations?.readOnlyHint === true);
     expect(mutators.length).toBe(3);
-    expect(readers.length).toBe(5);
+    expect(readers.length).toBe(8);
   });
 });

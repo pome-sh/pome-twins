@@ -223,15 +223,14 @@ describe("PaymentIntents — state machine + happy paths", () => {
     expect(r.body.error.code).toBe("currency_not_supported");
   });
 
-  it("create rejects card payment_method_types loudly", async () => {
+  it("create rejects unknown payment_method_types loudly", async () => {
+    // Card is a supported rail since F-731 (see pi-card.test.ts); anything
+    // outside ["crypto"] / ["card"] still fails loudly.
     const app = await createStripeApp();
     const r = await rest(app, "POST", "/v1/payment_intents", {
       amount: 100,
       currency: "usd",
-      payment_method_types: ["card"],
-      payment_method_options: {
-        crypto: { mode: "deposit", deposit_options: { networks: ["base"] } },
-      },
+      payment_method_types: ["paypal"],
     });
     expect(r.status).toBe(400);
     expect(r.body.error.code).toBe("parameter_invalid_string");
