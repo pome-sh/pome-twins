@@ -123,8 +123,20 @@ jobs:
           format: spdx-json
           output-file: twin-${{ matrix.twin }}.spdx.json
           upload-artifact: true
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      # cosign v3 keyless sign/attest embeds an RFC3161 signed timestamp
+      # (Fulcio/Rekor/TSA URLs come from the TUF signing config,
+      # --use-signing-config default). The prior cosign v2.x line produced
+      # NO signed timestamp, so twin SPDX attestations became unverifiable
+      # ~10min after signing once the short-lived Fulcio cert expired: cosign
+      # accepts the hashedrekord signature's Rekor SET to anchor an expired
+      # cert but NOT the dsse attestation's, and asks for a signed timestamp.
+      # Pinned to match pome-cloud's control-plane deploy gate, which verifies
+      # with this installer's default cosign (v3.0.6) — sign and verify on the
+      # identical build.
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         if: ${{ github.event_name != 'pull_request' }}
+        with:
+          cosign-release: 'v3.0.6'
       # Push the EXACT image built + scanned above (already loaded into the local
       # daemon under every steps.meta.outputs.tags) — no second build, so the
       # published artifact is byte-identical to the one Trivy scanned. PR builds

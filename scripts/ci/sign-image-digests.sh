@@ -31,15 +31,25 @@ while IFS= read -r tag || [ -n "$tag" ]; do
   ref="${tag}@${digest}"
 
   echo "signing $ref"
+  # cosign v3 keyless embeds an RFC3161 signed timestamp automatically (TSA URL
+  # from the TUF signing config). No --timestamp-server-url needed; that flag
+  # was removed in v3 in favour of --use-signing-config (default true).
   cosign sign --yes "$ref"
   cosign attest --yes --predicate "$sbom_file" --type spdx "$ref"
 
-  echo "verifying $ref"
+  # --use-signed-timestamps REQUIRES an RFC3161 timestamp to be present and
+  # valid. This is the load-bearing regression guard: without it, verification
+  # here passes on the still-fresh Fulcio cert and the missing-timestamp defect
+  # stays invisible until the cert expires (~10min) and a downstream consumer
+  # (pome-cloud control-plane deploy gate) fails. Fail the build instead.
+  echo "verifying $ref (with signed timestamps)"
   cosign verify \
+    --use-signed-timestamps \
     --certificate-identity-regexp "$identity_regexp" \
     --certificate-oidc-issuer "$issuer" \
     "$ref" >/dev/null
   cosign verify-attestation \
+    --use-signed-timestamps \
     --type spdx \
     --certificate-identity-regexp "$identity_regexp" \
     --certificate-oidc-issuer "$issuer" \
