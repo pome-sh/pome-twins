@@ -75,7 +75,16 @@ describe("pome twin start (e2e)", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      expect(output).toContain(`using the persisted secret from ${join(dataDir, "secret")}`);
+      // The server can accept connections before the parent process receives
+      // the child's buffered startup output. Wait for the observable message
+      // instead of racing the stdout/stderr data events against /healthz.
+      const secretMessage = `using the persisted secret from ${join(dataDir, "secret")}`;
+      const outputDeadline = Date.now() + 5_000;
+      while (!output.includes(secretMessage) && child.exitCode === null) {
+        if (Date.now() > outputDeadline) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(output).toContain(secretMessage);
 
       // A JWT minted from the persisted secret authenticates (the CLI and
       // the running twin resolved the same secret).
