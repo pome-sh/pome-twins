@@ -189,7 +189,11 @@ export async function runRegisterAgent(
     console.error(
       `Enabled services: ${agent.enabled_services.length > 0 ? agent.enabled_services.join(", ") : "(none)"}.`,
     );
-  } else {
+  } else if (opts.twins && opts.twins.length > 0) {
+    // Only warn when the user asked to scope twins (`--twins`). An older cloud
+    // that predates `enabled_services` omits it; without `--twins` there was no
+    // scoping request to warn about, so a default `pome register agent` stays
+    // quiet (matches origin/main's silence in that path).
     console.error(
       "Enabled services: not reported by this pome cloud (older control plane) — twin scoping may not have taken effect.",
     );

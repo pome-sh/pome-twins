@@ -255,6 +255,32 @@ describe("runRegisterAgent", () => {
     const body = JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body));
     expect(body).toEqual({ name: "Triage Bot" });
   });
+
+  it("stays silent about enabled_services when no --twins was passed (older cloud)", async () => {
+    await writeConfig({ agent: { command: "node a.js" } });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
+      errors.push(String(msg));
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({
+        id: "agt_123",
+        slug: "triage-bot",
+        display_name: "Triage Bot",
+        judge_model: "google/gemini-2.5-flash",
+      }),
+    );
+
+    await runRegisterAgent({
+      apiBaseUrl: "https://api.example.com",
+      name: "Triage Bot",
+      force: false,
+    });
+
+    // No twin scoping was requested, so an absent enabled_services must not warn.
+    expect(errors.join("\n")).not.toMatch(/not reported by this pome cloud/i);
+    expect(errors.join("\n")).not.toMatch(/enabled services/i);
+  });
 });
 
 describe("normalizeRegisterTwins", () => {

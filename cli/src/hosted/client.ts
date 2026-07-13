@@ -23,6 +23,48 @@ import {
   HostedQuotaError,
 } from "./errors.js";
 
+// Multi-twin (M3): provenance marker for `per_twin`. A single-twin OLD cloud
+// ships NO `per_twin` key; `createSessionResponseSchema` then SYNTHESIZES one
+// (host-rewrites api.pome.sh→mcp.pome.sh with no `/mcp` suffix). Consumers that
+// build agent env from `per_twin[twin].mcp_url` must NOT trust that synthesized
+// value — it would drift POME_*_MCP_URL off origin/main's `${twin_url}/mcp`. We
+// record, on the parsed object as a NON-ENUMERABLE symbol (never serialized,
+// never spread), whether the raw wire body actually carried a `per_twin` key.
+const PER_TWIN_PROVENANCE = Symbol("pome.perTwinFromCloud");
+
+function markPerTwinProvenance(
+  session: CreateSessionResponse,
+  fromCloud: boolean,
+): CreateSessionResponse {
+  Object.defineProperty(session, PER_TWIN_PROVENANCE, {
+    value: fromCloud,
+    enumerable: false,
+    configurable: true,
+  });
+  return session;
+}
+
+/** True when the cloud's create-session body actually returned a `per_twin`
+ *  key (empty `{}` counts) — i.e. `per_twin` was NOT synthesized by the schema
+ *  from a legacy `twin_url`-only response. Consumers use this to decide whether
+ *  `per_twin[twin].mcp_url` is trustworthy. */
+export function perTwinReturnedByCloud(session: CreateSessionResponse): boolean {
+  return (
+    (session as Record<PropertyKey, unknown>)[PER_TWIN_PROVENANCE] === true
+  );
+}
+
+/** Whether a raw create-session wire body carried a `per_twin` key at all
+ *  (before schema synthesis). Exported so the runner's env unit test can model
+ *  the exact provenance the client stamps. */
+export function rawBodyHadPerTwin(raw: unknown): boolean {
+  return (
+    typeof raw === "object" &&
+    raw !== null &&
+    (raw as { per_twin?: unknown }).per_twin !== undefined
+  );
+}
+
 export interface HostedClientConfig {
   baseUrl: string;
   /** Team API key (`pme_…`) — or, with `authScheme: "bearer"`, a
@@ -745,7 +787,10 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         body.group_id = input.groupId;
       }
       return postJson("/v1/sessions", body, (raw) =>
-        createSessionResponseSchema.parse(raw),
+        markPerTwinProvenance(
+          createSessionResponseSchema.parse(raw),
+          rawBodyHadPerTwin(raw),
+        ),
       );
     },
 

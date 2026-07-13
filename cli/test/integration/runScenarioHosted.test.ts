@@ -840,3 +840,98 @@ describe("runScenarioHosted multi-twin (github + slack)", () => {
     ).rejects.toThrow(/does not support multi-twin sessions yet/i);
   });
 });
+
+// ── Regression (BLOCKER): single-twin run against an OLD cloud that returns
+//    NO `per_twin` — the agent env must stay byte-identical to origin/main.
+//    The schema synthesizes a per_twin entry; the runner must NOT leak its
+//    synthesized mcp_url and must keep injecting the github + stripe vars.
+describe("runScenarioHosted single-twin old-cloud (no per_twin) env parity", () => {
+  let ocServer: ServerType | undefined;
+  let ocPort = 0;
+  let ocTmp: string | undefined;
+
+  afterEach(async () => {
+    ocServer?.close();
+    ocServer = undefined;
+    ocPort = 0;
+    if (ocTmp) {
+      await rm(ocTmp, { recursive: true, force: true });
+      ocTmp = undefined;
+    }
+  });
+
+  const SINGLE_SCENARIO =
+    "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+
+  it("injects POME_GITHUB_MCP_URL=${twin_url}/mcp and the unconditional stripe vars", async () => {
+    const app = new Hono();
+    app.post("/v1/sessions", async (c) => {
+      const token = await signJwt(
+        { sid: FAKE_SESSION_ID, team_id: "tm_test", exp: Math.floor(Date.now() / 1000) + 600 },
+        TWIN_AUTH_SECRET,
+      );
+      // OLD cloud: twin_url only, NO per_twin key, NO session_token.
+      return c.json({
+        session_id: FAKE_SESSION_ID,
+        twin_url: `http://127.0.0.1:${ocPort}/s/${FAKE_SESSION_ID}`,
+        expires_at: new Date(Date.now() + 600_000).toISOString(),
+        agent_token: token,
+        openapi_url: `http://127.0.0.1:${ocPort}/openapi.json`,
+        provider_credentials: {
+          github: { token: "ght_provider", header: "Authorization", scheme: "Bearer" },
+        },
+      });
+    });
+    app.get("/s/:sid/_pome/state", (c) => c.json({ repositories: [] }));
+    app.get("/s/:sid/_pome/events", (c) => c.json([]));
+    app.post("/v1/sessions/:id/finalize", (c) =>
+      c.json(
+        {
+          run_id: FAKE_RUN_ID,
+          score: 100,
+          judge_model: "test-judge",
+          dashboard_url: `http://127.0.0.1:${ocPort}/runs/${FAKE_RUN_ID}`,
+        },
+        201,
+      ),
+    );
+    app.delete("/v1/sessions/:id", (c) => c.json({ id: c.req.param("id"), state: "expired" }));
+
+    ocPort = await new Promise<number>((res) => {
+      ocServer = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, (info) => res(info.port));
+    });
+
+    ocTmp = await mkdtemp(join(tmpdir(), "pome-hosted-oc-"));
+    const scenarioPath = join(ocTmp, "scn.md");
+    await writeFile(scenarioPath, SINGLE_SCENARIO, "utf8");
+    const envFile = join(ocTmp, "agent-env.json");
+    const agentScript = `require('fs').writeFileSync(${JSON.stringify(envFile)}, JSON.stringify({ghr:process.env.POME_GITHUB_REST_URL, ghm:process.env.POME_GITHUB_MCP_URL, ght:process.env.POME_GITHUB_TOKEN, sb:process.env.POME_STRIPE_API_BASE, sk:process.env.POME_STRIPE_API_KEY, base:process.env.POME_TWIN_BASE_URL, auth:process.env.POME_AUTH_TOKEN}))`;
+    const stubAgent = `node -e ${JSON.stringify(agentScript)}`;
+
+    const result = await runScenarioHosted({
+      scenarioPath,
+      agentCommand: stubAgent,
+      artifactsDir: join(ocTmp, "runs"),
+      hosted: { baseUrl: `http://127.0.0.1:${ocPort}`, apiKey: "pme_test" },
+    });
+
+    expect(result.exitCode).toBe(0);
+
+    const agentEnv = JSON.parse(
+      await (await import("node:fs/promises")).readFile(envFile, "utf8"),
+    ) as Record<string, string>;
+    const twinUrl = `http://127.0.0.1:${ocPort}/s/${FAKE_SESSION_ID}`;
+
+    // The BLOCKER: MCP url is `${twin_url}/mcp`, never the synthesized value
+    // (which for a non-api host has no /mcp suffix at all).
+    expect(agentEnv.ghm).toBe(`${twinUrl}/mcp`);
+    expect(agentEnv.ghr).toBe(twinUrl);
+    expect(agentEnv.base).toBe(twinUrl);
+    // Provider github token flows through (origin/main parity).
+    expect(agentEnv.ght).toBe("ght_provider");
+    // Stripe vars injected UNCONDITIONALLY even on a github-only run.
+    expect(agentEnv.sb).toBe(twinUrl);
+    expect(agentEnv.sk).toBe(agentEnv.auth);
+    expect(agentEnv.sk).toBeTruthy();
+  });
+});

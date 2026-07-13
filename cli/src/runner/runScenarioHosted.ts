@@ -11,7 +11,12 @@ import {
 } from "../hosted/evalResultCache.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
-import { createHostedClient, type HostedClient } from "../hosted/client.js";
+import {
+  createHostedClient,
+  perTwinReturnedByCloud,
+  type HostedClient,
+} from "../hosted/client.js";
+import { ensureMcpSuffix } from "../cli/session.js";
 import {
   redactJsonl,
   scoreFromFinalizeResponse,
@@ -74,6 +79,123 @@ export interface RunScenarioHostedResult {
    *  reported to /finalize as duration_ms. FDRS-636 renders it as the trial
    *  row's duration. */
   durationMs: number;
+}
+
+/** Build the agent subprocess env for a hosted run.
+ *
+ * Two layers, in this order:
+ *
+ *  1. The LEGACY block (origin/main parity). Every hosted run — regardless of
+ *     which twins the session mounts — ALWAYS injected github + stripe vars
+ *     pointing at the primary/bare `twin_url`, plus POME_TWIN_BASE_URL and the
+ *     OTEL/task/run scaffolding. Byte-identical single-twin env is the bar, so
+ *     this block reproduces main's exact keys, values, AND insertion order.
+ *
+ *  2. The per-twin fan-out OVERLAY (M3). For each twin actually in the session,
+ *     set POME_<T>_REST_URL / POME_<T>_MCP_URL from `per_twin[T]` (distinct URLs
+ *     per twin) plus its provider bearer. For github/stripe this overwrites the
+ *     legacy values IN PLACE (same key → insertion order preserved); other twins
+ *     append new keys.
+ *
+ * MCP URL rule (regression guard): only trust `per_twin[T].mcp_url` when the
+ * cloud ACTUALLY RETURNED `per_twin` (`perTwinFromCloud`). A single-twin OLD
+ * cloud returns no `per_twin`; the schema synthesizes one whose `mcp_url`
+ * host-rewrites api.pome.sh→mcp.pome.sh with NO `/mcp` suffix. Trusting it would
+ * drift POME_*_MCP_URL off main's `${twin_url}/mcp`. So for a synthesized entry
+ * we construct `${api_url}/mcp`; only a cloud-returned value gets ensureMcpSuffix
+ * (the same normalization `pome session create` applies). */
+export function buildAgentEnv(params: {
+  session: CreateSessionResponse;
+  twins: string[];
+  /** True iff the cloud's create-session body carried a `per_twin` key. */
+  perTwinFromCloud: boolean;
+  prompt: string;
+  otlpEndpoint: string;
+  apiKey: string;
+  agentId?: string;
+  runId: string;
+  artifactsDir: string;
+  slug: string;
+  signalsPath: string;
+}): Record<string, string> {
+  const {
+    session,
+    twins,
+    perTwinFromCloud,
+    prompt,
+    otlpEndpoint,
+    apiKey,
+    agentId,
+    runId,
+    artifactsDir,
+    slug,
+    signalsPath,
+  } = params;
+
+  const env: Record<string, string> = {
+    POME_TASK: prompt,
+    POME_TWIN_NAMES: twins.join(","),
+    POME_OTEL_EXPORTER_OTLP_ENDPOINT: otlpEndpoint,
+    POME_OTEL_EXPORTER_OTLP_HEADERS: `x-api-key=${apiKey}`,
+    OTEL_SERVICE_NAME: agentId ?? "pome-agent",
+    OTEL_RESOURCE_ATTRIBUTES: `pome.session_id=${session.session_id},pome.run_id=${runId}${
+      agentId ? `,pome.agent_id=${agentId}` : ""
+    }`,
+    // The twin base URL, same value the self-host docs teach agents to fall
+    // back on. Agent code written against the standalone docker twin
+    // reads POME_TWIN_BASE_URL with a 127.0.0.1:3333 fallback; without this
+    // injection that fallback fires on hosted runs and the agent probes a
+    // loopback port nothing listens on. Legacy = the primary twin's bare url.
+    POME_TWIN_BASE_URL: session.twin_url,
+    // Legacy unconditional block (origin/main parity). Injected on EVERY hosted
+    // run regardless of twin; the per-twin overlay below overwrites these in
+    // place for github/stripe when those twins are in the session.
+    POME_GITHUB_REST_URL: session.twin_url,
+    POME_GITHUB_MCP_URL: `${session.twin_url}/mcp`,
+    POME_GITHUB_TOKEN:
+      session.provider_credentials.github?.token ?? session.agent_token,
+    POME_STRIPE_API_BASE: session.twin_url,
+    // Always use the JWT agent_token as the Stripe SDK's Bearer in hosted mode.
+    // The cloud also returns `provider_credentials.stripe.api_key` (an
+    // HMAC-signed `sk_test_pome_*`), but the pome-cloud proxy only accepts
+    // JWTs — it routes by verifying the bearer against `agent_token`. A
+    // stripe-style key short-circuits to the proxy's opaque 404 before the
+    // request reaches the twin pod. The Stripe SDK sends any opaque string as
+    // `Authorization: Bearer …`, and twin-stripe's dual-auth accepts JWTs
+    // natively, so the JWT round-trips cleanly end-to-end.
+    POME_STRIPE_API_KEY: session.agent_token,
+    POME_AUTH_TOKEN: session.agent_token,
+    POME_RUN_ID: runId,
+    POME_ARTIFACTS_DIR: join(artifactsDir, slug, runId),
+    POME_ADAPTER_SIGNALS_PATH: signalsPath,
+  };
+
+  for (const twin of twins) {
+    const upper = twin.toUpperCase();
+    const pt = session.per_twin?.[twin];
+    const apiUrl = pt?.api_url ?? session.twin_url;
+    const mcpUrl =
+      perTwinFromCloud && pt?.mcp_url
+        ? ensureMcpSuffix(pt.mcp_url)
+        : `${apiUrl.replace(/\/$/, "")}/mcp`;
+    env[`POME_${upper}_REST_URL`] = apiUrl;
+    env[`POME_${upper}_MCP_URL`] = mcpUrl;
+    if (twin === "github") {
+      env.POME_GITHUB_TOKEN =
+        session.provider_credentials.github?.token ?? session.agent_token;
+    } else if (twin === "stripe") {
+      env.POME_STRIPE_API_BASE = apiUrl;
+      env.POME_STRIPE_API_KEY = session.agent_token;
+    } else if (twin === "slack") {
+      // Same rationale as the Stripe api-key line: the twin proxy verifies only
+      // the session JWT as bearer, so the agent's Slack bearer is the
+      // agent_token — NOT provider_credentials.slack.token, which the proxy
+      // would reject.
+      env.POME_SLACK_TOKEN = session.agent_token;
+    }
+  }
+
+  return env;
 }
 
 export async function runScenarioHosted(
@@ -183,64 +305,21 @@ export async function runScenarioHosted(
       ).toString();
 
     // 3. Run the agent. Env mirrors self-host so a customer's agent code
-    //    is twin-mode-agnostic.
-    //
-    // Multi-twin (M3): the twin-endpoint env is a fan-out over the session's
-    // twins. Each twin T gets its OWN POME_<T>_REST_URL / POME_<T>_MCP_URL from
-    // per_twin[T] (distinct URLs per twin), plus its provider bearer. The legacy
-    // single-endpoint vars (POME_TWIN_BASE_URL) keep the primary twin's value so
-    // agents written against the pre-multi-twin contract still work.
-    const env: Record<string, string> = {
-      POME_TASK: scenario.prompt,
-      POME_TWIN_NAMES: twins.join(","),
-      POME_OTEL_EXPORTER_OTLP_ENDPOINT: otlpEndpoint,
-      POME_OTEL_EXPORTER_OTLP_HEADERS: `x-api-key=${options.hosted.apiKey}`,
-      OTEL_SERVICE_NAME: agentId ?? "pome-agent",
-      OTEL_RESOURCE_ATTRIBUTES: `pome.session_id=${session.session_id},pome.run_id=${runId}${
-        agentId ? `,pome.agent_id=${agentId}` : ""
-      }`,
-      // FDRS-667 — the twin base URL, same value the self-host docs teach
-      // agents to fall back on. Agent code written against the standalone
-      // docker twin reads POME_TWIN_BASE_URL with a 127.0.0.1:3333 fallback;
-      // without this injection that fallback fires on hosted runs and the
-      // agent probes a loopback port nothing listens on. Legacy = the primary
-      // twin's bare url.
-      POME_TWIN_BASE_URL: session.twin_url,
-      POME_AUTH_TOKEN: session.agent_token,
-      POME_RUN_ID: runId,
-      POME_ARTIFACTS_DIR: join(artifactsDir, scenario.slug, runId),
-      POME_ADAPTER_SIGNALS_PATH: signalsPath,
-    };
-    for (const twin of twins) {
-      const upper = twin.toUpperCase();
-      const pt = session.per_twin?.[twin];
-      const apiUrl = pt?.api_url ?? session.twin_url;
-      const mcpUrl = pt?.mcp_url ?? `${session.twin_url}/mcp`;
-      env[`POME_${upper}_REST_URL`] = apiUrl;
-      env[`POME_${upper}_MCP_URL`] = mcpUrl;
-      if (twin === "github") {
-        env.POME_GITHUB_TOKEN =
-          session.provider_credentials.github?.token ?? session.agent_token;
-      } else if (twin === "stripe") {
-        env.POME_STRIPE_API_BASE = apiUrl;
-        // Always use the JWT agent_token as the Stripe SDK's Bearer in hosted
-        // mode. The cloud also returns
-        // `provider_credentials.stripe.api_key` (an HMAC-signed
-        // `sk_test_pome_*`), but the pome-cloud proxy only accepts JWTs — it
-        // routes by verifying the bearer against `agent_token`. A stripe-style
-        // key short-circuits to the proxy's opaque 404 before the request
-        // reaches the twin pod. The Stripe SDK sends any opaque string as
-        // `Authorization: Bearer …`, and twin-stripe's dual-auth accepts JWTs
-        // natively, so the JWT round-trips cleanly end-to-end.
-        env.POME_STRIPE_API_KEY = session.agent_token;
-      } else if (twin === "slack") {
-        // Same rationale as the Stripe api-key line: the twin proxy verifies
-        // only the session JWT as bearer, so the agent's Slack bearer is the
-        // agent_token — NOT provider_credentials.slack.token, which the proxy
-        // would reject.
-        env.POME_SLACK_TOKEN = session.agent_token;
-      }
-    }
+    //    is twin-mode-agnostic. See `buildAgentEnv` for the origin/main legacy
+    //    block + per-twin fan-out overlay.
+    const env = buildAgentEnv({
+      session,
+      twins,
+      perTwinFromCloud: perTwinReturnedByCloud(session),
+      prompt: scenario.prompt,
+      otlpEndpoint,
+      apiKey: options.hosted.apiKey,
+      agentId,
+      runId,
+      artifactsDir,
+      slug: scenario.slug,
+      signalsPath,
+    });
 
     const preflightTimeoutSeconds = Math.min(10, scenario.config.timeout);
     const preflight = await runAgentCommand({
@@ -334,7 +413,12 @@ export async function runScenarioHosted(
           client.fetchEvents({ twinUrl: twinApiUrl(twin), agentToken: session.agent_token }),
         ]);
         stateFinalByTwin[twin] = sf;
-        eventsByTwin[twin] = (ev as RecorderEvent[]).map((e) => tagEventTwin(e, twin));
+        // Single-twin keeps the twin's events byte-identical to origin/main —
+        // no `twin` field is stamped. Only the multi-twin merge needs each line
+        // tagged so the interleaved stream stays attributable.
+        eventsByTwin[twin] = isMultiTwin
+          ? (ev as RecorderEvent[]).map((e) => tagEventTwin(e, twin))
+          : (ev as RecorderEvent[]);
       }),
     );
     const stateFinal = stateFinalByTwin[primaryTwin];

@@ -20,7 +20,7 @@ import { normalizeConfigAgentId, readProjectConfig } from "./project-config.js";
 // standalone `pome twin start` path already appends `/mcp` in `cli/main.ts`;
 // mirror that here so agents reading the printed value get a working MCP URL
 // regardless of which side ships the fix first.
-function ensureMcpSuffix(url: string): string {
+export function ensureMcpSuffix(url: string): string {
   return /\/mcp\/?$/.test(url) ? url : `${url.replace(/\/$/, "")}/mcp`;
 }
 
