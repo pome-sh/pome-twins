@@ -37,6 +37,19 @@ export type MeResponse = z.infer<typeof meResponseSchema>;
 // sending `scenario_source` / `scenario_id` keep working unchanged.
 const createSessionRequestObjectSchema = z
   .object({
+    // Multi-twin (M3): multi-twin arrays are now honored — the cloud provisions
+    // one isolated sandbox per twin. Max 3 twins per session; the cap is
+    // enforced cloud-side, so we deliberately do NOT add a `.max()` here (the
+    // boundary stays permissive and the cloud owns the quota rule). `twins[0]`
+    // is the session's primary twin — the default attribution for criteria and
+    // state that omit an explicit twin.
+    //
+    // Back-compat (the whole M3 contract): a single-twin `twins` array plus none
+    // of the new optional fields below is byte-identical to pre-M3 behavior, so
+    // (old CLI × new cloud) is unchanged. (new CLI × old cloud) with >1 twin is
+    // rejected by the cloud with 422 `multi_twin_unsupported`; a single-twin
+    // request degrades gracefully because every new field is optional and
+    // non-strict readers strip unknown keys rather than erroring.
     twins: z.array(z.string()).min(1).default(["github"]),
     task_source: z.string().optional(),        // base64-encoded UTF-8 markdown; 0.3.0 alias: scenario_source
     task_id: z.string().optional(),            // alternative: stored task; 0.3.0 alias: scenario_id
@@ -176,6 +189,33 @@ export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 // blobs via presigned URLs and call /finalize with ADR-013's managed judge.
 // The shape below stays the wire contract either way.)
 //
+// Multi-twin (M3): per-twin state storage keys, keyed by twin id. Each entry
+// carries the storage KEYS (not URLs) the CLI uploaded that twin's initial /
+// final state blobs to. One entry per twin the session provisioned. Single-twin
+// sessions omit this and keep using the flat top-level state fields. Additive:
+// an older cloud that does not read this field strips it and scores the primary
+// twin unchanged. Consumed by `finalizeRequestSchema` (finalize-shapes.ts) — the
+// LIVE scoring wire — as the optional `per_twin_state_keys` field; defined here
+// alongside the other §4 state-storage-key shapes.
+export const perTwinStateKeysSchema = z.record(
+  z.string(),
+  z
+    .object({
+      state_initial_key: z.string().min(1).optional(),
+      state_final_key: z.string().min(1).optional(),
+    })
+    // A twin entry must carry AT LEAST ONE storage key — an empty `{}` conveys
+    // nothing and is almost always a serialization bug. Both keys stay
+    // individually optional: final-only is legal (initial state is optional in
+    // the single-twin contract too — `state_initial_json_b64` can be an empty
+    // snapshot), and initial-only is legal symmetrically.
+    .refine(
+      (v) => v.state_initial_key !== undefined || v.state_final_key !== undefined,
+      { message: "Each twin entry must carry at least one of state_initial_key or state_final_key" },
+    ),
+);
+export type PerTwinStateKeys = z.infer<typeof perTwinStateKeysSchema>;
+
 // W3 vocab (FDRS-653): `task_name` / `task_hash` canonical; the exported
 // schema accepts 0.3.0 CLIs' `scenario_name` / `scenario_hash` and criterion
 // kinds D/P inside `criteria_results`, normalizing both.
@@ -235,8 +275,65 @@ export const criterionDefSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1),
   kind: z.enum(["D", "P"]),
+  // Multi-twin (M3): the twin a [D:<twin>]/[P:<twin>] scenario criterion
+  // attributes to. Absent = the session's primary twin (twins[0]). Additive —
+  // single-twin scenarios omit it and score against the sole twin as before.
+  twin: z.string().min(1).optional(),
 });
 export type CriterionDef = z.infer<typeof criterionDefSchema>;
+
+// POST /v1/agents — register an agent (vercel-link shape). The server is
+// canonical for the slug; the CLI persists whatever id/slug it returns.
+export const createAgentRequestSchema = z.object({
+  name: z.string().min(1),
+  // Multi-twin (M3): the twins this agent is allowed to exercise. Absent = the
+  // server's default enablement. The cloud intersects a session's requested
+  // twins with the agent's enabled services. Additive; older clients omit it.
+  twins: z.array(z.string()).min(1).optional(),
+});
+export type CreateAgentRequest = z.infer<typeof createAgentRequestSchema>;
+
+// POST /v1/agents response. Not `.strict()`: the cloud may emit additive fields
+// that older/newer CLIs strip rather than reject (tolerant reader).
+export const agentResponseSchema = z.object({
+  id: z.string(),                              // agt_<nanoid>
+  slug: z.string(),
+  display_name: z.string(),
+  judge_model: z.string(),
+  // Multi-twin (M3): the services (twins) this agent may exercise. Absent on an
+  // older cloud; new CLIs treat absence as "unconstrained / server default".
+  enabled_services: z.array(z.string()).optional(),
+});
+export type AgentResponse = z.infer<typeof agentResponseSchema>;
+
+// POST /v1/sessions/:id/state-upload-url response — a presigned PUT URL + the
+// storage KEY (not a URL) for each of the initial and final state blobs. Mirrors
+// the sibling *-upload-url routes' `{ url, key }` entry, but returns the
+// initial/final pair in a single call.
+export const stateUploadUrlEntrySchema = z.object({
+  url: z.string().url(),
+  key: z.string().min(1),
+});
+export type StateUploadUrlEntry = z.infer<typeof stateUploadUrlEntrySchema>;
+
+export const stateUploadUrlResponseSchema = z.object({
+  state_initial: stateUploadUrlEntrySchema,
+  state_final: stateUploadUrlEntrySchema,
+  // Multi-twin (M3): one initial/final URL+key pair per twin, keyed by twin id,
+  // so each twin's state blobs land under its own storage prefix. Absent on
+  // single-twin sessions and on an older cloud, where the top-level pair is
+  // authoritative (new CLI × old cloud degrades gracefully).
+  per_twin: z
+    .record(
+      z.string(),
+      z.object({
+        state_initial: stateUploadUrlEntrySchema,
+        state_final: stateUploadUrlEntrySchema,
+      }),
+    )
+    .optional(),
+});
+export type StateUploadUrlResponse = z.infer<typeof stateUploadUrlResponseSchema>;
 
 // GET /v1/usage — live concurrent-session quota snapshot.
 // FDRS-613: `sessions_remaining` tightened to `.int().min(0)` to match the

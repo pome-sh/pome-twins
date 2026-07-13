@@ -23,10 +23,12 @@ import * as api from "../src/index.js";
 import type {
   AcceptInviteRequest,
   AcceptInviteResponse,
+  AgentResponse,
   ApiError,
   ApiErrorType,
   ApiKey,
   ApiKeyCreated,
+  CreateAgentRequest,
   CreateEvalSessionResponse,
   CreateInviteRequest,
   CreateInviteResponse,
@@ -40,22 +42,27 @@ import type {
   FinalizeFailureError,
   FinalizeInitialResponse,
   FinalizeQueuedStatusResponse,
+  FinalizeRequest,
   FinalizeResponse,
   FinalizeRunningStatusResponse,
   FinalizeStatusResponse,
   FinalizeStatusUrl,
   GithubSeedState,
   MeResponse,
+  PerTwinStateKeys,
   PersistedScenario,
   PersistedTask,
   PlanTier,
   Scenario,
   ScenarioConfig,
+  SeedEnvelope,
   SeedState,
   Session,
   SessionPublic,
   SessionState,
   SlackSeedState,
+  StateUploadUrlEntry,
+  StateUploadUrlResponse,
   StripeSeedState,
   SubmitResultRequest,
   SubmitResultResponse,
@@ -75,10 +82,12 @@ import type {
 type _TypeSurfaceAssert = [
   AcceptInviteRequest,
   AcceptInviteResponse,
+  AgentResponse,
   ApiError,
   ApiErrorType,
   ApiKey,
   ApiKeyCreated,
+  CreateAgentRequest,
   CreateEvalSessionResponse,
   CreateInviteRequest,
   CreateInviteResponse,
@@ -92,22 +101,27 @@ type _TypeSurfaceAssert = [
   FinalizeFailureError,
   FinalizeInitialResponse,
   FinalizeQueuedStatusResponse,
+  FinalizeRequest,
   FinalizeResponse,
   FinalizeRunningStatusResponse,
   FinalizeStatusResponse,
   FinalizeStatusUrl,
   GithubSeedState,
   MeResponse,
+  PerTwinStateKeys,
   PersistedScenario,
   PersistedTask,
   PlanTier,
   Scenario,
   ScenarioConfig,
+  SeedEnvelope,
   SeedState,
   Session,
   SessionPublic,
   SessionState,
   SlackSeedState,
+  StateUploadUrlEntry,
+  StateUploadUrlResponse,
   StripeSeedState,
   SubmitResultRequest,
   SubmitResultResponse,
@@ -124,7 +138,7 @@ type _TypeSurfaceAssert = [
 // Compile-time anchor: exactly one tuple entry per guarded type. The literal
 // type on the left fails to compile if an entry is added or removed above
 // without updating the count.
-const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 47;
+const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 54;
 
 // Runtime value exports (types are erased and cannot appear on `Object.keys`).
 const EXPECTED_EXPORTS = [
@@ -166,6 +180,7 @@ const EXPECTED_EXPORTS = [
   "URL_PATH",
   "acceptInviteRequestSchema",
   "acceptInviteResponseSchema",
+  "agentResponseSchema",
   "apiErrorSchema",
   "apiErrorTypeSchema",
   "apiKeyCreatedSchema",
@@ -174,6 +189,7 @@ const EXPECTED_EXPORTS = [
   "canonicalTraceIdSchema",
   "compareUint64",
   "correlatorKindSchema",
+  "createAgentRequestSchema",
   "createEvalSessionResponseSchema",
   "createInviteRequestSchema",
   "createInviteResponseSchema",
@@ -191,6 +207,7 @@ const EXPECTED_EXPORTS = [
   "finalizeFailureErrorSchema",
   "finalizeInitialResponseSchema",
   "finalizeQueuedStatusResponseSchema",
+  "finalizeRequestSchema",
   "finalizeResponseSchema",
   "finalizeRunningStatusResponseSchema",
   "finalizeStatusResponseSchema",
@@ -205,6 +222,7 @@ const EXPECTED_EXPORTS = [
   "groupGitHubAccessControlByCategory",
   "hookEventSchema",
   "isLegacyEventRow",
+  "isMultiTwinSeedEnvelope",
   "isUint64",
   "judgeModelSchema",
   "laneSchema",
@@ -220,6 +238,7 @@ const EXPECTED_EXPORTS = [
   "otelSpanInputSchema",
   "otelSpanKindSchema",
   "otelStatusCodeSchema",
+  "perTwinStateKeysSchema",
   "persistedScenarioSchema",
   "persistedTaskSchema",
   "planTierSchema",
@@ -233,6 +252,7 @@ const EXPECTED_EXPORTS = [
   "runSchema",
   "scenarioConfigSchema",
   "scenarioSchema",
+  "seedEnvelopeSchema",
   "seedStateSchema",
   "sessionPublicSchema",
   "sessionSchema",
@@ -241,6 +261,8 @@ const EXPECTED_EXPORTS = [
   "shimmableLegacyEventSchema",
   "slackSeedStateSchema",
   "stateDeltaSchema",
+  "stateUploadUrlEntrySchema",
+  "stateUploadUrlResponseSchema",
   "stepSchema",
   "stripeSeedStateSchema",
   "subagentSpawnEventSchema",
@@ -269,10 +291,10 @@ describe("@pome-sh/shared-types barrel export surface (F-754)", () => {
     expect(Object.keys(api).sort()).toEqual([...EXPECTED_EXPORTS]);
   });
 
-  it("guards the pre-refactor TYPE surface (47 inline types/interfaces)", () => {
+  it("guards the TYPE surface (54 types/interfaces)", () => {
     // The real guard is the type-only import + _TypeSurfaceAssert tuple above,
     // enforced at typecheck time. This assertion just anchors the count at
     // runtime so the guard's scope is visible in test output.
-    expect(TYPE_SURFACE_SIZE).toBe(47);
+    expect(TYPE_SURFACE_SIZE).toBe(54);
   });
 });

@@ -1,5 +1,30 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.7.0
+
+### Added
+
+- Multi-twin (M3) session wire contract — purely additive, zero-breaking:
+  - `criterionSchema.twin` (run.ts) and `criterionDefSchema.twin` (rest.ts) —
+    optional per-criterion twin attribution; absent = the session's primary
+    twin (`twins[0]`). Rides the D/P→code/model transform untouched.
+  - `finalizeRequestSchema` (finalize-shapes.ts) — the LIVE `POST
+    /v1/sessions/:id/finalize` request body the CLI sends (criterion defs plus
+    trace/state/signals storage keys).
+  - `perTwinStateKeysSchema` plus an optional `per_twin_state_keys` on the
+    finalize request — per-twin initial/final state storage keys.
+  - `createAgentRequestSchema` (with optional `twins`) and `agentResponseSchema`
+    (with optional `enabled_services`) for the `POST /v1/agents` surface.
+  - `stateUploadUrlResponseSchema` with an optional per-twin URL+key map.
+  - `seedEnvelopeSchema` and `isMultiTwinSeedEnvelope(twins)` — the seed is a
+    per-twin envelope `{ <twin>: <flat seed> }` iff a session has more than one
+    twin; single-twin sessions always use the flat seed shape. No shape-sniffing.
+
+### Changed
+
+- `createSessionRequestSchema.twins` doc: multi-twin arrays are now honored (max
+  3 twins per session, cap enforced cloud-side; one isolated sandbox per twin).
+
 ## 0.6.1
 
 ### Added

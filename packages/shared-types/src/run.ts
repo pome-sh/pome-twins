@@ -55,6 +55,10 @@ export const criterionSchema = z.object({
   // Accepts D | P | code | model; parsed output is always code | model.
   type: criterionKindInputSchema,
   text: z.string().min(1),
+  // Multi-twin (M3): the twin this criterion attributes to. Rides through the
+  // D/P→code/model transform above untouched. Absent = the run's primary twin
+  // (the session's twins[0]). Additive — single-twin runs omit it.
+  twin: z.string().min(1).optional(),
 });
 export type Criterion = z.infer<typeof criterionSchema>;
 

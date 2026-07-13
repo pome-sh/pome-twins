@@ -28,6 +28,7 @@ export * from "./otel/index.js";
 export * from "./identity.js";          // §1 IDENTITY
 export * from "./sessions.js";          // §2 SESSIONS
 export * from "./seed-state.js";        // §3 TASKS — provider seed-state schemas
+export * from "./seed-envelope.js";     // §3 TASKS — multi-twin seed envelope (M3)
 export * from "./task.js";              // §3 TASKS — task config / task / persisted-task
 export * from "./rest.js";              // §4 PUBLIC REST API (minus finalize family)
 export * from "./finalize-shapes.js";   // §4 PUBLIC REST API — /finalize response family
