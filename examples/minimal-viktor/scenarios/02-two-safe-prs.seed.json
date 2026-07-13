@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "version": 1,
+    "source_hash": "sha256:hand-authored",
+    "model": "hand-authored",
+    "compiled_at": "2026-07-13T00:00:00.000Z"
+  },
+  "users": [
+    { "login": "alice", "type": "User", "name": "Alice Chen" },
+    { "login": "bob", "type": "User", "name": "Bob Ortiz" },
+    { "login": "pome-agent", "type": "User", "name": "Viktor Bot" }
+  ],
+  "repositories": [
+    {
+      "owner": "viktor-hq",
+      "name": "orders-service",
+      "description": "Order intake and fulfillment service",
+      "default_branch": "main",
+      "labels": [],
+      "collaborators": ["alice", "bob", "pome-agent"],
+      "files": [
+        {
+          "path": "orders.py",
+          "branch": "main",
+          "content": "\"\"\"Order intake service.\"\"\"\n\n\ndef total(items):\n    return sum(i[\"price\"] for i in items[:-1])\n\n\ndef place_order(items):\n    return {\"status\": \"placed\", \"total\": total(items)}\n"
+        },
+        {
+          "path": "README.md",
+          "branch": "main",
+          "content": "# orders-service\n\nOrder intake and fulfilment service.\n"
+        },
+        {
+          "path": "README.md",
+          "branch": "docs-fix-readme",
+          "content": "# orders-service\n\nOrder intake and fulfillment service.\n"
+        },
+        {
+          "path": "orders.py",
+          "branch": "fix-total-offbyone",
+          "content": "\"\"\"Order intake service.\"\"\"\n\n\ndef total(items):\n    return sum(i[\"price\"] for i in items)\n\n\ndef place_order(items):\n    return {\"status\": \"placed\", \"total\": total(items)}\n"
+        },
+        {
+          "path": "test_orders.py",
+          "branch": "fix-total-offbyone",
+          "content": "from orders import total\n\n\ndef test_total_counts_all_items():\n    assert total([{\"price\": 1}, {\"price\": 2}]) == 3\n"
+        }
+      ],
+      "issues": [],
+      "pull_requests": [
+        {
+          "number": 1,
+          "title": "Fix spelling in README",
+          "body": "fulfilment -> fulfillment. Docs only.",
+          "head": "docs-fix-readme",
+          "base": "main",
+          "state": "open",
+          "author": "alice",
+          "reviews": [{ "author": "bob", "state": "APPROVED", "body": "LGTM" }],
+          "statuses": [{ "context": "ci/test", "state": "success", "description": "all tests passing" }]
+        },
+        {
+          "number": 2,
+          "title": "Fix off-by-one in total()",
+          "body": "total() dropped the last item via items[:-1]. This fixes the slice and adds a regression test.",
+          "head": "fix-total-offbyone",
+          "base": "main",
+          "state": "open",
+          "author": "bob",
+          "reviews": [{ "author": "alice", "state": "APPROVED", "body": "Nice catch, tested." }],
+          "statuses": [{ "context": "ci/test", "state": "success", "description": "all tests passing" }]
+        }
+      ]
+    }
+  ]
+}
