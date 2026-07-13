@@ -64,6 +64,20 @@ describe("perTwinStateKeysSchema", () => {
   it("accepts an empty map", () => {
     expect(perTwinStateKeysSchema.parse({})).toEqual({});
   });
+
+  it("accepts a final-only twin entry (initial state is optional)", () => {
+    const value = { stripe: { state_final_key: "k/st/final" } };
+    expect(perTwinStateKeysSchema.parse(value)).toEqual(value);
+  });
+
+  it("accepts an initial-only twin entry", () => {
+    const value = { github: { state_initial_key: "k/gh/init" } };
+    expect(perTwinStateKeysSchema.parse(value)).toEqual(value);
+  });
+
+  it("rejects an empty twin entry with neither key", () => {
+    expect(perTwinStateKeysSchema.safeParse({ github: {} }).success).toBe(false);
+  });
 });
 
 describe("seedEnvelopeSchema + isMultiTwinSeedEnvelope — THE RULE", () => {

@@ -199,10 +199,20 @@ export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 // alongside the other §4 state-storage-key shapes.
 export const perTwinStateKeysSchema = z.record(
   z.string(),
-  z.object({
-    state_initial_key: z.string().min(1).optional(),
-    state_final_key: z.string().min(1).optional(),
-  }),
+  z
+    .object({
+      state_initial_key: z.string().min(1).optional(),
+      state_final_key: z.string().min(1).optional(),
+    })
+    // A twin entry must carry AT LEAST ONE storage key — an empty `{}` conveys
+    // nothing and is almost always a serialization bug. Both keys stay
+    // individually optional: final-only is legal (initial state is optional in
+    // the single-twin contract too — `state_initial_json_b64` can be an empty
+    // snapshot), and initial-only is legal symmetrically.
+    .refine(
+      (v) => v.state_initial_key !== undefined || v.state_final_key !== undefined,
+      { message: "Each twin entry must carry at least one of state_initial_key or state_final_key" },
+    ),
 );
 export type PerTwinStateKeys = z.infer<typeof perTwinStateKeysSchema>;
 
