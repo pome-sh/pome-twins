@@ -194,7 +194,9 @@ export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 // final state blobs to. One entry per twin the session provisioned. Single-twin
 // sessions omit this and keep using the flat top-level state fields. Additive:
 // an older cloud that does not read this field strips it and scores the primary
-// twin unchanged.
+// twin unchanged. Consumed by `finalizeRequestSchema` (finalize-shapes.ts) — the
+// LIVE scoring wire — as the optional `per_twin_state_keys` field; defined here
+// alongside the other §4 state-storage-key shapes.
 export const perTwinStateKeysSchema = z.record(
   z.string(),
   z.object({
@@ -234,11 +236,6 @@ const submitResultRequestObjectSchema = z.object({
   trace_jsonl_b64: z.string(),
   state_initial_json_b64: z.string(),
   state_final_json_b64: z.string(),
-  // Multi-twin (M3): additive per-twin state storage keys. Absent on single-twin
-  // sessions, which keep uploading a single twin's state via the flat
-  // state_*_json_b64 blobs above. Unknown to an older cloud, which strips it and
-  // scores the primary twin unchanged (new CLI × old cloud degrades gracefully).
-  per_twin_state_keys: perTwinStateKeysSchema.optional(),
   // NOTE: agent_stdout is intentionally NOT in this request. Cloud never
   // receives the agent's prompts or completions. The CLI uses agent_stdout
   // locally for the [model] judge then discards it.

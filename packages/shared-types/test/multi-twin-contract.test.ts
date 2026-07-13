@@ -12,11 +12,11 @@ import {
   createAgentRequestSchema,
   createSessionResponseSchema,
   criterionDefSchema,
+  finalizeRequestSchema,
   isMultiTwinSeedEnvelope,
   perTwinStateKeysSchema,
   seedEnvelopeSchema,
   stateUploadUrlResponseSchema,
-  submitResultRequestSchema,
 } from "../src/index.js";
 
 describe("criterionSchema.twin (run.ts) — rides the D/P→code/model transform", () => {
@@ -95,6 +95,10 @@ describe("createAgentRequestSchema", () => {
   it("parses a name-only request unchanged (older clients)", () => {
     expect(createAgentRequestSchema.parse({ name: "viktor" })).toEqual({ name: "viktor" });
   });
+
+  it("rejects an empty twins allowlist (min(1))", () => {
+    expect(createAgentRequestSchema.safeParse({ name: "viktor", twins: [] }).success).toBe(false);
+  });
 });
 
 describe("agentResponseSchema", () => {
@@ -143,36 +147,36 @@ describe("stateUploadUrlResponseSchema", () => {
   });
 });
 
-describe("submitResultRequestSchema.per_twin_state_keys (rest.ts)", () => {
+describe("finalizeRequestSchema.per_twin_state_keys (finalize-shapes.ts) — LIVE scoring wire", () => {
   const base = {
-    task_name: "viktor/mvp",
-    task_hash: "abc123",
+    stop_reason: "completed",
+    exit_code: 0,
     duration_ms: 1200,
     agent_model: "sonnet",
-    satisfaction_score: 90,
-    criteria_results: [],
-    judge_model: "google/gemini-2.5-flash",
-    judge_tokens_in: 10,
-    judge_tokens_out: 20,
-    trace_jsonl_b64: "",
-    state_initial_json_b64: "",
-    state_final_json_b64: "",
+    agent_sdk: null,
+    criteria: [{ id: "c1", text: "PR merged", kind: "D" as const, twin: "github" }],
+    scenario_name: "viktor/mvp",
+    scenario_hash: "abc123",
+    scenario_prompt: "ship the MVP",
+    expected_behavior: "opens and merges a PR",
   };
 
   it("parses without per_twin_state_keys (single-twin / older CLI)", () => {
-    const parsed = submitResultRequestSchema.parse(base);
+    const parsed = finalizeRequestSchema.parse(base);
     expect(parsed.per_twin_state_keys).toBeUndefined();
   });
 
   it("parses with an additive per_twin_state_keys map (multi-twin / new CLI)", () => {
-    const parsed = submitResultRequestSchema.parse({
+    const parsed = finalizeRequestSchema.parse({
       ...base,
+      state_initial_storage_key: "k/init",
+      state_final_storage_key: "k/final",
       per_twin_state_keys: {
         github: { state_initial_key: "k/gh/init", state_final_key: "k/gh/final" },
         stripe: { state_final_key: "k/st/final" },
       },
     });
-    expect(parsed.task_name).toBe("viktor/mvp");
+    expect(parsed.scenario_name).toBe("viktor/mvp");
     expect(parsed.per_twin_state_keys).toEqual({
       github: { state_initial_key: "k/gh/init", state_final_key: "k/gh/final" },
       stripe: { state_final_key: "k/st/final" },

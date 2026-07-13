@@ -8,8 +8,11 @@
   - `criterionSchema.twin` (run.ts) and `criterionDefSchema.twin` (rest.ts) —
     optional per-criterion twin attribution; absent = the session's primary
     twin (`twins[0]`). Rides the D/P→code/model transform untouched.
+  - `finalizeRequestSchema` (finalize-shapes.ts) — the LIVE `POST
+    /v1/sessions/:id/finalize` request body the CLI sends (criterion defs plus
+    trace/state/signals storage keys).
   - `perTwinStateKeysSchema` plus an optional `per_twin_state_keys` on the
-    submit-result request — per-twin initial/final state storage keys.
+    finalize request — per-twin initial/final state storage keys.
   - `createAgentRequestSchema` (with optional `twins`) and `agentResponseSchema`
     (with optional `enabled_services`) for the `POST /v1/agents` surface.
   - `stateUploadUrlResponseSchema` with an optional per-twin URL+key map.
