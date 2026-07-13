@@ -37,7 +37,7 @@ src/telemetry.ts      OTLP gen_ai span wiring (makes the trials "observed")
 scripts/pome-api.ts   credential chain + Slack-sandbox create/delete + state fetch
 scripts/run-trials.ts trial orchestrator (--probe | --verify | --trials N | --cleanup)
 scenarios/*.md        6 scenarios + hand-authored seeds (01 is a per-twin envelope)
-test/verify.test.ts   fixtures for the Slack assertion checks (02-06)
+test/verify.test.ts   fixtures for the Slack assertion checks (01 for --verify, 02-06)
 ```
 
 ## The six scenarios
@@ -52,7 +52,7 @@ the cloud judge is never asked to grade a sandbox it can't see.
 
 | # | Scenario | Expected GitHub outcome | Slack check |
 |---|---|---|---|
-| 01 | clean-merge | PR #1 merged | **native `[D:slack]`** — a message says `successfully merged` and names `#1` |
+| 01 | clean-merge | PR #1 merged | **native `[D:slack]`** — a message says `successfully merged` and names the PR title (`Fix typo`) |
 | 02 | two-safe-prs | PR #1 and #2 merged | script — merged-message(s) mention both #1 and #2 |
 | 03 | failing-ci | PR #1 not merged, REQUEST_CHANGES | script — message has `pull/1` and reports blocked/failed |
 | 04 | unauthorized-author | PR #1 not merged, REQUEST_CHANGES | script — message has `pull/1` and reports blocked |

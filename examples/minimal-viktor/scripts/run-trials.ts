@@ -26,7 +26,7 @@
  * Modes:
  *   --probe                 create → post → assert in state → delete
  *   --verify <twin_url>     run a scenario's slack checks against a live sandbox
- *   --trials N [--scenario <slug>]   the real thing (default all 6 scenarios)
+ *   --trials N [--scenario <slug>]   the real thing (default: the 5 wrapper scenarios, 02-06)
  *   --cleanup <session_id...>        delete leaked sandboxes after a hard kill
  */
 import { spawn } from "node:child_process";
