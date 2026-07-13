@@ -1,0 +1,5 @@
+node_modules/
+runs/
+.env
+# per-user: created by `pome init` + `pome register agent`, holds your team's agentId
+pome.config.json
