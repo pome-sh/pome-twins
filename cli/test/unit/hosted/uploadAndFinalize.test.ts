@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Unit tests for the shared upload/finalize helpers (FDRS-656 review fixes).
 
+import { gunzipSync } from "node:zlib";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { redactJsonl, uploadRunBlobs, type UploadClient } from "../../../src/hosted/uploadAndFinalize.js";
 import { HostedOrchError } from "../../../src/hosted/errors.js";
@@ -21,6 +22,64 @@ describe("redactJsonl (FDRS-656 review)", () => {
 
   it("returns empty string for whitespace-only payloads", () => {
     expect(redactJsonl(" \n  \n")).toBe("");
+  });
+});
+
+// putBlob gzip-encodes every upload so the storage-edge WAF content rule
+// (which 403s some plaintext twin-state payloads) never sees the raw body.
+// The paired cloud reader release transparently gunzips via content-encoding.
+describe("uploadRunBlobs — gzip blob uploads", () => {
+  const BLOBS = {
+    eventsJsonl: '{"kind":"TwinHttpEvent","twin":"slack"}\n',
+    stateInitialJson: "{}",
+    stateFinalJson: "{}",
+    signalsJsonl: "",
+    metaJson: '{"spec_version":1,"is_admin":true}',
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("PUTs a gzip-magic body that gunzips back to the original text, with content-encoding: gzip", async () => {
+    let sentBody: Uint8Array | null = null;
+    let sentHeaders: Record<string, string> = {};
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const ri = init as RequestInit;
+      sentBody = new Uint8Array(ri.body as ArrayBuffer);
+      sentHeaders = ri.headers as Record<string, string>;
+      return new Response(null, { status: 200 });
+    });
+
+    const client: UploadClient = {
+      requestEventsUploadUrl: async () => {
+        throw new HostedOrchError("not stubbed");
+      },
+      requestStateUploadUrl: async () => {
+        throw new HostedOrchError("not stubbed");
+      },
+      requestSignalsUploadUrl: async () => {
+        throw new HostedOrchError("not stubbed");
+      },
+      requestMetaUploadUrl: async () => ({
+        url: "https://signed.example/put-meta",
+        key: "team-tm_x/session-ses_1/meta.json",
+      }),
+    };
+
+    const keys = await uploadRunBlobs(client, "ses_1", BLOBS);
+    expect(keys.metaKey).toBe("team-tm_x/session-ses_1/meta.json");
+
+    expect(sentBody).not.toBeNull();
+    const body = sentBody as unknown as Uint8Array;
+    // gzip magic bytes.
+    expect(body[0]).toBe(0x1f);
+    expect(body[1]).toBe(0x8b);
+    // Round-trips to the exact original text.
+    expect(gunzipSync(Buffer.from(body)).toString("utf8")).toBe(BLOBS.metaJson);
+    // content-encoding header present; content-type preserved.
+    expect(sentHeaders["content-encoding"]).toBe("gzip");
+    expect(sentHeaders["content-type"]).toBe("application/json");
   });
 });
 

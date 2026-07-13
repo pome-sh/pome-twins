@@ -2,10 +2,20 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { serve, type ServerType } from "@hono/node-server";
 import { Hono } from "hono";
 import { sign as signJwt } from "hono/jwt";
+import type { Context } from "hono";
 import { runScenarioHosted } from "../../src/runner/runScenarioHosted.js";
+
+// Blob uploads are gzip-encoded (content-encoding: gzip) so the storage-edge
+// WAF content rule never sees the raw twin-state text. The fake cloud stores
+// request bodies raw, so decompress before asserting on the payload.
+async function gunzipReqText(c: Context): Promise<string> {
+  const buf = Buffer.from(await c.req.arrayBuffer());
+  return gunzipSync(buf).toString("utf8");
+}
 
 let cloudServer: ServerType | undefined;
 let cloudPort = 0;
@@ -355,15 +365,15 @@ describe("runScenarioHosted with upload route stubbed", () => {
     let stateFinalBody: string | null = null;
 
     app.put("/__fake_put", async (c) => {
-      putBody = await c.req.text();
+      putBody = await gunzipReqText(c);
       return new Response(null, { status: 200 });
     });
     app.put("/__fake_put_state_initial", async (c) => {
-      stateInitialBody = await c.req.text();
+      stateInitialBody = await gunzipReqText(c);
       return new Response(null, { status: 200 });
     });
     app.put("/__fake_put_state_final", async (c) => {
-      stateFinalBody = await c.req.text();
+      stateFinalBody = await gunzipReqText(c);
       return new Response(null, { status: 200 });
     });
 
@@ -727,11 +737,11 @@ describe("runScenarioHosted multi-twin (github + slack)", () => {
     app.put("/__put/events", async () => new Response(null, { status: 200 }));
     for (const key of ["github", "slack", "top"]) {
       app.put(`/__put/${key}/initial`, async (c) => {
-        statePuts[`${key}/initial`] = await c.req.text();
+        statePuts[`${key}/initial`] = await gunzipReqText(c);
         return new Response(null, { status: 200 });
       });
       app.put(`/__put/${key}/final`, async (c) => {
-        statePuts[`${key}/final`] = await c.req.text();
+        statePuts[`${key}/final`] = await gunzipReqText(c);
         return new Response(null, { status: 200 });
       });
     }

@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { runScenarioHosted } from "../../../src/runner/runScenarioHosted.js";
 import type { HostedClient } from "../../../src/hosted/client.js";
 import { HostedOrchError } from "../../../src/hosted/errors.js";
@@ -24,6 +25,15 @@ const FAKE_SESSION_ID = "ses_upload_test";
 const FAKE_RUN_ID = "run_upload_test";
 const FAKE_UPLOAD_URL = "https://signed.example/put-events";
 const FAKE_UPLOAD_KEY = "team-tm_x/session-ses_upload_test/events.jsonl";
+
+// Blob uploads are gzip-encoded (WAF content-rule workaround); the fetch mock
+// captures the raw gzipped body, so decompress before asserting on the text.
+async function gunzipInitBody(init: RequestInit | undefined): Promise<string> {
+  const body = (init as RequestInit).body as unknown as
+    | Uint8Array
+    | ArrayBuffer;
+  return gunzipSync(Buffer.from(body as Uint8Array)).toString("utf8");
+}
 
 // The recorder event returned by fetchEvents — same shape as the integration
 // test fixture so scoreAndWriteRun doesn't trip.
@@ -226,7 +236,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       }
       if (urlStr === SIGNALS_URL && method === "PUT") {
         signalsPutCount += 1;
-        signalsPutBody = await new Request(urlStr, init as RequestInit).text();
+        signalsPutBody = await gunzipInitBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       throw new Error(`Unexpected fetch call to ${urlStr}`);
@@ -289,7 +299,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       }
       if (urlStr === META_URL && method === "PUT") {
         metaPutCount += 1;
-        metaPutBody = await new Request(urlStr, init as RequestInit).text();
+        metaPutBody = await gunzipInitBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       throw new Error(`Unexpected fetch call to ${urlStr}`);
@@ -338,7 +348,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
       const urlStr = String(url);
       if (urlStr === FAKE_UPLOAD_URL && (init as RequestInit | undefined)?.method === "PUT") {
         putCallCount += 1;
-        capturedPutBody = await new Request(urlStr, init as RequestInit).text();
+        capturedPutBody = await gunzipInitBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       // Unexpected call — fail visibly.
@@ -407,11 +417,11 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
         return new Response(null, { status: 200 });
       }
       if (urlStr === STATE_INITIAL_URL && method === "PUT") {
-        stateInitialBody = await new Request(urlStr, init as RequestInit).text();
+        stateInitialBody = await gunzipInitBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       if (urlStr === STATE_FINAL_URL && method === "PUT") {
-        stateFinalBody = await new Request(urlStr, init as RequestInit).text();
+        stateFinalBody = await gunzipInitBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       throw new Error(`Unexpected fetch call to ${urlStr}`);
