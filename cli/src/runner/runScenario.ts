@@ -15,6 +15,14 @@ import { buildEgressAllowlist, readBlockedEgress, type BlockedEgress } from "../
 import { mergeAdapterSignalsIntoEvents } from "./mergeAdapterSignals.js";
 import { writeRunNoScore } from "./runScenarioCore.js";
 
+// Promisify a Hono/node server `close()` so teardown can await in-flight
+// handlers draining before the twin's DB handle is released.
+function closeServer(server: ReturnType<typeof serve>): Promise<void> {
+  return new Promise<void>((resolvePromise, reject) => {
+    server.close((err) => (err ? reject(err) : resolvePromise()));
+  });
+}
+
 // Override for how `pome capture-server` is invoked as a child. Production
 // re-invokes process.argv[1] (the same compiled `pome` binary). Tests pass
 // `{ execPath: process.execPath, prefixArgs: ["--import", "tsx", "src/cli/main.ts"] }` to run from source.
@@ -298,8 +306,15 @@ export async function runScenario(options: RunScenarioOptions) {
     // in events.jsonl before we move on; THEN close each twin (releasing its
     // DB handle) and finally the shared recorder (flush + close).
     if (captureServer) await captureServer.shutdown();
-    for (const { server } of booted) server.close();
-    for (const { harness } of booted) await harness.close();
+    // Await each twin's HTTP server close (letting in-flight handlers drain)
+    // BEFORE releasing that twin's DB handle, so a late handler can't run
+    // against a closed DB (teardown errors / lost final recorder writes).
+    await Promise.all(
+      booted.map(async ({ server, harness }) => {
+        await closeServer(server);
+        await harness.close();
+      })
+    );
     await recorder.close?.();
   }
 }
