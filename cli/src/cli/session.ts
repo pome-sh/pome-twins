@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { createHostedClient } from "../hosted/client.js";
+import { MOUNTED_TWINS } from "@pome-sh/shared-types";
+import { createHostedClient, perTwinReturnedByCloud } from "../hosted/client.js";
 import type { CreateSessionResponse } from "../types/shared.js";
 import {
   HostedAuthError,
@@ -19,11 +20,14 @@ import { normalizeConfigAgentId, readProjectConfig } from "./project-config.js";
 // standalone `pome twin start` path already appends `/mcp` in `cli/main.ts`;
 // mirror that here so agents reading the printed value get a working MCP URL
 // regardless of which side ships the fix first.
-function ensureMcpSuffix(url: string): string {
+export function ensureMcpSuffix(url: string): string {
   return /\/mcp\/?$/.test(url) ? url : `${url.replace(/\/$/, "")}/mcp`;
 }
 
-const ALLOWED_TWINS = new Set(["github", "stripe"]);
+// Multi-twin (M3): the CLI's ad-hoc session allowlist is the shared mounted-twin
+// set (github, stripe, slack). Slack is now reachable; repeated `--twin` flags
+// stand up a multi-twin session in one call.
+const ALLOWED_TWINS = new Set<string>(MOUNTED_TWINS);
 
 function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   const pcIn = res.provider_credentials;
@@ -33,6 +37,9 @@ function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   }
   if (pcIn.stripe) {
     pcOut.stripe = { ...pcIn.stripe, api_key: "***redacted***" };
+  }
+  if (pcIn.slack) {
+    pcOut.slack = { ...pcIn.slack, token: "***redacted***" };
   }
   return {
     session_id: res.session_id,
@@ -46,47 +53,87 @@ function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   };
 }
 
-function formatEnvExport(res: CreateSessionResponse, twin: string): string {
+function formatEnvExport(res: CreateSessionResponse, twins: string[]): string {
   const lines: string[] = [
-    `# Pome hosted session — treat as secret. Twin: ${twin}`,
+    `# Pome hosted session — treat as secret. Twins: ${twins.join(", ")}`,
     `export POME_AUTH_TOKEN=${JSON.stringify(res.agent_token)}`,
     `export POME_SESSION_ID=${JSON.stringify(res.session_id)}`,
+    // Legacy single-endpoint URL (= the primary twin's api_url). Kept for
+    // agents written against the pre-multi-twin contract.
     `export POME_TWIN_URL=${JSON.stringify(res.twin_url)}`,
+    `export POME_TWIN_NAMES=${JSON.stringify(twins.join(","))}`,
   ];
-  if (res.per_twin?.[twin]?.api_url) {
-    lines.push(
-      `export POME_${twin.toUpperCase()}_API_URL=${JSON.stringify(res.per_twin[twin].api_url)}`,
-    );
-  }
-  const gh = res.provider_credentials.github;
-  if (gh) {
-    lines.push(`export POME_GITHUB_TOKEN=${JSON.stringify(gh.token)}`);
-  }
-  const st = res.provider_credentials.stripe;
-  if (st) {
-    lines.push(`export POME_STRIPE_API_KEY=${JSON.stringify(st.api_key)}`);
-    if (res.per_twin?.[twin]?.api_url) {
+  // Only trust per_twin.mcp_url when the cloud actually returned per_twin —
+  // the schema synthesizes mcp.pome.sh entries for old-cloud bodies, and those
+  // hosts don't serve MCP. Otherwise derive <api_url>/mcp (the legacy shape).
+  const fromCloud = perTwinReturnedByCloud(res);
+  // Multi-twin (M3): one POME_<TWIN>_{REST,MCP}_URL pair per twin, plus the
+  // provider-specific credential line. Loops per_twin so a github+slack session
+  // emits distinct endpoints for each.
+  for (const twin of twins) {
+    const upper = twin.toUpperCase();
+    const pt = res.per_twin?.[twin];
+    if (pt?.api_url) {
+      const mcpUrl = fromCloud ? ensureMcpSuffix(pt.mcp_url) : ensureMcpSuffix(pt.api_url);
+      lines.push(`export POME_${upper}_REST_URL=${JSON.stringify(pt.api_url)}`);
       lines.push(
-        `export POME_STRIPE_API_BASE=${JSON.stringify(res.per_twin[twin].api_url)}`,
+        `export POME_${upper}_MCP_URL=${JSON.stringify(mcpUrl)}`,
       );
+    }
+    if (twin === "github") {
+      const gh = res.provider_credentials.github;
+      if (gh) {
+        lines.push(`export POME_GITHUB_TOKEN=${JSON.stringify(gh.token)}`);
+      }
+    } else if (twin === "stripe") {
+      const st = res.provider_credentials.stripe;
+      if (st) {
+        lines.push(`export POME_STRIPE_API_KEY=${JSON.stringify(st.api_key)}`);
+      }
+      if (pt?.api_url) {
+        lines.push(`export POME_STRIPE_API_BASE=${JSON.stringify(pt.api_url)}`);
+      }
+    } else if (twin === "slack") {
+      // The twin proxy verifies only the session JWT (agent_token) as bearer —
+      // the provider-specific Slack credential is NOT accepted at the proxy
+      // (same rationale as the Stripe api-key line in the hosted runner). So
+      // the agent's Slack bearer is the JWT, not provider_credentials.slack.token.
+      lines.push(`export POME_SLACK_TOKEN=${JSON.stringify(res.agent_token)}`);
     }
   }
   return `${lines.join("\n")}\n`;
 }
 
+/** Normalize one-or-more `--twin` flags into a validated, de-duped twin list.
+ *  Repeated flags stand up an ad-hoc multi-twin session; each is validated
+ *  against MOUNTED_TWINS for a friendly error before the round-trip. */
+export function normalizeSessionTwins(raw: string[]): string[] {
+  const twins = raw.map((t) => t.trim().toLowerCase()).filter((t) => t.length > 0);
+  for (const twin of twins) {
+    if (!ALLOWED_TWINS.has(twin)) {
+      throw new Error(
+        `Unknown twin "${twin}". Supported: ${[...ALLOWED_TWINS].join(", ")}.`,
+      );
+    }
+  }
+  const deduped = [...new Set(twins)];
+  if (deduped.length === 0) {
+    throw new Error(
+      `No twin specified. Pass --twin <name> (repeat for multi-twin). Supported: ${[...ALLOWED_TWINS].join(", ")}.`,
+    );
+  }
+  return deduped;
+}
+
 export async function runSessionCreate(opts: {
   apiBaseUrl: string;
-  twin: string;
+  /** One-or-more twins. Repeated `--twin` flags stand up a multi-twin session. */
+  twins: string[];
   showSecrets: boolean;
   format: "text" | "json" | "env";
   secretsFile?: string;
 }): Promise<void> {
-  const twin = opts.twin.trim().toLowerCase();
-  if (!ALLOWED_TWINS.has(twin)) {
-    throw new Error(
-      `Unknown twin "${opts.twin}". V1 supports: ${[...ALLOWED_TWINS].join(", ")}.`,
-    );
-  }
+  const twins = normalizeSessionTwins(opts.twins);
 
   const creds = await resolveCredentials({ apiBaseUrl: opts.apiBaseUrl });
   const client = createHostedClient({
@@ -99,14 +146,14 @@ export async function runSessionCreate(opts: {
     : undefined;
 
   const session = await client.createSession({
-    twins: [twin],
+    twins,
     scenarioSource: "# ..\n",
     idempotencyKey: randomUUID(),
     agentId,
   });
 
   if (opts.secretsFile) {
-    await writeSecretsFile(opts.secretsFile, formatEnvExport(session, twin));
+    await writeSecretsFile(opts.secretsFile, formatEnvExport(session, twins));
     console.error(`Wrote session secrets to ${opts.secretsFile} (mode 0600).`);
   }
 
@@ -129,10 +176,24 @@ export async function runSessionCreate(opts: {
 
   console.error(`Session: ${session.session_id}`);
   console.error(`Expires: ${session.expires_at}`);
-  if (session.per_twin?.[twin]) {
-    console.error(`API: ${session.per_twin[twin].api_url}`);
-    console.error(`MCP: ${ensureMcpSuffix(session.per_twin[twin].mcp_url)}`);
-  } else {
+  // Multi-twin (M3): print one API/MCP line per twin so a github+slack session
+  // shows both endpoints. Falls back to the legacy bare twin_url on an older
+  // cloud that only ships it.
+  let printedAny = false;
+  const mcpFromCloud = perTwinReturnedByCloud(session);
+  for (const twin of twins) {
+    const pt = session.per_twin?.[twin];
+    if (pt) {
+      const label = twins.length > 1 ? `${twin} ` : "";
+      // Synthesized per_twin entries carry an mcp.pome.sh host that doesn't
+      // serve MCP — derive <api_url>/mcp unless the cloud returned per_twin.
+      const mcpUrl = mcpFromCloud ? ensureMcpSuffix(pt.mcp_url) : ensureMcpSuffix(pt.api_url);
+      console.error(`${label}API: ${pt.api_url}`);
+      console.error(`${label}MCP: ${mcpUrl}`);
+      printedAny = true;
+    }
+  }
+  if (!printedAny) {
     // Fallback for older cloud responses that only ship twin_url. Drop the
     // "(legacy)" label that confused users into thinking the URL was
     // deprecated (F21) — it's just the un-disambiguated single endpoint.

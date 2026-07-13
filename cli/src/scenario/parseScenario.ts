@@ -15,6 +15,7 @@ import {
   type Criterion,
   type Scenario,
   type ScenarioConfig,
+  type SeedEnvelope,
   type SeedState
 } from "./scenarioSchema.js";
 
@@ -33,7 +34,7 @@ export function parseScenario(markdown: string, slug = "scenario", sidecarSeed?:
   const seedText = sections.get("seed state") ?? "";
 
   const config = configText.trim() ? scenarioConfigSchema.parse(parseFencedYaml(configText)) : scenarioConfigSchema.parse({});
-  const criteria = parseCriteria(criteriaText);
+  const criteria = parseCriteria(criteriaText, config.twins);
   const seedState = resolveSeedState({ sidecarSeed, seedText, config, scenarioPath });
 
   return scenarioSchema.parse({
@@ -48,7 +49,13 @@ export function parseScenario(markdown: string, slug = "scenario", sidecarSeed?:
   });
 }
 
-function resolveSeedState(args: { sidecarSeed: unknown; seedText: string; config: ScenarioConfig; scenarioPath?: string }): SeedState {
+function resolveSeedState(args: { sidecarSeed: unknown; seedText: string; config: ScenarioConfig; scenarioPath?: string }): SeedState | SeedEnvelope {
+  // Multi-twin (M3): the seed is a per-twin envelope, decided from `config.twins`
+  // alone (envelope-iff-multi-twin — never by sniffing the seed shape).
+  if (args.config.twins.length > 1) {
+    return resolveMultiTwinSeedState(args);
+  }
+  // ── Single-twin: unchanged (byte-identical flat path). ──
   // Sidecar wins when present — it's the compile-seeds output, already
   // validated against the in-memory twin. The `_meta` key (source hash,
   // model, etc.) is stripped before schema parsing.
@@ -74,6 +81,89 @@ function resolveSeedState(args: { sidecarSeed: unknown; seedText: string; config
     }
   }
   return defaultSeedStateForConfig(args.config.twins);
+}
+
+// Multi-twin (M3): the seed (sidecar OR inline) MUST be the per-twin envelope
+// `{ <twin>: <flat seed> }`. Envelope keys are a subset of the scenario's twins;
+// each present value is parsed with THAT twin's own flat schema, and a twin with
+// no envelope key falls back to its default seed. A key that is not one of the
+// scenario's twins is a loud error. When no seed is provided at all, every twin
+// gets its default.
+function resolveMultiTwinSeedState(args: {
+  sidecarSeed: unknown;
+  seedText: string;
+  config: ScenarioConfig;
+  scenarioPath?: string;
+}): SeedEnvelope {
+  const twins = args.config.twins;
+  let raw: unknown | undefined;
+  if (args.sidecarSeed !== undefined) {
+    raw = stripSidecarMeta(args.sidecarSeed);
+  } else if (args.seedText.trim()) {
+    const text = stripFence(args.seedText);
+    if (!/^[\[{]/.test(text)) {
+      throw new Error(missingSidecarMessage(args.scenarioPath));
+    }
+    try {
+      raw = JSON.parse(text);
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        throw new Error(`Inline JSON seed in ## Seed State is malformed: ${err.message}`);
+      }
+      throw err;
+    }
+  } else {
+    raw = undefined;
+  }
+  return buildSeedEnvelope(raw, twins);
+}
+
+function buildSeedEnvelope(raw: unknown | undefined, twins: string[]): SeedEnvelope {
+  const envelope: SeedEnvelope = {};
+  if (raw === undefined) {
+    for (const twin of twins) envelope[twin] = defaultSeedForTwin(twin);
+    return envelope;
+  }
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      `Multi-twin scenarios need a per-twin seed envelope { <twin>: <seed> } for twins [${twins.join(", ")}], not a bare seed object.`,
+    );
+  }
+  const allowed = new Set(twins);
+  const provided = raw as Record<string, unknown>;
+  for (const key of Object.keys(provided)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        `Seed envelope key "${key}" is not one of the scenario's twins [${twins.join(", ")}].`,
+      );
+    }
+  }
+  for (const twin of twins) {
+    envelope[twin] =
+      twin in provided ? parseSeedForTwin(twin, provided[twin]) : defaultSeedForTwin(twin);
+  }
+  return envelope;
+}
+
+// Parse one twin's flat seed with its own schema — the same schemas the
+// single-twin flat path uses, keyed by twin id. Unknown twins fall back to the
+// GitHub parse (mirrors the single-twin default).
+function parseSeedForTwin(twin: string, input: unknown): SeedState {
+  if (twin === "stripe") return stripeSeedStateSchema.parse(input);
+  if (twin === "slack") return slackSeedStateSchema.parse(input);
+  return parseGitHubSeedState(input);
+}
+
+function defaultSeedForTwin(twin: string): SeedState {
+  if (twin === "stripe") {
+    return stripeSeedStateSchema.parse({
+      api_keys: [{ key: "sk_test_pome_default", sid: "default", account_id: "acct_default" }]
+    });
+  }
+  if (twin === "slack") {
+    return slackSeedStateSchema.parse({});
+  }
+  return seedSchema.parse(defaultSeedState());
 }
 
 function missingSidecarMessage(scenarioPath: string | undefined): string {
@@ -128,15 +218,73 @@ function splitSections(markdown: string) {
   return sections;
 }
 
-function parseCriteria(input: string): Criterion[] {
-  return input
-    .split("\n")
-    .map((line) => line.trim())
-    .map((line) => line.match(/^[-*]\s+\[([DP])\]\s+(.+)$/))
-    .filter((match): match is RegExpMatchArray => Boolean(match))
+// Criterion marker grammar (M3): `[D]` / `[P]` optionally carrying a twin tag,
+// `[D:<twin>]` / `[P:<twin>]`, where <twin> is `[a-z][a-z0-9_-]*`. The tag lands
+// on `criterion.twin`; a bare marker leaves it undefined (attributes to the
+// session's primary twin, `twins[0]`).
+const CRITERION_LINE_RE = /^[-*]\s+\[([DP])(?::([a-z][a-z0-9_-]*))?\]\s+(.+)$/;
+
+function parseCriteria(input: string, twins: string[]): Criterion[] {
+  const multiTwin = twins.length > 1;
+  const allowed = new Set(twins);
+  const primary = twins[0]!;
+  const criteria: Criterion[] = [];
+
+  for (const rawLine of input.split("\n")) {
+    const line = rawLine.trim();
+    const match = line.match(CRITERION_LINE_RE);
+    if (!match) continue;
+    const kind = match[1]!; // "D" | "P"
+    const tag = match[2]; // twin tag or undefined
+    const text = match[3]!.trim();
+    // Reconstruct the human-facing marker for error messages.
+    const marker = `[${kind}${tag ? `:${tag}` : ""}]`;
+
+    if (tag !== undefined) {
+      if (!multiTwin) {
+        // Single-twin: an explicit tag is allowed but must equal the sole twin.
+        if (tag !== primary) {
+          throw new Error(
+            `Criterion "${marker} ${text}" tags twin "${tag}", but this single-twin scenario runs "${primary}". Drop the tag or set config.twins to include "${tag}".`,
+          );
+        }
+      } else if (!allowed.has(tag)) {
+        // Multi-twin: an explicit tag must name one of the scenario's twins.
+        throw new Error(
+          `Criterion "${marker} ${text}" tags twin "${tag}", which is not in the scenario's twins [${twins.join(", ")}].`,
+        );
+      }
+    } else if (multiTwin && kind === "D") {
+      // Multi-twin: every deterministic [D] criterion MUST carry a tag so the
+      // cloud knows which twin's state to check it against. [P] may stay bare
+      // (attributes to the primary twin).
+      throw new Error(
+        `Criterion "${marker} ${text}" needs a twin tag ([D:<twin>]) in a multi-twin scenario (twins [${twins.join(", ")}]).`,
+      );
+    }
+
     // Authors still write `[D]`/`[P]` in markdown; the published contract's
     // tolerant reader normalizes those to the canonical `code`/`model` kinds.
-    .map((match) => criterionSchema.parse({ type: match[1], text: match[2]!.trim() }));
+    // The optional `twin` rides through untouched.
+    criteria.push(
+      criterionSchema.parse(
+        tag !== undefined ? { type: kind, text, twin: tag } : { type: kind, text },
+      ),
+    );
+  }
+
+  return criteria;
+}
+
+/** The flat seed a single twin boots from. Single-twin scenarios return the
+ *  flat `seedState` as-is; multi-twin scenarios return that twin's slice of the
+ *  per-twin envelope (decided from `config.twins`, per the envelope-iff-multi-twin
+ *  rule). Used by the local runner to seed each twin harness. */
+export function seedStateForTwin(scenario: Scenario, twin: string): unknown {
+  if (scenario.config.twins.length > 1) {
+    return (scenario.seedState as SeedEnvelope)[twin];
+  }
+  return scenario.seedState;
 }
 
 function parseFencedYaml(input: string) {

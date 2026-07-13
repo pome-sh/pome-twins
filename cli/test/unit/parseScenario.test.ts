@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { parseScenario } from "../../src/scenario/parseScenario.js";
+import type {
+  GithubSeedState,
+  SeedEnvelope,
+  StripeSeedState,
+} from "../../src/scenario/scenarioSchema.js";
+
+// seedState is now a union (flat single-twin seed | multi-twin envelope), so
+// the historical `"key" in seedState` narrowing no longer selects a single arm.
+// These helpers assert + cast to the arm the test knows it produced.
+function asGithub(seed: unknown): GithubSeedState {
+  if (!seed || typeof seed !== "object" || !("repositories" in seed)) {
+    throw new Error("expected legacy GitHub seed");
+  }
+  return seed as GithubSeedState;
+}
+function asStripe(seed: unknown): StripeSeedState {
+  if (!seed || typeof seed !== "object" || !("api_keys" in seed)) {
+    throw new Error("expected stripe seed");
+  }
+  return seed as StripeSeedState;
+}
 
 describe("parseScenario", () => {
   it("parses Pome markdown with config, criteria, and seed state", () => {
@@ -39,8 +60,7 @@ passThreshold: 75
     expect(scenario.criteria).toHaveLength(2);
     expect(scenario.config.timeout).toBe(12);
     expect(scenario.config.passThreshold).toBe(75);
-    if (!("repositories" in scenario.seedState)) throw new Error("expected legacy GitHub seed");
-    expect(scenario.seedState.repositories[0]?.labels?.[0]?.name).toBe("bug");
+    expect(asGithub(scenario.seedState).repositories[0]?.labels?.[0]?.name).toBe("bug");
   });
 
   it("rejects scenarios without a prompt", () => {
@@ -77,8 +97,7 @@ twins: ["stripe"]
 `);
 
     expect(scenario.config.twins).toEqual(["stripe"]);
-    if (!("api_keys" in scenario.seedState)) throw new Error("expected stripe seed");
-    expect(scenario.seedState.api_keys[0]?.key).toBe("sk_test_pome_demo");
+    expect(asStripe(scenario.seedState).api_keys[0]?.key).toBe("sk_test_pome_demo");
   });
 
   it("rejects wrapped Stripe seed shape (FDRS-365)", () => {
@@ -142,8 +161,7 @@ twins: ["stripe"]
 \`\`\`
 `);
 
-    if (!("api_keys" in scenario.seedState)) throw new Error("expected stripe seed");
-    const rules = scenario.seedState.failure_injection;
+    const rules = asStripe(scenario.seedState).failure_injection;
     expect(rules).toHaveLength(1);
     expect(rules[0]).toMatchObject({
       method: "POST",
@@ -178,8 +196,7 @@ twins: ["stripe"]
 \`\`\`
 `);
 
-    if (!("api_keys" in scenario.seedState)) throw new Error("expected stripe seed");
-    expect(scenario.seedState.failure_injection[0]?.mode).toBe("after_handler");
+    expect(asStripe(scenario.seedState).failure_injection[0]?.mode).toBe("after_handler");
   });
 
   it("throws a friendly compile-seeds error when ## Seed State is prose and no sidecar is present", () => {
@@ -275,9 +292,139 @@ Review the open pull request and decide whether to merge.
 \`\`\`
 `);
 
-    if (!("repositories" in scenario.seedState)) throw new Error("expected legacy GitHub seed");
-    expect(scenario.seedState.users?.map((user) => user.login)).toEqual(["alice", "adam-spoofer"]);
-    expect(scenario.seedState.repositories[0]?.pull_requests?.[0]?.author).toBe("adam-spoofer");
-    expect(scenario.seedState.repositories[0]?.files?.[1]?.branch).toBe("spoof-attempt");
+    const seed = asGithub(scenario.seedState);
+    expect(seed.users?.map((user) => user.login)).toEqual(["alice", "adam-spoofer"]);
+    expect(seed.repositories[0]?.pull_requests?.[0]?.author).toBe("adam-spoofer");
+    expect(seed.repositories[0]?.files?.[1]?.branch).toBe("spoof-attempt");
+  });
+});
+
+// ── Multi-twin (M3): tagged criteria + per-twin seed envelope ──────────────
+describe("parseScenario multi-twin", () => {
+  const MULTI_HEADER = `# Multi
+
+## Prompt
+Do a github+slack task.
+`;
+  const MULTI_CONFIG = `
+## Config
+\`\`\`yaml
+twins: ["github", "slack"]
+\`\`\`
+`;
+
+  function multiScenario(criteria: string, seed?: string) {
+    return `${MULTI_HEADER}
+## Success Criteria
+${criteria}
+${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
+  }
+
+  it("attaches the twin tag from [D:twin] / [P:twin] to criterion.twin", () => {
+    const scenario = parseScenario(
+      multiScenario(
+        "- [D:github] Issue #1 is labeled\n- [D:slack] A message was posted\n- [P:slack] The summary is clear\n- [P] Overall reasonable",
+      ),
+    );
+    expect(scenario.criteria).toHaveLength(4);
+    expect(scenario.criteria[0]).toMatchObject({ type: "code", twin: "github" });
+    expect(scenario.criteria[1]).toMatchObject({ type: "code", twin: "slack" });
+    expect(scenario.criteria[2]).toMatchObject({ type: "model", twin: "slack" });
+    // Bare [P] in a multi-twin scenario is allowed and leaves twin undefined.
+    expect(scenario.criteria[3]?.type).toBe("model");
+    expect(scenario.criteria[3]?.twin).toBeUndefined();
+  });
+
+  it("rejects a bare [D] in a multi-twin scenario (every [D] must be tagged)", () => {
+    expect(() =>
+      parseScenario(
+        multiScenario("- [D] Something deterministic\n- [D:slack] A message was posted"),
+      ),
+    ).toThrow(/needs a twin tag/i);
+  });
+
+  it("rejects a tag that is not one of the scenario's twins", () => {
+    expect(() =>
+      parseScenario(
+        multiScenario("- [D:stripe] A charge exists\n- [D:github] Issue labeled"),
+      ),
+    ).toThrow(/not in the scenario's twins/i);
+  });
+
+  it("parses a per-twin seed envelope, one arm per twin", () => {
+    const scenario = parseScenario(
+      multiScenario(
+        "- [D:github] x\n- [D:slack] y",
+        JSON.stringify({
+          github: { repositories: [{ owner: "acme", name: "api" }] },
+          slack: { channels: [{ name: "general" }] },
+        }),
+      ),
+    );
+    const envelope = scenario.seedState as SeedEnvelope;
+    expect(asGithub(envelope.github).repositories[0]?.owner).toBe("acme");
+    expect("channels" in envelope.slack).toBe(true);
+  });
+
+  it("fills a twin's default seed when its envelope key is missing", () => {
+    const scenario = parseScenario(
+      multiScenario(
+        "- [D:github] x\n- [D:slack] y",
+        JSON.stringify({ github: { repositories: [{ owner: "acme", name: "api" }] } }),
+      ),
+    );
+    const envelope = scenario.seedState as SeedEnvelope;
+    // slack key absent → default slack seed present (schema-valid floor).
+    expect(envelope.slack).toBeDefined();
+    expect(asGithub(envelope.github).repositories[0]?.owner).toBe("acme");
+  });
+
+  it("rejects an envelope key that is not one of the scenario's twins", () => {
+    expect(() =>
+      parseScenario(
+        multiScenario(
+          "- [D:github] x\n- [D:slack] y",
+          JSON.stringify({
+            github: { repositories: [{ owner: "acme", name: "api" }] },
+            stripe: { api_keys: [] },
+          }),
+        ),
+      ),
+    ).toThrow(/not one of the scenario's twins/i);
+  });
+
+  it("defaults every twin's seed when no ## Seed State is present", () => {
+    const scenario = parseScenario(multiScenario("- [D:github] x\n- [D:slack] y"));
+    const envelope = scenario.seedState as SeedEnvelope;
+    expect(envelope.github).toBeDefined();
+    expect(envelope.slack).toBeDefined();
+  });
+});
+
+// Single-twin explicit-tag rules.
+describe("parseScenario single-twin tags", () => {
+  it("accepts an explicit tag equal to the sole twin", () => {
+    const scenario = parseScenario(`# Tagged single
+
+## Prompt
+p
+
+## Success Criteria
+- [D:github] Issue labeled
+`);
+    expect(scenario.criteria[0]).toMatchObject({ type: "code", twin: "github" });
+  });
+
+  it("rejects an explicit tag that differs from the sole twin", () => {
+    expect(() =>
+      parseScenario(`# Wrong tag
+
+## Prompt
+p
+
+## Success Criteria
+- [D:slack] A message was posted
+`),
+    ).toThrow(/single-twin scenario runs "github"/i);
   });
 });

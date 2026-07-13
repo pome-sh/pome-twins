@@ -121,6 +121,30 @@ export function markerFor(outcome: CriterionOutcome): string {
   }
 }
 
+// Multi-twin (M3): the per-criterion bracket for terminal display —
+// `[code]` / `[model]`, plus the `:<twin>` suffix when the criterion attributes
+// to a specific twin (so a `[D:slack]`/`[P:github]` marker survives into the
+// UNEVAL / criteria list). A bare (primary-twin) criterion renders `[code]`
+// unchanged.
+export function criterionMarkerLabel(criterion: WireCriterion): string {
+  return criterion.twin ? `[${criterion.type}:${criterion.twin}]` : `[${criterion.type}]`;
+}
+
+// Multi-twin (M3): when the cloud could not evaluate a criterion for a
+// twin-related reason (a twin-tagged criterion, or a `no_matching_predicate`
+// skip), name the twin inline so the UNEVAL line explains WHICH twin's timeline
+// came up empty. Returns "" when there's nothing twin-specific to add.
+export function twinSkipSuffix(result: CriterionResult): string {
+  const twin = result.criterion.twin;
+  if (!twin) return "";
+  const outcome = outcomeOf(result);
+  const twinRelated =
+    outcome === "skipped" ||
+    outcome === "errored" ||
+    /no_matching_predicate|no matching predicate/i.test(result.reason);
+  return twinRelated ? ` (twin: ${twin})` : "";
+}
+
 export function scoreCountsSummary(score: Score): string {
   return `${score.passed ?? 0} passed, ${score.failed ?? 0} failed, ${score.skipped ?? 0} skipped, ${score.errored ?? 0} errored`;
 }

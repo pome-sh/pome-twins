@@ -87,6 +87,15 @@ export const seedStateSchema = z.union([
   stripeSeedStateSchema
 ]);
 
+// Multi-twin (M3): a per-twin seed envelope `{ <twin>: <flat seed> }`, produced
+// ONLY for scenarios whose `config.twins` has >1 entry (the envelope-iff-multi-twin
+// rule, decided from `twins` alone — never by sniffing the seed shape). Each value
+// is one twin's flat seed, the same shapes `seedStateSchema` unions. Single-twin
+// scenarios keep the flat shape byte-identical. parseScenario builds and validates
+// the envelope value-by-value with each twin's own schema; this record is the outer
+// shape scenarioSchema re-validates against.
+export const seedEnvelopeSchema = z.record(z.string(), seedStateSchema);
+
 export const scenarioSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
@@ -95,7 +104,10 @@ export const scenarioSchema = z.object({
   expectedBehavior: z.string().default(""),
   criteria: z.array(criterionSchema).min(1),
   config: scenarioConfigSchema,
-  seedState: seedStateSchema
+  // Flat single-twin seed OR the multi-twin per-twin envelope. Flat is tried
+  // first so single-twin seeds match their strict arms; the envelope only
+  // matches when the flat union can't (its keys are twin ids, not seed fields).
+  seedState: z.union([seedStateSchema, seedEnvelopeSchema])
 });
 
 export type Criterion = z.infer<typeof criterionSchema>;
@@ -105,4 +117,5 @@ export type StripeSeedState = z.infer<typeof stripeSeedStateSchema>;
 export type SlackSeedState = z.infer<typeof slackSeedStateSchema>;
 export type StripeFailureInjectionRule = z.infer<typeof stripeFailureInjectionRuleSchema>;
 export type SeedState = z.infer<typeof seedStateSchema>;
+export type SeedEnvelope = z.infer<typeof seedEnvelopeSchema>;
 export type Scenario = z.infer<typeof scenarioSchema>;

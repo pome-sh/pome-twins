@@ -17,7 +17,7 @@
 // any twin land in one buffer typed as the legacy github `RecorderEvent` (the
 // shape is structurally shared via `@pome-sh/shared-types`; the `twin` field is
 // just a string, see `recorderEventSchema`). New twins slot in by adding a case.
-import { createRecorder } from "../recorder/recorder.js";
+import { createRecorder, type Recorder } from "../recorder/recorder.js";
 import type { RecorderEvent } from "@pome-sh/shared-types";
 import {
   createGitHubCloneApp,
@@ -87,15 +87,27 @@ export async function bootTwin(opts: {
    * twin-core durable recorder (same file capture-server appends to).
    */
   eventsPath?: string;
+  /**
+   * Multi-twin (M3): a SHARED recorder so every twin harness in one local run
+   * buffers into a single events stream / events.jsonl. When provided, this
+   * harness does NOT own the recorder — `close()` releases only its DB handle
+   * and the caller is responsible for `flush()`/`close()` on the recorder. When
+   * omitted (single-twin), the harness creates and owns its own recorder, so
+   * `close()` flushes + closes it exactly as before.
+   */
+  recorder?: Recorder;
 }): Promise<TwinHarness> {
-  const recorder = createRecorder({ eventsPath: opts.eventsPath });
+  const ownsRecorder = opts.recorder === undefined;
+  const recorder = opts.recorder ?? createRecorder({ eventsPath: opts.eventsPath });
 
   const flushRecorder = async () => {
     await recorder.flush?.();
   };
   const closeRecorderAndDb = async (dbClose: () => void) => {
     await flushRecorder();
-    await recorder.close?.();
+    // A shared recorder is owned by the caller — only flush here, never close
+    // it out from under sibling harnesses still writing to it.
+    if (ownsRecorder) await recorder.close?.();
     dbClose();
   };
 

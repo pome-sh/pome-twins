@@ -4,14 +4,24 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath, sep as pathSep } from "node:path";
 import { sign } from "hono/jwt";
-import { parseScenarioFile } from "../scenario/parseScenario.js";
-import { bootTwin } from "../twin/twinHarness.js";
+import { parseScenarioFile, seedStateForTwin } from "../scenario/parseScenario.js";
+import { bootTwin, type TwinHarness } from "../twin/twinHarness.js";
+import { createRecorder } from "../recorder/recorder.js";
+import { redactSecrets } from "../recorder/redaction.js";
 import { getAvailablePort } from "./ports.js";
 import { runAgentCommand } from "./agentRunner.js";
 import { egressArgs, spawnCaptureServerChild } from "./captureServerChild.js";
 import { buildEgressAllowlist, readBlockedEgress, type BlockedEgress } from "../capture-server/egress.js";
 import { mergeAdapterSignalsIntoEvents } from "./mergeAdapterSignals.js";
 import { writeRunNoScore } from "./runScenarioCore.js";
+
+// Promisify a Hono/node server `close()` so teardown can await in-flight
+// handlers draining before the twin's DB handle is released.
+function closeServer(server: ReturnType<typeof serve>): Promise<void> {
+  return new Promise<void>((resolvePromise, reject) => {
+    server.close((err) => (err ? reject(err) : resolvePromise()));
+  });
+}
 
 // Override for how `pome capture-server` is invoked as a child. Production
 // re-invokes process.argv[1] (the same compiled `pome` binary). Tests pass
@@ -119,24 +129,53 @@ export async function runScenario(options: RunScenarioOptions) {
     return readBlockedEgress(egressJsonlPath);
   };
 
-  const twinName = scenario.config.twins[0] ?? "github";
-  const port = await getAvailablePort();
-  const baseUrl = `http://127.0.0.1:${port}`;
-  // F-698: stream twin HTTP events into the same events.jsonl the
-  // capture-server appends to. Durable store writes TwinHttpEvent rows;
-  // finalize dedupes against disk so upload shape stays one row per event.
-  const harness = await bootTwin({
-    twin: twinName,
-    seedState: scenario.seedState,
-    runId,
-    twinBaseUrl: baseUrl,
-    eventsPath: eventsJsonlPath,
-  });
-  const stateInitial = await harness.exportState();
-
+  const twins = scenario.config.twins.length ? scenario.config.twins : ["github"];
+  const primaryTwin = twins[0]!;
+  const isMultiTwin = twins.length > 1;
   const sid = runId;
   const authSecret = process.env.TWIN_AUTH_SECRET ?? randomBytes(32).toString("hex");
   process.env.TWIN_AUTH_SECRET = authSecret;
+
+  // Multi-twin (M3): all twins in one local run share ONE recorder so their
+  // HTTP events stream into a single events.jsonl (the same file the
+  // capture-server appends to). The runner owns the recorder's lifecycle here;
+  // each harness's `close()` releases only its own DB handle. For single-twin
+  // this is behaviorally identical to the old bootTwin-internal recorder.
+  // The durable store writes TwinHttpEvent rows; finalize dedupes against disk
+  // so upload shape stays one row per event.
+  const recorder = createRecorder({ eventsPath: eventsJsonlPath });
+
+  // Boot one twin harness per config twin, each on its own localhost port.
+  // Merge every twin's POME_<envName>_{REST,MCP}_URL and its extra JWT claims;
+  // one token carries the union of claims (e.g. Stripe's account_id).
+  const booted: { twin: string; harness: TwinHarness; server: ReturnType<typeof serve> }[] = [];
+  const twinEnv: Record<string, string> = {};
+  const stateInitialByTwin: Record<string, unknown> = {};
+  let mergedClaims: Record<string, unknown> = {};
+  for (const twin of twins) {
+    const port = await getAvailablePort();
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const harness = await bootTwin({
+      twin,
+      seedState: seedStateForTwin(scenario, twin),
+      runId,
+      twinBaseUrl: baseUrl,
+      recorder,
+    });
+    stateInitialByTwin[twin] = await harness.exportState();
+    const sessionBase = `${baseUrl}/s/${sid}`;
+    // Twin-agnostic URL contract: the agent reads `POME_<TWIN>_{REST,MCP}_URL`.
+    // For github this resolves to the historical `POME_GITHUB_{REST,MCP}_URL`;
+    // slack/stripe get their own prefixes (the mcp-loop scaffold's
+    // `resolveMcpUrl` already keys off `POME_<TWIN>_MCP_URL`).
+    twinEnv[`POME_${harness.envName}_REST_URL`] = sessionBase;
+    twinEnv[`POME_${harness.envName}_MCP_URL`] = `${sessionBase}/mcp`;
+    mergedClaims = { ...mergedClaims, ...(harness.extraClaims ?? {}) };
+    const server = serve({ fetch: harness.app.fetch, port, hostname: "127.0.0.1" });
+    booted.push({ twin, harness, server });
+  }
+  const stateInitial = stateInitialByTwin[primaryTwin];
+
   const token = await sign(
     {
       sid,
@@ -148,15 +187,13 @@ export async function runScenario(options: RunScenarioOptions) {
       // was invisible until a scripted REST agent needed to merge.
       login: "pome-agent",
       // Twin-supplied claims (e.g. Stripe's `account_id`, so the token resolves
-      // to the account the seed data lives in). github/slack supply none.
-      ...(harness.extraClaims ?? {}),
+      // to the account the seed data lives in) — merged across all twins.
+      // github/slack supply none.
+      ...mergedClaims,
       exp: Math.floor(Date.now() / 1000) + Math.max(scenario.config.timeout * 2, 600),
     },
     authSecret
   );
-  const sessionBase = `${baseUrl}/s/${sid}`;
-
-  const server = serve({ fetch: harness.app.fetch, port, hostname: "127.0.0.1" });
 
   const proxyEnv: Record<string, string> = captureServer
     ? {
@@ -171,19 +208,38 @@ export async function runScenario(options: RunScenarioOptions) {
     : {};
   const env = {
     POME_TASK: scenario.prompt,
-    POME_TWIN_NAMES: scenario.config.twins.join(","),
-    // Twin-agnostic URL contract: the agent reads `POME_<TWIN>_{REST,MCP}_URL`.
-    // For github this resolves to the historical `POME_GITHUB_{REST,MCP}_URL`;
-    // slack/stripe get their own prefixes (the mcp-loop scaffold's
-    // `resolveMcpUrl` already keys off `POME_<TWIN>_MCP_URL`).
-    [`POME_${harness.envName}_REST_URL`]: sessionBase,
-    [`POME_${harness.envName}_MCP_URL`]: `${sessionBase}/mcp`,
+    POME_TWIN_NAMES: twins.join(","),
+    ...twinEnv,
     POME_AUTH_TOKEN: token,
     POME_RUN_ID: runId,
     POME_ARTIFACTS_DIR: runDir,
     POME_ADAPTER_SIGNALS_PATH: signalsPathForEnv,
     ...(options.extraAgentEnv ?? {}),
     ...proxyEnv,
+  };
+
+  // Capture each twin's final state: the primary is the legacy `stateFinal`
+  // (state_final.json); every other twin is written alongside as
+  // `state_final.<twin>.json`. Best-effort disk writes for the extras.
+  const captureFinalStates = async (): Promise<unknown> => {
+    const finals: Record<string, unknown> = {};
+    for (const { twin, harness } of booted) {
+      finals[twin] = await harness.exportState();
+    }
+    if (isMultiTwin) {
+      for (const { twin } of booted) {
+        if (twin === primaryTwin) continue;
+        try {
+          await writeFile(
+            join(runDir, `state_final.${twin}.json`),
+            `${JSON.stringify(redactSecrets(finals[twin]), null, 2)}\n`,
+          );
+        } catch {
+          // best-effort — the primary state_final.json is what writeRun persists
+        }
+      }
+    }
+    return finals[primaryTwin];
   };
 
   try {
@@ -198,8 +254,8 @@ export async function runScenario(options: RunScenarioOptions) {
     if (preflight.exitCode !== 0) {
       // Flush durable twin rows before finalize/merge so pending TwinHttpEvent
       // lines are on disk before events.jsonl is rewritten (not only in finally).
-      await harness.flush();
-      const stateFinal = await harness.exportState();
+      await recorder.flush?.();
+      const stateFinal = await captureFinalStates();
       const { artifacts, exitCode } = await writeRun({
         artifactsDir,
         runId,
@@ -210,7 +266,7 @@ export async function runScenario(options: RunScenarioOptions) {
         agentStderr: preflight.stderr,
         agentExitCode: preflight.exitCode,
         agentTimedOut: preflight.timedOut ?? false,
-        events: harness.events(),
+        events: recorder.events(),
         stateInitial,
         stateFinal
       });
@@ -226,8 +282,8 @@ export async function runScenario(options: RunScenarioOptions) {
       env,
       timeoutSeconds: scenario.config.timeout
     });
-    await harness.flush();
-    const stateFinal = await harness.exportState();
+    await recorder.flush?.();
+    const stateFinal = await captureFinalStates();
     const { artifacts, exitCode } = await writeRun({
       artifactsDir,
       runId,
@@ -238,7 +294,7 @@ export async function runScenario(options: RunScenarioOptions) {
       agentStderr: agent.stderr,
       agentExitCode: agent.exitCode,
       agentTimedOut: agent.timedOut ?? false,
-      events: harness.events(),
+      events: recorder.events(),
       stateInitial,
       stateFinal
     });
@@ -247,10 +303,18 @@ export async function runScenario(options: RunScenarioOptions) {
     return { scenario, runId, artifacts, agent, exitCode, blockedEgress };
   } finally {
     // Drain capture-server first so any in-flight LlmCallEvent rows land
-    // in events.jsonl before we move on; THEN close the twin (which flushes
-    // the durable recorder and resets twin-side sockets).
+    // in events.jsonl before we move on; THEN close each twin (releasing its
+    // DB handle) and finally the shared recorder (flush + close).
     if (captureServer) await captureServer.shutdown();
-    server.close();
-    await harness.close();
+    // Await each twin's HTTP server close (letting in-flight handlers drain)
+    // BEFORE releasing that twin's DB handle, so a late handler can't run
+    // against a closed DB (teardown errors / lost final recorder writes).
+    await Promise.all(
+      booted.map(async ({ server, harness }) => {
+        await closeServer(server);
+        await harness.close();
+      })
+    );
+    await recorder.close?.();
   }
 }

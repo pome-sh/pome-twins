@@ -5,7 +5,11 @@ import { join } from "node:path";
 import { basename } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HostedOrchError } from "../../src/hosted/errors.js";
-import { ensureAgentRegistered, runRegisterAgent } from "../../src/cli/register.js";
+import {
+  ensureAgentRegistered,
+  normalizeRegisterTwins,
+  runRegisterAgent,
+} from "../../src/cli/register.js";
 
 const originalCwd = process.cwd();
 const tempDirs: string[] = [];
@@ -175,6 +179,120 @@ describe("runRegisterAgent", () => {
       }),
     ).rejects.toThrow(/malformed agentId/);
     expect(existsSync("pome.config.json")).toBe(true);
+  });
+
+  // ── Multi-twin (M3): --twins body + enabled_services print + old-cloud warn ──
+  it("POSTs {name, twins} and prints the cloud's enabled services", async () => {
+    await writeConfig({ agent: { command: "node a.js" } });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
+      errors.push(String(msg));
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({
+        id: "agt_123",
+        slug: "triage-bot",
+        display_name: "Triage Bot",
+        judge_model: "google/gemini-2.5-flash",
+        enabled_services: ["github", "slack"],
+      }),
+    );
+
+    await runRegisterAgent({
+      apiBaseUrl: "https://api.example.com",
+      name: "Triage Bot",
+      force: false,
+      twins: ["github", "slack"],
+    });
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body));
+    expect(body).toEqual({ name: "Triage Bot", twins: ["github", "slack"] });
+    expect(errors.join("\n")).toContain("Enabled services: github, slack");
+  });
+
+  it("warns when an older cloud omits enabled_services", async () => {
+    await writeConfig({ agent: { command: "node a.js" } });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
+      errors.push(String(msg));
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({
+        id: "agt_123",
+        slug: "triage-bot",
+        display_name: "Triage Bot",
+        judge_model: "google/gemini-2.5-flash",
+      }),
+    );
+
+    await runRegisterAgent({
+      apiBaseUrl: "https://api.example.com",
+      name: "Triage Bot",
+      force: false,
+      twins: ["github", "slack"],
+    });
+
+    expect(errors.join("\n")).toMatch(/not reported by this pome cloud/i);
+  });
+
+  it("omits twins from the body when none are passed (byte-identical to pre-M3)", async () => {
+    await writeConfig({ agent: { command: "node a.js" } });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({
+        id: "agt_123",
+        slug: "triage-bot",
+        display_name: "Triage Bot",
+        judge_model: "google/gemini-2.5-flash",
+      }),
+    );
+
+    await runRegisterAgent({
+      apiBaseUrl: "https://api.example.com",
+      name: "Triage Bot",
+      force: false,
+    });
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body));
+    expect(body).toEqual({ name: "Triage Bot" });
+  });
+
+  it("stays silent about enabled_services when no --twins was passed (older cloud)", async () => {
+    await writeConfig({ agent: { command: "node a.js" } });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
+      errors.push(String(msg));
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({
+        id: "agt_123",
+        slug: "triage-bot",
+        display_name: "Triage Bot",
+        judge_model: "google/gemini-2.5-flash",
+      }),
+    );
+
+    await runRegisterAgent({
+      apiBaseUrl: "https://api.example.com",
+      name: "Triage Bot",
+      force: false,
+    });
+
+    // No twin scoping was requested, so an absent enabled_services must not warn.
+    expect(errors.join("\n")).not.toMatch(/not reported by this pome cloud/i);
+    expect(errors.join("\n")).not.toMatch(/enabled services/i);
+  });
+});
+
+describe("normalizeRegisterTwins", () => {
+  it("parses and de-dupes a comma list", () => {
+    expect(normalizeRegisterTwins("github, slack ,github")).toEqual(["github", "slack"]);
+  });
+  it("returns undefined for absent / empty input", () => {
+    expect(normalizeRegisterTwins(undefined)).toBeUndefined();
+    expect(normalizeRegisterTwins("  , ")).toBeUndefined();
+  });
+  it("rejects an unknown twin against MOUNTED_TWINS", () => {
+    expect(() => normalizeRegisterTwins("github,linear")).toThrow(/Unknown twin/);
   });
 });
 

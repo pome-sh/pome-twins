@@ -8,7 +8,7 @@
 // the pre-extraction runner.
 
 import type { HostedClient } from "./client.js";
-import type { FinalizeResponse } from "../types/shared.js";
+import type { FinalizeResponse, PerTwinStateKeys } from "../types/shared.js";
 import type { Score } from "./evalResultView.js";
 import { outcomeOf } from "./evalResultView.js";
 import { redactSecrets } from "../recorder/redaction.js";
@@ -33,6 +33,15 @@ export interface RunBlobs {
   /** D18.1 — the run's meta.json (spec_version + twin_versions + the rest of
    *  writeRunArtifactsCore's payload), as written to / read from disk. */
   metaJson: string;
+  /** Multi-twin (M3): the session's twins. When >1, per-twin state upload URLs
+   *  are requested and each twin's state blobs are uploaded under its own
+   *  storage prefix. Absent / length ≤1 keeps the single-twin path unchanged. */
+  twins?: string[];
+  /** Multi-twin (M3): per-twin initial/final state JSON, keyed by twin id.
+   *  Includes the primary twin (whose blobs also go to the legacy top-level
+   *  pair). Only consumed when `twins.length > 1` and the cloud returns a
+   *  `per_twin` upload block. */
+  perTwinState?: Record<string, { initialJson: string; finalJson: string }>;
 }
 
 export interface UploadedBlobKeys {
@@ -40,6 +49,11 @@ export interface UploadedBlobKeys {
   stateInitialKey: string | null;
   stateFinalKey: string | null;
   signalsKey: string | null;
+  /** Multi-twin (M3): per-twin state storage keys, keyed by twin id. Each entry
+   *  carries at least one uploaded key (empty entries are dropped so the
+   *  finalize contract's ">=1 key per entry" invariant holds). Undefined when
+   *  the session is single-twin or the cloud returned no `per_twin` block. */
+  perTwinStateKeys?: PerTwinStateKeys;
   /** D18.1 — the storage key the presigned PUT landed at, or null whenever
    *  the upload didn't happen, INCLUDING the feature-detection case (older
    *  control plane 404s meta-upload-url). Never distinguished from any other
@@ -147,9 +161,17 @@ export async function uploadRunBlobs(
   async function uploadStates(): Promise<{
     initialKey: string | null;
     finalKey: string | null;
+    perTwinStateKeys?: PerTwinStateKeys;
   }> {
+    const multiTwin = (blobs.twins?.length ?? 0) > 1;
     try {
-      const upload = await client.requestStateUploadUrl(sessionId);
+      // Multi-twin (M3): ask for a per-twin URL block; single-twin passes
+      // nothing so the request body stays `{}` (byte-identical to pre-M3).
+      const upload = await client.requestStateUploadUrl(
+        sessionId,
+        multiTwin ? blobs.twins : undefined,
+      );
+      // Top-level (primary-twin) pair — always uploaded, legacy state_*_storage_key.
       const [initialOk, finalOk] = await Promise.all([
         putBlob(
           upload.state_initial.url,
@@ -164,9 +186,47 @@ export async function uploadRunBlobs(
           "state_final.json",
         ),
       ]);
+
+      // Multi-twin: upload each twin's blobs to its own storage prefix and
+      // collect the keys. Only when the cloud actually returned a `per_twin`
+      // block (an older cloud omits it → we fall back to the primary-only
+      // top-level keys, degrading gracefully). Entries with no uploaded key are
+      // dropped so the finalize contract's ">=1 key per entry" holds.
+      let perTwinStateKeys: PerTwinStateKeys | undefined;
+      if (multiTwin && upload.per_twin) {
+        const collected: PerTwinStateKeys = {};
+        for (const twin of blobs.twins ?? []) {
+          const pair = upload.per_twin[twin];
+          const state = blobs.perTwinState?.[twin];
+          if (!pair || !state) continue;
+          const [iOk, fOk] = await Promise.all([
+            putBlob(
+              pair.state_initial.url,
+              state.initialJson,
+              "application/json",
+              `state_initial.${twin}.json`,
+            ),
+            putBlob(
+              pair.state_final.url,
+              state.finalJson,
+              "application/json",
+              `state_final.${twin}.json`,
+            ),
+          ]);
+          const entry: { state_initial_key?: string; state_final_key?: string } = {};
+          if (iOk) entry.state_initial_key = pair.state_initial.key;
+          if (fOk) entry.state_final_key = pair.state_final.key;
+          if (entry.state_initial_key !== undefined || entry.state_final_key !== undefined) {
+            collected[twin] = entry;
+          }
+        }
+        if (Object.keys(collected).length > 0) perTwinStateKeys = collected;
+      }
+
       return {
         initialKey: initialOk ? upload.state_initial.key : null,
         finalKey: finalOk ? upload.state_final.key : null,
+        perTwinStateKeys,
       };
     } catch (err) {
       console.warn(
@@ -224,6 +284,7 @@ export async function uploadRunBlobs(
     eventsKey,
     stateInitialKey: stateKeys.initialKey,
     stateFinalKey: stateKeys.finalKey,
+    perTwinStateKeys: stateKeys.perTwinStateKeys,
     metaKey,
     signalsKey,
   };

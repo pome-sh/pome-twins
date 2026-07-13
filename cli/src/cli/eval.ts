@@ -41,11 +41,13 @@ import {
 import { readLatestRun, toTwinHttpEvent } from "../recorder/artifacts.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import {
+  criterionMarkerLabel,
   markerFor,
   outcomeOf,
   runScoreLine,
   scoreCountsSummary,
   scoreStatus,
+  twinSkipSuffix,
   type Score,
 } from "../hosted/evalResultView.js";
 import { resolveCredentials } from "./credentials.js";
@@ -614,7 +616,7 @@ export async function runEvalCommand(
       console.error(`  criteria: ${scoreCountsSummary(result.score)}`);
       for (const criterionResult of result.score.results) {
         console.error(
-          `  ${markerFor(outcomeOf(criterionResult))} [${criterionResult.criterion.type}] ${criterionResult.criterion.text}`,
+          `  ${markerFor(outcomeOf(criterionResult))} ${criterionMarkerLabel(criterionResult.criterion)} ${criterionResult.criterion.text}${twinSkipSuffix(criterionResult)}`,
         );
       }
     }

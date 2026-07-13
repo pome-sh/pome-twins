@@ -55,6 +55,11 @@ export class HostedOrchError extends Error {
     message: string,
     public readonly requestId?: string,
     public readonly status?: number,
+    /** Machine-readable `error.type` from the cloud envelope, when present
+     *  (e.g. `multi_twin_unsupported` so the CLI can map an old-cloud
+     *  multi-twin rejection to a friendly hint). Undefined for
+     *  network/parse failures and the twin-pod 401 shape. */
+    public readonly type?: string,
   ) {
     super(message);
     this.name = "HostedOrchError";

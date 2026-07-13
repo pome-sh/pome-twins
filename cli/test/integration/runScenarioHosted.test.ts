@@ -560,3 +560,378 @@ describe("runScenarioHosted failure paths", () => {
     expect(receivedFinalize!.stop_reason).toBe("agent_timeout");
   });
 });
+
+// ── Multi-twin (M3): env fan-out, per-twin state capture/upload, finalize ──
+describe("runScenarioHosted multi-twin (github + slack)", () => {
+  let mtServer: ServerType | undefined;
+  let mtPort = 0;
+  let mtTmp: string | undefined;
+
+  afterEach(async () => {
+    mtServer?.close();
+    mtServer = undefined;
+    mtPort = 0;
+    if (mtTmp) {
+      await rm(mtTmp, { recursive: true, force: true });
+      mtTmp = undefined;
+    }
+  });
+
+  const MULTI_SCENARIO = [
+    "# Multi",
+    "",
+    "## Prompt",
+    "Do a github+slack task.",
+    "",
+    "## Success Criteria",
+    "- [D:github] Issue #1 is labeled",
+    "- [D:slack] A message was posted",
+    "",
+    "## Seed State",
+    "```json",
+    JSON.stringify({
+      github: { repositories: [{ owner: "acme", name: "api" }] },
+      slack: { channels: [{ name: "general" }] },
+    }),
+    "```",
+    "",
+    "## Config",
+    "```yaml",
+    'twins: ["github", "slack"]',
+    "```",
+    "",
+  ].join("\n");
+
+  it("fans env out per twin, fetches+uploads two states, and finalizes with twins + per_twin_state_keys", async () => {
+    const stateGets: Record<string, number> = { github: 0, slack: 0 };
+    const statePuts: Record<string, string | null> = {
+      "github/final": null,
+      "slack/final": null,
+      "github/initial": null,
+      "slack/initial": null,
+      "top/final": null,
+    };
+    let receivedFinalize: Record<string, unknown> | null = null;
+    let stateUploadBody: unknown = null;
+
+    const app = new Hono();
+
+    app.post("/v1/sessions", async (c) => {
+      const token = await signJwt(
+        { sid: FAKE_SESSION_ID, team_id: "tm_test", exp: Math.floor(Date.now() / 1000) + 600 },
+        TWIN_AUTH_SECRET,
+      );
+      return c.json({
+        session_id: FAKE_SESSION_ID,
+        session_token: "pst_test_hosted",
+        // Legacy bare url (= primary twin, un-disambiguated).
+        twin_url: `http://127.0.0.1:${mtPort}/s/${FAKE_SESSION_ID}`,
+        expires_at: new Date(Date.now() + 600_000).toISOString(),
+        agent_token: token,
+        openapi_url: `http://127.0.0.1:${mtPort}/openapi.json`,
+        // Distinct per-twin URLs.
+        per_twin: {
+          github: {
+            api_url: `http://127.0.0.1:${mtPort}/github/s/${FAKE_SESSION_ID}`,
+            mcp_url: `http://127.0.0.1:${mtPort}/github/s/${FAKE_SESSION_ID}/mcp`,
+            openapi_url: `http://127.0.0.1:${mtPort}/github/openapi.json`,
+          },
+          slack: {
+            api_url: `http://127.0.0.1:${mtPort}/slack/s/${FAKE_SESSION_ID}`,
+            mcp_url: `http://127.0.0.1:${mtPort}/slack/s/${FAKE_SESSION_ID}/mcp`,
+            openapi_url: `http://127.0.0.1:${mtPort}/slack/openapi.json`,
+          },
+        },
+      });
+    });
+
+    // Per-twin twin-pod stand-ins (distinct state per twin).
+    app.get("/github/s/:sid/_pome/state", (c) => {
+      stateGets.github += 1;
+      return c.json({ repositories: [{ owner: "acme", name: "api", full_name: "acme/api" }] });
+    });
+    app.get("/slack/s/:sid/_pome/state", (c) => {
+      stateGets.slack += 1;
+      return c.json({ channels: [{ name: "general" }] });
+    });
+    app.get("/github/s/:sid/_pome/events", (c) =>
+      c.json([
+        {
+          ts: "2026-05-11T00:00:01.000Z",
+          run_id: "run_fixture",
+          twin: "github",
+          request_id: "req_gh",
+          method: "GET",
+          path: "/repos/acme/api",
+          status: 200,
+          response_body: {},
+          latency_ms: 5,
+          fidelity: "semantic",
+          state_mutation: false,
+        },
+      ]),
+    );
+    app.get("/slack/s/:sid/_pome/events", (c) =>
+      c.json([
+        {
+          ts: "2026-05-11T00:00:03.000Z",
+          run_id: "run_fixture",
+          twin: "slack",
+          request_id: "req_sl",
+          method: "POST",
+          path: "/api/chat.postMessage",
+          status: 200,
+          response_body: {},
+          latency_ms: 5,
+          fidelity: "semantic",
+          state_mutation: true,
+        },
+      ]),
+    );
+
+    app.post("/v1/sessions/:id/result-upload-url", (c) => {
+      const sid = c.req.param("id");
+      return c.json({
+        url: `http://127.0.0.1:${mtPort}/__put/events`,
+        key: `team-tm_test/session-${sid}/events.jsonl`,
+      });
+    });
+
+    app.post("/v1/sessions/:id/state-upload-url", async (c) => {
+      const sid = c.req.param("id");
+      stateUploadBody = await c.req.json().catch(() => null);
+      const pair = (twin: string) => ({
+        state_initial: {
+          url: `http://127.0.0.1:${mtPort}/__put/${twin}/initial`,
+          key: `team-tm_test/session-${sid}/${twin}/state_initial.json`,
+        },
+        state_final: {
+          url: `http://127.0.0.1:${mtPort}/__put/${twin}/final`,
+          key: `team-tm_test/session-${sid}/${twin}/state_final.json`,
+        },
+      });
+      return c.json({
+        // Top-level pair = primary twin (github).
+        state_initial: {
+          url: `http://127.0.0.1:${mtPort}/__put/top/initial`,
+          key: `team-tm_test/session-${sid}/state_initial.json`,
+        },
+        state_final: {
+          url: `http://127.0.0.1:${mtPort}/__put/top/final`,
+          key: `team-tm_test/session-${sid}/state_final.json`,
+        },
+        per_twin: { github: pair("github"), slack: pair("slack") },
+      });
+    });
+
+    app.put("/__put/events", async () => new Response(null, { status: 200 }));
+    for (const key of ["github", "slack", "top"]) {
+      app.put(`/__put/${key}/initial`, async (c) => {
+        statePuts[`${key}/initial`] = await c.req.text();
+        return new Response(null, { status: 200 });
+      });
+      app.put(`/__put/${key}/final`, async (c) => {
+        statePuts[`${key}/final`] = await c.req.text();
+        return new Response(null, { status: 200 });
+      });
+    }
+
+    app.post("/v1/sessions/:id/finalize", async (c) => {
+      receivedFinalize = (await c.req.json()) as Record<string, unknown>;
+      return c.json(
+        {
+          run_id: FAKE_RUN_ID,
+          score: 100,
+          judge_model: "test-judge",
+          dashboard_url: `http://127.0.0.1:${mtPort}/runs/${FAKE_RUN_ID}`,
+        },
+        201,
+      );
+    });
+    app.delete("/v1/sessions/:id", (c) => c.json({ id: c.req.param("id"), state: "expired" }));
+
+    mtPort = await new Promise<number>((res) => {
+      mtServer = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, (info) => res(info.port));
+    });
+
+    mtTmp = await mkdtemp(join(tmpdir(), "pome-hosted-mt-"));
+    const scenarioPath = join(mtTmp, "scn.md");
+    await writeFile(scenarioPath, MULTI_SCENARIO, "utf8");
+    const envFile = join(mtTmp, "agent-env.json");
+    const agentScript = `require('fs').writeFileSync(${JSON.stringify(envFile)}, JSON.stringify({gh:process.env.POME_GITHUB_REST_URL, ghm:process.env.POME_GITHUB_MCP_URL, ght:process.env.POME_GITHUB_TOKEN, sl:process.env.POME_SLACK_REST_URL, slm:process.env.POME_SLACK_MCP_URL, slt:process.env.POME_SLACK_TOKEN, names:process.env.POME_TWIN_NAMES}))`;
+    const stubAgent = `node -e ${JSON.stringify(agentScript)}`;
+
+    const artifactsDir = join(mtTmp, "runs");
+    const result = await runScenarioHosted({
+      scenarioPath,
+      agentCommand: stubAgent,
+      artifactsDir,
+      hosted: { baseUrl: `http://127.0.0.1:${mtPort}`, apiKey: "pme_test" },
+    });
+
+    expect(result.score.satisfaction).toBe(100);
+
+    // Env fan-out: distinct per-twin endpoints; slack bearer = the session JWT.
+    const agentEnv = JSON.parse(await (await import("node:fs/promises")).readFile(envFile, "utf8")) as Record<string, string>;
+    expect(agentEnv.gh).toContain("/github/s/");
+    expect(agentEnv.sl).toContain("/slack/s/");
+    expect(agentEnv.gh).not.toBe(agentEnv.sl);
+    expect(agentEnv.ghm).toContain("/github/s/");
+    expect(agentEnv.slm).toContain("/slack/s/");
+    expect(agentEnv.names).toBe("github,slack");
+    // Slack + github bearers both = agent_token (proxy only verifies the JWT).
+    expect(agentEnv.slt).toBe(agentEnv.ght);
+    expect(agentEnv.slt).toBeTruthy();
+
+    // Two state fetches (one per twin), each hit by initial + final captures.
+    expect(stateGets.github).toBeGreaterThanOrEqual(2);
+    expect(stateGets.slack).toBeGreaterThanOrEqual(2);
+
+    // Two per-twin state uploads with distinct bodies.
+    expect(statePuts["github/final"]).not.toBeNull();
+    expect(statePuts["slack/final"]).not.toBeNull();
+    expect(JSON.parse(statePuts["github/final"] as string)).toHaveProperty("repositories");
+    expect(JSON.parse(statePuts["slack/final"] as string)).toHaveProperty("channels");
+
+    // state-upload-url was asked for both twins.
+    expect((stateUploadBody as { twins?: string[] }).twins).toEqual(["github", "slack"]);
+
+    // Finalize carries per-criterion twin attribution and per_twin_state_keys.
+    expect(receivedFinalize).not.toBeNull();
+    const finalize = receivedFinalize!;
+    const criteria = finalize.criteria as Array<{ text: string; kind: string; twin?: string }>;
+    expect(criteria.map((c) => c.twin)).toEqual(["github", "slack"]);
+    const perTwinKeys = finalize.per_twin_state_keys as Record<string, unknown>;
+    expect(Object.keys(perTwinKeys).sort()).toEqual(["github", "slack"]);
+    expect(perTwinKeys.slack).toMatchObject({
+      state_final_key: `team-tm_test/session-${FAKE_SESSION_ID}/slack/state_final.json`,
+    });
+
+    // Non-primary twin state written to artifacts alongside the legacy file.
+    const fs = await import("node:fs/promises");
+    const slackArtifact = JSON.parse(
+      await fs.readFile(join(result.artifacts.runDir, "state_final.slack.json"), "utf8"),
+    );
+    expect(slackArtifact).toHaveProperty("channels");
+  });
+
+  it("maps an old-cloud 422 multi_twin_unsupported to a friendly message", async () => {
+    const app = new Hono();
+    app.post("/v1/sessions", (c) =>
+      c.json(
+        { error: { type: "multi_twin_unsupported", message: "multi-twin not supported" } },
+        422,
+      ),
+    );
+    mtPort = await new Promise<number>((res) => {
+      mtServer = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, (info) => res(info.port));
+    });
+    mtTmp = await mkdtemp(join(tmpdir(), "pome-hosted-mt-"));
+    const scenarioPath = join(mtTmp, "scn.md");
+    await writeFile(scenarioPath, MULTI_SCENARIO, "utf8");
+
+    await expect(
+      runScenarioHosted({
+        scenarioPath,
+        agentCommand: "true",
+        artifactsDir: join(mtTmp, "runs"),
+        hosted: { baseUrl: `http://127.0.0.1:${mtPort}`, apiKey: "pme_test" },
+      }),
+    ).rejects.toThrow(/does not support multi-twin sessions yet/i);
+  });
+});
+
+// ── Regression (BLOCKER): single-twin run against an OLD cloud that returns
+//    NO `per_twin` — the agent env must stay byte-identical to origin/main.
+//    The schema synthesizes a per_twin entry; the runner must NOT leak its
+//    synthesized mcp_url and must keep injecting the github + stripe vars.
+describe("runScenarioHosted single-twin old-cloud (no per_twin) env parity", () => {
+  let ocServer: ServerType | undefined;
+  let ocPort = 0;
+  let ocTmp: string | undefined;
+
+  afterEach(async () => {
+    ocServer?.close();
+    ocServer = undefined;
+    ocPort = 0;
+    if (ocTmp) {
+      await rm(ocTmp, { recursive: true, force: true });
+      ocTmp = undefined;
+    }
+  });
+
+  const SINGLE_SCENARIO =
+    "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+
+  it("injects POME_GITHUB_MCP_URL=${twin_url}/mcp and the unconditional stripe vars", async () => {
+    const app = new Hono();
+    app.post("/v1/sessions", async (c) => {
+      const token = await signJwt(
+        { sid: FAKE_SESSION_ID, team_id: "tm_test", exp: Math.floor(Date.now() / 1000) + 600 },
+        TWIN_AUTH_SECRET,
+      );
+      // OLD cloud: twin_url only, NO per_twin key, NO session_token.
+      return c.json({
+        session_id: FAKE_SESSION_ID,
+        twin_url: `http://127.0.0.1:${ocPort}/s/${FAKE_SESSION_ID}`,
+        expires_at: new Date(Date.now() + 600_000).toISOString(),
+        agent_token: token,
+        openapi_url: `http://127.0.0.1:${ocPort}/openapi.json`,
+        provider_credentials: {
+          github: { token: "ght_provider", header: "Authorization", scheme: "Bearer" },
+        },
+      });
+    });
+    app.get("/s/:sid/_pome/state", (c) => c.json({ repositories: [] }));
+    app.get("/s/:sid/_pome/events", (c) => c.json([]));
+    app.post("/v1/sessions/:id/finalize", (c) =>
+      c.json(
+        {
+          run_id: FAKE_RUN_ID,
+          score: 100,
+          judge_model: "test-judge",
+          dashboard_url: `http://127.0.0.1:${ocPort}/runs/${FAKE_RUN_ID}`,
+        },
+        201,
+      ),
+    );
+    app.delete("/v1/sessions/:id", (c) => c.json({ id: c.req.param("id"), state: "expired" }));
+
+    ocPort = await new Promise<number>((res) => {
+      ocServer = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, (info) => res(info.port));
+    });
+
+    ocTmp = await mkdtemp(join(tmpdir(), "pome-hosted-oc-"));
+    const scenarioPath = join(ocTmp, "scn.md");
+    await writeFile(scenarioPath, SINGLE_SCENARIO, "utf8");
+    const envFile = join(ocTmp, "agent-env.json");
+    const agentScript = `require('fs').writeFileSync(${JSON.stringify(envFile)}, JSON.stringify({ghr:process.env.POME_GITHUB_REST_URL, ghm:process.env.POME_GITHUB_MCP_URL, ght:process.env.POME_GITHUB_TOKEN, sb:process.env.POME_STRIPE_API_BASE, sk:process.env.POME_STRIPE_API_KEY, base:process.env.POME_TWIN_BASE_URL, auth:process.env.POME_AUTH_TOKEN}))`;
+    const stubAgent = `node -e ${JSON.stringify(agentScript)}`;
+
+    const result = await runScenarioHosted({
+      scenarioPath,
+      agentCommand: stubAgent,
+      artifactsDir: join(ocTmp, "runs"),
+      hosted: { baseUrl: `http://127.0.0.1:${ocPort}`, apiKey: "pme_test" },
+    });
+
+    expect(result.exitCode).toBe(0);
+
+    const agentEnv = JSON.parse(
+      await (await import("node:fs/promises")).readFile(envFile, "utf8"),
+    ) as Record<string, string>;
+    const twinUrl = `http://127.0.0.1:${ocPort}/s/${FAKE_SESSION_ID}`;
+
+    // The BLOCKER: MCP url is `${twin_url}/mcp`, never the synthesized value
+    // (which for a non-api host has no /mcp suffix at all).
+    expect(agentEnv.ghm).toBe(`${twinUrl}/mcp`);
+    expect(agentEnv.ghr).toBe(twinUrl);
+    expect(agentEnv.base).toBe(twinUrl);
+    // Provider github token flows through (origin/main parity).
+    expect(agentEnv.ght).toBe("ght_provider");
+    // Stripe vars injected UNCONDITIONALLY even on a github-only run.
+    expect(agentEnv.sb).toBe(twinUrl);
+    expect(agentEnv.sk).toBe(agentEnv.auth);
+    expect(agentEnv.sk).toBeTruthy();
+  });
+});

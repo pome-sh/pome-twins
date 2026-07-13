@@ -11,7 +11,12 @@ import {
 } from "../hosted/evalResultCache.js";
 import { redactEvent, redactSecrets } from "../recorder/redaction.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
-import { createHostedClient, type HostedClient } from "../hosted/client.js";
+import {
+  createHostedClient,
+  perTwinReturnedByCloud,
+  type HostedClient,
+} from "../hosted/client.js";
+import { ensureMcpSuffix } from "../cli/session.js";
 import {
   redactJsonl,
   scoreFromFinalizeResponse,
@@ -22,7 +27,7 @@ import {
   normalizeConfigAgentSdk,
   readProjectConfig,
 } from "../cli/project-config.js";
-import { HostedTrialError } from "../hosted/errors.js";
+import { HostedOrchError, HostedTrialError } from "../hosted/errors.js";
 import type {
   CreateSessionResponse,
   CriterionDef,
@@ -76,6 +81,123 @@ export interface RunScenarioHostedResult {
   durationMs: number;
 }
 
+/** Build the agent subprocess env for a hosted run.
+ *
+ * Two layers, in this order:
+ *
+ *  1. The LEGACY block (origin/main parity). Every hosted run — regardless of
+ *     which twins the session mounts — ALWAYS injected github + stripe vars
+ *     pointing at the primary/bare `twin_url`, plus POME_TWIN_BASE_URL and the
+ *     OTEL/task/run scaffolding. Byte-identical single-twin env is the bar, so
+ *     this block reproduces main's exact keys, values, AND insertion order.
+ *
+ *  2. The per-twin fan-out OVERLAY (M3). For each twin actually in the session,
+ *     set POME_<T>_REST_URL / POME_<T>_MCP_URL from `per_twin[T]` (distinct URLs
+ *     per twin) plus its provider bearer. For github/stripe this overwrites the
+ *     legacy values IN PLACE (same key → insertion order preserved); other twins
+ *     append new keys.
+ *
+ * MCP URL rule (regression guard): only trust `per_twin[T].mcp_url` when the
+ * cloud ACTUALLY RETURNED `per_twin` (`perTwinFromCloud`). A single-twin OLD
+ * cloud returns no `per_twin`; the schema synthesizes one whose `mcp_url`
+ * host-rewrites api.pome.sh→mcp.pome.sh with NO `/mcp` suffix. Trusting it would
+ * drift POME_*_MCP_URL off main's `${twin_url}/mcp`. So for a synthesized entry
+ * we construct `${api_url}/mcp`; only a cloud-returned value gets ensureMcpSuffix
+ * (the same normalization `pome session create` applies). */
+export function buildAgentEnv(params: {
+  session: CreateSessionResponse;
+  twins: string[];
+  /** True iff the cloud's create-session body carried a `per_twin` key. */
+  perTwinFromCloud: boolean;
+  prompt: string;
+  otlpEndpoint: string;
+  apiKey: string;
+  agentId?: string;
+  runId: string;
+  artifactsDir: string;
+  slug: string;
+  signalsPath: string;
+}): Record<string, string> {
+  const {
+    session,
+    twins,
+    perTwinFromCloud,
+    prompt,
+    otlpEndpoint,
+    apiKey,
+    agentId,
+    runId,
+    artifactsDir,
+    slug,
+    signalsPath,
+  } = params;
+
+  const env: Record<string, string> = {
+    POME_TASK: prompt,
+    POME_TWIN_NAMES: twins.join(","),
+    POME_OTEL_EXPORTER_OTLP_ENDPOINT: otlpEndpoint,
+    POME_OTEL_EXPORTER_OTLP_HEADERS: `x-api-key=${apiKey}`,
+    OTEL_SERVICE_NAME: agentId ?? "pome-agent",
+    OTEL_RESOURCE_ATTRIBUTES: `pome.session_id=${session.session_id},pome.run_id=${runId}${
+      agentId ? `,pome.agent_id=${agentId}` : ""
+    }`,
+    // The twin base URL, same value the self-host docs teach agents to fall
+    // back on. Agent code written against the standalone docker twin
+    // reads POME_TWIN_BASE_URL with a 127.0.0.1:3333 fallback; without this
+    // injection that fallback fires on hosted runs and the agent probes a
+    // loopback port nothing listens on. Legacy = the primary twin's bare url.
+    POME_TWIN_BASE_URL: session.twin_url,
+    // Legacy unconditional block (origin/main parity). Injected on EVERY hosted
+    // run regardless of twin; the per-twin overlay below overwrites these in
+    // place for github/stripe when those twins are in the session.
+    POME_GITHUB_REST_URL: session.twin_url,
+    POME_GITHUB_MCP_URL: `${session.twin_url}/mcp`,
+    POME_GITHUB_TOKEN:
+      session.provider_credentials.github?.token ?? session.agent_token,
+    POME_STRIPE_API_BASE: session.twin_url,
+    // Always use the JWT agent_token as the Stripe SDK's Bearer in hosted mode.
+    // The cloud also returns `provider_credentials.stripe.api_key` (an
+    // HMAC-signed `sk_test_pome_*`), but the pome-cloud proxy only accepts
+    // JWTs — it routes by verifying the bearer against `agent_token`. A
+    // stripe-style key short-circuits to the proxy's opaque 404 before the
+    // request reaches the twin pod. The Stripe SDK sends any opaque string as
+    // `Authorization: Bearer …`, and twin-stripe's dual-auth accepts JWTs
+    // natively, so the JWT round-trips cleanly end-to-end.
+    POME_STRIPE_API_KEY: session.agent_token,
+    POME_AUTH_TOKEN: session.agent_token,
+    POME_RUN_ID: runId,
+    POME_ARTIFACTS_DIR: join(artifactsDir, slug, runId),
+    POME_ADAPTER_SIGNALS_PATH: signalsPath,
+  };
+
+  for (const twin of twins) {
+    const upper = twin.toUpperCase();
+    const pt = session.per_twin?.[twin];
+    const apiUrl = pt?.api_url ?? session.twin_url;
+    const mcpUrl =
+      perTwinFromCloud && pt?.mcp_url
+        ? ensureMcpSuffix(pt.mcp_url)
+        : `${apiUrl.replace(/\/$/, "")}/mcp`;
+    env[`POME_${upper}_REST_URL`] = apiUrl;
+    env[`POME_${upper}_MCP_URL`] = mcpUrl;
+    if (twin === "github") {
+      env.POME_GITHUB_TOKEN =
+        session.provider_credentials.github?.token ?? session.agent_token;
+    } else if (twin === "stripe") {
+      env.POME_STRIPE_API_BASE = apiUrl;
+      env.POME_STRIPE_API_KEY = session.agent_token;
+    } else if (twin === "slack") {
+      // Same rationale as the Stripe api-key line: the twin proxy verifies only
+      // the session JWT as bearer, so the agent's Slack bearer is the
+      // agent_token — NOT provider_credentials.slack.token, which the proxy
+      // would reject.
+      env.POME_SLACK_TOKEN = session.agent_token;
+    }
+  }
+
+  return env;
+}
+
 export async function runScenarioHosted(
   options: RunScenarioHostedOptions
 ): Promise<RunScenarioHostedResult> {
@@ -118,25 +240,44 @@ export async function runScenarioHosted(
   // precedence; see parseScenario.resolveSeedState) so the cloud doesn't need
   // to re-extract it from the markdown. Prose `## Seed State` sections have no
   // fenced JSON to extract — cloud would 422 with "no fenced code block".
-  const session =
-    options.premintedSession ??
-    (await client.createSession({
+  const session = await createSessionOrExplain(
+    client,
+    options.premintedSession,
+    {
       scenarioSource,
       twins: scenario.config.twins,
       agentId,
       seed: scenario.seedState,
-    }));
+    },
+  );
+
+  // Multi-twin (M3) locals. `twins[0]` is the primary twin: the source of the
+  // legacy top-level state blobs / URLs / criterion attribution.
+  const twins = scenario.config.twins;
+  const primaryTwin = twins[0]!;
+  const isMultiTwin = twins.length > 1;
+  // Each twin's own api base. Prefer the per-twin URL; fall back to the legacy
+  // bare `twin_url` (the primary) when the cloud didn't disambiguate per twin
+  // (older cloud, or the empty `per_twin` in tests). Keeps single-twin runs
+  // fetching from the same URL they always did.
+  const twinApiUrl = (twin: string): string =>
+    session.per_twin?.[twin]?.api_url ?? session.twin_url;
 
   // Use session_id as the local artifact-dir id. The cloud's run_id (assigned
   // at /result time) is reported separately to the caller.
   const runId = session.session_id;
 
   try {
-    // 2. Capture initial twin state via bearer-protected /_pome/state.
-    const stateInitial = await client.fetchState({
-      twinUrl: session.twin_url,
-      agentToken: session.agent_token,
-    });
+    // 2. Capture initial twin state via bearer-protected /_pome/state — one
+    //    fetch per twin (each from its own api base). The primary twin's state
+    //    stays the legacy `stateInitial`.
+    const stateInitialByTwin = await fetchStateForTwins(
+      client,
+      twins,
+      twinApiUrl,
+      session.agent_token,
+    );
+    const stateInitial = stateInitialByTwin[primaryTwin];
 
     // Agent telemetry → pome-cloud. The agent runs as a LOCAL subprocess even on
     // hosted runs, and its LLM calls happen inside the SDK (they never traverse
@@ -164,42 +305,21 @@ export async function runScenarioHosted(
       ).toString();
 
     // 3. Run the agent. Env mirrors self-host so a customer's agent code
-    //    is twin-mode-agnostic.
-    const env = {
-      POME_TASK: scenario.prompt,
-      POME_TWIN_NAMES: scenario.config.twins.join(","),
-      POME_OTEL_EXPORTER_OTLP_ENDPOINT: otlpEndpoint,
-      POME_OTEL_EXPORTER_OTLP_HEADERS: `x-api-key=${options.hosted.apiKey}`,
-      OTEL_SERVICE_NAME: agentId ?? "pome-agent",
-      OTEL_RESOURCE_ATTRIBUTES: `pome.session_id=${session.session_id},pome.run_id=${runId}${
-        agentId ? `,pome.agent_id=${agentId}` : ""
-      }`,
-      // FDRS-667 — the twin base URL, same value the self-host docs teach
-      // agents to fall back on. Agent code written against the standalone
-      // docker twin reads POME_TWIN_BASE_URL with a 127.0.0.1:3333 fallback;
-      // without this injection that fallback fires on hosted runs and the
-      // agent probes a loopback port nothing listens on.
-      POME_TWIN_BASE_URL: session.twin_url,
-      POME_GITHUB_REST_URL: session.twin_url,
-      POME_GITHUB_MCP_URL: `${session.twin_url}/mcp`,
-      POME_GITHUB_TOKEN: session.provider_credentials.github?.token ?? session.agent_token,
-      POME_STRIPE_API_BASE: session.twin_url,
-      // Always use the JWT agent_token as the Stripe SDK's Bearer in
-      // hosted mode (FDRS-369). The cloud also returns
-      // `provider_credentials.stripe.api_key` (an HMAC-signed
-      // `sk_test_pome_*`), but the pome-cloud proxy at
-      // `/s/:sid/*` only accepts JWTs — it routes by verifying the
-      // bearer against `agent_token`. A stripe-style key short-circuits
-      // to the proxy's opaque 404 before the request ever reaches the
-      // twin pod. The Stripe SDK is happy to send any opaque string as
-      // `Authorization: Bearer …`, and twin-stripe's dual-auth accepts
-      // JWTs natively, so the JWT round-trips cleanly end-to-end.
-      POME_STRIPE_API_KEY: session.agent_token,
-      POME_AUTH_TOKEN: session.agent_token,
-      POME_RUN_ID: runId,
-      POME_ARTIFACTS_DIR: join(artifactsDir, scenario.slug, runId),
-      POME_ADAPTER_SIGNALS_PATH: signalsPath,
-    };
+    //    is twin-mode-agnostic. See `buildAgentEnv` for the origin/main legacy
+    //    block + per-twin fan-out overlay.
+    const env = buildAgentEnv({
+      session,
+      twins,
+      perTwinFromCloud: perTwinReturnedByCloud(session),
+      prompt: scenario.prompt,
+      otlpEndpoint,
+      apiKey: options.hosted.apiKey,
+      agentId,
+      runId,
+      artifactsDir,
+      slug: scenario.slug,
+      signalsPath,
+    });
 
     const preflightTimeoutSeconds = Math.min(10, scenario.config.timeout);
     const preflight = await runAgentCommand({
@@ -277,16 +397,36 @@ export async function runScenarioHosted(
       throw new HostedTrialError(failure.reason, failure.errorCode);
     }
 
-    // 4. Capture final state + recorder events. Run in parallel for
-    //    latency. If either rejects (e.g., twin pod restarted between
-    //    preflight and now), the run fails before finalize fires —
-    //    the cloud has no record. Recovery is "user reruns"; V1 doesn't
-    //    retry transient twin failures.
-    const [stateFinal, eventsRaw] = await Promise.all([
-      client.fetchState({ twinUrl: session.twin_url, agentToken: session.agent_token }),
-      client.fetchEvents({ twinUrl: session.twin_url, agentToken: session.agent_token }),
-    ]);
-    const events = eventsRaw as RecorderEvent[];
+    // 4. Capture final state + recorder events — one fetch per twin, all in
+    //    parallel for latency. If any rejects (e.g., a twin pod restarted
+    //    between preflight and now), the run fails before finalize fires — the
+    //    cloud has no record. Recovery is "user reruns"; V1 doesn't retry
+    //    transient twin failures. Events from every twin are merged into one
+    //    ts-ordered stream (each line already carries its twin id from the
+    //    recorder; we only stamp it when a line lacks one).
+    const stateFinalByTwin: Record<string, unknown> = {};
+    const eventsByTwin: Record<string, RecorderEvent[]> = {};
+    await Promise.all(
+      twins.map(async (twin) => {
+        const [sf, ev] = await Promise.all([
+          client.fetchState({ twinUrl: twinApiUrl(twin), agentToken: session.agent_token }),
+          client.fetchEvents({ twinUrl: twinApiUrl(twin), agentToken: session.agent_token }),
+        ]);
+        stateFinalByTwin[twin] = sf;
+        // Single-twin keeps the twin's events byte-identical to origin/main —
+        // no `twin` field is stamped. Only the multi-twin merge needs each line
+        // tagged so the interleaved stream stays attributable.
+        eventsByTwin[twin] = isMultiTwin
+          ? (ev as RecorderEvent[]).map((e) => tagEventTwin(e, twin))
+          : (ev as RecorderEvent[]);
+      }),
+    );
+    const stateFinal = stateFinalByTwin[primaryTwin];
+    // Single-twin keeps the twin's own event order untouched (byte-identical);
+    // multi-twin interleaves all twins' events by timestamp.
+    const events: RecorderEvent[] = isMultiTwin
+      ? mergeEventsByTimestamp(twins.flatMap((t) => eventsByTwin[t] ?? []))
+      : eventsByTwin[primaryTwin] ?? [];
     // artifacts.ts still types `events` as the legacy twin/github RecorderEvent
     // (no step_id / tool_call_id / state_delta fields). Runtime data is the
     // same shape — cast to keep writeRunArtifactsCore happy without churning
@@ -314,6 +454,29 @@ export async function runScenarioHosted(
       stateInitial,
       stateFinal,
     });
+
+    // Multi-twin (M3): writeRunArtifactsCore writes the primary twin's final
+    // state as the legacy `state_final.json`. Write each NON-primary twin's
+    // final state alongside it as `state_final.<twin>.json` so local inspection
+    // sees every twin's world. Best-effort — a disk failure here must not fail
+    // an otherwise-complete run.
+    if (isMultiTwin) {
+      for (const twin of twins) {
+        if (twin === primaryTwin) continue;
+        try {
+          await writeFile(
+            join(artifacts.runDir, `state_final.${twin}.json`),
+            `${JSON.stringify(redactSecrets(stateFinalByTwin[twin]), null, 2)}\n`,
+          );
+        } catch (err) {
+          console.warn(
+            `[pome] state_final.${twin}.json not written (${
+              err instanceof Error ? err.message : String(err)
+            })`,
+          );
+        }
+      }
+    }
 
     // 6. FDRS-657 — NO local correlation. Correlation (like scoring/judging)
     //    is a cloud responsibility; the OSS CLI only captures the raw trace.
@@ -367,12 +530,28 @@ export async function runScenarioHosted(
     const metaJson = await readFile(join(artifacts.runDir, "meta.json"), "utf8").catch(
       () => "{}",
     );
+    // Multi-twin (M3): per-twin state blobs, keyed by twin id (includes the
+    // primary, whose blobs also land at the legacy top-level path). Undefined
+    // for single-twin, which keeps the flat state upload path unchanged.
+    const perTwinState = isMultiTwin
+      ? Object.fromEntries(
+          twins.map((twin) => [
+            twin,
+            {
+              initialJson: JSON.stringify(redactSecrets(stateInitialByTwin[twin])),
+              finalJson: JSON.stringify(redactSecrets(stateFinalByTwin[twin])),
+            },
+          ]),
+        )
+      : undefined;
     const uploaded = await uploadRunBlobs(client, session.session_id, {
       eventsJsonl,
       stateInitialJson,
       stateFinalJson,
       signalsJsonl,
       metaJson,
+      twins: isMultiTwin ? twins : undefined,
+      perTwinState,
     });
     const eventsJsonlUrl = uploaded.eventsKey;
     const stateKeys = {
@@ -387,10 +566,14 @@ export async function runScenarioHosted(
     //    The CLI prints this score on the `score:` line.
     // `CriterionDef.kind` on the finalize request is still the legacy `D`/`P`
     // wire vocabulary; map the canonical `code`/`model` kind back for the wire.
+    // Multi-twin (M3): carry the per-criterion twin attribution so the cloud
+    // judge checks each [D:<twin>] against that twin's state. Absent = the
+    // primary twin (single-twin scenarios omit it entirely).
     const criteriaDefs: CriterionDef[] = scenario.criteria.map((c, idx) => ({
       id: `crit_${idx}`,
       text: c.text,
       kind: c.type === "code" ? "D" : "P",
+      ...(c.twin ? { twin: c.twin } : {}),
     }));
     const stopReason = agentResult.timedOut
       ? "agent_timeout"
@@ -418,6 +601,10 @@ export async function runScenarioHosted(
       stateInitialStorageKey: stateKeys.initialKey ?? undefined,
       stateFinalStorageKey: stateKeys.finalKey ?? undefined,
       signalsStorageKey: signalsKey ?? undefined,
+      // Multi-twin (M3): per-twin state storage keys (>=1 key per entry).
+      // Undefined for single-twin / an older cloud that returned no per_twin
+      // upload block — the cloud then scores the primary twin from the flat keys.
+      perTwinStateKeys: uploaded.perTwinStateKeys,
     });
 
     // 9. Synthesize the cloud verdict for terminal display + the exit code.
@@ -507,6 +694,94 @@ export async function runScenarioHosted(
     await client.deleteSession(session.session_id).catch(() => undefined);
     await rm(signalsDir, { recursive: true, force: true }).catch(() => undefined);
   }
+}
+
+/** Mint the session unless one was pre-minted, mapping an old-cloud multi-twin
+ *  rejection (422 `multi_twin_unsupported`) to a friendly hint. Every other
+ *  error propagates unchanged so the existing auth/quota/orch mapping stands. */
+async function createSessionOrExplain(
+  client: HostedClient,
+  preminted: CreateSessionResponse | undefined,
+  input: {
+    scenarioSource: string;
+    twins: string[];
+    agentId?: string;
+    seed: unknown;
+  },
+): Promise<CreateSessionResponse> {
+  if (preminted) return preminted;
+  try {
+    return await client.createSession(input);
+  } catch (err) {
+    if (
+      err instanceof HostedOrchError &&
+      err.status === 422 &&
+      (err.type === "multi_twin_unsupported" ||
+        /multi_twin_unsupported/i.test(err.message))
+    ) {
+      throw new HostedOrchError(
+        "this pome cloud does not support multi-twin sessions yet",
+        err.requestId,
+        err.status,
+        err.type,
+      );
+    }
+    throw err;
+  }
+}
+
+/** Fetch `/_pome/state` for every twin (each from its own api base), keyed by
+ *  twin id. */
+async function fetchStateForTwins(
+  client: HostedClient,
+  twins: string[],
+  twinApiUrl: (twin: string) => string,
+  agentToken: string,
+): Promise<Record<string, unknown>> {
+  const byTwin: Record<string, unknown> = {};
+  await Promise.all(
+    twins.map(async (twin) => {
+      byTwin[twin] = await client.fetchState({
+        twinUrl: twinApiUrl(twin),
+        agentToken,
+      });
+    }),
+  );
+  return byTwin;
+}
+
+/** Stamp a recorder event with its twin id ONLY when the line doesn't already
+ *  carry one (the twin recorders set `twin` themselves; this is the merge-time
+ *  backfill for any that don't). Returns the input untouched when it already
+ *  carries a non-empty twin. */
+function tagEventTwin(event: RecorderEvent, twin: string): RecorderEvent {
+  if (event && typeof event === "object") {
+    const existing = (event as { twin?: unknown }).twin;
+    if (existing === undefined || existing === null || existing === "") {
+      return { ...event, twin } as RecorderEvent;
+    }
+  }
+  return event;
+}
+
+/** Merge multiple twins' event streams into one timestamp-ordered stream.
+ *  Stable: events with equal (or unparseable) `ts` keep their concatenation
+ *  order, so per-twin ordering is preserved within a timestamp. */
+function mergeEventsByTimestamp(events: RecorderEvent[]): RecorderEvent[] {
+  const tsOf = (e: RecorderEvent): string => {
+    const ts = (e as { ts?: unknown }).ts;
+    return typeof ts === "string" ? ts : "";
+  };
+  return events
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => {
+      const ta = tsOf(a.event);
+      const tb = tsOf(b.event);
+      if (ta < tb) return -1;
+      if (ta > tb) return 1;
+      return a.index - b.index;
+    })
+    .map(({ event }) => event);
 }
 
 /** FDRS-667 — the last non-empty stderr line, flattened and bounded, as the

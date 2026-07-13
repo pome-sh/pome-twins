@@ -13,6 +13,7 @@ import {
   type SubmitResultResponse,
   type CriterionResult,
   type Lane,
+  type PerTwinStateKeys,
   type Step,
 } from "../types/shared.js";
 import { z } from "zod";
@@ -21,6 +22,48 @@ import {
   HostedOrchError,
   HostedQuotaError,
 } from "./errors.js";
+
+// Multi-twin (M3): provenance marker for `per_twin`. A single-twin OLD cloud
+// ships NO `per_twin` key; `createSessionResponseSchema` then SYNTHESIZES one
+// (host-rewrites api.pome.sh→mcp.pome.sh with no `/mcp` suffix). Consumers that
+// build agent env from `per_twin[twin].mcp_url` must NOT trust that synthesized
+// value — it would drift POME_*_MCP_URL off origin/main's `${twin_url}/mcp`. We
+// record, on the parsed object as a NON-ENUMERABLE symbol (never serialized,
+// never spread), whether the raw wire body actually carried a `per_twin` key.
+const PER_TWIN_PROVENANCE = Symbol("pome.perTwinFromCloud");
+
+function markPerTwinProvenance(
+  session: CreateSessionResponse,
+  fromCloud: boolean,
+): CreateSessionResponse {
+  Object.defineProperty(session, PER_TWIN_PROVENANCE, {
+    value: fromCloud,
+    enumerable: false,
+    configurable: true,
+  });
+  return session;
+}
+
+/** True when the cloud's create-session body actually returned a `per_twin`
+ *  key (empty `{}` counts) — i.e. `per_twin` was NOT synthesized by the schema
+ *  from a legacy `twin_url`-only response. Consumers use this to decide whether
+ *  `per_twin[twin].mcp_url` is trustworthy. */
+export function perTwinReturnedByCloud(session: CreateSessionResponse): boolean {
+  return (
+    (session as Record<PropertyKey, unknown>)[PER_TWIN_PROVENANCE] === true
+  );
+}
+
+/** Whether a raw create-session wire body carried a usable `per_twin` map
+ *  (before schema synthesis). A `per_twin: null` counts as absent — the schema
+ *  would synthesize entries for it, and synthesized URLs must not be trusted.
+ *  Exported so the runner's env unit test can model the exact provenance the
+ *  client stamps. */
+export function rawBodyHadPerTwin(raw: unknown): boolean {
+  if (typeof raw !== "object" || raw === null) return false;
+  const pt = (raw as { per_twin?: unknown }).per_twin;
+  return typeof pt === "object" && pt !== null;
+}
 
 export interface HostedClientConfig {
   baseUrl: string;
@@ -140,9 +183,18 @@ export interface StateUploadUrlEntry {
   key: string;
 }
 
+export interface StateUploadUrlPair {
+  state_initial: StateUploadUrlEntry;
+  state_final: StateUploadUrlEntry;
+}
+
 export interface StateUploadUrlResponse {
   state_initial: StateUploadUrlEntry;
   state_final: StateUploadUrlEntry;
+  /** Multi-twin (M3): one initial/final URL+key pair per twin, keyed by twin
+   *  id. Absent on single-twin sessions and on an older cloud, where the
+   *  top-level pair (= primary twin) is authoritative. */
+  per_twin?: Record<string, StateUploadUrlPair>;
 }
 
 export interface SignalsUploadUrlResponse {
@@ -190,6 +242,12 @@ export interface FinalizeInput {
   // alongside the twin-HTTP timeline. The CLI uploads signals.jsonl via
   // `requestSignalsUploadUrl` first; the returned storage key flows here.
   signalsStorageKey?: string;
+  // Multi-twin (M3): per-twin state storage keys, keyed by twin id. Sent only
+  // for multi-twin sessions; each entry carries at least one of
+  // state_initial_key / state_final_key. Omitted on single-twin runs, which
+  // use the flat state_*StorageKey fields above. An older cloud strips it and
+  // scores the primary twin unchanged.
+  perTwinStateKeys?: PerTwinStateKeys;
 }
 
 export interface FinalizeOptions {
@@ -235,7 +293,14 @@ export interface HostedClient {
     input?: { errorCode?: string },
   ): Promise<AbandonSessionResponse>;
   requestEventsUploadUrl(sessionId: string): Promise<EventsUploadUrlResponse>;
-  requestStateUploadUrl(sessionId: string): Promise<StateUploadUrlResponse>;
+  /** Multi-twin (M3): pass `twins` (>1) to receive a per-twin URL+key pair
+   *  under `per_twin` in addition to the top-level primary-twin pair. Omit for
+   *  single-twin sessions. An older cloud ignores the body and returns only
+   *  the top-level pair. */
+  requestStateUploadUrl(
+    sessionId: string,
+    twins?: string[],
+  ): Promise<StateUploadUrlResponse>;
   /** F0-4 / L7 — mint a signed PUT for `signals.jsonl` (adapter-emitted
    *  HookEvent / ToolUseEvent / SubagentSpawnEvent rows). The returned
    *  `key` flows into `FinalizeInput.signalsStorageKey`. */
@@ -373,7 +438,9 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         // labeled at-capacity state instead of a generic quota message.
         throw new HostedQuotaError(msg, reqId, cloudDetails);
       }
-      throw new HostedOrchError(msg, reqId, res.status);
+      // Carry the envelope `error.type` (e.g. `multi_twin_unsupported`) so
+      // callers can map specific rejections to friendly hints.
+      throw new HostedOrchError(msg, reqId, res.status, cloudErr?.type);
     }
     try {
       return parse(json, res);
@@ -720,7 +787,10 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
         body.group_id = input.groupId;
       }
       return postJson("/v1/sessions", body, (raw) =>
-        createSessionResponseSchema.parse(raw),
+        markPerTwinProvenance(
+          createSessionResponseSchema.parse(raw),
+          rawBodyHadPerTwin(raw),
+        ),
       );
     },
 
@@ -872,23 +942,41 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       );
     },
 
-    async requestStateUploadUrl(sessionId) {
+    async requestStateUploadUrl(sessionId, twins) {
+      // Multi-twin (M3): a `{ twins }` body asks the cloud to sign a per-twin
+      // pair for each twin (returned under `per_twin`). Single-twin callers
+      // pass nothing and the body stays `{}` — byte-identical to pre-M3.
+      const body: Record<string, unknown> =
+        twins && twins.length > 0 ? { twins } : {};
       return postJson(
         `/v1/sessions/${encodeURIComponent(sessionId)}/state-upload-url`,
-        {},
+        body,
         (raw) => {
           const isEntry = (x: unknown): x is StateUploadUrlEntry =>
             typeof x === "object" &&
             x !== null &&
             typeof (x as { url?: unknown }).url === "string" &&
             typeof (x as { key?: unknown }).key === "string";
-          if (
-            typeof raw === "object" &&
-            raw !== null &&
-            isEntry((raw as { state_initial?: unknown }).state_initial) &&
-            isEntry((raw as { state_final?: unknown }).state_final)
-          ) {
-            return raw as StateUploadUrlResponse;
+          const isPair = (x: unknown): x is StateUploadUrlPair =>
+            typeof x === "object" &&
+            x !== null &&
+            isEntry((x as { state_initial?: unknown }).state_initial) &&
+            isEntry((x as { state_final?: unknown }).state_final);
+          if (isPair(raw)) {
+            // Validate `per_twin` when present; drop it silently if malformed
+            // rather than failing the whole request (best-effort, like the
+            // rest of the upload surface).
+            const perTwinRaw = (raw as { per_twin?: unknown }).per_twin;
+            let perTwin: Record<string, StateUploadUrlPair> | undefined;
+            if (
+              typeof perTwinRaw === "object" &&
+              perTwinRaw !== null &&
+              !Array.isArray(perTwinRaw) &&
+              Object.values(perTwinRaw as Record<string, unknown>).every(isPair)
+            ) {
+              perTwin = perTwinRaw as Record<string, StateUploadUrlPair>;
+            }
+            return { ...(raw as StateUploadUrlResponse), per_twin: perTwin };
           }
           throw new HostedOrchError(
             "POST /v1/sessions/:id/state-upload-url returned unexpected shape",
@@ -922,6 +1010,12 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       }
       if (input.signalsStorageKey !== undefined) {
         body.signals_storage_key = input.signalsStorageKey;
+      }
+      if (
+        input.perTwinStateKeys !== undefined &&
+        Object.keys(input.perTwinStateKeys).length > 0
+      ) {
+        body.per_twin_state_keys = input.perTwinStateKeys;
       }
       const initial = await postJson(
         `/v1/sessions/${encodeURIComponent(sessionId)}/finalize`,

@@ -46,7 +46,7 @@ import {
   runSessionStop,
   type SessionListStateFilter,
 } from "./session.js";
-import { runRegisterAgent } from "./register.js";
+import { normalizeRegisterTwins, runRegisterAgent } from "./register.js";
 import { resolvePackageRoot } from "./resolve-package-root.js";
 import {
   ClaudeManagedDeferredError,
@@ -411,21 +411,28 @@ export function createProgram() {
       "Overwrite an existing agentId in pome.config.json",
       false,
     )
+    .option(
+      "--twins <list>",
+      "Comma-separated services this agent may exercise (e.g. github,slack). Default: the cloud's default enablement.",
+    )
     .description(
       "Create a cloud agent under the current team and write agentId to pome.config.json",
     )
-    .action(async (name: string, opts: { apiUrl: string; force: boolean }) => {
-      try {
-        await runRegisterAgent({
-          apiBaseUrl: opts.apiUrl,
-          name,
-          force: opts.force,
-        });
-      } catch (err) {
-        console.error(friendlyHostedError(err));
-        process.exitCode = 2;
-      }
-    });
+    .action(
+      async (name: string, opts: { apiUrl: string; force: boolean; twins?: string }) => {
+        try {
+          await runRegisterAgent({
+            apiBaseUrl: opts.apiUrl,
+            name,
+            force: opts.force,
+            twins: normalizeRegisterTwins(opts.twins),
+          });
+        } catch (err) {
+          console.error(friendlyHostedError(err));
+          process.exitCode = 2;
+        }
+      },
+    );
 
   const session = program
     .command("session")
@@ -435,8 +442,12 @@ export function createProgram() {
 
   session
     .command("create")
-    .description("Create a hosted sandbox session for a twin and print its connection info")
-    .requiredOption("--twin <name>", "github | stripe")
+    .description("Create a hosted sandbox session for one or more twins and print its connection info")
+    .requiredOption(
+      "--twin <name>",
+      "github | stripe | slack. Repeat the flag for a multi-twin session (e.g. --twin github --twin slack).",
+      (value: string, previous: string[] = []) => [...previous, value],
+    )
     .option(
       "--api-url <url>",
       "Control-plane URL",
@@ -454,7 +465,7 @@ export function createProgram() {
     )
     .action(
       async (opts: {
-        twin: string;
+        twin: string[];
         apiUrl: string;
         showSecrets: boolean;
         secretsFile?: string;
@@ -469,7 +480,7 @@ export function createProgram() {
           }
           await runSessionCreate({
             apiBaseUrl: opts.apiUrl,
-            twin: opts.twin,
+            twins: opts.twin,
             showSecrets: opts.showSecrets,
             format: format as "text" | "json" | "env",
             secretsFile: opts.secretsFile,
