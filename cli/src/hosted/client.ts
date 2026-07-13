@@ -54,15 +54,15 @@ export function perTwinReturnedByCloud(session: CreateSessionResponse): boolean 
   );
 }
 
-/** Whether a raw create-session wire body carried a `per_twin` key at all
- *  (before schema synthesis). Exported so the runner's env unit test can model
- *  the exact provenance the client stamps. */
+/** Whether a raw create-session wire body carried a usable `per_twin` map
+ *  (before schema synthesis). A `per_twin: null` counts as absent — the schema
+ *  would synthesize entries for it, and synthesized URLs must not be trusted.
+ *  Exported so the runner's env unit test can model the exact provenance the
+ *  client stamps. */
 export function rawBodyHadPerTwin(raw: unknown): boolean {
-  return (
-    typeof raw === "object" &&
-    raw !== null &&
-    (raw as { per_twin?: unknown }).per_twin !== undefined
-  );
+  if (typeof raw !== "object" || raw === null) return false;
+  const pt = (raw as { per_twin?: unknown }).per_twin;
+  return typeof pt === "object" && pt !== null;
 }
 
 export interface HostedClientConfig {

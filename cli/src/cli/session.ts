@@ -4,7 +4,7 @@ import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { MOUNTED_TWINS } from "@pome-sh/shared-types";
-import { createHostedClient } from "../hosted/client.js";
+import { createHostedClient, perTwinReturnedByCloud } from "../hosted/client.js";
 import type { CreateSessionResponse } from "../types/shared.js";
 import {
   HostedAuthError,
@@ -63,6 +63,10 @@ function formatEnvExport(res: CreateSessionResponse, twins: string[]): string {
     `export POME_TWIN_URL=${JSON.stringify(res.twin_url)}`,
     `export POME_TWIN_NAMES=${JSON.stringify(twins.join(","))}`,
   ];
+  // Only trust per_twin.mcp_url when the cloud actually returned per_twin —
+  // the schema synthesizes mcp.pome.sh entries for old-cloud bodies, and those
+  // hosts don't serve MCP. Otherwise derive <api_url>/mcp (the legacy shape).
+  const fromCloud = perTwinReturnedByCloud(res);
   // Multi-twin (M3): one POME_<TWIN>_{REST,MCP}_URL pair per twin, plus the
   // provider-specific credential line. Loops per_twin so a github+slack session
   // emits distinct endpoints for each.
@@ -70,9 +74,10 @@ function formatEnvExport(res: CreateSessionResponse, twins: string[]): string {
     const upper = twin.toUpperCase();
     const pt = res.per_twin?.[twin];
     if (pt?.api_url) {
+      const mcpUrl = fromCloud ? ensureMcpSuffix(pt.mcp_url) : ensureMcpSuffix(pt.api_url);
       lines.push(`export POME_${upper}_REST_URL=${JSON.stringify(pt.api_url)}`);
       lines.push(
-        `export POME_${upper}_MCP_URL=${JSON.stringify(ensureMcpSuffix(pt.mcp_url))}`,
+        `export POME_${upper}_MCP_URL=${JSON.stringify(mcpUrl)}`,
       );
     }
     if (twin === "github") {
@@ -175,12 +180,16 @@ export async function runSessionCreate(opts: {
   // shows both endpoints. Falls back to the legacy bare twin_url on an older
   // cloud that only ships it.
   let printedAny = false;
+  const mcpFromCloud = perTwinReturnedByCloud(session);
   for (const twin of twins) {
     const pt = session.per_twin?.[twin];
     if (pt) {
       const label = twins.length > 1 ? `${twin} ` : "";
+      // Synthesized per_twin entries carry an mcp.pome.sh host that doesn't
+      // serve MCP — derive <api_url>/mcp unless the cloud returned per_twin.
+      const mcpUrl = mcpFromCloud ? ensureMcpSuffix(pt.mcp_url) : ensureMcpSuffix(pt.api_url);
       console.error(`${label}API: ${pt.api_url}`);
-      console.error(`${label}MCP: ${ensureMcpSuffix(pt.mcp_url)}`);
+      console.error(`${label}MCP: ${mcpUrl}`);
       printedAny = true;
     }
   }

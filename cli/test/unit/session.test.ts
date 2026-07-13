@@ -18,11 +18,15 @@ vi.mock("../../src/cli/project-config.js", () => ({
   readProjectConfig: vi.fn(async () => null),
 }));
 
-vi.mock("../../src/hosted/client.js", () => ({
-  createHostedClient: vi.fn(() => ({
-    createSession: mocks.createSession,
-  })),
-}));
+vi.mock("../../src/hosted/client.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/hosted/client.js")>();
+  return {
+    ...actual,
+    createHostedClient: vi.fn(() => ({
+      createSession: mocks.createSession,
+    })),
+  };
+});
 
 import { runSessionCreate } from "../../src/cli/session.js";
 
