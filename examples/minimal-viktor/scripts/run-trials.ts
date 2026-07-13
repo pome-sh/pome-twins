@@ -1,10 +1,16 @@
 /**
  * minimal-viktor trial orchestrator — observed, isolated multi-twin trials.
  *
- * Why this exists: pome's `-n` trial groups isolate the GitHub twin per trial,
- * but the Slack sandbox lives OUTSIDE the scenario (pome has no native
- * multi-twin scenarios yet), so a shared Slack channel would let trial 2
- * false-pass on trial 1's residue. This wrapper gives every trial a FRESH
+ * NOTE: scenario 01 is NATIVE multi-twin now (`twins: [github, slack]`) — pome
+ * provisions one isolated sandbox per twin per run, so it is run directly and
+ * is NOT in this wrapper's SCENARIOS list:
+ *     pome run scenarios/01-clean-merge.md -n 3
+ * This wrapper stays for 02-06 (single-twin github scenarios) until they migrate.
+ *
+ * Why this wrapper exists (for the not-yet-migrated 02-06): pome's `-n` trial
+ * groups isolate the GitHub twin per trial, but for those scenarios the Slack
+ * sandbox lives OUTSIDE the scenario, so a shared Slack channel would let trial
+ * 2 false-pass on trial 1's residue. This wrapper gives every trial a FRESH
  * hosted slack sandbox:
  *
  *   for each scenario x trial:
@@ -41,8 +47,14 @@ import {
 
 const EXAMPLE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CHANNEL = "eng-alerts";
+// Scenario 01 is NATIVE multi-twin now — it declares `twins: [github, slack]`
+// and pome provisions one isolated sandbox per twin per run. Run it directly:
+//     pome run scenarios/01-clean-merge.md -n 3
+// so it is intentionally NOT in this wrapper's trial list. This wrapper still
+// drives 02-06 (single-twin github scenarios with an out-of-band slack sandbox)
+// until they migrate too. checkSlack keeps its `01-clean-merge` case for
+// `--verify` mode (and the fixture tests) against a live sandbox.
 const SCENARIOS = [
-  "01-clean-merge",
   "02-two-safe-prs",
   "03-failing-ci",
   "04-unauthorized-author",
@@ -68,6 +80,9 @@ export function checkSlack(slug: string, messages: SlackMessage[]): SlackCheck[]
   const mergedTexts = texts.filter((t) => t.includes("successfully merged"));
 
   switch (slug) {
+    // Kept for `--verify` mode (and the fixture tests) even though 01 is native
+    // multi-twin now and no longer trial-driven by this wrapper: `--verify` can
+    // still assert the slack half against a live sandbox by slug.
     case "01-clean-merge":
       return [
         { name: 'message contains "successfully merged"', pass: mergedTexts.length > 0 },
