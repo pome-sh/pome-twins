@@ -37,19 +37,25 @@ while IFS= read -r tag || [ -n "$tag" ]; do
   cosign sign --yes "$ref"
   cosign attest --yes --predicate "$sbom_file" --type spdx "$ref"
 
-  # --use-signed-timestamps REQUIRES an RFC3161 timestamp to be present and
-  # valid. This is the load-bearing regression guard: without it, verification
-  # here passes on the still-fresh Fulcio cert and the missing-timestamp defect
-  # stays invisible until the cert expires (~10min) and a downstream consumer
-  # (pome-cloud control-plane deploy gate) fails. Fail the build instead.
-  echo "verifying $ref (with signed timestamps)"
+  # Signature: enforce the RFC3161 timestamp (--use-signed-timestamps).
+  # cosign v3 `sign` embeds it via the TUF signing config, so this passes at
+  # build AND stays verifiable after the ~10min Fulcio cert expires — that
+  # durably-timestamped signature is what the pome-cloud control-plane deploy
+  # gate hard-requires (ADR-016 decision #4).
+  echo "verifying $ref signature (with signed timestamps)"
   cosign verify \
     --use-signed-timestamps \
     --certificate-identity-regexp "$identity_regexp" \
     --certificate-oidc-issuer "$issuer" \
     "$ref" >/dev/null
+  # Attestation: NO --use-signed-timestamps. cosign `attest` (v3.1.1, latest)
+  # emits no RFC3161 timestamp (no --new-bundle-format on attest), so requiring
+  # one here fails the sign step on every run. The deploy gate treats the SPDX
+  # attestation as best-effort for exactly this reason (ADR-016 decision #4);
+  # verify it here while the cert is fresh (surfaces a bad/mis-signed SBOM at
+  # build) without demanding a timestamp cosign cannot produce.
+  echo "verifying $ref SPDX attestation"
   cosign verify-attestation \
-    --use-signed-timestamps \
     --type spdx \
     --certificate-identity-regexp "$identity_regexp" \
     --certificate-oidc-issuer "$issuer" \
