@@ -9,6 +9,7 @@ import { existsSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import {
   deriveEvalIdentity,
@@ -152,6 +153,15 @@ function makeEvalClient({
   };
 
   return { client, calls };
+}
+
+// putBlob (uploadAndFinalize.ts) gzips every blob before PUT and sets
+// `content-encoding: gzip` (the cloud reader gunzips transparently). Tests that
+// assert on uploaded *content* must decode the captured body — `.text()` on the
+// raw Request returns the gzipped bytes, not JSON.
+function decodePutBody(init: RequestInit | undefined): string {
+  const body = init?.body;
+  return gunzipSync(Buffer.from(body as Uint8Array)).toString("utf8");
 }
 
 function mockPutFetch(): { putUrls: () => string[] } {
@@ -548,7 +558,7 @@ describe("pome eval upload + finalize flow (FDRS-656)", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
       const urlStr = String(url);
       if ((init as RequestInit | undefined)?.method === "PUT") {
-        bodies[urlStr] = await new Request(urlStr, init as RequestInit).text();
+        bodies[urlStr] = decodePutBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       throw new Error(`Unexpected fetch call to ${urlStr}`);
@@ -857,7 +867,7 @@ describe("pome eval review fixes (FDRS-656 follow-up)", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
       const urlStr = String(url);
       if ((init as RequestInit | undefined)?.method === "PUT") {
-        bodies[urlStr] = await new Request(urlStr, init as RequestInit).text();
+        bodies[urlStr] = decodePutBody(init as RequestInit);
         return new Response(null, { status: 200 });
       }
       throw new Error(`Unexpected fetch call to ${urlStr}`);
@@ -875,6 +885,57 @@ describe("pome eval review fixes (FDRS-656 follow-up)", () => {
     const uploaded = JSON.parse(bodies[EVENTS_URL]!.trimEnd());
     expect(uploaded.kind).toBe("TwinHttpEvent");
     expect(uploaded.event_id).toBe("req_legacy");
+  });
+
+  it("already-kinded rows (LlmTurnEvent) survive eval upload unchanged (F-766)", async () => {
+    // Pre-F-766, every row was mapped through toTwinHttpEvent, which re-wrapped
+    // any non-TwinHttpEvent kind — clobbering `kind` to "TwinHttpEvent" and
+    // setting event_id to the (absent) request_id. A kinded row must now
+    // round-trip intact so cloud sees the real per-turn usage + cache tokens.
+    const turnRow = JSON.stringify({
+      kind: "LlmTurnEvent",
+      ts: "2026-06-30T10:00:02.000Z",
+      event_id: "evt_turn_1",
+      parent_id: null,
+      turn_index: 0,
+      model: "claude-opus-4-8",
+      input_tokens: 1200,
+      output_tokens: 340,
+      cache_read_input_tokens: 900,
+      cache_creation_input_tokens: 128,
+      finish_reasons: ["end_turn"],
+      latency_ms: 2150,
+      latency_ms_estimated: true,
+      session_id: null,
+    });
+    const runDir = await writeRunDir(tmp, { eventsJsonl: `${turnRow}\n` });
+
+    const bodies: Record<string, string> = {};
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const urlStr = String(url);
+      if ((init as RequestInit | undefined)?.method === "PUT") {
+        bodies[urlStr] = decodePutBody(init as RequestInit);
+        return new Response(null, { status: 200 });
+      }
+      throw new Error(`Unexpected fetch call to ${urlStr}`);
+    });
+    const { client } = makeEvalClient();
+
+    await runEval({
+      runDir,
+      agent: "triage-bot",
+      hosted: { baseUrl: "http://no-cloud.invalid", apiKey: "pme_test" },
+      client,
+      projectConfig: null,
+    });
+
+    const uploaded = JSON.parse(bodies[EVENTS_URL]!.trimEnd());
+    expect(uploaded.kind).toBe("LlmTurnEvent");
+    expect(uploaded.event_id).toBe("evt_turn_1");
+    expect(uploaded.turn_index).toBe(0);
+    expect(uploaded.cache_read_input_tokens).toBe(900);
+    expect(uploaded.cache_creation_input_tokens).toBe(128);
+    expect(uploaded.finish_reasons).toEqual(["end_turn"]);
   });
 
   it("corrupt latest.json → named usage error with exit 5", async () => {
