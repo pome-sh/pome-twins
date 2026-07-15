@@ -64,9 +64,23 @@ jobs:
         run: |
           npm ci
           npm test
+      # The CLI consumes @pome-sh/* as published versions, but a checkout can
+      # use a shared-types feature ahead of its npm release (e.g. a new
+      # events.jsonl kind). Pack the workspace packages and point the CLI at the
+      # local tarballs before building — the same pre-publish flow cli-ci and the
+      # overhead gate use, so "from this checkout" means the checkout's
+      # shared-types, not the registry's. Drop this once the consumed
+      # shared-types is on npm and the committed cli/package-lock.json resolves it.
+      - name: Pack @pome-sh packages and rewrite the CLI onto local tarballs
+        run: |
+          node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs"
+          node scripts/use-local-pome-tarballs.mjs cli/package.json
       - name: Build the CLI from this checkout
         working-directory: cli
         run: |
+          # No committed lockfile for the rewritten tarball manifest; generate
+          # one then freeze-install (mirrors cli-ci).
+          npm install --package-lock-only --ignore-scripts
           npm ci
           npm run build
       # One secret, shared via env by the twin and the agent — the README's
