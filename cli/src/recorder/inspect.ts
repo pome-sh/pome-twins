@@ -7,6 +7,7 @@ import {
   type Event,
   type HookEvent,
   type LlmCallEvent,
+  type LlmTurnEvent,
   type SubagentSpawnEvent,
   type ToolResultEvent,
   type ToolUseEvent,
@@ -129,12 +130,14 @@ export function computeTraceHealth(input: TraceHealthInput): TraceHealthLayer[] 
 
   // CAS adapter layer — only active when the agent is wired through
   // `@pome-sh/claude-agent-sdk`. Heuristic: any of ToolUse/ToolResult/
-  // SubagentSpawn/Hook indicates adapter is live.
+  // SubagentSpawn/Hook/LlmTurn indicates adapter is live. LlmTurnEvent (F-766)
+  // is adapter-emitted like its siblings, so it counts toward this layer.
   const casCount =
     counts.ToolUseEvent +
     counts.ToolResultEvent +
     counts.SubagentSpawnEvent +
-    counts.HookEvent;
+    counts.HookEvent +
+    counts.LlmTurnEvent;
   const casExpected = input.scenarioExpectsCas ? 1 : casCount > 0 ? 1 : 0;
   const cas: TraceHealthLayer = {
     name: "CAS adapter",
@@ -166,6 +169,7 @@ function emptyCounts(): CountsByKind {
     ToolResultEvent: 0,
     SubagentSpawnEvent: 0,
     HookEvent: 0,
+    LlmTurnEvent: 0,
   };
 }
 
@@ -220,6 +224,8 @@ function renderEventLines(event: Event): string[] {
       return renderSubagentSpawn(event);
     case "HookEvent":
       return renderHook(event);
+    case "LlmTurnEvent":
+      return renderLlmTurn(event);
   }
 }
 
@@ -262,4 +268,19 @@ function renderSubagentSpawn(event: SubagentSpawnEvent): string[] {
 function renderHook(event: HookEvent): string[] {
   const tool = event.tool_name ? ` tool=${event.tool_name}` : "";
   return [`- HookEvent      ${event.hook_name}${tool}`];
+}
+
+function renderLlmTurn(event: LlmTurnEvent): string[] {
+  const model = event.model ?? "unknown";
+  const tokens = `${event.input_tokens ?? "?"}/${event.output_tokens ?? "?"}`;
+  const cache = `${event.cache_read_input_tokens ?? "?"}/${event.cache_creation_input_tokens ?? "?"}`;
+  const est = event.latency_ms_estimated ? "~" : "";
+  const finish =
+    event.finish_reasons && event.finish_reasons.length > 0
+      ? `  finish=${event.finish_reasons.join(",")}`
+      : "";
+  return [
+    `- LlmTurnEvent   turn ${event.turn_index}  model=${model}  tokens=${tokens} (${est}${event.latency_ms}ms)`,
+    `    cache read/create=${cache}${finish}`,
+  ];
 }

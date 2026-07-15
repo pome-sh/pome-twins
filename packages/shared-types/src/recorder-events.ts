@@ -234,6 +234,43 @@ export const hookEventSchema = z.object({
 });
 export type HookEvent = z.infer<typeof hookEventSchema>;
 
+// `LlmTurnEvent` — emitted by the CAS adapter (F-766) once per assistant turn
+// that reported usage (same turn detection as the OTLP `withGenAiSpans` lane).
+// Per-turn LLM usage — and specifically the cache-read/cache-creation token
+// counts — is the only capture-side datum that never otherwise reaches
+// events.jsonl: the OTLP side-lane carries a subset (input/output tokens only)
+// and is not the JSONL source of truth. Everything else the trace needs is
+// projected cloud-side from existing kinds, so this is the sole new M1 kind.
+//
+// Field discipline (grill 2026-07-14 + codex review 2026-07-15):
+//   - Absent SDK values are `nullable`, not `optional` — writers emit explicit
+//     null so the on-disk JSON shape is stable.
+//   - `parent_id: null` in M1 (turn→tool parent linkage is M2).
+//   - `session_id: null` in M1 (no session-id env plumbing — out of scope).
+//   - No cost fields (no OTEL convention; computed cloud-side from a pricing
+//     table at display time).
+//   - `turn_index` is 0-based per adapter `query()` stream, NOT globally unique.
+//   - `latency_ms_estimated` is true whenever `latency_ms` is approximated from
+//     message timing (always true in M1 — the SDK surfaces no per-call API
+//     timing). The field exists so a future real-timing source can set false.
+export const llmTurnEventSchema = z.object({
+  ...eventBaseShape,
+  kind: z.literal("LlmTurnEvent"),
+  turn_index: z.number().int().min(0),
+  model: z.string().min(1).nullable(),
+  input_tokens: z.number().int().min(0).nullable(),
+  output_tokens: z.number().int().min(0).nullable(),
+  cache_read_input_tokens: z.number().int().min(0).nullable(),
+  cache_creation_input_tokens: z.number().int().min(0).nullable(),
+  // OTel `gen_ai.response.finish_reasons` is an array; Anthropic reports one
+  // `stop_reason` per turn. null when the SDK surfaced none.
+  finish_reasons: z.array(z.string()).nullable(),
+  latency_ms: z.number().int().min(0),
+  latency_ms_estimated: z.boolean(),
+  session_id: z.string().min(1).nullable(),
+});
+export type LlmTurnEvent = z.infer<typeof llmTurnEventSchema>;
+
 // The unified event row. Discriminated on `kind` — adding a future variant
 // (e.g. `OtelSpanEvent` in v2) is a non-breaking extension. The exported
 // reader applies the FDRS-653 task-vocab normalization to `TwinHttpEvent`
@@ -245,6 +282,7 @@ const eventUnionSchema = z.discriminatedUnion("kind", [
   toolResultEventSchema,
   subagentSpawnEventSchema,
   hookEventSchema,
+  llmTurnEventSchema,
 ]);
 export const eventSchema = eventUnionSchema.transform((event) =>
   event.kind === "TwinHttpEvent" ? normalizeTaskStepVocab(event) : event,

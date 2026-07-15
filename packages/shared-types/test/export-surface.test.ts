@@ -227,6 +227,7 @@ const EXPECTED_EXPORTS = [
   "judgeModelSchema",
   "laneSchema",
   "llmCallEventSchema",
+  "llmTurnEventSchema",
   "mapOtelSpanToEvent",
   "meResponseSchema",
   "msToNanos",

@@ -13,6 +13,7 @@ import type {
   Event,
   HookEvent,
   LlmCallEvent,
+  LlmTurnEvent,
   SubagentSpawnEvent,
   ToolResultEvent,
   ToolUseEvent,
@@ -97,7 +98,24 @@ const hook: HookEvent = {
   tool_name: "add_label",
 };
 
-const allEvents: Event[] = [llmCall, twinHttp, toolUse, toolResult, subagentSpawn, hook];
+const llmTurn: LlmTurnEvent = {
+  kind: "LlmTurnEvent",
+  ts: "2026-05-26T00:00:01.500Z",
+  event_id: "evt_turn_1",
+  parent_id: null,
+  turn_index: 0,
+  model: "claude-opus-4-8",
+  input_tokens: 1200,
+  output_tokens: 340,
+  cache_read_input_tokens: 900,
+  cache_creation_input_tokens: 128,
+  finish_reasons: ["end_turn"],
+  latency_ms: 2150,
+  latency_ms_estimated: true,
+  session_id: null,
+};
+
+const allEvents: Event[] = [llmCall, twinHttp, toolUse, toolResult, subagentSpawn, hook, llmTurn];
 
 describe("readEventsJsonl", () => {
   let tmp: string;
@@ -121,7 +139,7 @@ describe("readEventsJsonl", () => {
     const result = await readEventsJsonl(tmp);
     expect(result.kind).toBe("events");
     if (result.kind !== "events") return;
-    expect(result.events).toHaveLength(6);
+    expect(result.events).toHaveLength(7);
     expect(result.events.map((e) => e.kind)).toEqual([
       "LlmCallEvent",
       "TwinHttpEvent",
@@ -129,6 +147,7 @@ describe("readEventsJsonl", () => {
       "ToolResultEvent",
       "SubagentSpawnEvent",
       "HookEvent",
+      "LlmTurnEvent",
     ]);
   });
 
@@ -199,7 +218,7 @@ describe("computeTraceHealth", () => {
       },
       {
         name: "CAS adapter",
-        count: 4,
+        count: 5,
         expectedAtLeast: 1,
         status: "ok",
         note: null,
@@ -253,7 +272,7 @@ describe("renderTraceHealth", () => {
     expect(lines[0]).toBe("Trace health:");
     expect(lines).toContain("  proxy: 1/expected≥1 [ok]");
     expect(lines).toContain("  twin: 1/expected≥1 [ok]");
-    expect(lines).toContain("  CAS adapter: 4/expected≥1 [ok]");
+    expect(lines).toContain("  CAS adapter: 5/expected≥1 [ok]");
   });
 
   it("appends the warning note when the layer is in warning state", () => {
@@ -272,7 +291,7 @@ describe("renderTraceHealth", () => {
 describe("renderEvents", () => {
   it("emits one section header and per-kind rows", () => {
     const lines = renderEvents(allEvents);
-    expect(lines[0]).toBe("Events (6):");
+    expect(lines[0]).toBe("Events (7):");
     const body = lines.slice(1).join("\n");
     expect(body).toContain("TwinHttpEvent");
     expect(body).toContain("POST /repos/acme/api/issues/1/labels → 200");
@@ -282,6 +301,8 @@ describe("renderEvents", () => {
     expect(body).toContain("ToolResultEvent ok (use_id=tu_1)");
     expect(body).toContain("SubagentSpawnEvent parent_tool_use_id=tu_1");
     expect(body).toContain("HookEvent      PreToolUse tool=add_label");
+    expect(body).toContain("LlmTurnEvent   turn 0  model=claude-opus-4-8  tokens=1200/340");
+    expect(body).toContain("cache read/create=900/128  finish=end_turn");
   });
 
   it("handles the empty case", () => {

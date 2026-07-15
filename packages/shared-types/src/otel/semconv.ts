@@ -34,6 +34,13 @@ export type OtelCoreSemconvVersion = typeof OTEL_CORE_SEMCONV_VERSION;
 
 // Pinned GenAI convention/schema version. The GenAI surface is experimental and
 // versions ahead of core; `gen_ai.provider.name` is canonical at this version.
+//
+// MIGRATION NOTE (F-766): at core v1.42.0 the `gen_ai.*` conventions were split
+// OUT of `open-telemetry/semantic-conventions` into the dedicated
+// `open-telemetry/semantic-conventions-genai` repo, which has published ZERO
+// tagged releases so far. There is therefore no version tag to bump to for the
+// next GenAI revision — a future bump must pin a specific COMMIT SHA from that
+// repo (not a semver tag) and record it here alongside the schema URL.
 export const OTEL_GENAI_SCHEMA_VERSION = "1.42.0" as const;
 export type OtelGenaiSchemaVersion = typeof OTEL_GENAI_SCHEMA_VERSION;
 

@@ -42,6 +42,25 @@ function hook(ts: string, event_id: string, hook_name = "PreToolUse") {
   };
 }
 
+function llmTurn(ts: string, event_id: string, turn_index = 0) {
+  return {
+    ts,
+    event_id,
+    parent_id: null,
+    kind: "LlmTurnEvent",
+    turn_index,
+    model: "claude-opus-4-8",
+    input_tokens: 1200,
+    output_tokens: 340,
+    cache_read_input_tokens: 900,
+    cache_creation_input_tokens: 128,
+    finish_reasons: ["end_turn"],
+    latency_ms: 2150,
+    latency_ms_estimated: true,
+    session_id: null,
+  };
+}
+
 describe("mergeAdapterSignalsIntoEvents", () => {
   it("interleaves 3 LlmCallEvents + 2 HookEvents in ts order; every merged row validates (FDRS-412)", async () => {
     const dir = await workspace();
@@ -74,6 +93,39 @@ describe("mergeAdapterSignalsIntoEvents", () => {
     for (const row of parsed) {
       expect(eventSchema.safeParse(row).success).toBe(true);
     }
+  });
+
+  it("admits LlmTurnEvent signal rows and preserves cache tokens (F-766)", async () => {
+    const dir = await workspace();
+    const eventsPath = join(dir, "events.jsonl");
+    const signalsPath = join(dir, "signals.jsonl");
+
+    // A twin HTTP row already on disk, plus a turn-usage row + a tool row from
+    // the adapter signals sidechannel — interleaved by ts on merge.
+    const existing = llm("2026-05-26T12:00:00.000Z", "llm_a");
+    const turn = llmTurn("2026-05-26T12:00:02.000Z", "turn_0");
+    const hk = hook("2026-05-26T12:00:01.000Z", "hook_x");
+    await writeFile(eventsPath, JSON.stringify(existing) + "\n");
+    await writeFile(signalsPath, [hk, turn].map((r) => JSON.stringify(r)).join("\n") + "\n");
+
+    const result = await mergeAdapterSignalsIntoEvents(signalsPath, eventsPath);
+    expect(result).toEqual({ appended: 2, dropped: 0 });
+
+    const parsed = (await readFile(eventsPath, "utf8"))
+      .split("\n")
+      .filter((l) => l.length > 0)
+      .map((l) => JSON.parse(l));
+    expect(parsed.map((r) => r.event_id)).toEqual(["llm_a", "hook_x", "turn_0"]);
+
+    const turnRow = parsed.find((r) => r.kind === "LlmTurnEvent");
+    expect(turnRow).toBeDefined();
+    // The cache-token counts — the whole point of F-766 — survive the merge.
+    expect(turnRow.cache_read_input_tokens).toBe(900);
+    expect(turnRow.cache_creation_input_tokens).toBe(128);
+    expect(turnRow.turn_index).toBe(0);
+    expect(turnRow.finish_reasons).toEqual(["end_turn"]);
+    // ...and it schema-validates as a canonical union member.
+    expect(eventSchema.safeParse(turnRow).success).toBe(true);
   });
 
   it("re-sorts out-of-order events.jsonl rows when merging signals (interleave)", async () => {

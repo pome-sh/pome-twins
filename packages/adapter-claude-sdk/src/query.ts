@@ -7,6 +7,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { buildPomeHooks } from "./hooks.js";
 import { withGenAiSpans } from "./genai-spans.js";
+import { withTurnUsage } from "./turn-usage.js";
 import { withToolEvents } from "./wrapQuery.js";
 
 type QueryParams = Parameters<typeof sdkQuery>[0];
@@ -26,11 +27,17 @@ type HooksConfig = Partial<Record<HookEvent, HookCallbackMatcher[]>>;
  * the underlying SDK directly if you need them.
  */
 export function query(params: QueryParams): AsyncGenerator<SDKMessage, void, unknown> {
-  // withGenAiSpans (outermost) reads each assistant turn's token usage and
-  // emits gen_ai OTLP spans for the dashboard's Agent telemetry panel; it
-  // flushes the exporter on the terminal `result` message. Inert when no OTLP
-  // endpoint is configured.
-  return withGenAiSpans<SDKMessage>(withToolEvents<SDKMessage>(sdkQuery(withPomeHooks(params))));
+  // Three read-only stream wrappers, composed innermost-first:
+  //   • withToolEvents   — ToolUse/ToolResult/SubagentSpawn rows → signals JSONL
+  //   • withTurnUsage    — one LlmTurnEvent per usage-bearing assistant turn
+  //                        (incl. cache tokens) → signals JSONL (F-766)
+  //   • withGenAiSpans   — gen_ai OTLP spans for the dashboard telemetry panel;
+  //                        flushes the exporter on the terminal `result`.
+  // The two signals wrappers append to POME_ADAPTER_SIGNALS_PATH and are inert
+  // when it is unset; withGenAiSpans is inert when no OTLP endpoint is set.
+  return withGenAiSpans<SDKMessage>(
+    withTurnUsage<SDKMessage>(withToolEvents<SDKMessage>(sdkQuery(withPomeHooks(params)))),
+  );
 }
 
 function withPomeHooks(params: QueryParams): QueryParams {

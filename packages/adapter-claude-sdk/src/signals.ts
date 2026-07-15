@@ -20,11 +20,20 @@
 // first time the adapter observes a non-null `parent_tool_use_id` on an SDK
 // message; same single-writer pattern.
 //
+// F-766: adds LlmTurnEvent writer. Emitted once per assistant turn that
+// reported usage (see turn-usage.ts); same single-writer pattern, same file.
+//
 // Standalone dev (no CLI runner): env unset → every write is a static noop.
 
 import { appendFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import type { HookEvent, SubagentSpawnEvent, ToolResultEvent, ToolUseEvent } from "@pome-sh/shared-types";
+import type {
+  HookEvent,
+  LlmTurnEvent,
+  SubagentSpawnEvent,
+  ToolResultEvent,
+  ToolUseEvent,
+} from "@pome-sh/shared-types";
 
 export const ADAPTER_SIGNALS_ENV = "POME_ADAPTER_SIGNALS_PATH";
 
@@ -70,6 +79,18 @@ export function writeToolResultEvent(row: ToolResultEventRow): void {
 export type SubagentSpawnEventRow = SubagentSpawnEvent;
 
 export function writeSubagentSpawnEvent(row: SubagentSpawnEventRow): void {
+  const path = resolveSignalsPath();
+  if (!path) return;
+  appendFileSync(path, JSON.stringify(row) + "\n");
+}
+
+// `LlmTurnEvent` — one row per assistant turn that reported usage (F-766). The
+// writer is intentionally identical to its siblings: the turn-detection logic
+// lives in `withTurnUsage` (turn-usage.ts), and this file stays a thin,
+// single-writer JSONL appender.
+export type LlmTurnEventRow = LlmTurnEvent;
+
+export function writeLlmTurnEvent(row: LlmTurnEventRow): void {
   const path = resolveSignalsPath();
   if (!path) return;
   appendFileSync(path, JSON.stringify(row) + "\n");

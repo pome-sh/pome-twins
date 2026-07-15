@@ -101,6 +101,8 @@ interface EventRow {
   tool_use_id?: unknown;
   hook_name?: unknown;
   event_id?: unknown;
+  cache_read_input_tokens?: unknown;
+  cache_creation_input_tokens?: unknown;
 }
 
 async function main(): Promise<void> {
@@ -236,8 +238,26 @@ async function assertEventsShape(runDir: string): Promise<void> {
     );
   }
 
+  // (iv) ≥1 LlmTurnEvent carrying cache tokens (F-766). The whole point of the
+  // kind is that per-turn usage — including the cache-read/cache-creation
+  // token counts the OTLP side-lane drops — reaches the events.jsonl ledger.
+  const turns = rows.filter((r) => r.kind === "LlmTurnEvent");
+  if (turns.length === 0) fail("expected ≥1 LlmTurnEvent, got 0");
+  const turnsWithCache = turns.filter(
+    (r) =>
+      typeof r.cache_read_input_tokens === "number" ||
+      typeof r.cache_creation_input_tokens === "number",
+  );
+  if (turnsWithCache.length === 0) {
+    fail(
+      `expected ≥1 LlmTurnEvent with cache tokens, got ${turns.length} turn row(s) ` +
+        `but none carried cache_read/cache_creation counts (did withTurnUsage run?)`,
+    );
+  }
+
   console.log(
-    `[cas-acceptance] shape OK — Llm=${llm.length} TwinTagged=${tagged.length}/${twin.length} ToolUse=${toolUse.length} PreToolUse=${preToolUse.length}`,
+    `[cas-acceptance] shape OK — Llm=${llm.length} TwinTagged=${tagged.length}/${twin.length} ` +
+      `ToolUse=${toolUse.length} PreToolUse=${preToolUse.length} LlmTurn=${turns.length}(cache=${turnsWithCache.length})`,
   );
 }
 

@@ -238,9 +238,10 @@ export interface FinalizeInput {
   stateFinalStorageKey?: string;
   // F0-4 / L7 — when set, cloud's finalize-run switches the correlator to
   // `correlateTraceJsonlWithSignals` so adapter-emitted HookEvent /
-  // ToolUseEvent / SubagentSpawnEvent rows correlate into lanes/steps
-  // alongside the twin-HTTP timeline. The CLI uploads signals.jsonl via
-  // `requestSignalsUploadUrl` first; the returned storage key flows here.
+  // ToolUseEvent / ToolResultEvent / SubagentSpawnEvent / LlmTurnEvent rows
+  // correlate into lanes/steps alongside the twin-HTTP timeline. The CLI
+  // uploads signals.jsonl via `requestSignalsUploadUrl` first; the returned
+  // storage key flows here.
   signalsStorageKey?: string;
   // Multi-twin (M3): per-twin state storage keys, keyed by twin id. Sent only
   // for multi-twin sessions; each entry carries at least one of
@@ -302,8 +303,9 @@ export interface HostedClient {
     twins?: string[],
   ): Promise<StateUploadUrlResponse>;
   /** F0-4 / L7 — mint a signed PUT for `signals.jsonl` (adapter-emitted
-   *  HookEvent / ToolUseEvent / SubagentSpawnEvent rows). The returned
-   *  `key` flows into `FinalizeInput.signalsStorageKey`. */
+   *  HookEvent / ToolUseEvent / ToolResultEvent / SubagentSpawnEvent /
+   *  LlmTurnEvent rows). The returned `key` flows into
+   *  `FinalizeInput.signalsStorageKey`. */
   requestSignalsUploadUrl(sessionId: string): Promise<SignalsUploadUrlResponse>;
   /** D18.1 — mint a signed PUT for meta.json. See `MetaUploadUrlResponse`
    *  for the feature-detection contract (a 404 here means an older control

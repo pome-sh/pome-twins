@@ -69,6 +69,14 @@ const ATTR_LEGACY_KIND = `${LEGACY_ATTR_NAMESPACE}.kind`;
 const ATTR_LEGACY_RECORD_JSON = `${LEGACY_ATTR_NAMESPACE}.record_json`;
 
 // The legacy variants this shim accepts. Discriminated on `kind`.
+//
+// NOT-SHIMMABLE-IN-M1: `HookEvent`, `ToolResultEvent`, `SubagentSpawnEvent`, and
+// `LlmTurnEvent` (F-766) are intentionally absent. They are captured into
+// events.jsonl but not projected to spans yet — the M2 projection layer adds
+// full coverage (LlmTurnEvent → a `chat` span carrying the cache-token
+// attributes; ToolResult pairs into its execute_tool span; etc.). Until then
+// `shimLegacyEventToSpan` rejects these kinds with a typed ZodError rather than
+// emitting a lossy span. The otel-legacy-shim test locks this deliberately.
 export const shimmableLegacyEventSchema = z.discriminatedUnion("kind", [
   twinHttpEventSchema,
   llmCallEventSchema,

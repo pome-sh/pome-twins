@@ -226,6 +226,33 @@ describe("rejects non-shimmable input", () => {
     expect(() => shimLegacyEventToSpan({})).toThrow(z.ZodError);
   });
 
+  it("does NOT shim an LlmTurnEvent in M1 (deliberate — M2 maps it to a chat span)", () => {
+    // LlmTurnEvent (F-766) is a capture-only kind in M1: per-turn usage +
+    // cache tokens land in events.jsonl but the shim intentionally does not
+    // project it yet. The M2 projection layer maps it to a `chat` span with
+    // cache-token attributes. Until then it is not in `shimmableLegacyEventSchema`,
+    // so the shim rejects it with a typed ZodError rather than silently
+    // producing a lossy span. If this test starts failing because the shim now
+    // accepts LlmTurnEvent, that is an M2 change — update it deliberately.
+    const llmTurn = {
+      ts: "2026-06-02T12:00:00.000Z",
+      event_id: "evt_turn",
+      parent_id: null,
+      kind: "LlmTurnEvent" as const,
+      turn_index: 0,
+      model: "claude-opus-4-8",
+      input_tokens: 1200,
+      output_tokens: 340,
+      cache_read_input_tokens: 900,
+      cache_creation_input_tokens: 128,
+      finish_reasons: ["end_turn"],
+      latency_ms: 2150,
+      latency_ms_estimated: true,
+      session_id: null,
+    };
+    expect(() => shimLegacyEventToSpan(llmTurn, RUN)).toThrow(z.ZodError);
+  });
+
   it("throws a typed ZodError on an invalid ts (rejected by the datetime schema)", () => {
     // `ts` is validated as ISO-8601 by the legacy schema before any nano math,
     // so a bad timestamp surfaces as a ZodError, never a NaN nano string.

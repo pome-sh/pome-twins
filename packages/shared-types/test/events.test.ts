@@ -11,6 +11,7 @@ import {
   hookEventSchema,
   isLegacyEventRow,
   llmCallEventSchema,
+  llmTurnEventSchema,
   recorderEventSchema,
   subagentSpawnEventSchema,
   toolResultEventSchema,
@@ -118,6 +119,40 @@ const hookFixture = {
   kind: "HookEvent" as const,
   hook_name: "PreToolUse",
   tool_name: "Bash",
+};
+
+const llmTurnFixture = {
+  ...baseFields,
+  event_id: "evt_turn_1",
+  kind: "LlmTurnEvent" as const,
+  turn_index: 0,
+  model: "claude-opus-4-8",
+  input_tokens: 1200,
+  output_tokens: 340,
+  cache_read_input_tokens: 900,
+  cache_creation_input_tokens: 128,
+  finish_reasons: ["end_turn"],
+  latency_ms: 2150,
+  latency_ms_estimated: true,
+  session_id: null,
+};
+
+// A turn where the SDK surfaced no cache/model/finish data — every absent
+// value is an explicit null (nullable, not optional).
+const llmTurnMinimalFixture = {
+  ...baseFields,
+  event_id: "evt_turn_min",
+  kind: "LlmTurnEvent" as const,
+  turn_index: 3,
+  model: null,
+  input_tokens: 10,
+  output_tokens: null,
+  cache_read_input_tokens: null,
+  cache_creation_input_tokens: null,
+  finish_reasons: null,
+  latency_ms: 0,
+  latency_ms_estimated: true,
+  session_id: null,
 };
 
 describe("twinHttpEventSchema", () => {
@@ -281,6 +316,60 @@ describe("hookEventSchema", () => {
   });
 });
 
+describe("llmTurnEventSchema", () => {
+  it("parses a full fixture with cache tokens + finish reasons", () => {
+    const r = llmTurnEventSchema.parse(llmTurnFixture);
+    expect(r.kind).toBe("LlmTurnEvent");
+    expect(r.turn_index).toBe(0);
+    expect(r.model).toBe("claude-opus-4-8");
+    expect(r.input_tokens).toBe(1200);
+    expect(r.output_tokens).toBe(340);
+    expect(r.cache_read_input_tokens).toBe(900);
+    expect(r.cache_creation_input_tokens).toBe(128);
+    expect(r.finish_reasons).toEqual(["end_turn"]);
+    expect(r.latency_ms).toBe(2150);
+    expect(r.latency_ms_estimated).toBe(true);
+    expect(r.session_id).toBeNull();
+  });
+
+  it("parses a minimal fixture (absent SDK values are explicit null)", () => {
+    const r = llmTurnEventSchema.parse(llmTurnMinimalFixture);
+    expect(r.model).toBeNull();
+    expect(r.output_tokens).toBeNull();
+    expect(r.cache_read_input_tokens).toBeNull();
+    expect(r.cache_creation_input_tokens).toBeNull();
+    expect(r.finish_reasons).toBeNull();
+    expect(r.turn_index).toBe(3);
+  });
+
+  it("requires turn_index (0-based, non-negative int)", () => {
+    const { turn_index: _omit, ...rest } = llmTurnFixture;
+    expect(() => llmTurnEventSchema.parse(rest)).toThrow();
+    expect(() => llmTurnEventSchema.parse({ ...llmTurnFixture, turn_index: -1 })).toThrow();
+    expect(() => llmTurnEventSchema.parse({ ...llmTurnFixture, turn_index: 1.5 })).toThrow();
+  });
+
+  it("requires latency_ms_estimated (boolean, not optional)", () => {
+    const { latency_ms_estimated: _omit, ...rest } = llmTurnFixture;
+    expect(() => llmTurnEventSchema.parse(rest)).toThrow();
+  });
+
+  it("treats nullable token/model/finish/session fields as required (nullable, not optional)", () => {
+    for (const key of [
+      "model",
+      "input_tokens",
+      "output_tokens",
+      "cache_read_input_tokens",
+      "cache_creation_input_tokens",
+      "finish_reasons",
+      "session_id",
+    ] as const) {
+      const { [key]: _omit, ...rest } = llmTurnFixture;
+      expect(() => llmTurnEventSchema.parse(rest), `omitting ${key} should throw`).toThrow();
+    }
+  });
+});
+
 describe("eventSchema (discriminated union)", () => {
   it("discriminates each variant by kind", () => {
     expect(eventSchema.parse(twinHttpFixture).kind).toBe("TwinHttpEvent");
@@ -291,6 +380,7 @@ describe("eventSchema (discriminated union)", () => {
       "SubagentSpawnEvent"
     );
     expect(eventSchema.parse(hookFixture).kind).toBe("HookEvent");
+    expect(eventSchema.parse(llmTurnFixture).kind).toBe("LlmTurnEvent");
   });
 
   it("rejects an unknown kind value", () => {
@@ -317,6 +407,7 @@ describe("isLegacyEventRow", () => {
     expect(isLegacyEventRow(toolResultFixture)).toBe(false);
     expect(isLegacyEventRow(subagentSpawnFixture)).toBe(false);
     expect(isLegacyEventRow(hookFixture)).toBe(false);
+    expect(isLegacyEventRow(llmTurnFixture)).toBe(false);
   });
 
   it("returns false for non-object inputs", () => {

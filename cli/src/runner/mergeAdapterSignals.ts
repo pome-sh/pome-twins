@@ -13,8 +13,8 @@ import { redactEvent } from "../recorder/redaction.js";
 //   2. The trace writer then appends `TwinHttpEvent` rows from the in-process
 //      twin recorder (FDRS-415).
 //   3. This helper reads `signals.jsonl` (HookEvent / ToolUseEvent /
-//      ToolResultEvent / SubagentSpawnEvent rows written by the agent
-//      subprocess via `POME_ADAPTER_SIGNALS_PATH`), validates each line
+//      ToolResultEvent / SubagentSpawnEvent / LlmTurnEvent rows written by the
+//      agent subprocess via `POME_ADAPTER_SIGNALS_PATH`), validates each line
 //      against the M0 unified `eventSchema`, then **interleaves** the signal
 //      rows with the existing events.jsonl rows by ts ascending and rewrites
 //      the file. The merged file is the canonical view for `pome inspect`

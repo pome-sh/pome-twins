@@ -57,7 +57,7 @@ import {
   type ProjectConfig,
 } from "./project-config.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "@pome-sh/shared-types";
-import type { FinalizeResponse } from "../types/shared.js";
+import { isLegacyEventRow, type FinalizeResponse } from "../types/shared.js";
 
 const EVAL_SESSION_FILE = "eval-session.json";
 // The eval command has no scenario file (and therefore no per-scenario
@@ -422,22 +422,33 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
 
   // Re-apply wrapping + redaction before anything leaves the machine.
   // events.jsonl and the state blobs are written pre-redacted (and
-  // pre-wrapped) by artifacts.ts, but `pome eval` also accepts
-  // hand-assembled dirs — redaction is idempotent, and toTwinHttpEvent
-  // passes rows that already carry a `kind` through untouched, so this is
-  // cheap insurance that exactly mirrors what the hosted runner uploads
-  // (cloud's FDRS-398 schema gate rejects raw legacy rows).
+  // pre-wrapped) by artifacts.ts, but `pome eval` also accepts hand-assembled
+  // dirs — redaction is idempotent, so this is cheap insurance that mirrors
+  // what the hosted runner uploads (cloud's FDRS-398 schema gate rejects raw
+  // legacy rows).
+  //
+  // Only LEGACY rows (pre-FDRS-398 — no `kind` discriminator) get wrapped into
+  // a TwinHttpEvent. Rows that already carry a `kind` (any union member —
+  // LlmTurnEvent, ToolUseEvent, LlmCallEvent, …) are preserved as-is: routing
+  // them through toTwinHttpEvent re-wraps every non-TwinHttpEvent kind,
+  // clobbering `kind` to "TwinHttpEvent" and setting event_id to an absent
+  // `request_id` (the pre-F-766 corruption bug).
   const eventsJsonl =
     artifacts.eventsJsonl
       .split("\n")
       .filter((line) => line.trim().length > 0)
-      .map((line) =>
-        JSON.stringify(
-          redactEvent(
-            toTwinHttpEvent(JSON.parse(line) as LegacyGithubRecorderEvent),
-          ),
-        ),
-      )
+      .map((line) => {
+        const parsed = JSON.parse(line) as unknown;
+        // Already-kinded rows pass through unchanged (redacted). Only legacy
+        // rows are wrapped — and we do NOT re-validate kinded rows here: the
+        // original path never did, cloud's schema gate is the arbiter, and
+        // strict parsing would reject the intentionally-terse hand-assembled
+        // dirs `pome eval` also accepts.
+        const event = isLegacyEventRow(parsed)
+          ? toTwinHttpEvent(parsed as LegacyGithubRecorderEvent)
+          : parsed;
+        return JSON.stringify(redactEvent(event));
+      })
       .join("\n") + "\n";
   const blobs = {
     eventsJsonl,
