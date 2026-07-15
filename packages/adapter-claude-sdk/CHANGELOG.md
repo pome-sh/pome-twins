@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.2.0 — 2026-07-16
+
+F-766 — `query()` now emits one `LlmTurnEvent` per assistant turn reporting usage: a `withTurnUsage` stream wrapper (same turn detection as the OTLP `withGenAiSpans` lane) writes `turn_index`, `model`, `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `finish_reasons`, and `latency_ms` (+ `latency_ms_estimated`) to the signals JSONL (`POME_ADAPTER_SIGNALS_PATH`; inert when unset). The OTLP lane is untouched. `@pome-sh/shared-types` pin bumped 0.6.0 → 0.8.0 for the `LlmTurnEvent` schema.
+
+Minor, not patch: the adapter's output surface (the signals JSONL) gains a new event kind. A pre-#152 `pome eval` corrupts kinded rows on hosted upload (mapped through `toTwinHttpEvent`), so consumers must pair this adapter with a CLI carrying the F-766 eval fix — consumer-must-act under the pre-1.0 rule in `PACKAGE_RELEASE.md`.
+
 ## 0.1.0 — 2026-07-09
 
 First npm-published release (F-714). Drop-in adapter for Anthropic's
