@@ -1,5 +1,28 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.8.0
+
+### Added
+
+- `LlmTurnEvent` — a new member of the `events.jsonl` discriminated union
+  (`eventSchema`) for per-assistant-turn LLM usage. Envelope: `ts`, `event_id`,
+  `parent_id` (null in M1); payload `turn_index` (0-based, per adapter query
+  stream), `model`, `input_tokens`, `output_tokens`, `cache_read_input_tokens`,
+  `cache_creation_input_tokens`, `finish_reasons`, `latency_ms` +
+  `latency_ms_estimated`, and `session_id` (null in M1). Absent SDK values are
+  nullable, not optional. The Claude-SDK adapter emits it into the signals
+  JSONL; the self-host merge admits it. No cost fields (computed cloud-side).
+  Not projected by the legacy shim in M1 (M2 maps it to a `chat` span).
+
+### Notes
+
+- This is a **minor** bump even though the change is additive: `eventSchema` is
+  a frozen canonical contract surface, so a new union member is a
+  consumer-must-act change (an older reader rejects a new `LlmTurnEvent` row).
+- `semconv.ts` now documents that `gen_ai.*` migrated at core v1.42.0 into the
+  zero-release `semantic-conventions-genai` repo — future GenAI pins must use a
+  commit SHA, not a version tag.
+
 ## 0.7.0
 
 ### Added
