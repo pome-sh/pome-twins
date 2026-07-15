@@ -9,6 +9,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { afterAll, describe, expect, it } from "vitest";
 import { runDemo } from "../../src/demo/runDemo.js";
 import { captureServerForTests } from "../fixtures/captureServerForTests.js";
@@ -67,11 +68,16 @@ async function startStubCloud(): Promise<StubCloud> {
   let mintCount = 0;
 
   const server = createServer((req, res) => {
-    let raw = "";
+    // Collect as bytes: blob PUTs arrive gzipped (putBlob sets
+    // content-encoding: gzip), so a utf8 string would mangle them. JSON POST
+    // bodies are plaintext and decode from the same buffer.
+    const chunks: Buffer[] = [];
     req.on("data", (chunk) => {
-      raw += String(chunk);
+      chunks.push(Buffer.from(chunk));
     });
     req.on("end", () => {
+      const rawBuf = Buffer.concat(chunks);
+      const raw = rawBuf.toString("utf8");
       const url = req.url ?? "";
       const json = (status: number, body: unknown): void => {
         res.writeHead(status, { "content-type": "application/json" });
@@ -79,7 +85,8 @@ async function startStubCloud(): Promise<StubCloud> {
       };
 
       if (req.method === "PUT" && url.startsWith("/put/")) {
-        putBodies.set(url, raw);
+        // Blob uploads are gzipped by putBlob; gunzip to store the real trace.
+        putBodies.set(url, gunzipSync(rawBuf).toString("utf8"));
         res.writeHead(200);
         res.end();
         return;
