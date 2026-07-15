@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// FDRS-413 — CAS-adapter triage agent fixture for the PR/FAQ acceptance #2
-// e2e gate. Drives scenario 01 (acme/api #1) through the real adapter surface
-// (`withPome()` + wrapped `tool()`) so the resulting events.jsonl carries all
-// four signal kinds the acceptance criteria require:
+// FDRS-413 / F-766 — CAS-adapter triage agent fixture for the PR/FAQ
+// acceptance #2 e2e gate. Drives scenario 01 (acme/api #1) through the real
+// adapter surface (`withPome()` + wrapped `tool()`) so the resulting
+// events.jsonl carries all five signal kinds the acceptance criteria require:
 //
 //   - LlmCallEvent     — one TCP CONNECT through HTTPS_PROXY (the bench-style
 //                        path used by FDRS-405; the capture-server records the
@@ -18,6 +18,10 @@
 //                        sidechannel
 //   - HookEvent        — buildPomeHooks() produces the PreToolUse matcher we
 //                        invoke explicitly with the same tool_use_id
+//   - LlmTurnEvent     — the synthetic assistant message also carries a `usage`
+//                        block (incl. cache-read/cache-creation tokens), so
+//                        `withTurnUsage` writes one LlmTurnEvent per turn into
+//                        the signals sidechannel (F-766)
 //
 // Using real adapter internals (rather than a fake-signals stub like the
 // FDRS-411 fixture) is what makes this the *acceptance #2* gate: the trace
@@ -35,6 +39,7 @@ import { URL } from "node:url";
 import { withPome, tool } from "../src/index.js";
 import { buildPomeHooks } from "../src/hooks.js";
 import { withToolEvents } from "../src/wrapQuery.js";
+import { withTurnUsage } from "../src/turn-usage.js";
 
 type GitHubIssue = {
   number: number;
@@ -102,10 +107,13 @@ async function main(): Promise<void> {
   ).handler({}, { tool_use_id: TOOL_USE_ID });
 
   // 3) Drive a synthetic SDK message stream through the real message-stream
-  // wrapper so it writes the ToolUseEvent + ToolResultEvent rows the
+  // wrappers so they write the ToolUseEvent + ToolResultEvent rows AND the
+  // LlmTurnEvent row (the assistant turn carries a usage block) that the
   // correlator merges into events.jsonl. Iterating to completion is what
   // triggers the writes.
-  for await (const _ of withToolEvents(syntheticSdkStream(TOOL_USE_ID, handlerResult))) {
+  for await (const _ of withTurnUsage(
+    withToolEvents(syntheticSdkStream(TOOL_USE_ID, handlerResult)),
+  )) {
     void _;
   }
 
@@ -143,12 +151,26 @@ async function main(): Promise<void> {
 async function* syntheticSdkStream(
   toolUseId: string,
   handlerResult: unknown,
-): AsyncGenerator<{ type: string; message?: { content?: unknown } }, void, unknown> {
+): AsyncGenerator<
+  { type: string; message?: { content?: unknown; model?: string; usage?: unknown; stop_reason?: string } },
+  void,
+  unknown
+> {
   // Mirrors the SDK's assistant-then-user pattern: assistant emits the
-  // tool_use block, then a follow-up user turn carries the tool_result.
+  // tool_use block (with the turn's usage block, incl. cache tokens, so
+  // withTurnUsage writes an LlmTurnEvent), then a follow-up user turn carries
+  // the tool_result.
   yield {
     type: "assistant",
     message: {
+      model: "claude-opus-4-8",
+      stop_reason: "tool_use",
+      usage: {
+        input_tokens: 1200,
+        output_tokens: 340,
+        cache_read_input_tokens: 900,
+        cache_creation_input_tokens: 128,
+      },
       content: [
         {
           type: "tool_use",
