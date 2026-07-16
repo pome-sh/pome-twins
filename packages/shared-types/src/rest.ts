@@ -16,7 +16,7 @@ import {
   userSchema,
 } from "./identity.js";
 import { criterionResultSchema, judgeModelSchema, laneSchema, stepSchema } from "./run.js";
-import { normalizeTaskVocabKeys } from "./task-vocab.js";
+import { LEGACY_CRITERION_KIND_MAP, normalizeTaskVocabKeys } from "./task-vocab.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. PUBLIC REST API (api.pome.sh/v1) request/response shapes
@@ -274,10 +274,17 @@ export type CreateEvalSessionResponse = z.infer<typeof createEvalSessionResponse
 export const criterionDefSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1),
-  kind: z.enum(["D", "P"]),
-  // Multi-twin (M3): the twin a [D:<twin>]/[P:<twin>] scenario criterion
+  // Tolerant reader (F-778): released CLIs still send the legacy "D"/"P"
+  // spellings; parsed output is always the canonical "code"/"model". Single
+  // source of truth for the rename is LEGACY_CRITERION_KIND_MAP.
+  kind: z
+    .enum(["D", "P", "code", "model"])
+    .transform((kind) =>
+      kind === "D" || kind === "P" ? LEGACY_CRITERION_KIND_MAP[kind] : kind,
+    ),
+  // Multi-twin (M3): the twin a [code:<twin>]/[model:<twin>] task criterion
   // attributes to. Absent = the session's primary twin (twins[0]). Additive —
-  // single-twin scenarios omit it and score against the sole twin as before.
+  // single-twin tasks omit it and score against the sole twin as before.
   twin: z.string().min(1).optional(),
 });
 export type CriterionDef = z.infer<typeof criterionDefSchema>;

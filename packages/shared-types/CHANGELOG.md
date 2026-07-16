@@ -1,5 +1,23 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.10.0
+
+### Changed
+
+- `criterionDefSchema.kind` (the `/v1` finalize wire boundary) is now a
+  tolerant reader (F-778): input accepts `"D" | "P" | "code" | "model"`;
+  parsed output is always the canonical `"code" | "model"` (normalized via
+  `LEGACY_CRITERION_KIND_MAP`). Previously the schema accepted ONLY the legacy
+  `"D" | "P"` spellings. **Consumer-must-act:** the `CriterionDef["kind"]`
+  *output* type changes from `"D" | "P"` to `"code" | "model"` — readers of
+  parsed finalize criteria (cloud finalize route, judge) must compare against
+  the canonical kinds after bumping this pin. Writers may send either spelling
+  during the compat window; released CLIs keep sending `"D"` / `"P"` until the
+  CLI release that rides this migration.
+- `LEGACY_CRITERION_KIND_MAP` is now documented as the single sanctioned
+  legacy-spelling exception of the F-778 zero-residue migration (read-only
+  input normalization; no writer may emit `D` / `P`).
+
 ## 0.9.0
 
 ### Removed
