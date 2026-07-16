@@ -306,6 +306,49 @@ describe("REST / cluster F — commit status + checks", () => {
     const response = await jsonReq(a, "POST", "/repos/acme/api/check-runs", { name: "lint", head_sha: sha, status: "completed" });
     expect(response.status).toBe(422);
   });
+
+  // Regression: a seeded PR `statuses[]` with state:"failure" must surface on
+  // GET /pulls/:n/status as combined state:"failure" (total_count > 0), not the
+  // empty-set default. Mirrors examples/minimal-viktor scenario 03 (failing-ci)
+  // exactly — an earlier (pre-consolidation) twin dropped seeded PR statuses and
+  // returned the zero-status default, which made that scenario unwinnable.
+  it("GET /pulls/:n/status surfaces a seeded failing PR status", async () => {
+    const a = createGitHubCloneApp({
+      seed: {
+        users: [{ login: "alice", type: "User", name: "Alice" }],
+        repositories: [
+          {
+            owner: "viktor-hq",
+            name: "orders-service",
+            default_branch: "main",
+            collaborators: ["alice"],
+            files: [
+              { path: "orders.py", content: "def total(items):\n    return 0\n", branch: "main" },
+              { path: "orders.py", content: "def total(items):\n    return 1\n", branch: "add-discounts" }
+            ],
+            pull_requests: [
+              {
+                number: 1,
+                title: "Add per-item discount support",
+                head: "add-discounts",
+                base: "main",
+                state: "open",
+                author: "alice",
+                reviews: [],
+                statuses: [{ context: "ci/test", state: "failure", description: "3 tests failing" }]
+              }
+            ]
+          }
+        ]
+      }
+    });
+    const status = await jsonReq(a, "GET", "/repos/viktor-hq/orders-service/pulls/1/status");
+    expect(status.status).toBe(200);
+    const body = status.body as { state: string; total_count: number; statuses: Array<{ context: string; state: string }> };
+    expect(body.state).toBe("failure");
+    expect(body.total_count).toBe(1);
+    expect(body.statuses[0]).toMatchObject({ context: "ci/test", state: "failure" });
+  });
 });
 
 // ----- Cluster G — tags & releases ------------------------------------
