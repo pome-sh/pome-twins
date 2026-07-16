@@ -3,7 +3,7 @@
  *
  * ALL SIX scenarios are NATIVE multi-twin now (`twins: [github, slack]`): pome
  * provisions one isolated sandbox per twin per run and the cloud judge grades
- * both twins' state directly (`[D:github]` / `[D:slack]` criteria). Run each
+ * both twins' state directly (`[code:github]` / `[code:slack]` criteria). Run each
  * scenario directly, no wrapper trial loop:
  *     pome run scenarios/<scenario>.md -n 3
  *
@@ -37,7 +37,7 @@ const CHANNEL = "eng-alerts";
 // Deterministic Slack checks — pure functions over the channel's messages so
 // test/verify.test.ts can drive them with fixtures. Now that every scenario is
 // native multi-twin, the cloud judge grades the Slack half via each scenario's
-// `[D:slack]` criteria; these checks survive only for `--verify` (eyeballing a
+// `[code:slack]` criteria; these checks survive only for `--verify` (eyeballing a
 // live sandbox by slug) and the fixture tests.
 // ---------------------------------------------------------------------------
 

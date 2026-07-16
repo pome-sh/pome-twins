@@ -20,7 +20,7 @@ import {
 } from "../../src/hosted/evalResultCache.js";
 
 const SCENARIO =
-  "# scn\n\n## Prompt\nTriage the bug.\n\n## Success Criteria\n- [P] Severity is set correctly\n";
+  "# scn\n\n## Prompt\nTriage the bug.\n\n## Success Criteria\n- [model] Severity is set correctly\n";
 
 const EVENT =
   '{"twin":"github","method":"POST","path":"/repos/acme/api/issues/1/labels","status":200,"latency_ms":10,"request_body":{"labels":["bug"]},"response_body":null,"state_delta":null}\n';

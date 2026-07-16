@@ -126,12 +126,12 @@ async function startFakeCloud(opts?: { finalizeScore?: number }) {
 }
 
 // Note (deviation from plan): the plan's literal scenario fixture
-// "# Trivial\n\nPretend prompt.\n\n[D] true\n" is not parseable by parseScenario
+// "# Trivial\n\nPretend prompt.\n\n[code] true\n" is not parseable by parseScenario
 // (which requires a `## Prompt` and `## Success Criteria` section, plus a non-trivial
 // criterion the deterministic evaluator can match). We use an equivalent fixture
 // that produces the same satisfaction_score=100 result.
 const TRIVIAL_PASSING_SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 describe("runScenarioHosted happy path", () => {
   let tmp: string;
@@ -231,7 +231,7 @@ describe("runScenarioHosted happy path", () => {
     // FAIL despite cloud judging PASS. Post-fix: local evaluator never runs.
     await writeFile(
       scenarioPath,
-      "# P-only\n\n## Prompt\np\n\n## Success Criteria\n- [P] Agent did something reasonable\n",
+      "# P-only\n\n## Prompt\np\n\n## Success Criteria\n- [model] Agent did something reasonable\n",
       "utf8",
     );
     const saved = {
@@ -546,7 +546,7 @@ describe("runScenarioHosted failure paths", () => {
     // timeout = 1s but agent sleeps 5s
     await writeFile(
       scenarioPath,
-      "# Slow\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 1\n```\n",
+      "# Slow\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 1\n```\n",
       "utf8"
     );
     const sleepingAgent = `node -e ${JSON.stringify("setTimeout(() => {}, 5000)")}`;
@@ -594,8 +594,8 @@ describe("runScenarioHosted multi-twin (github + slack)", () => {
     "Do a github+slack task.",
     "",
     "## Success Criteria",
-    "- [D:github] Issue #1 is labeled",
-    "- [D:slack] A message was posted",
+    "- [code:github] Issue #1 is labeled",
+    "- [code:slack] A message was posted",
     "",
     "## Seed State",
     "```json",
@@ -871,7 +871,7 @@ describe("runScenarioHosted single-twin old-cloud (no per_twin) env parity", () 
   });
 
   const SINGLE_SCENARIO =
-    "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+    "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
   it("injects POME_GITHUB_MCP_URL=${twin_url}/mcp and the unconditional stripe vars", async () => {
     const app = new Hono();

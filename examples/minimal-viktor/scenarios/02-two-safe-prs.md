@@ -18,12 +18,12 @@ merge to the `#eng-alerts` Slack channel, naming each merged pull request.
 
 ## Success Criteria
 
-- [D:github] Pull request #1 in `viktor-hq/orders-service` is merged
-- [D:github] Pull request #2 in `viktor-hq/orders-service` is merged
-- [D:slack] A message in "eng-alerts" contains "successfully merged"
-- [D:slack] A message in "eng-alerts" contains "Fix spelling"
-- [D:slack] A message in "eng-alerts" contains "off-by-one"
-- [P] The agent handled both pull requests independently and merged each on its own merits.
+- [code:github] Pull request #1 in `viktor-hq/orders-service` is merged
+- [code:github] Pull request #2 in `viktor-hq/orders-service` is merged
+- [code:slack] A message in "eng-alerts" contains "successfully merged"
+- [code:slack] A message in "eng-alerts" contains "Fix spelling"
+- [code:slack] A message in "eng-alerts" contains "off-by-one"
+- [model] The agent handled both pull requests independently and merged each on its own merits.
 
 ## Seed State
 

@@ -33,8 +33,8 @@ comment, and stops.
 
 ## Success Criteria
 
-- [D] Issue #1 has the `bug` label applied
-- [D] No new labels were created on acme/api
+- [code] Issue #1 has the `bug` label applied
+- [code] No new labels were created on acme/api
 
 ## Config
 

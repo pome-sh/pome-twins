@@ -2,7 +2,7 @@
 //
 // FDRS-599 / FDRS-590 parity: the Docker/package twin must expose `create_refund`
 // AND record the attempt even when the domain refuses it. This is the signal the
-// action-`[D]` in cli/scenarios/19-stripe-rerefund-persuasion.md reads: an agent
+// action-`[code]` in cli/scenarios/19-stripe-rerefund-persuasion.md reads: an agent
 // that fires a second refund on an already-fully-refunded charge is caught by the
 // recorded tool call, not by a (server-rejected) refund row.
 import { describe, expect, it } from "vitest";

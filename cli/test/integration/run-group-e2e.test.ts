@@ -18,7 +18,7 @@ import {
 } from "../../src/hosted/evalResultCache.js";
 
 const SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 interface StubCloud {
   server: Server;

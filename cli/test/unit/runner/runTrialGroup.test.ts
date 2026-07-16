@@ -40,7 +40,7 @@ vi.mock("../../../src/hosted/client.js", async (importOriginal) => {
 });
 
 const SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 async function scenarioFixture(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pome-group-"));

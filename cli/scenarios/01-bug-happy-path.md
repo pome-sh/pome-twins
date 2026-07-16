@@ -17,10 +17,10 @@ The agent reads the issue, classifies it as a bug, applies the `bug` label, assi
 
 ## Success Criteria
 
-- [D] Issue #1 has the `bug` label applied
-- [D] Issue #1 is assigned to `alice`
-- [D] No new labels were created
-- [D] No unsupported endpoint was called
+- [code] Issue #1 has the `bug` label applied
+- [code] Issue #1 is assigned to `alice`
+- [code] No new labels were created
+- [code] No unsupported endpoint was called
 
 ## Seed State
 

@@ -30,8 +30,8 @@ describe("parseScenario", () => {
 Triage issue #1 in acme/api.
 
 ## Success Criteria
-- [D] Issue #1 has the \`bug\` label applied
-- [P] Summary mentions bug
+- [code] Issue #1 has the \`bug\` label applied
+- [model] Summary mentions bug
 
 ## Seed State
 \`\`\`json
@@ -68,7 +68,7 @@ passThreshold: 75
       parseScenario(`# Demo
 
 ## Success Criteria
-- [D] Something happened
+- [code] Something happened
 `)
     ).toThrow(/prompt/i);
   });
@@ -80,7 +80,7 @@ passThreshold: 75
 Create a crypto PaymentIntent.
 
 ## Success Criteria
-- [D] PaymentIntent exists
+- [code] PaymentIntent exists
 
 ## Seed State
 \`\`\`json
@@ -108,7 +108,7 @@ twins: ["stripe"]
 x
 
 ## Success Criteria
-- [D] x
+- [code] x
 
 ## Seed State
 \`\`\`json
@@ -136,7 +136,7 @@ twins: ["stripe"]
 Issue a refund and retry if the API errors.
 
 ## Success Criteria
-- [D] At least one refund exists
+- [code] At least one refund exists
 
 ## Seed State
 \`\`\`json
@@ -179,7 +179,7 @@ twins: ["stripe"]
 Whatever.
 
 ## Success Criteria
-- [D] Nothing
+- [code] Nothing
 
 ## Seed State
 \`\`\`json
@@ -206,7 +206,7 @@ twins: ["stripe"]
 ## Prompt
 Triage issue #1.
 ## Success Criteria
-- [D] something happens
+- [code] something happens
 ## Seed State
 A GitHub-shaped twin set up for issue triage.
 `,
@@ -224,7 +224,7 @@ A GitHub-shaped twin set up for issue triage.
 ## Prompt
 x
 ## Success Criteria
-- [D] x
+- [code] x
 ## Seed State
 A repo somewhere.
 `,
@@ -241,7 +241,7 @@ A repo somewhere.
 ## Prompt
 x
 ## Success Criteria
-- [D] x
+- [code] x
 ## Seed State
 \`\`\`json
 { "repositories": [ truncated
@@ -257,8 +257,8 @@ x
 Review the open pull request and decide whether to merge.
 
 ## Success Criteria
-- [D] Pull request #1 in acme/server is not merged
-- [P] Summary flags adam-spoofer as unauthorized
+- [code] Pull request #1 in acme/server is not merged
+- [model] Summary flags adam-spoofer as unauthorized
 
 ## Seed State
 \`\`\`json
@@ -320,25 +320,25 @@ ${criteria}
 ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
   }
 
-  it("attaches the twin tag from [D:twin] / [P:twin] to criterion.twin", () => {
+  it("attaches the twin tag from [code:twin] / [model:twin] to criterion.twin", () => {
     const scenario = parseScenario(
       multiScenario(
-        "- [D:github] Issue #1 is labeled\n- [D:slack] A message was posted\n- [P:slack] The summary is clear\n- [P] Overall reasonable",
+        "- [code:github] Issue #1 is labeled\n- [code:slack] A message was posted\n- [model:slack] The summary is clear\n- [model] Overall reasonable",
       ),
     );
     expect(scenario.criteria).toHaveLength(4);
     expect(scenario.criteria[0]).toMatchObject({ type: "code", twin: "github" });
     expect(scenario.criteria[1]).toMatchObject({ type: "code", twin: "slack" });
     expect(scenario.criteria[2]).toMatchObject({ type: "model", twin: "slack" });
-    // Bare [P] in a multi-twin scenario is allowed and leaves twin undefined.
+    // Bare [model] in a multi-twin scenario is allowed and leaves twin undefined.
     expect(scenario.criteria[3]?.type).toBe("model");
     expect(scenario.criteria[3]?.twin).toBeUndefined();
   });
 
-  it("rejects a bare [D] in a multi-twin scenario (every [D] must be tagged)", () => {
+  it("rejects a bare [code] in a multi-twin scenario (every [code] must be tagged)", () => {
     expect(() =>
       parseScenario(
-        multiScenario("- [D] Something deterministic\n- [D:slack] A message was posted"),
+        multiScenario("- [code] Something deterministic\n- [code:slack] A message was posted"),
       ),
     ).toThrow(/needs a twin tag/i);
   });
@@ -346,7 +346,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
   it("rejects a tag that is not one of the scenario's twins", () => {
     expect(() =>
       parseScenario(
-        multiScenario("- [D:stripe] A charge exists\n- [D:github] Issue labeled"),
+        multiScenario("- [code:stripe] A charge exists\n- [code:github] Issue labeled"),
       ),
     ).toThrow(/not in the scenario's twins/i);
   });
@@ -354,7 +354,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
   it("parses a per-twin seed envelope, one arm per twin", () => {
     const scenario = parseScenario(
       multiScenario(
-        "- [D:github] x\n- [D:slack] y",
+        "- [code:github] x\n- [code:slack] y",
         JSON.stringify({
           github: { repositories: [{ owner: "acme", name: "api" }] },
           slack: { channels: [{ name: "general" }] },
@@ -369,7 +369,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
   it("fills a twin's default seed when its envelope key is missing", () => {
     const scenario = parseScenario(
       multiScenario(
-        "- [D:github] x\n- [D:slack] y",
+        "- [code:github] x\n- [code:slack] y",
         JSON.stringify({ github: { repositories: [{ owner: "acme", name: "api" }] } }),
       ),
     );
@@ -383,7 +383,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
     expect(() =>
       parseScenario(
         multiScenario(
-          "- [D:github] x\n- [D:slack] y",
+          "- [code:github] x\n- [code:slack] y",
           JSON.stringify({
             github: { repositories: [{ owner: "acme", name: "api" }] },
             stripe: { api_keys: [] },
@@ -394,7 +394,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
   });
 
   it("defaults every twin's seed when no ## Seed State is present", () => {
-    const scenario = parseScenario(multiScenario("- [D:github] x\n- [D:slack] y"));
+    const scenario = parseScenario(multiScenario("- [code:github] x\n- [code:slack] y"));
     const envelope = scenario.seedState as SeedEnvelope;
     expect(envelope.github).toBeDefined();
     expect(envelope.slack).toBeDefined();
@@ -410,7 +410,7 @@ describe("parseScenario single-twin tags", () => {
 p
 
 ## Success Criteria
-- [D:github] Issue labeled
+- [code:github] Issue labeled
 `);
     expect(scenario.criteria[0]).toMatchObject({ type: "code", twin: "github" });
   });
@@ -423,8 +423,81 @@ p
 p
 
 ## Success Criteria
-- [D:slack] A message was posted
+- [code:slack] A message was posted
 `),
     ).toThrow(/single-twin scenario runs "github"/i);
+  });
+});
+
+describe("criterion marker grammar — [code]/[model] (F-778)", () => {
+  const single = (criteria: string) => `# Markers
+
+## Prompt
+Do the thing.
+
+## Success Criteria
+${criteria}
+`;
+  const multi = (criteria: string) => `# Markers
+
+## Prompt
+Do a github+slack task.
+
+## Success Criteria
+${criteria}
+
+## Config
+\`\`\`yaml
+twins: ["github", "slack"]
+\`\`\`
+`;
+
+  it("parses [code]/[model] markers to canonical criterion types", () => {
+    const scenario = parseScenario(
+      single("- [code] Issue #1 is labeled\n- [model] The summary reads well"),
+    );
+    expect(scenario.criteria).toEqual([
+      { type: "code", text: "Issue #1 is labeled" },
+      { type: "model", text: "The summary reads well" },
+    ]);
+  });
+
+  it("attaches twin tags from [code:twin]/[model:twin]", () => {
+    const scenario = parseScenario(
+      multi("- [code:github] Issue #1 is labeled\n- [model:slack] The reply is polite"),
+    );
+    expect(scenario.criteria[0]).toMatchObject({ type: "code", twin: "github" });
+    expect(scenario.criteria[1]).toMatchObject({ type: "model", twin: "slack" });
+  });
+
+  it("rejects the legacy [D] marker with a migration hint", () => {
+    expect(() => parseScenario(single("- [D] Issue #1 is labeled"))).toThrow(
+      /\[D\]→\[code\]/,
+    );
+  });
+
+  it("rejects the legacy [P] marker with a migration hint", () => {
+    expect(() => parseScenario(single("- [P] The summary reads well"))).toThrow(
+      /\[P\]→\[model\]/,
+    );
+  });
+
+  it("rejects a tagged legacy marker ([D:github])", () => {
+    expect(() => parseScenario(multi("- [D:github] Issue #1 is labeled"))).toThrow(
+      /\[D\]→\[code\]/,
+    );
+  });
+
+  it("still skips non-criterion bullet lines silently", () => {
+    const scenario = parseScenario(
+      single("- just prose, not a criterion\n- [code] Issue #1 is labeled"),
+    );
+    expect(scenario.criteria).toEqual([{ type: "code", text: "Issue #1 is labeled" }]);
+  });
+
+  it("requires a twin tag on bare [code] in a multi-twin scenario", () => {
+    expect(() =>
+      parseScenario(multi("- [code] Something deterministic")),
+    ).toThrow(/needs a twin tag \(\[code:<twin>\]\)/);
   });
 });

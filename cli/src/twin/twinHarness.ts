@@ -9,7 +9,7 @@
 // regardless of twin —
 //   - `app`         a Hono app (`.fetch`) the runner serves on a localhost port
 //   - `envName`     the `POME_<NAME>_{REST,MCP}_URL` prefix the agent reads
-//   - `exportState` initial/final twin state for deterministic `[D]` scoring
+//   - `exportState` initial/final twin state for deterministic `[code]` scoring
 //   - `events`      recorded twin HTTP events (one shared recorder buffer)
 //   - `close`       tear down the underlying SQLite handle
 //
@@ -50,7 +50,7 @@ export type TwinHarness = {
   app: { fetch: (request: Request, ...rest: unknown[]) => Response | Promise<Response> };
   /** Uppercase env prefix: the agent reads `POME_<envName>_{REST,MCP}_URL`. */
   envName: string;
-  /** Twin state for `[D]` scoring (initial before the agent, final after). */
+  /** Twin state for `[code]` scoring (initial before the agent, final after). */
   exportState(): unknown | Promise<unknown>;
   /** Recorded twin HTTP events (shared buffer). */
   events(): RecorderEvent[];

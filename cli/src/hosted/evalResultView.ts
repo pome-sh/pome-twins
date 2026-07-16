@@ -21,7 +21,7 @@
 
 // Wire-side criterion, NOT the scenario-markdown one: cloud responses carry
 // the unified "code"/"model" vocabulary (legacy "D"/"P" tolerated) while
-// scenario files still parse [D]/[P] markers. This module renders CLOUD
+// scenario files still parse [code]/[model] markers. This module renders CLOUD
 // verdicts, so it takes the wide wire shape (FDRS-643 live-run finding).
 import type { z } from "zod";
 import type { criterionSchema } from "../types/shared.js";
@@ -52,7 +52,7 @@ export type CriterionResult = {
   // `errored` outcomes.
   skipped: boolean;
   reason: string;
-  // [P]-only fields, populated by the cloud judge.
+  // [model]-only fields, populated by the cloud judge.
   confidence?: number;
   judge_model?: string;
   judge_tokens_in?: number;
@@ -78,7 +78,7 @@ export type Score = {
   // actually evaluated (passed or failed).
   can_pass: boolean;
   results: CriterionResult[];
-  // Run-level [P] aggregates from the cloud judge. Null when absent.
+  // Run-level [model] aggregates from the cloud judge. Null when absent.
   judge_model: string | null;
   judge_tokens_in: number | null;
   judge_tokens_out: number | null;
@@ -123,7 +123,7 @@ export function markerFor(outcome: CriterionOutcome): string {
 
 // Multi-twin (M3): the per-criterion bracket for terminal display —
 // `[code]` / `[model]`, plus the `:<twin>` suffix when the criterion attributes
-// to a specific twin (so a `[D:slack]`/`[P:github]` marker survives into the
+// to a specific twin (so a `[code:slack]`/`[model:github]` marker survives into the
 // UNEVAL / criteria list). A bare (primary-twin) criterion renders `[code]`
 // unchanged.
 export function criterionMarkerLabel(criterion: WireCriterion): string {

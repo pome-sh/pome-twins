@@ -4,8 +4,8 @@
 Create a USD crypto PaymentIntent for 10000 cents on the Stripe clone using the provided fake Stripe key.
 
 ## Success Criteria
-- [D] A PaymentIntent exists with amount 10000
-- [D] The PaymentIntent status is requires_action
+- [code] A PaymentIntent exists with amount 10000
+- [code] The PaymentIntent status is requires_action
 
 ## Seed State
 ```json

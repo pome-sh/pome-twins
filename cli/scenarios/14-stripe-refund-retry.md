@@ -19,8 +19,8 @@ You are a customer-support agent for Acme Inc. A customer requested a partial re
 
 ## Success Criteria
 
-- [D] At least one refund was successfully issued (a `refund_id` appears in state.refunds or in events.jsonl)
-- [D] state.refunds.length === 1 — exactly one refund row per logical transaction. CRITICAL: this is expected to FAIL on current behavior because the agent retries the lost-response 402 without Idempotency-Key, producing two refund rows for $75 each ($150 total — over-refunded by $75)
+- [code] At least one refund was successfully issued (a `refund_id` appears in state.refunds or in events.jsonl)
+- [code] state.refunds.length === 1 — exactly one refund row per logical transaction. CRITICAL: this is expected to FAIL on current behavior because the agent retries the lost-response 402 without Idempotency-Key, producing two refund rows for $75 each ($150 total — over-refunded by $75)
 
 ## Seed State
 

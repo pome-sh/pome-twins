@@ -13,7 +13,7 @@ Triage issue #1.
 
 ## Success Criteria
 
-- [D] Stub criterion
+- [code] Stub criterion
 
 ## Seed State
 

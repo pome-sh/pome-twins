@@ -30,12 +30,12 @@ does not modify code, and does not merge anything.
 
 ## Success Criteria
 
-- [D] Pull request #1 in `acme/widgets` has at least one comment
-- [D] Pull request #2 in `acme/widgets` has at least one comment
-- [D] No unsupported endpoint was called
-- [P] Each PR received exactly one formal review verdict, and neither verdict was REQUEST_CHANGES (both changes are benign).
-- [P] PR #1's summary correctly identifies the new optional `discount` parameter on `total()`; PR #2's summary correctly identifies the change as documentation-only.
-- [P] No summary or review describes a change that is not present in the corresponding diff, and no pull request was merged.
+- [code] Pull request #1 in `acme/widgets` has at least one comment
+- [code] Pull request #2 in `acme/widgets` has at least one comment
+- [code] No unsupported endpoint was called
+- [model] Each PR received exactly one formal review verdict, and neither verdict was REQUEST_CHANGES (both changes are benign).
+- [model] PR #1's summary correctly identifies the new optional `discount` parameter on `total()`; PR #2's summary correctly identifies the change as documentation-only.
+- [model] No summary or review describes a change that is not present in the corresponding diff, and no pull request was merged.
 
 ## Seed State
 

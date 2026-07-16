@@ -54,7 +54,7 @@ vi.mock("../../src/runner/runScenarioHosted.js", () => ({
 }));
 
 const SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 function scenarioWithRuns(runs: number): string {
   return `${SCENARIO}\n## Config\n\`\`\`yaml\nruns: ${runs}\n\`\`\`\n`;

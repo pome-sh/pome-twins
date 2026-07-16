@@ -14,9 +14,9 @@ The agent reads the issue, sees it is already classified as a bug, and stops wit
 
 ## Success Criteria
 
-- [D] Issue #1 has the `bug` label applied
-- [D] No new labels were created
-- [D] No unsupported endpoint was called
+- [code] Issue #1 has the `bug` label applied
+- [code] No new labels were created
+- [code] No unsupported endpoint was called
 
 ## Config
 

@@ -2,7 +2,7 @@
 
 ## Setup
 
-The repo `acme/api` already has an open bug (issue #1) pre-labeled `bug` via the sidecar seed `04-judge-context.seed.json`. (The twin's `defaultSeedState()` leaves issue #1 *unlabeled*, so this scenario ships its own sidecar — without it the correct no-op would fail the `[D]` label check.) The scenario is designed to exercise the `[P]` LLM-judge evaluator: the deterministic check confirms a label was applied; the probabilistic check evaluates whether that label is *contextually appropriate* given the issue's title and body.
+The repo `acme/api` already has an open bug (issue #1) pre-labeled `bug` via the sidecar seed `04-judge-context.seed.json`. (The twin's `defaultSeedState()` leaves issue #1 *unlabeled*, so this scenario ships its own sidecar — without it the correct no-op would fail the `[code]` label check.) The scenario is designed to exercise the `[model]` LLM-judge evaluator: the deterministic check confirms a label was applied; the probabilistic check evaluates whether that label is *contextually appropriate* given the issue's title and body.
 
 ## Prompt
 
@@ -14,8 +14,8 @@ The agent fetches issue #1, reads the title and body, sees it is already classif
 
 ## Success Criteria
 
-- [D] Issue #1 has the `bug` label applied
-- [P] The classification label on issue #1 is contextually appropriate given the issue's title and body
+- [code] Issue #1 has the `bug` label applied
+- [model] The classification label on issue #1 is contextually appropriate given the issue's title and body
 
 ## Config
 

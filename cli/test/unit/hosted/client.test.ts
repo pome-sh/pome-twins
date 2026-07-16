@@ -40,7 +40,7 @@ describe("HostedClient.createSession", () => {
       const body = JSON.parse(String(init?.body));
       expect(body).toEqual({
         twins: ["github"],
-        scenario_source: Buffer.from("# Scenario\n\n[D] true\n").toString("base64"),
+        scenario_source: Buffer.from("# Scenario\n\n[code] true\n").toString("base64"),
       });
       return new Response(
         JSON.stringify({
@@ -57,7 +57,7 @@ describe("HostedClient.createSession", () => {
     });
     const client = createHostedClient({ baseUrl: BASE, apiKey: KEY });
     const out = await client.createSession({
-      scenarioSource: "# Scenario\n\n[D] true\n",
+      scenarioSource: "# Scenario\n\n[code] true\n",
       twins: ["github"],
     });
     expect(out.session_id).toBe("ses_abc");

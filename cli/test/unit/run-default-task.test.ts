@@ -64,7 +64,7 @@ vi.mock("../../src/runner/runScenarioHosted.js", () => ({
 }));
 
 const EXPLICIT_SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 const WIRED_AGENT_SOURCE = [
   'import { withPome } from "@pome-sh/adapter-claude-sdk";',
@@ -151,7 +151,7 @@ describe("default-task module (FDRS-645)", () => {
   it("never clobbers a user-edited copy", async () => {
     const dir = await mkdtemp(join(tmpdir(), "pome-default-task-"));
     await mkdir(join(dir, "scenarios"), { recursive: true });
-    const custom = "# first-run-demo\n\n## Prompt\nmine now\n\n## Success Criteria\n- [D] x\n\n## Config\n```yaml\nruns: 2\n```\n";
+    const custom = "# first-run-demo\n\n## Prompt\nmine now\n\n## Success Criteria\n- [code] x\n\n## Config\n```yaml\nruns: 2\n```\n";
     await writeFile(join(dir, "scenarios", "first-run-demo.md"), custom);
     const res = await ensureDefaultTask(dir);
     expect(res.copied).toBe(false);
@@ -257,7 +257,7 @@ describe("bare `pome run` glue (FDRS-645)", () => {
     await mkdir(join(dir, "scenarios"), { recursive: true });
     await writeFile(
       join(dir, "scenarios", "first-run-demo.md"),
-      "# first-run-demo\n\n## Prompt\nmine\n\n## Success Criteria\n- [D] x\n\n## Config\n```yaml\nruns: 1\n```\n",
+      "# first-run-demo\n\n## Prompt\nmine\n\n## Success Criteria\n- [code] x\n\n## Config\n```yaml\nruns: 1\n```\n",
     );
     await run();
     expect(runTrialGroup).not.toHaveBeenCalled();

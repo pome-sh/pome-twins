@@ -19,7 +19,7 @@ import type {
 
 // Minimal passing scenario fixture that parseScenario can handle.
 const TRIVIAL_PASSING_SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 const FAKE_SESSION_ID = "ses_upload_test";
 const FAKE_RUN_ID = "run_upload_test";
@@ -616,7 +616,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     const sidecarPath = join(tmp, "scn.seed.json");
     await writeFile(
       scenarioPath,
-      "# Trivial\n\n## Prompt\np\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n\n## Seed State\nA GitHub-shaped twin with one repo.\n",
+      "# Trivial\n\n## Prompt\np\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n\n## Seed State\nA GitHub-shaped twin with one repo.\n",
       "utf8",
     );
     const sidecarSeed = {
@@ -718,8 +718,8 @@ describe("runScenarioHosted ADR-013 score reporting", () => {
     // — cloud's score wins.
     const scenarioWithProbabilistic =
       "# Trivial P\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n" +
-      "- [D] No unsupported endpoint was called\n" +
-      "- [P] The agent followed expected behavior\n";
+      "- [code] No unsupported endpoint was called\n" +
+      "- [model] The agent followed expected behavior\n";
 
     const { client } = makeStubClient({
       requestEventsUploadUrlImpl: async () => {
@@ -756,8 +756,8 @@ describe("runScenarioHosted ADR-013 score reporting", () => {
   it("forwards scenario.criteria as criterion definitions (id/text/kind), not results", async () => {
     const scenarioWithBoth =
       "# Trivial mixed\n\n## Prompt\np\n\n## Success Criteria\n" +
-      "- [D] Issue exists\n" +
-      "- [P] Agent acted reasonably\n";
+      "- [code] Issue exists\n" +
+      "- [model] Agent acted reasonably\n";
 
     const { client, getFinalizeInput } = makeStubClient({
       requestEventsUploadUrlImpl: async () => {

@@ -34,7 +34,7 @@ This document enumerates everything pome-cloud (and the pome CLI) may rely on wh
 - `POST /admin/reset`, `POST /admin/seed` — **no bearer**. Gate: `TWIN_ADMIN_TOKEN` mode (header `X-Admin-Token`, 403 when missing/wrong) or loopback-only **socket** check — proxy/client headers are never trusted (`packages/sdk/src/admin-gate.ts`); with `NODE_ENV=production` an unknown peer address is denied.
 - Session mount `/s/:sid/*` — bearer JWT, HS256 over `TWIN_AUTH_SECRET`, claims `{sid, team_id, exp, …}`; the `sid` claim must equal the path `:sid`. Provider-shaped tokens (`ghp_/github_pat_pome_*`, `xox[bp]-pome-*`, `sk_test_pome_*`) are also accepted per twin.
 - `GET /s/:sid/_pome/health` → 200 `{ok: true, twin, …}`.
-- `GET /s/:sid/_pome/state` → 200 JSON object — the redacted state export that feeds cloud-side `[D]` scoring.
+- `GET /s/:sid/_pome/state` → 200 JSON object — the redacted state export that feeds cloud-side `[code]` scoring.
 - `GET /s/:sid/_pome/events` → 200 JSON array — the recorder tape fetched at end of run.
 - MCP: `GET /s/:sid/mcp/tools` → `{tools: […]}`; `POST /s/:sid/mcp` (streamable-HTTP JSON-RPC, stateless — `GET`/`DELETE` answer 405); legacy `POST /s/:sid/mcp/tools/:name` and `POST /s/:sid/mcp/call` (`{tool, arguments}`).
 - Reserved prefixes: `/_pome/*` and `/mcp/*` under the session mount belong to the platform (OQ-B6); domain routes must not shadow them.

@@ -32,9 +32,9 @@ issue.
 
 ## Success Criteria
 
-- [P] The existing `bug` label was applied to the issue reporting the 500 error on POST /orders, and to no other issue.
-- [P] Exactly one comment was left on that issue, and it names the failing endpoint (POST /orders).
-- [P] No other issue was modified and no new label was created.
+- [model] The existing `bug` label was applied to the issue reporting the 500 error on POST /orders, and to no other issue.
+- [model] Exactly one comment was left on that issue, and it names the failing endpoint (POST /orders).
+- [model] No other issue was modified and no new label was created.
 
 ## Seed State
 

@@ -28,14 +28,14 @@ const TWIN_AUTH_SECRET = "test-secret-32-chars-minimum-length";
 const SESSION_ID = "ses_preminted";
 
 const SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 const FAST_TIMEOUT_SCENARIO =
-  "# Slow\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 1\n```\n";
+  "# Slow\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 1\n```\n";
 // timeout (11) deliberately EXCEEDS the 10s preflight cap so the hung-preflight
 // test below can distinguish the quoted durations: the abandon reason must say
 // 10s (the cap that actually killed it), never 11s (the scenario timeout).
 const PREFLIGHT_HANG_SCENARIO =
-  "# Hang\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 11\n```\n";
+  "# Hang\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n\n## Config\n```yaml\ntimeout: 11\n```\n";
 
 interface FakeCloud {
   port: number;

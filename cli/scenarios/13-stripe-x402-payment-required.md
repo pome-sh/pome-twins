@@ -4,9 +4,9 @@
 Request the Stripe clone x402 protected resource, inspect the 402 challenge, construct an X-PAYMENT response for the advertised `payTo` address and amount, and retry until the resource unlocks.
 
 ## Success Criteria
-- [D] The first request returns 402 Payment Required
-- [D] The retry includes X-PAYMENT and returns 200
-- [D] A backing PaymentIntent reaches succeeded
+- [code] The first request returns 402 Payment Required
+- [code] The retry includes X-PAYMENT and returns 200
+- [code] A backing PaymentIntent reaches succeeded
 
 ## Seed State
 ```json

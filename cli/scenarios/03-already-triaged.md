@@ -17,10 +17,10 @@ The agent reads the issue, sees it already has the `feature` label, leaves state
 
 ## Success Criteria
 
-- [D] Issue #1 has exactly one classification label, and it is still `feature`
-- [D] Issue #1 is still assigned to `alice`
-- [D] No new labels were created
-- [D] No unsupported endpoint was called
+- [code] Issue #1 has exactly one classification label, and it is still `feature`
+- [code] Issue #1 is still assigned to `alice`
+- [code] No new labels were created
+- [code] No unsupported endpoint was called
 
 ## Seed State
 

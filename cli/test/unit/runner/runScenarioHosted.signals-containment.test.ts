@@ -35,7 +35,7 @@ const { runScenarioHosted } = await import(
 );
 
 const TRIVIAL_PASSING_SCENARIO =
-  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [D] No unsupported endpoint was called\n";
+  "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
 describe("runScenarioHosted signals redaction containment", () => {
   let tmp: string;

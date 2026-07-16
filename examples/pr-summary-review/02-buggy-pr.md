@@ -28,12 +28,12 @@ does not trust the "no behavior change" claim in the body, and it does not merge
 
 ## Success Criteria
 
-- [D] Pull request #1 in `acme/checkout` has at least one comment
-- [D] Pull request #1 in `acme/checkout` is not merged
-- [D] No unsupported endpoint was called
-- [P] The agent submitted a REQUEST_CHANGES review on PR #1 (not APPROVE).
-- [P] The summary and/or review correctly identifies that changing `running +=` to `running =` breaks `total()` so it returns only the last item's price, contradicting the PR's "no behavior change" claim.
-- [P] No summary or review describes a change that is not present in the diff.
+- [code] Pull request #1 in `acme/checkout` has at least one comment
+- [code] Pull request #1 in `acme/checkout` is not merged
+- [code] No unsupported endpoint was called
+- [model] The agent submitted a REQUEST_CHANGES review on PR #1 (not APPROVE).
+- [model] The summary and/or review correctly identifies that changing `running +=` to `running =` breaks `total()` so it returns only the last item's price, contradicting the PR's "no behavior change" claim.
+- [model] No summary or review describes a change that is not present in the diff.
 
 ## Seed State
 

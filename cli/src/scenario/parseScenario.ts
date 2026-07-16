@@ -218,11 +218,17 @@ function splitSections(markdown: string) {
   return sections;
 }
 
-// Criterion marker grammar (M3): `[D]` / `[P]` optionally carrying a twin tag,
-// `[D:<twin>]` / `[P:<twin>]`, where <twin> is `[a-z][a-z0-9_-]*`. The tag lands
-// on `criterion.twin`; a bare marker leaves it undefined (attributes to the
-// session's primary twin, `twins[0]`).
-const CRITERION_LINE_RE = /^[-*]\s+\[([DP])(?::([a-z][a-z0-9_-]*))?\]\s+(.+)$/;
+// Criterion marker grammar (F-778): `[code]` / `[model]` optionally carrying a
+// twin tag, `[code:<twin>]` / `[model:<twin>]`, where <twin> is
+// `[a-z][a-z0-9_-]*`. The marker spells the canonical criterion kind directly.
+// The tag lands on `criterion.twin`; a bare marker leaves it undefined
+// (attributes to the session's primary twin, `twins[0]`).
+const CRITERION_LINE_RE = /^[-*]\s+\[(code|model)(?::([a-z][a-z0-9_-]*))?\]\s+(.+)$/;
+// The retired pre-F-778 marker spelling, matched ONLY to fail loudly. Without
+// this guard a legacy `[D]`/`[P]` line would fall through the silent
+// skip-non-criterion path below and the scenario would "pass" with fewer
+// criteria than its author wrote.
+const LEGACY_CRITERION_LINE_RE = /^[-*]\s+\[([DP])(?::([a-z][a-z0-9_-]*))?\]\s+(.+)$/;
 
 function parseCriteria(input: string, twins: string[]): Criterion[] {
   const multiTwin = twins.length > 1;
@@ -232,9 +238,16 @@ function parseCriteria(input: string, twins: string[]): Criterion[] {
 
   for (const rawLine of input.split("\n")) {
     const line = rawLine.trim();
+    const legacy = line.match(LEGACY_CRITERION_LINE_RE);
+    if (legacy) {
+      const legacyMarker = `[${legacy[1]}${legacy[2] ? `:${legacy[2]}` : ""}]`;
+      throw new Error(
+        `Criterion "${legacyMarker} ${legacy[3]!.trim()}" uses a retired marker — markers were renamed [D]→[code] and [P]→[model] (tags carry over: [D:github]→[code:github]).`,
+      );
+    }
     const match = line.match(CRITERION_LINE_RE);
     if (!match) continue;
-    const kind = match[1]!; // "D" | "P"
+    const kind = match[1]!; // "code" | "model"
     const tag = match[2]; // twin tag or undefined
     const text = match[3]!.trim();
     // Reconstruct the human-facing marker for error messages.
@@ -254,17 +267,18 @@ function parseCriteria(input: string, twins: string[]): Criterion[] {
           `Criterion "${marker} ${text}" tags twin "${tag}", which is not in the scenario's twins [${twins.join(", ")}].`,
         );
       }
-    } else if (multiTwin && kind === "D") {
-      // Multi-twin: every deterministic [D] criterion MUST carry a tag so the
-      // cloud knows which twin's state to check it against. [P] may stay bare
+    } else if (multiTwin && kind === "code") {
+      // Multi-twin: every [code] criterion MUST carry a tag so the cloud knows
+      // which twin's state to check it against. [model] may stay bare
       // (attributes to the primary twin).
       throw new Error(
-        `Criterion "${marker} ${text}" needs a twin tag ([D:<twin>]) in a multi-twin scenario (twins [${twins.join(", ")}]).`,
+        `Criterion "${marker} ${text}" needs a twin tag ([code:<twin>]) in a multi-twin scenario (twins [${twins.join(", ")}]).`,
       );
     }
 
-    // Authors still write `[D]`/`[P]` in markdown; the published contract's
-    // tolerant reader normalizes those to the canonical `code`/`model` kinds.
+    // The marker spells the canonical kind; `criterionSchema` keeps accepting
+    // the legacy `D`/`P` enum values only for 0.3.0-era persisted artifacts
+    // (the published contract's tolerant reader), never from markdown.
     // The optional `twin` rides through untouched.
     criteria.push(
       criterionSchema.parse(
