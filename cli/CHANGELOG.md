@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#123](https://github.com/pome-sh/pome-twins/pull/123) [`23ace16`](https://github.com/pome-sh/pome-twins/commit/23ace166673e3a1795bc670fa214d79f634123c4) Thanks [@GaganSD](https://github.com/GaganSD)! - Ungate `pome init --sdk claude` now that `@pome-sh/adapter-claude-sdk` is on npm, and clarify the CLI description as capture-only.
+
+- [#152](https://github.com/pome-sh/pome-twins/pull/152) [`f7d8093`](https://github.com/pome-sh/pome-twins/commit/f7d80930527368346c5e0df2e47410b2fd3466d3) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Per-turn LLM usage is now captured end to end on self-host runs. The Claude-SDK
+  adapter emits an `LlmTurnEvent` for each assistant turn — model, input/output
+  tokens, and the cache-read/cache-creation token counts — into `events.jsonl`.
+
+  - `pome inspect` renders the new `LlmTurnEvent` rows (turn index, model, token
+    usage, cache read/create counts) and counts them in the CAS-adapter trace
+    health layer.
+  - `pome eval` no longer corrupts already-kinded event rows on upload: it
+    previously mapped every row through the legacy TwinHttpEvent wrapper, which
+    clobbered any non-TwinHttpEvent kind. Legacy (kind-less) rows are still
+    wrapped; kinded rows now upload unchanged.
+
+- [#133](https://github.com/pome-sh/pome-twins/pull/133) [`67eee25`](https://github.com/pome-sh/pome-twins/commit/67eee25711c3b6f63b4c6ddaec553abd5efe76d0) Thanks [@GaganSD](https://github.com/GaganSD)! - Native multi-twin scenario support. Scenarios can now exercise more than one twin
+  in a single session:
+
+  - `## Success Criteria` markers accept an optional twin tag — `[D:<twin>]` /
+    `[P:<twin>]` — that attributes each criterion to a specific twin. In a
+    multi-twin scenario every `[D]` must carry a tag; single-twin scenarios are
+    unchanged (a bare marker attributes to the sole twin).
+  - `## Seed State` for a multi-twin scenario is a per-twin envelope
+    `{ <twin>: <seed> }`; a twin with no envelope key gets its default seed.
+    Single-twin seeds stay flat and byte-identical.
+  - Hosted runs fan the twin environment out per twin —
+    `POME_<TWIN>_REST_URL` / `POME_<TWIN>_MCP_URL` for each twin — capture and
+    upload each twin's state, and finalize with per-criterion twin attribution.
+  - `pome session create` accepts repeated `--twin` flags for an ad-hoc
+    multi-twin session and can now target the Slack twin.
+  - `pome register agent --twins github,slack` records the agent's enabled
+    services and prints them back.
+
+  New CLI × older cloud degrades gracefully: an old control plane that rejects a
+  multi-twin session is reported with a clear hint, and single-twin behavior is
+  unchanged end to end.
+
+- [#110](https://github.com/pome-sh/pome-twins/pull/110) [`eb39728`](https://github.com/pome-sh/pome-twins/commit/eb3972887fb6276b67c6d8f60968249974884a02) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - `pome twin start <twin>` now starts any of the three twins (github, slack, stripe) as a long-lived foreground server (Ctrl-C to stop) on the same in-process boot path `pome run --local` uses, and prints a ready-to-use JWT. The command reuses a secret persisted at `.pome-data/<twin>/secret` (`POME_TWIN_DATA_DIR` overrides the directory); an env-injected `TWIN_AUTH_SECRET` always wins.
+
+### Patch Changes
+
+- [#114](https://github.com/pome-sh/pome-twins/pull/114) [`87daab4`](https://github.com/pome-sh/pome-twins/commit/87daab497bd8614579cc915397a1f1acedec529f) Thanks [@GaganSD](https://github.com/GaganSD)! - Request asynchronous hosted evaluation and poll its authenticated status until the existing scored result is ready.
+
+- [#135](https://github.com/pome-sh/pome-twins/pull/135) [`8fbca05`](https://github.com/pome-sh/pome-twins/commit/8fbca05ae3a47361ad171f424ab2f37bb0e3f9d8) Thanks [@GaganSD](https://github.com/GaganSD)! - Blob uploads (trace, per-twin state, signals, meta) are now gzip-encoded. The storage edge runs a content rule that rejects some twin-state payloads sent as plaintext, which silently dropped those uploads and skipped their criteria. Uploads now carry `content-encoding: gzip`, so the payloads sail through; this requires the paired cloud reader release that transparently decompresses them.
+
+- [#155](https://github.com/pome-sh/pome-twins/pull/155) [`6ee84e5`](https://github.com/pome-sh/pome-twins/commit/6ee84e56fcf2b8f75132106103c0f1b906d3bc23) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Resolve current published contracts from npm: `@pome-sh/shared-types` 0.9.0 (the `LlmTurnEvent` kind), `@pome-sh/sdk` 0.4.0 (single sdk copy alongside the twins' pin), `@pome-sh/twin-github` 0.2.0 (the 65-tool consolidated surface), `@pome-sh/twin-slack` 0.2.0 (the ruled read tools), and `@pome-sh/twin-stripe` 0.2.3.
+
 ## 0.1.1
 
 ### Patch Changes
