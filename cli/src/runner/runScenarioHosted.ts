@@ -331,6 +331,14 @@ export async function runScenarioHosted(
 
     let agentResult = preflight;
     if (preflight.exitCode === 0) {
+      // F-771 — the preflight probe appended its own signals (turns/steps/
+      // tool_calls) to the shared POME_ADAPTER_SIGNALS_PATH file. Those must
+      // NOT reach the uploaded signals.jsonl / usage ledger. Truncate before
+      // the real run so the blob counts real-run telemetry only. runAgentCommand
+      // awaits child exit, so the preflight's writes are already flushed here.
+      // Gated on preflight success: the preflight-failed → single-run path keeps
+      // its current behavior (it uploads the preflight's signals).
+      await writeFile(signalsPath, "");
       agentResult = await runAgentCommand({
         command: options.agentCommand,
         env,
