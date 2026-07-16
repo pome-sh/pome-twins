@@ -79,7 +79,21 @@ export function normalizeTaskVocabKeys(value: unknown): unknown {
   return out ?? value;
 }
 
-/** Legacy criterion kind → canonical criterion kind (W3: D→code, P→model). */
+/**
+ * Legacy criterion kind → canonical criterion kind (W3: D→code, P→model).
+ *
+ * SANCTIONED EXCEPTION (F-778). The full D/P→code/model migration removed the
+ * legacy spelling everywhere — including the markdown authoring marker, which
+ * is now `[code]` / `[model]` — EXCEPT this read-only shim. It exists because:
+ *   - 0.3.0-era persisted artifacts (run rows, `criteria_results` jsonb) carry
+ *     `D` / `P` and must keep parsing;
+ *   - released CLIs keep sending `"D"` / `"P"` on the finalize wire
+ *     (`criterionDefSchema` in ./rest.js) for one more release train.
+ * It is input-normalization only: no writer may emit `D` / `P`, and no new
+ * code may reference the legacy spellings outside this map and the schemas
+ * that apply it (`criterionKindInputSchema` in ./run.js, `criterionDefSchema`
+ * in ./rest.js). Removal rides the wire-window close-out ticket.
+ */
 export const LEGACY_CRITERION_KIND_MAP = {
   D: "code",
   P: "model",

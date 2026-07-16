@@ -142,7 +142,7 @@ const runObjectSchema = z.object({
   meta_s3_key: z.string().nullable(),
   duration_ms: z.number().int(),
   agent_model: z.string(),                     // which model the agent used (informational)
-  judge_model: judgeModelSchema,               // which model judged [P] (free-form)
+  judge_model: judgeModelSchema,               // which model judged [model] criteria (free-form)
   judge_tokens_in: z.number().int().min(0).nullable(),
   judge_tokens_out: z.number().int().min(0).nullable(),
   // ── FDRS-613: reconciled from pome-cloud /v1 wire truth (all additive with

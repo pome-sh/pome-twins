@@ -4,7 +4,7 @@ import {
   type CreateEvalSessionResponse,
   createSessionResponseSchema,
   type CreateSessionResponse,
-  type CriterionDef,
+  criterionDefSchema,
   finalizeResponseSchema,
   type FinalizeResponse,
   sessionPublicSchema,
@@ -22,6 +22,11 @@ import {
   HostedOrchError,
   HostedQuotaError,
 } from "./errors.js";
+
+// Writer-side shape of the finalize criteria (see FinalizeInput.criteria).
+// Derived with z.input so it tracks whatever the installed contract accepts
+// as INPUT rather than its parsed output.
+export type CriterionDefWire = z.input<typeof criterionDefSchema>;
 
 // Multi-twin (M3): provenance marker for `per_twin`. A single-twin OLD cloud
 // ships NO `per_twin` key; `createSessionResponseSchema` then SYNTHESIZES one
@@ -220,8 +225,12 @@ export interface FinalizeInput {
   agentModel: string;
   agentSdk?: string | null;
   // Criterion *definitions* (not results). Cloud judges these against the
-  // recorded trace/state and returns the authoritative score.
-  criteria: CriterionDef[];
+  // recorded trace/state and returns the authoritative score. Writer-side
+  // input type (z.input, not z.infer): the CLI may send legacy "D"/"P" kinds
+  // during the F-778 compat window; cloud normalizes to "code"/"model" on
+  // parse. z.input keeps this compiling against both the published 0.9.x
+  // contract (D/P only) and the tolerant 0.10.0 reader.
+  criteria: CriterionDefWire[];
   scenarioName: string;
   scenarioHash: string;
   scenarioPrompt: string;

@@ -40,15 +40,24 @@ describe("criterionSchema.twin (run.ts) — rides the D/P→code/model transform
   });
 });
 
-describe("criterionDefSchema.twin (rest.ts)", () => {
-  it("accepts an optional twin on a scenario criterion def", () => {
-    expect(criterionDefSchema.parse({ id: "c1", text: "t", kind: "D", twin: "stripe" }))
-      .toEqual({ id: "c1", text: "t", kind: "D", twin: "stripe" });
+describe("criterionDefSchema.kind (rest.ts) — tolerant reader, canonical output (F-778)", () => {
+  it("passes canonical code/model kinds through unchanged", () => {
+    expect(criterionDefSchema.parse({ id: "c1", text: "t", kind: "code", twin: "stripe" }))
+      .toEqual({ id: "c1", text: "t", kind: "code", twin: "stripe" });
+    expect(criterionDefSchema.parse({ id: "c1", text: "t", kind: "model" }))
+      .toEqual({ id: "c1", text: "t", kind: "model" });
   });
 
-  it("parses without twin unchanged", () => {
+  it("normalizes legacy D/P wire kinds from released CLIs to code/model", () => {
+    expect(criterionDefSchema.parse({ id: "c1", text: "t", kind: "D", twin: "stripe" }))
+      .toEqual({ id: "c1", text: "t", kind: "code", twin: "stripe" });
     expect(criterionDefSchema.parse({ id: "c1", text: "t", kind: "P" }))
-      .toEqual({ id: "c1", text: "t", kind: "P" });
+      .toEqual({ id: "c1", text: "t", kind: "model" });
+  });
+
+  it("rejects kinds outside the tolerant set", () => {
+    expect(criterionDefSchema.safeParse({ id: "c1", text: "t", kind: "d" }).success).toBe(false);
+    expect(criterionDefSchema.safeParse({ id: "c1", text: "t", kind: "deterministic" }).success).toBe(false);
   });
 });
 
@@ -178,6 +187,8 @@ describe("finalizeRequestSchema.per_twin_state_keys (finalize-shapes.ts) — LIV
   it("parses without per_twin_state_keys (single-twin / older CLI)", () => {
     const parsed = finalizeRequestSchema.parse(base);
     expect(parsed.per_twin_state_keys).toBeUndefined();
+    // Legacy D/P wire kinds normalize at the finalize boundary too (F-778).
+    expect(parsed.criteria).toEqual([{ id: "c1", text: "PR merged", kind: "code", twin: "github" }]);
   });
 
   it("parses with an additive per_twin_state_keys map (multi-twin / new CLI)", () => {

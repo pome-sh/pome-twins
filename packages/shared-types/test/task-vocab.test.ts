@@ -132,7 +132,7 @@ describe("criterion kind vocabulary", () => {
     expect("confidence" in parsed && parsed.confidence).toBe(0.9);
   });
 
-  it("criterionResultSchema routes a legacy [D] result to the deterministic arm", () => {
+  it("criterionResultSchema routes a legacy D-kind result to the deterministic arm", () => {
     const parsed = criterionResultSchema.parse({
       criterion: { type: "D", text: "label added" },
       passed: false,

@@ -1,6 +1,6 @@
 {
   "name": "@pome-sh/shared-types",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Shared wire-format contract for Pome — Zod schemas for traces, recorder events, runs, OTel mapping, and secret redaction.",
   "private": false,
   "type": "module",
