@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#160](https://github.com/pome-sh/pome-twins/pull/160) [`55c4220`](https://github.com/pome-sh/pome-twins/commit/55c42209e33737a610953191b8ebb2d866a68039) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Criterion markers in scenario markdown are now `[code]` / `[model]` (with twin tags `[code:<twin>]` / `[model:<twin>]`). The legacy `[D]` / `[P]` markers are no longer accepted: the parser fails with a migration hint (`[D]→[code]`, `[P]→[model]`) instead of silently skipping the line. Update your scenario files by replacing the markers; criterion semantics are unchanged (`[code]` = deterministic state check, `[model]` = LLM-judged).
+
+### Patch Changes
+
+- [#158](https://github.com/pome-sh/pome-twins/pull/158) [`5937908`](https://github.com/pome-sh/pome-twins/commit/5937908af62b1f5bbf3ed81f7e77e654fff26f46) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Internal: type the hosted finalize payload's criteria as the wire _input_ shape (`CriterionDefInput`). No behavior change — the CLI still sends the legacy `D`/`P` criterion kinds until the hosted service accepts the canonical `code`/`model` spellings.
+
 ## 0.2.0
 
 ### Minor Changes
