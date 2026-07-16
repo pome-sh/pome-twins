@@ -1,6 +1,6 @@
 {
   "name": "@pome-sh/twin-stripe",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Deterministic test double for Stripe x402 machine payments \u2014 stateful clone agents can drive without burning sandbox quota or real chain gas.",
   "private": false,
   "type": "module",

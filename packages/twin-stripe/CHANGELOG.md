@@ -4,6 +4,12 @@ All notable changes to the Stripe twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.3 — 2026-07-16
+
+Strip trailing slashes from `twinBaseUrl` with an `endsWith`/`slice` loop
+instead of `/\/+$/`, so CodeQL no longer flags a polynomial ReDoS on
+library-controlled input. No API or behavior change.
+
 ## 0.2.2 — 2026-07-10
 
 Dependency-only release for the node:sqlite driver swap (F-703):

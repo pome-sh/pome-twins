@@ -204,7 +204,12 @@ export class TwinFacilitatorClient {
   }
 
   private url(path: string): string {
-    const base = this.opts.twinBaseUrl.replace(/\/+$/, "");
+    // Strip trailing slashes without a regex — CodeQL flags /\/+$/ on
+    // library-controlled twinBaseUrl as a potential polynomial ReDoS.
+    let base = this.opts.twinBaseUrl;
+    while (base.endsWith("/")) {
+      base = base.slice(0, -1);
+    }
     return `${base}/s/${encodeURIComponent(this.opts.sid)}${path}`;
   }
 
