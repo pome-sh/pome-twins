@@ -131,7 +131,7 @@ jobs:
       # cosign v3 `attest --type spdx` rejected the anchore SBOM predicate
       # ("invalid attestation: decoding json"), failing the sign step on every
       # v3 run and producing NO attestation. v2 signs + attests cleanly.
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         if: ${{ github.event_name != 'pull_request' }}
       # Push the EXACT image built + scanned above (already loaded into the local
       # daemon under every steps.meta.outputs.tags) — no second build, so the
