@@ -14,12 +14,13 @@
 import { describe, expect, it } from "vitest";
 import * as api from "../src/index.js";
 // TYPE-surface guard: `Object.keys` only sees runtime values, so dropping an
-// `export type` / `export interface` — or the whole type-only
-// `export * from "./evaluator-hooks.js"` line — would pass the runtime snapshot
-// silently. This type-only import enumerates every `export type` /
-// `export interface` declared inline in the pre-refactor index.ts
-// (grep-grounded from `origin/main`). It is enforced when `npm run typecheck`
-// compiles this test: a dropped or renamed type breaks the build.
+// `export type` / `export interface` — or a whole type-only leaf re-export —
+// would pass the runtime snapshot silently. This type-only import enumerates
+// every `export type` / `export interface` that must remain on the barrel
+// (grep-grounded from the pre-refactor index.ts, minus intentionally removed
+// EvaluatorHooks / TraceUploadContext in 0.9.0). It is enforced when
+// `npm run typecheck` compiles this test: a dropped or renamed type breaks
+// the build.
 import type {
   AcceptInviteRequest,
   AcceptInviteResponse,
@@ -35,7 +36,6 @@ import type {
   CreateSessionRequest,
   CreateSessionResponse,
   CriterionDef,
-  EvaluatorHooks,
   FinalizeAcceptedResponse,
   FinalizeCompletedStatusResponse,
   FinalizeFailedStatusResponse,
@@ -72,7 +72,6 @@ import type {
   TeamInvite,
   TeamMember,
   TeamRole,
-  TraceUploadContext,
   UsageResponse,
   User,
 } from "../src/index.js";
@@ -94,7 +93,6 @@ type _TypeSurfaceAssert = [
   CreateSessionRequest,
   CreateSessionResponse,
   CriterionDef,
-  EvaluatorHooks,
   FinalizeAcceptedResponse,
   FinalizeCompletedStatusResponse,
   FinalizeFailedStatusResponse,
@@ -131,14 +129,13 @@ type _TypeSurfaceAssert = [
   TeamInvite,
   TeamMember,
   TeamRole,
-  TraceUploadContext,
   UsageResponse,
   User,
 ];
 // Compile-time anchor: exactly one tuple entry per guarded type. The literal
 // type on the left fails to compile if an entry is added or removed above
 // without updating the count.
-const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 54;
+const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 52;
 
 // Runtime value exports (types are erased and cannot appear on `Object.keys`).
 const EXPECTED_EXPORTS = [
@@ -296,6 +293,6 @@ describe("@pome-sh/shared-types barrel export surface (F-754)", () => {
     // The real guard is the type-only import + _TypeSurfaceAssert tuple above,
     // enforced at typecheck time. This assertion just anchors the count at
     // runtime so the guard's scope is visible in test output.
-    expect(TYPE_SURFACE_SIZE).toBe(54);
+    expect(TYPE_SURFACE_SIZE).toBe(52);
   });
 });

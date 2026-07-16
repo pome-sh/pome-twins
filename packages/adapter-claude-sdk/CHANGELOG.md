@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.1 — 2026-07-16
+
+Dependency-only release: `@pome-sh/shared-types` pinned to 0.9.0 after removal
+of obsolete local-evaluation hook types. No adapter behavior changes.
+
 ## 0.2.0 — 2026-07-16
 
 F-766 — `query()` now emits one `LlmTurnEvent` per assistant turn reporting usage: a `withTurnUsage` stream wrapper (same turn detection as the OTLP `withGenAiSpans` lane) writes `turn_index`, `model`, `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `finish_reasons`, and `latency_ms` (+ `latency_ms_estimated`) to the signals JSONL (`POME_ADAPTER_SIGNALS_PATH`; inert when unset). The OTLP lane is untouched. `@pome-sh/shared-types` pin bumped 0.6.0 → 0.8.0 for the `LlmTurnEvent` schema.

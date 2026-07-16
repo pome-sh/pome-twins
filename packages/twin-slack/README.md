@@ -11,10 +11,6 @@ npm install
 npm run seed
 export TWIN_AUTH_SECRET=$(openssl rand -hex 32)
 npm run dev
-
-# Docker (from monorepo root; host port 3335):
-# docker compose --profile twins up -d twin-slack
-# curl http://127.0.0.1:3335/healthz
 ```
 
 Slack-shaped REST + MCP routes live under `/s/:sid/*` and require a

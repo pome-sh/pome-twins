@@ -1,5 +1,12 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.9.0
+
+### Removed
+
+- Removed the unused `EvaluatorHooks` and `TraceUploadContext` exports (and the
+  `evaluator-hooks` leaf) from the retired local-evaluation architecture.
+
 ## 0.8.0
 
 ### Added

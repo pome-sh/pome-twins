@@ -11,10 +11,6 @@ npm install
 npm run seed
 export TWIN_AUTH_SECRET=$(openssl rand -hex 32)
 npm run dev
-
-# Docker (from monorepo root; default compose service, port 3333):
-# docker compose up -d
-# curl http://127.0.0.1:3333/healthz
 ```
 
 GitHub-shaped REST + MCP routes live under `/s/:sid/*` and require a

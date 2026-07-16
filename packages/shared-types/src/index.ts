@@ -9,8 +9,8 @@
  *
  * This file is a THIN BARREL (F-754): it re-exports only. The contract clusters
  * live in topical leaf modules — identity/sessions/seed-state/task/rest/
- * finalize-shapes/errors/evaluator-hooks — each re-exported here with identical
- * names so `import { ... } from "@pome-sh/shared-types"` is unchanged.
+ * finalize-shapes/errors — each re-exported here with identical names so
+ * `import { ... } from "@pome-sh/shared-types"` is unchanged.
  */
 
 // Barrel re-exports — consumers `import { ... } from "@pome-sh/shared-types"`
@@ -33,4 +33,3 @@ export * from "./task.js";              // §3 TASKS — task config / task / pe
 export * from "./rest.js";              // §4 PUBLIC REST API (minus finalize family)
 export * from "./finalize-shapes.js";   // §4 PUBLIC REST API — /finalize response family
 export * from "./errors.js";            // §5 ERROR ENVELOPE
-export * from "./evaluator-hooks.js";   // §6 EvaluatorHooks
