@@ -1,6 +1,6 @@
 {
   "name": "@pome-sh/twin-slack",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Deterministic Slack Web API twin for agent testing — REST + MCP, SQLite-backed state.",
   "private": false,
   "type": "module",

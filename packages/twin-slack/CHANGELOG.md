@@ -4,6 +4,21 @@ All notable changes to the Slack twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.0 — 2026-07-16
+
+Batches everything landed on main since 0.1.2 whose versions were never cut
+(the publish workflow skips already-published versions, so npm 0.1.2 had gone
+stale against the repo):
+
+- #119 — FIDELITY.md re-cut by the heat rubric; the 3 ruled MCP read tools
+  added to the packaged surface.
+- #116 — structured fidelity inventory (`fidelity.inventory.json`) shipped as
+  the machine-readable seam source of truth.
+- #128 / #109 — `@pome-sh/sdk` pinned to 0.4.0: the twin self-generates
+  `TWIN_AUTH_SECRET` on first non-loopback boot (`ensureTwinAuthSecret`).
+
+Minor: the served REST/MCP fidelity surface changed shape.
+
 ## 0.1.2 — 2026-07-10
 
 Dependency-only release for the node:sqlite driver swap (F-703):
