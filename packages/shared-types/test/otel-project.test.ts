@@ -53,6 +53,48 @@ describe("projectAttributes", () => {
     expect(p.gen_ai_usage_output_tokens).toBe(6);
   });
 
+  it("falls back to the OpenInference vocabulary (LangChain / LangGraph)", () => {
+    // What @arizeai/openinference-instrumentation-langchain emits on an LLM span.
+    const p = projectAttributes({
+      "openinference.span.kind": "LLM",
+      "llm.model_name": "claude-sonnet-4-5",
+      "llm.provider": "anthropic",
+      "llm.token_count.prompt": 42,
+      "llm.token_count.completion": 8,
+    });
+    expect(p.gen_ai_request_model).toBe("claude-sonnet-4-5");
+    expect(p.gen_ai_provider_name).toBe("anthropic");
+    expect(p.gen_ai_usage_input_tokens).toBe(42);
+    expect(p.gen_ai_usage_output_tokens).toBe(8);
+  });
+
+  it("projects the OpenInference bare tool.name onto gen_ai_tool_name", () => {
+    const p = projectAttributes({
+      "openinference.span.kind": "TOOL",
+      "tool.name": "merge_pull_request",
+    });
+    expect(p.gen_ai_tool_name).toBe("merge_pull_request");
+  });
+
+  it("falls back to llm.system when llm.provider is absent", () => {
+    const p = projectAttributes({ "llm.system": "openai" });
+    expect(p.gen_ai_provider_name).toBe("openai");
+  });
+
+  it("prefers canonical gen_ai.* over the OpenInference aliases", () => {
+    const p = projectAttributes({
+      "gen_ai.request.model": "gpt-4",
+      "llm.model_name": "claude-sonnet-4-5",
+      "gen_ai.provider.name": "openai",
+      "llm.provider": "anthropic",
+      "gen_ai.usage.input_tokens": 1,
+      "llm.token_count.prompt": 99,
+    });
+    expect(p.gen_ai_request_model).toBe("gpt-4");
+    expect(p.gen_ai_provider_name).toBe("openai");
+    expect(p.gen_ai_usage_input_tokens).toBe(1);
+  });
+
   it("prefers canonical names over aliases", () => {
     const p = projectAttributes({
       "gen_ai.provider.name": "azure",

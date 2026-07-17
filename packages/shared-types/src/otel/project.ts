@@ -32,6 +32,12 @@ import {
   GEN_AI_USAGE_PROMPT_TOKENS_LEGACY,
   HTTP_REQUEST_METHOD,
   HTTP_RESPONSE_STATUS_CODE,
+  OPENINFERENCE_LLM_MODEL_NAME,
+  OPENINFERENCE_LLM_PROVIDER,
+  OPENINFERENCE_LLM_SYSTEM,
+  OPENINFERENCE_LLM_TOKEN_COUNT_COMPLETION,
+  OPENINFERENCE_LLM_TOKEN_COUNT_PROMPT,
+  OPENINFERENCE_TOOL_NAME,
   SERVER_ADDRESS,
   SERVER_PORT,
   URL_FULL,
@@ -119,20 +125,30 @@ function readUint(attributes: OtelAttributeBag, key: string): number | null {
  */
 export function projectAttributes(attributes: OtelAttributeBag): OtelProjections {
   return {
+    // provider: canonical → deprecated gen_ai.system → OpenInference llm.provider
+    // → OpenInference llm.system (the LangChain provider label).
     gen_ai_provider_name:
       readString(attributes, GEN_AI_PROVIDER_NAME) ??
-      readString(attributes, GEN_AI_SYSTEM_DEPRECATED),
+      readString(attributes, GEN_AI_SYSTEM_DEPRECATED) ??
+      readString(attributes, OPENINFERENCE_LLM_PROVIDER) ??
+      readString(attributes, OPENINFERENCE_LLM_SYSTEM),
     gen_ai_operation_name: readString(attributes, GEN_AI_OPERATION_NAME),
-    gen_ai_request_model: readString(attributes, GEN_AI_REQUEST_MODEL),
+    gen_ai_request_model:
+      readString(attributes, GEN_AI_REQUEST_MODEL) ??
+      readString(attributes, OPENINFERENCE_LLM_MODEL_NAME),
     gen_ai_agent_name: readString(attributes, GEN_AI_AGENT_NAME),
     gen_ai_agent_id: readString(attributes, GEN_AI_AGENT_ID),
-    gen_ai_tool_name: readString(attributes, GEN_AI_TOOL_NAME),
+    gen_ai_tool_name:
+      readString(attributes, GEN_AI_TOOL_NAME) ??
+      readString(attributes, OPENINFERENCE_TOOL_NAME),
     gen_ai_usage_input_tokens:
       readUint(attributes, GEN_AI_USAGE_INPUT_TOKENS) ??
-      readUint(attributes, GEN_AI_USAGE_PROMPT_TOKENS_LEGACY),
+      readUint(attributes, GEN_AI_USAGE_PROMPT_TOKENS_LEGACY) ??
+      readUint(attributes, OPENINFERENCE_LLM_TOKEN_COUNT_PROMPT),
     gen_ai_usage_output_tokens:
       readUint(attributes, GEN_AI_USAGE_OUTPUT_TOKENS) ??
-      readUint(attributes, GEN_AI_USAGE_COMPLETION_TOKENS_LEGACY),
+      readUint(attributes, GEN_AI_USAGE_COMPLETION_TOKENS_LEGACY) ??
+      readUint(attributes, OPENINFERENCE_LLM_TOKEN_COUNT_COMPLETION),
     http_request_method: readString(attributes, HTTP_REQUEST_METHOD),
     // HTTP status codes are non-negative (100–599); `readUint` drops a bogus
     // negative value rather than projecting it as a valid code.
