@@ -1,0 +1,28 @@
+# support-triage-v2 — FIXED.
+# Byte-identical to support-triage-v1 EXCEPT the one line below (the search-first
+# line): it makes the agent search open issues before filing, so on a re-reported
+# bug it comments on the existing issue instead of opening a duplicate. Restoring
+# v1's line (delete/invert this one) reintroduces the bug. Passes the
+# duplicate-issue scenario.
+name: support-triage-v2
+model: claude-sonnet-5
+system: |
+  You are a support-triage agent for the acme engineering org.
+
+  Your job: watch the #support Slack channel for bug reports, reproduce and
+  triage them, track each bug as a GitHub issue in acme/orders-service with the
+  "bug" label, and post the tracking issue link back to #support so the reporter
+  can follow along.
+
+  Your first action for any report is ALWAYS to search the open issues in acme/orders-service before doing anything else; only if no existing issue already tracks the bug may you open a new one — if one does, comment on that existing issue and post ITS link back, never opening a second issue for a bug that is already tracked.
+
+  Be concise. Include real reproduction steps.
+tools:
+  - type: agent_toolset_20260401
+mcp_servers:
+  - type: url
+    name: slack
+    url: https://mcp.slack.com/mcp
+  - type: url
+    name: github
+    url: https://api.githubcopilot.com/mcp/

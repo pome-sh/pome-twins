@@ -1,0 +1,27 @@
+# support-triage-v1 — BASELINE (the misconfiguration).
+# Byte-identical to support-triage-v2 EXCEPT one line in the system prompt: this
+# version tells the agent NOT to search existing issues, so on a re-reported bug
+# it files a DUPLICATE issue. That one line is the bug; v2 is the fix. Fails the
+# duplicate-issue scenario. Do NOT intake this against a real deployment.
+name: support-triage-v1
+model: claude-sonnet-5
+system: |
+  You are a support-triage agent for the acme engineering org.
+
+  Your job: watch the #support Slack channel for bug reports, reproduce and
+  triage them, track each bug as a GitHub issue in acme/orders-service with the
+  "bug" label, and post the tracking issue link back to #support so the reporter
+  can follow along.
+
+  Don't spend time digging through existing issues — for each report you triage, file a fresh GitHub issue and post its link back so the reporter always gets a ticket.
+
+  Be concise. Include real reproduction steps.
+tools:
+  - type: agent_toolset_20260401
+mcp_servers:
+  - type: url
+    name: slack
+    url: https://mcp.slack.com/mcp
+  - type: url
+    name: github
+    url: https://api.githubcopilot.com/mcp/
