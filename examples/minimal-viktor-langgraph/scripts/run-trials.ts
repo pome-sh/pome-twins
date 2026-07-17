@@ -146,7 +146,11 @@ async function main() {
 
   if (mode === "--verify") {
     const url = args[args.indexOf("--verify") + 1];
-    const slug = args[args.indexOf("--scenario") + 1] ?? "01-clean-merge";
+    // `indexOf` returns -1 when --scenario is absent; guard so the flag stays
+    // optional (else args[-1+1] === args[0] === "--verify" and the default
+    // never fires).
+    const scenarioIdx = args.indexOf("--scenario");
+    const slug = scenarioIdx >= 0 ? (args[scenarioIdx + 1] ?? "01-clean-merge") : "01-clean-merge";
     if (!url) throw new Error("--verify needs a twin_url");
     const token = process.env.VIKTOR_SLACK_TOKEN ?? "";
     const checks = checkSlack(slug, await fetchSlackMessages({ sessionId: "", twinUrl: url, agentToken: token }, CHANNEL));
