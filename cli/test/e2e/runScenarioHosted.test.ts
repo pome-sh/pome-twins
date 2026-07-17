@@ -438,7 +438,7 @@ describe("pome run --hosted (e2e via spawn)", () => {
       signalRows,
       "signals blob must count the real run's turns only (preflight excluded)",
     ).toHaveLength(2);
-    expect(signalRows.map((row) => row.turn_index).sort()).toEqual([0, 1]);
+    expect(signalRows.map((row) => row.turn_index).sort((a, b) => a - b)).toEqual([0, 1]);
     const turn0 = signalRows.find((row) => row.turn_index === 0);
     const turn1 = signalRows.find((row) => row.turn_index === 1);
     expect(turn0, "turn_index 0 row missing from signals blob").toMatchObject({
