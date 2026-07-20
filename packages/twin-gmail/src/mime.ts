@@ -59,7 +59,10 @@ export function canonicalRaw(input: Uint8Array | string): Buffer {
 export function decodeGmailRaw(input: string): Buffer {
   if (!/^[A-Za-z0-9_-]*={0,2}$/.test(input)) invalidArgument("Invalid base64url MIME");
   const raw = Buffer.from(input, "base64url");
-  if (raw.toString("base64url") !== input.replace(/=+$/, "")) invalidArgument("Invalid base64url MIME");
+  // Strip trailing '=' without a quantifier regex — CodeQL js/polynomial-redos on /=+$/.
+  let end = input.length;
+  while (end > 0 && input.charCodeAt(end - 1) === 0x3d) end -= 1;
+  if (raw.toString("base64url") !== input.slice(0, end)) invalidArgument("Invalid base64url MIME");
   return canonicalRaw(raw);
 }
 
