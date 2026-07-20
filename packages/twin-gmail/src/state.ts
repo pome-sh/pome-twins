@@ -163,7 +163,7 @@ export function exportGmailState(db: GmailTwinDatabase): GmailStateExport {
 export function gmailStateDelta(
   before: GmailStateExport,
   after: GmailStateExport
-): { before: GmailStateDeltaView | null; after: GmailStateDeltaView | null } {
+): { before: GmailStateDeltaView | null; after: GmailStateDeltaView | null } | null {
   const beforeView: GmailStateDeltaView = { schemaVersion: 1 };
   const afterView: GmailStateDeltaView = { schemaVersion: 1 };
   let changed = false;
@@ -194,7 +194,9 @@ export function gmailStateDelta(
     }
   }
 
-  if (!changed) return { before: null, after: null };
+  // Parent null = no mutation (SDK/shared-types contract). Never emit
+  // `{ before: null, after: null }` for identical before/after exports.
+  if (!changed) return null;
   return { before: beforeView, after: afterView };
 }
 

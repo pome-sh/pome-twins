@@ -302,6 +302,30 @@ describe("Gmail MCP frozen contract", () => {
     }
   });
 
+  it("records null state_delta for label no-op mutations", async () => {
+    const recorder = createRecorderStore();
+    const app = createGmailTwinApp({ seed: seed(), recorder, runId: "run_noop" });
+
+    // msg_seed already has INBOX — re-adding is a no-op.
+    const noopAdd = await call(app, 1, "label_message", {
+      messageId: "msg_seed",
+      labelIds: ["INBOX"],
+    });
+    expect(noopAdd.result.isError).toBe(false);
+
+    // Removing a label that is not present is also a no-op.
+    const noopRemove = await call(app, 2, "unlabel_message", {
+      messageId: "msg_seed",
+      labelIds: ["STARRED"],
+    });
+    expect(noopRemove.result.isError).toBe(false);
+
+    const events = recorder.events().filter((event) => event.path.endsWith("/mcp"));
+    expect(events).toHaveLength(2);
+    for (const event of events) {
+      expect(event.state_delta).toBeNull();
+    }
+  });
 });
 
 describe("MCP page tokens", () => {

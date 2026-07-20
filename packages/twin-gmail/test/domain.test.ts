@@ -211,8 +211,12 @@ describe("Gmail domain", () => {
     expect(delta!.before?.messages ?? []).toEqual([]);
   });
 
-  
-  
+  it("returns null state_delta for identical before/after exports", () => {
+    const { gmail } = domain();
+    const state = gmail.exportState();
+    expect(gmailStateDelta(state, state)).toBeNull();
+  });
+
   it("builds snippets with linear HTML strip (no ReDoS regex)", () => {
     const { gmail } = domain();
     const adversarial = `<${"a".repeat(50_000)}`;
@@ -231,7 +235,7 @@ describe("Gmail domain", () => {
     expect(message.snippet).not.toContain("<");
   });
 
-    it("maps category:primary and rejects unknown search operators", () => {
+  it("maps category:primary and rejects unknown search operators", () => {
     const { gmail } = domain();
     const message = gmail.insertMessage(sender, raw("Category"));
     gmail.modifyMessageLabels(sender, message.id, ["CATEGORY_PERSONAL"]);

@@ -28,12 +28,17 @@ export class GmailRouteKit {
     return this.context.recorder.handle({ mutation: true }, async (c) => {
       const before = this.context.domain.exportState();
       const result = await fn(c);
-      const mutation = result.mutation ?? true;
+      const wantsMutation = result.mutation ?? true;
+      const delta = wantsMutation
+        ? gmailStateDelta(before, this.context.domain.exportState())
+        : null;
+      // Accurate state_mutation: no-op writes (empty delta) did not mutate state.
+      const mutation = wantsMutation && delta !== null;
       return {
         status: result.status ?? 200,
         body: result.body,
         mutation,
-        delta: mutation ? gmailStateDelta(before, this.context.domain.exportState()) : null,
+        delta,
       };
     });
   }

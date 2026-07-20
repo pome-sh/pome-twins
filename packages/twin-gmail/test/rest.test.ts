@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { sign } from "hono/jwt";
-import { createFileBackedRecorderStore } from "@pome-sh/sdk/server";
+import { createFileBackedRecorderStore, createRecorderStore } from "@pome-sh/sdk/server";
 import {
   composeMime,
   createGmailTwinApp,
@@ -345,4 +345,51 @@ describe("Gmail REST routes", () => {
     }
   });
 
+  it("records null state_delta and state_mutation=false for identical label modify", async () => {
+    const recorder = createRecorderStore();
+    const db = openGmailTwinDatabase(":memory:");
+    const app = createGmailTwinApp({ db, seed: seed(), recorder, runId: "rest-noop" });
+    const request = async (path: string, init: RequestInit = {}) =>
+      app.request(`/s/${SID}${path}`, {
+        ...init,
+        headers: { authorization: `Bearer ${token}`, ...init.headers },
+      });
+
+    const created = await json(
+      await request("/gmail/v1/users/me/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ raw: encodeGmailRaw(raw("Noop")) }),
+      })
+    );
+
+    // First STARRED add mutates; second identical add is a no-op.
+    expect(
+      (
+        await request(`/gmail/v1/users/me/messages/${created.id}/modify`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ addLabelIds: ["STARRED"] }),
+        })
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await request(`/gmail/v1/users/me/messages/${created.id}/modify`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ addLabelIds: ["STARRED"] }),
+        })
+      ).status
+    ).toBe(200);
+
+    const modifyEvents = recorder
+      .events()
+      .filter((event) => event.path.includes("/messages/") && event.path.endsWith("/modify"));
+    expect(modifyEvents).toHaveLength(2);
+    expect(modifyEvents[0]?.state_mutation).toBe(true);
+    expect(modifyEvents[0]?.state_delta).not.toBeNull();
+    expect(modifyEvents[1]?.state_mutation).toBe(false);
+    expect(modifyEvents[1]?.state_delta).toBeNull();
+  });
 });
