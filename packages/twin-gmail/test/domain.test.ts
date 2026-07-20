@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GmailDomain,
+  capExportRows,
   composeMime,
   defaultSeedState,
   encodeGmailRaw,
@@ -100,6 +101,29 @@ describe("Gmail domain", () => {
     expect(sent.sender.labelIds).toEqual(["SENT"]);
   });
 
+  it("honors explicit owned threadId without reply headers", () => {
+    const { gmail } = domain();
+    const parent = gmail.insertMessage(sender, raw("Anchor thread", "parent"));
+    const joined = gmail.sendMessage(sender, raw("Unrelated subject", "child"), {
+      threadId: parent.threadId,
+    });
+    expect(joined.sender.threadId).toBe(parent.threadId);
+    expect(gmail.getThread(sender, parent.threadId).messages.map((m) => m.id)).toEqual([
+      parent.id,
+      joined.sender.id,
+    ]);
+  });
+
+  it("keeps the solo-draft thread id when sending the draft", () => {
+    const { gmail } = domain();
+    const created = gmail.createDraft(sender, raw("Solo draft"));
+    const draftThreadId = created.message.threadId;
+    const sent = gmail.sendDraft(sender, created.id);
+    expect(sent.sender.threadId).toBe(draftThreadId);
+    expect(gmail.getThread(sender, draftThreadId).messages).toHaveLength(1);
+    expect(gmail.getThread(sender, draftThreadId).messages[0]!.id).toBe(sent.sender.id);
+  });
+
   it("keeps labels on messages and computes thread labels", () => {
     const { gmail } = domain();
     const label = gmail.createLabel(sender, "Project");
@@ -147,6 +171,12 @@ describe("Gmail domain", () => {
     expect(recipientRaw).not.toContain("Bcc:");
     expect(result.deliveries[0]!.message.rfcMessageId).toBe(result.sender.rfcMessageId);
     expect(db.pragma("foreign_key_check")).toEqual([]);
+  });
+
+  it("keeps the newest history window when export collection cap is exceeded", () => {
+    const rows = Array.from({ length: 5 }, (_, index) => ({ id: String(index + 1) }));
+    expect(capExportRows(rows, 3, true).map((row) => (row as { id: string }).id)).toEqual(["3", "4", "5"]);
+    expect(capExportRows(rows, 3, false).map((row) => (row as { id: string }).id)).toEqual(["1", "2", "3"]);
   });
 
   it("exports complete deterministic semantic state without binary bytes", () => {

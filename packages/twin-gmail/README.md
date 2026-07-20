@@ -69,6 +69,21 @@ See [`LIMITS.md`](LIMITS.md). Defaults/maxima from discovery are frozen in
 `rest-surface.json`. Page tokens are HMAC-bound to mailbox/query/snapshot; set
 `POME_GMAIL_PAGE_TOKEN_SECRET` or rely on `TWIN_AUTH_SECRET` (see LIMITS.md).
 
+## Stateful parity with other first-party twins
+
+Gmail follows the same SDK chassis as GitHub / Slack / Stripe:
+
+| Capability | Gmail | Notes vs peers |
+| --- | --- | --- |
+| `defineTwin` + SQLite domain | yes | Same `@pome-sh/sdk` boot path |
+| `/_pome/state` | yes | Bounded digests; history prefers newest 2000 when capped |
+| `/_pome/events` + durable recorder | yes | `recordingProjection` redacts MIME/bodies |
+| `/admin/reset` + `/admin/seed` | yes | Reports `state_delta` like GitHub (Stripe freezes admin unrecorded) |
+| MCP `reportDelta` / no-op `state_mutation=false` | yes | Aligned with REST `rest-routes-kit` |
+| Session identity claim | `gmail_email` | Peers use provider-shaped claims |
+
+Intentional differences: no Google OAuth (Pome JWT only); watch/stop 501; Stripe-style idempotency/failure-injection middleware is Stripe-only.
+
 ## Development
 
 ```bash

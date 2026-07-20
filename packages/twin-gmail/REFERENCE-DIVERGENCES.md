@@ -22,6 +22,19 @@ The oracles for this twin are:
 | **Nondeterministic values** — random ids, wall-clock-only dates, unordered collections | Reset/seed produces deterministic ids, dates, and sorted exports. Tests pin order and values. |
 | **Successful inert `watch` / `stop`** — HTTP 200 registration that does nothing | `users.watch` and `users.stop` are **named gaps** returning the loud **501** unsupported envelope. No fake Pub/Sub success. No network I/O. |
 
+## Offline fidelity notes (no Google OAuth required)
+
+Checked against frozen discovery / public API docs (not live authenticated Gmail):
+
+| Surface | Official expectation | Twin behavior | Evidence |
+| --- | --- | --- | --- |
+| `threadId` on send/insert/import/draft | Optional; when present and owned, message joins that thread | Honors explicit owned `threadId` even without In-Reply-To/References | `storage.resolveThread`, domain/REST send paths |
+| Draft send identity | Send removes draft; sent message retains draft's thread | Solo drafts keep thread id across delete→send (empty thread preserved until send) | `domain.sendDraft` |
+| Bad search `q` | Client input error → `400 INVALID_ARGUMENT` | Search/MIME client failures throw `GmailError(400)`; REST `asInputError` + MCP `errorEnvelope` | `search.ts`, `mime.ts`, `errors.ts` |
+| `users.watch` / `users.stop` | Live Gmail uses Pub/Sub | Named gap **501** (never fake registration) | `rest-routes-resources`, `rest-surface.json` |
+
+Live authenticated Gmail calls were **not** run (no OAuth credentials). Offline checks used `fixtures/rest-surface.json`, packaged discovery raw fixture, `npm run fidelity:parity`, and `npm run preview:drift` when available.
+
 ## Other non-oracles
 
 - Google OAuth/OIDC consent screens, refresh tokens, JWKS, and scope issuance are **out of scope**. Pome session auth + frozen `gmail_email` claim only.

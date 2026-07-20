@@ -248,6 +248,38 @@ describe("Gmail MCP frozen contract", () => {
     expect(invalidRpc.error.code).toBe(-32602);
   });
 
+  it("maps bad search queries to 400 INVALID_ARGUMENT (not 500)", async () => {
+    const recorder = createRecorderStore();
+    const app = createGmailTwinApp({ seed: seed(), recorder, runId: "mcp-bad-q" });
+    const bad = await call(app, 1, "search_threads", { query: "xyzzy:not-real" });
+    expect(bad.result.isError).toBe(true);
+    const body = JSON.parse(bad.result.content[0]!.text) as {
+      error: { code: number; status: string; message: string };
+    };
+    expect(body.error.code).toBe(400);
+    expect(body.error.status).toBe("INVALID_ARGUMENT");
+    expect(body.error.message).toMatch(/Unsupported search operator/i);
+    const event = recorder.events().at(-1);
+    expect(event?.status).toBe(400);
+    expect(event?.error).toMatch(/Unsupported search operator/i);
+  });
+
+  it("records state_mutation=false for MCP label no-ops", async () => {
+    const recorder = createRecorderStore();
+    const app = createGmailTwinApp({ seed: seed(), recorder, runId: "mcp-noop" });
+    await call(app, 1, "label_message", { messageId: "msg_seed", labelIds: ["STARRED"] });
+    await call(app, 2, "label_message", { messageId: "msg_seed", labelIds: ["STARRED"] });
+    const labelEvents = recorder.events().filter((event) => {
+      const body = event.request_body as { tool?: string } | null;
+      return body?.tool === "label_message";
+    });
+    expect(labelEvents).toHaveLength(2);
+    expect(labelEvents[0]?.state_mutation).toBe(true);
+    expect(labelEvents[0]?.state_delta).not.toBeNull();
+    expect(labelEvents[1]?.state_mutation).toBe(false);
+    expect(labelEvents[1]?.state_delta).toBeNull();
+  });
+
   it("keeps MIME snippet canaries out of /_pome/events and durable tape", async () => {
     const canary = "MCP-SNIPPET-MIME-CANARY-9f3a";
     const dir = mkdtempSync(join(tmpdir(), "gmail-mcp-tape-"));
