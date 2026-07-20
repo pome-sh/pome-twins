@@ -97,10 +97,14 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # No registry-url: setup-node's registry-url writes
+      # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into .npmrc, and
+      # an empty expansion silently disables Trusted Publishing OIDC (E404 on
+      # PUT). packages-v10 failed after the Dependabot setup-node@v7 bump for
+      # this reason — see actions/setup-node#1551.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           cache: npm
           cache-dependency-path: package-lock.json
       # Keep npm pinned to the GA Trusted Publishing release used by this path.
@@ -111,6 +115,11 @@ jobs:
       - name: Publish packages with provenance
         run: |
           set -euo pipefail
+          # Drop any classic-token auth that would shadow OIDC.
+          unset NODE_AUTH_TOKEN || true
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "$NPM_CONFIG_USERCONFIG" ]; then
+            sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG" || true
+          fi
           publish_one() {
             local pattern="$1"
             local tgz name_ver
