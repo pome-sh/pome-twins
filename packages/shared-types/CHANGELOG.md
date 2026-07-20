@@ -1,5 +1,26 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.10.1
+
+### Added
+
+- `otel/project` now accepts the **OpenInference** attribute vocabulary
+  (`llm.model_name`, `llm.provider`, `llm.system`, `llm.token_count.prompt`,
+  `llm.token_count.completion`, `tool.name`) as fallback aliases and normalizes
+  them onto the canonical `gen_ai_*` projection fields. OpenInference is the
+  standard OTel instrumentation for LangChain.js / LangGraph (and LlamaIndex),
+  so an agent instrumented with `@arizeai/openinference-instrumentation-langchain`
+  now surfaces model, provider, token usage, and tool name on the
+  agent-telemetry rollup and span waterfall with no correlator or dashboard
+  changes. Pure key aliases (value pass-through); the `OtelSpanEvent` shape is
+  unchanged. New exported semconv constants: `OPENINFERENCE_LLM_MODEL_NAME`,
+  `OPENINFERENCE_LLM_PROVIDER`, `OPENINFERENCE_LLM_SYSTEM`,
+  `OPENINFERENCE_LLM_TOKEN_COUNT_PROMPT`,
+  `OPENINFERENCE_LLM_TOKEN_COUNT_COMPLETION`, `OPENINFERENCE_TOOL_NAME`.
+  **Consumer note (pome-cloud):** to let these survive the sim-telemetry
+  allowlist, add the new source keys to `SIM_SAFE_ATTRIBUTE_KEYS` after bumping
+  this pin.
+
 ## 0.10.0
 
 ### Changed

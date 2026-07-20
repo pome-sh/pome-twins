@@ -1,0 +1,33 @@
+{
+  "name": "@pome-sh/minimal-viktor-langgraph-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bundled Pome example: minimal-viktor built on LangGraph, observed via OpenInference OTel instrumentation. A viktor.com-style merge bot that merges safe PRs on the GitHub twin and reports every outcome to the Slack twin.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@arizeai/openinference-instrumentation-langchain": "^4.0.14",
+    "@langchain/anthropic": "^1.5.1",
+    "@langchain/core": "^1.2.3",
+    "@langchain/langgraph": "^1.4.8",
+    "@langchain/openai": "^1.2.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
+    "@opentelemetry/resources": "^2.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.9.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

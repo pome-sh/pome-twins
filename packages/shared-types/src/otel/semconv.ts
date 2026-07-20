@@ -75,6 +75,28 @@ export const GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens";
 export const GEN_AI_USAGE_PROMPT_TOKENS_LEGACY = "gen_ai.usage.prompt_tokens";
 export const GEN_AI_USAGE_COMPLETION_TOKENS_LEGACY = "gen_ai.usage.completion_tokens";
 
+// ── OpenInference alias vocabulary (LangChain / LangGraph / LlamaIndex) ───────
+// The OpenInference instrumentors (`@arizeai/openinference-instrumentation-*`)
+// — the standard OTel instrumentation for LangChain.js / LangGraph, LlamaIndex,
+// and others — predate the GenAI conventions and emit their own `llm.*` /
+// `tool.name` attribute surface instead of `gen_ai.*`. They carry the SAME
+// low-cardinality signals (model, provider, token counts, tool name), so the
+// projector accepts them as fallbacks and normalizes them onto the canonical
+// `gen_ai_*` fields — exactly how the deprecated `gen_ai.system` /
+// `prompt_tokens` aliases are handled above. This is a pure key alias: the
+// value passes through unchanged, so a LangGraph agent instrumented with
+// OpenInference lights up on the agent-telemetry panel with zero correlator or
+// dashboard changes. Reference:
+// https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md
+export const OPENINFERENCE_LLM_MODEL_NAME = "llm.model_name";
+export const OPENINFERENCE_LLM_PROVIDER = "llm.provider";
+export const OPENINFERENCE_LLM_SYSTEM = "llm.system";
+export const OPENINFERENCE_LLM_TOKEN_COUNT_PROMPT = "llm.token_count.prompt";
+export const OPENINFERENCE_LLM_TOKEN_COUNT_COMPLETION = "llm.token_count.completion";
+// OpenInference names the tool `tool.name` (bare), where the GenAI convention
+// uses `gen_ai.tool.name`. Projected onto `gen_ai_tool_name` as a fallback.
+export const OPENINFERENCE_TOOL_NAME = "tool.name";
+
 // ── HTTP / core semantic conventions ─────────────────────────────────────────
 // External-API (twin-relevant) spans. Stable HTTP client conventions at the
 // pinned core version (`http.request.method`, not the deprecated `http.method`).
