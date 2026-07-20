@@ -32,9 +32,20 @@ function raw(subject: string, body = "hello", extras: { to?: string[]; bcc?: str
 function domain(deliveryMode: "sender-only" | "seeded-mailboxes" = "sender-only") {
   const db = openGmailTwinDatabase(":memory:");
   const gmail = new GmailDomain(db);
+  // Unit fixtures start empty; defaultSeedState() carries the agent-path inbox.
   gmail.seed({
     ...defaultSeedState(),
     deliveryMode,
+    primaryMailbox: {
+      email: sender,
+      displayName: "Pome Agent",
+      labels: [],
+      messages: [],
+      drafts: [],
+      filters: [],
+      forwardingAddresses: [],
+      sendAs: [],
+    },
     mailboxes: [{ email: recipient }],
   });
   return { db, gmail };

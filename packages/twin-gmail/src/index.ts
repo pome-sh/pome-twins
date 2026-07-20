@@ -22,7 +22,14 @@ export {
   stripHtmlTags,
   validateSearchQuery,
 } from "./search.js";
-export { defaultSeedState, gmailSeedSchema, loadSeedFromEnv, parseSeed } from "./seed.js";
+export {
+  agentPathInboxMailbox,
+  DEFAULT_GMAIL_AGENT_EMAIL,
+  defaultSeedState,
+  gmailSeedSchema,
+  loadSeedFromEnv,
+  parseSeed,
+} from "./seed.js";
 export { exportGmailState, gmailStateDelta } from "./state.js";
 export { createGmailTwinApp, gmailTwinDefinition, registerGmailRoutes } from "./twin.js";
 export type {

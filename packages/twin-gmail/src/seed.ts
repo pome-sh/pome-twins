@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from "zod";
 import { validateSearchQuery } from "./search.js";
-import type { GmailStateSeed } from "./types.js";
+import type { GmailStateSeed, SeedMailbox } from "./types.js";
 
 const email = z.string().trim().email().transform((value) => value.toLowerCase());
 const id = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);
@@ -186,18 +186,97 @@ export function loadSeedFromEnv(env: NodeJS.ProcessEnv = process.env): ParsedGma
   return parseSeed(parsed);
 }
 
+/** Primary agent mailbox used by default / scenario seeds. */
+export const DEFAULT_GMAIL_AGENT_EMAIL = "pome-agent@pome-twin.test";
+
+/**
+ * Multi-thread inbox used by `defaultSeedState` and CLI Gmail scenarios:
+ * welcome, build (+ reply), unread support, and an unsent draft.
+ */
+export function agentPathInboxMailbox(email: string = DEFAULT_GMAIL_AGENT_EMAIL): SeedMailbox {
+  return {
+    email,
+    displayName: "Pome Agent",
+    labels: [
+      { id: "Label_follow_up", name: "Follow Up" },
+      { id: "Label_build", name: "Build" },
+    ],
+    messages: [
+      {
+        id: "msg_welcome",
+        threadId: "thread_welcome",
+        from: "welcome@pome-twin.test",
+        to: [email],
+        subject: "Welcome to your Pome Gmail twin",
+        text: "Your deterministic inbox is ready for agent testing.",
+        html: "<p>Your deterministic inbox is ready for agent testing.</p>",
+        date: "2026-07-18T09:00:00.000Z",
+        messageId: "welcome@pome-twin.test",
+        labels: ["INBOX"],
+      },
+      {
+        id: "msg_build",
+        threadId: "thread_build",
+        from: "ci@example.com",
+        to: [email],
+        subject: "Build failed on main",
+        text: "The nightly build failed. See the attached log.",
+        date: "2026-07-19T10:00:00.000Z",
+        messageId: "build-001@example.com",
+        labels: ["INBOX", "UNREAD", "Build"],
+        attachments: [
+          {
+            filename: "build.log",
+            mimeType: "text/plain",
+            data: Buffer.from("BUILD FAILED step=test\n", "utf8").toString("base64"),
+          },
+        ],
+      },
+      {
+        id: "msg_build_reply",
+        threadId: "thread_build",
+        from: email,
+        to: ["ci@example.com"],
+        subject: "Re: Build failed on main",
+        text: "Looking into the failure now.",
+        date: "2026-07-19T11:00:00.000Z",
+        messageId: "build-reply@pome-twin.test",
+        inReplyTo: "build-001@example.com",
+        references: ["build-001@example.com"],
+        labels: ["SENT"],
+      },
+      {
+        id: "msg_support",
+        threadId: "thread_support",
+        from: "alice@example.com",
+        to: [email],
+        subject: "Production export is stuck",
+        text: "Our production export has been stuck for an hour. Can you investigate?",
+        date: "2026-07-19T12:00:00.000Z",
+        messageId: "support-001@example.com",
+        labels: ["INBOX", "UNREAD"],
+      },
+    ],
+    drafts: [
+      {
+        id: "draft_ack",
+        threadId: "thread_draft_ack",
+        to: ["bob@example.com"],
+        subject: "Draft acknowledgment",
+        text: "Thanks — I'll follow up shortly.",
+        date: "2026-07-19T13:00:00.000Z",
+        messageId: "draft-ack@pome-twin.test",
+      },
+    ],
+    filters: [],
+    forwardingAddresses: [],
+    sendAs: [],
+  };
+}
+
 export function defaultSeedState(): GmailStateSeed {
   return {
-    primaryMailbox: {
-      email: "pome-agent@pome-twin.test",
-      displayName: "Pome Agent",
-      labels: [],
-      messages: [],
-      drafts: [],
-      filters: [],
-      forwardingAddresses: [],
-      sendAs: [],
-    },
+    primaryMailbox: agentPathInboxMailbox(),
     mailboxes: [],
     deliveryMode: "sender-only",
     clock: "2025-01-01T00:00:00.000Z",
