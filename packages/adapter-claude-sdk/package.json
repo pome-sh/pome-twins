@@ -10,12 +10,12 @@
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pome-sh/pome-twins.git",
+    "url": "git+https://github.com/pome-sh/digital-twins.git",
     "directory": "packages/adapter-claude-sdk"
   },
-  "homepage": "https://github.com/pome-sh/pome-twins/tree/main/packages/adapter-claude-sdk",
+  "homepage": "https://github.com/pome-sh/digital-twins/tree/main/packages/adapter-claude-sdk",
   "bugs": {
-    "url": "https://github.com/pome-sh/pome-twins/issues"
+    "url": "https://github.com/pome-sh/digital-twins/issues"
   },
   "files": [
     "dist",
