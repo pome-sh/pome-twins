@@ -17,12 +17,12 @@
   "files": ["dist", "src", "package.json", "trace-contract.json"],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pome-sh/pome-twins.git",
+    "url": "git+https://github.com/pome-sh/digital-twins.git",
     "directory": "packages/shared-types"
   },
-  "homepage": "https://github.com/pome-sh/pome-twins/tree/main/packages/shared-types",
+  "homepage": "https://github.com/pome-sh/digital-twins/tree/main/packages/shared-types",
   "bugs": {
-    "url": "https://github.com/pome-sh/pome-twins/issues"
+    "url": "https://github.com/pome-sh/digital-twins/issues"
   },
   "scripts": {
     "build:runtime": "tsc -p tsconfig.runtime.json",

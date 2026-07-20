@@ -70,12 +70,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pome-sh/pome-twins.git",
+    "url": "git+https://github.com/pome-sh/digital-twins.git",
     "directory": "packages/twin-slack"
   },
-  "homepage": "https://github.com/pome-sh/pome-twins/tree/main/packages/twin-slack",
+  "homepage": "https://github.com/pome-sh/digital-twins/tree/main/packages/twin-slack",
   "bugs": {
-    "url": "https://github.com/pome-sh/pome-twins/issues"
+    "url": "https://github.com/pome-sh/digital-twins/issues"
   },
   "license": "Apache-2.0",
   "engines": {

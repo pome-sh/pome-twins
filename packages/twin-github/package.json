@@ -71,12 +71,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pome-sh/pome-twins.git",
+    "url": "git+https://github.com/pome-sh/digital-twins.git",
     "directory": "packages/twin-github"
   },
-  "homepage": "https://github.com/pome-sh/pome-twins/tree/main/packages/twin-github",
+  "homepage": "https://github.com/pome-sh/digital-twins/tree/main/packages/twin-github",
   "bugs": {
-    "url": "https://github.com/pome-sh/pome-twins/issues"
+    "url": "https://github.com/pome-sh/digital-twins/issues"
   },
   "license": "Apache-2.0",
   "engines": {
