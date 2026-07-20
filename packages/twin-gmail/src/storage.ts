@@ -264,6 +264,12 @@ function resolveThread(
   subject: string,
   references: string[]
 ): string {
+  // Gmail REST honors an explicit owned threadId on send/insert/import/draft
+  // even without In-Reply-To / References subject matching ("put in thread X").
+  if (requested) {
+    const owned = db.prepare("SELECT 1 FROM threads WHERE mailbox_id = ? AND id = ?").get(mailboxId, requested);
+    if (owned) return requested;
+  }
   const uniqueRefs = [...new Set(references.filter(Boolean))];
   const candidates = uniqueRefs.length
     ? (db
@@ -280,10 +286,6 @@ function resolveThread(
       }>)
     : [];
   const referenced = candidates.find((candidate) => candidate.normalized_subject === subject);
-  if (requested) {
-    const owned = db.prepare("SELECT 1 FROM threads WHERE mailbox_id = ? AND id = ?").get(mailboxId, requested);
-    if (owned && referenced?.thread_id === requested) return requested;
-  }
   if (referenced) return referenced.thread_id;
   return nextId(db, mailboxId, "thread_counter", "thread");
 }

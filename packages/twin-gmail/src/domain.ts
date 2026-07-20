@@ -252,7 +252,9 @@ export class GmailDomain {
       const old = semanticMessage(this.db, mailboxId, draft.message_id);
       this.db.prepare("DELETE FROM drafts WHERE mailbox_id = ? AND id = ?").run(mailboxId, draftId);
       this.db.prepare("DELETE FROM messages WHERE mailbox_id = ? AND id = ?").run(mailboxId, draft.message_id);
-      this.removeEmptyThread(mailboxId, old.threadId);
+      // Keep the draft's thread row even when it becomes empty — send reuses
+      // old.threadId (Gmail draft send identity). removeEmptyThread here would
+      // drop solo-draft threads and force a new thread id on send.
       addHistory(this.db, mailboxId, draft.message_id, old.threadId, "draftSent");
       return this.sendMessage(email, raw, { threadId: old.threadId });
     }).immediate();
