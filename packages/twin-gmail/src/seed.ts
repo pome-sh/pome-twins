@@ -279,6 +279,6 @@ export function defaultSeedState(): GmailStateSeed {
     primaryMailbox: agentPathInboxMailbox(),
     mailboxes: [],
     deliveryMode: "sender-only",
-    clock: "2025-01-01T00:00:00.000Z",
+    clock: "2026-07-20T00:00:00.000Z",
   };
 }
