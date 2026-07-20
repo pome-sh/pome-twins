@@ -119,6 +119,61 @@ export const PER_TWIN = {
     // stripe's root-level unknown paths hit the /v1 auth wall first: 401.
     unknownRoot: { status: 401 },
   },
+  gmail: {
+    healthzFidelity: "semantic",
+    sessionHealthz: { status: 200 },
+    adminSeedGarbage: {
+      status: 400,
+      check: (b) => b.error?.status === "INVALID_ARGUMENT",
+    },
+    noAuth: {
+      status: 401,
+      check: (b) => b.error?.status === "UNAUTHENTICATED",
+    },
+    wrongSid: {
+      status: 401,
+      check: (b) => b.error?.status === "UNAUTHENTICATED",
+    },
+    expired: {
+      status: 401,
+      check: (b) => b.error?.status === "UNAUTHENTICATED",
+    },
+    rawToken: { status: 401 },
+    mcpCallUnknown: {
+      status: 404,
+      check: (b) => b.error?.status === "NOT_FOUND",
+    },
+    aliasTool: "list_labels",
+    adminSeedForm: {
+      status: 400,
+      check: (b) => b.error?.status === "INVALID_ARGUMENT",
+    },
+    adminSeedMalformed: {
+      status: 400,
+      check: (b) => b.error?.status === "INVALID_ARGUMENT",
+    },
+    mcpCallAlias: {
+      status: 400,
+      check: (b) => b.error?.status === "INVALID_ARGUMENT",
+    },
+    mcpCallForm: {
+      status: 400,
+      check: (b) => b.error?.status === "INVALID_ARGUMENT",
+    },
+    mcpCallMalformed: {
+      status: 400,
+      check: (b) => b.error?.status === "INVALID_ARGUMENT",
+    },
+    pomeHealthKeys: ["fidelity", "ok", "twin", "version"],
+    // The generic tape probe sends `{}`, which is an invalid Gmail seed, so
+    // the recorded failed request has no committed state delta.
+    adminSeedTape: "delta-null",
+    unknownSession: {
+      status: 501,
+      check: (b) => b.error?.status === "UNIMPLEMENTED",
+    },
+    unknownRoot: { status: 404 },
+  },
 };
 
 function checkBody(expectation, body, label) {

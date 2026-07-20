@@ -41,6 +41,31 @@ describe("defineTwin", () => {
     expect(def.tools[0]?.mutation).toBe(true);
   });
 
+  it("accepts optional title/outputSchema and recordingProjection", () => {
+    const def = defineTwin({
+      id: "optional-mcp",
+      version: "0.0.1",
+      fidelity: { default: "semantic" },
+      domain: () => ({}),
+      recordingProjection: (event) => event,
+      tools: [
+        {
+          name: "listed",
+          description: "Has MCP metadata.",
+          title: "Listed",
+          schema: z.object({}),
+          handler: () => ({ ok: true }),
+          mutation: false,
+          outputSchema: { type: "object" },
+          annotations: { readOnlyHint: true },
+        },
+      ],
+    });
+    expect(def.tools[0]?.title).toBe("Listed");
+    expect(def.tools[0]?.outputSchema).toEqual({ type: "object" });
+    expect(typeof def.recordingProjection).toBe("function");
+  });
+
   it("rejects invalid id (non-slug)", () => {
     expect(() =>
       defineTwin({

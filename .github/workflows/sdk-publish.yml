@@ -64,20 +64,21 @@ jobs:
             const github = await import("@pome-sh/twin-github");
             const slack = await import("@pome-sh/twin-slack");
             const stripe = await import("@pome-sh/twin-stripe");
+            const gmail = await import("@pome-sh/twin-gmail");
             if (typeof shared.recorderEventSchema?.parse !== "function") throw new Error("shared-types root missing recorderEventSchema");
             if (typeof recorder.eventSchema?.parse !== "function") throw new Error("shared-types recorder-events subpath missing eventSchema");
             if (typeof shared.redactSecrets !== "function") throw new Error("shared-types missing redactSecrets");
             if (typeof sdk.defineTwin !== "function") throw new Error("sdk root missing defineTwin");
             if (typeof server.createApp !== "function") throw new Error("sdk/server missing createApp");
             if (typeof adapter.flushPomeTelemetry !== "function") throw new Error("adapter export missing");
-            if (!github || !slack || !stripe) throw new Error("twin root import failed");
+            if (!github || !slack || !stripe || !gmail) throw new Error("twin root import failed");
           '
           node --input-type=module -e '
             import { existsSync, readFileSync } from "node:fs";
             if (!existsSync("node_modules/@pome-sh/shared-types/trace-contract.json")) {
               throw new Error("shared-types package missing trace-contract.json");
             }
-            for (const name of ["twin-github", "twin-slack", "twin-stripe"]) {
+            for (const name of ["twin-github", "twin-slack", "twin-stripe", "twin-gmail"]) {
               const manifest = JSON.parse(readFileSync(`node_modules/@pome-sh/${name}/package.json`, "utf8"));
               const bin = manifest.bin?.[name];
               if (!bin || !existsSync(`node_modules/@pome-sh/${name}/${bin}`)) {
@@ -141,3 +142,4 @@ jobs:
           publish_one 'pome-sh-twin-github-*.tgz'
           publish_one 'pome-sh-twin-slack-*.tgz'
           publish_one 'pome-sh-twin-stripe-*.tgz'
+          publish_one 'pome-sh-twin-gmail-*.tgz'

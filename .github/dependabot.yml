@@ -32,3 +32,8 @@ updates:
     directory: /packages/twin-stripe
     schedule:
       interval: weekly
+
+  - package-ecosystem: docker
+    directory: /packages/twin-gmail
+    schedule:
+      interval: weekly

@@ -51,6 +51,24 @@ describe("scanAgentSources", () => {
     expect((await scanAgentSources(slack)).hardcoded?.envVar).toBe("POME_SLACK_REST_URL");
   });
 
+  it("maps both Gmail production hosts to POME_GMAIL_REST_URL", async () => {
+    const gmail = await fixture({
+      "gmail.ts": 'fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages");',
+    });
+    expect((await scanAgentSources(gmail)).hardcoded).toMatchObject({
+      host: "gmail.googleapis.com",
+      envVar: "POME_GMAIL_REST_URL",
+    });
+
+    const legacy = await fixture({
+      "legacy.ts": 'fetch("https://www.googleapis.com/gmail/v1/users/me/messages");',
+    });
+    expect((await scanAgentSources(legacy)).hardcoded).toMatchObject({
+      host: "www.googleapis.com",
+      envVar: "POME_GMAIL_REST_URL",
+    });
+  });
+
   it("ignores hosts that only appear in comments", async () => {
     const dir = await fixture({
       "src/index.ts": [

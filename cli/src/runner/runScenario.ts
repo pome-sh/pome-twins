@@ -150,6 +150,7 @@ export async function runScenario(options: RunScenarioOptions) {
   // one token carries the union of claims (e.g. Stripe's account_id).
   const booted: { twin: string; harness: TwinHarness; server: ReturnType<typeof serve> }[] = [];
   const twinEnv: Record<string, string> = {};
+  const tokenEnvNames = new Set<string>();
   const stateInitialByTwin: Record<string, unknown> = {};
   let mergedClaims: Record<string, unknown> = {};
   for (const twin of twins) {
@@ -170,6 +171,7 @@ export async function runScenario(options: RunScenarioOptions) {
     // `resolveMcpUrl` already keys off `POME_<TWIN>_MCP_URL`).
     twinEnv[`POME_${harness.envName}_REST_URL`] = sessionBase;
     twinEnv[`POME_${harness.envName}_MCP_URL`] = `${sessionBase}/mcp`;
+    if (harness.tokenEnvName) tokenEnvNames.add(harness.tokenEnvName);
     mergedClaims = { ...mergedClaims, ...(harness.extraClaims ?? {}) };
     const server = serve({ fetch: harness.app.fetch, port, hostname: "127.0.0.1" });
     booted.push({ twin, harness, server });
@@ -206,6 +208,7 @@ export async function runScenario(options: RunScenarioOptions) {
         NO_PROXY: "127.0.0.1,localhost",
       }
     : {};
+  for (const name of tokenEnvNames) twinEnv[name] = token;
   const env = {
     POME_TASK: scenario.prompt,
     POME_TWIN_NAMES: twins.join(","),

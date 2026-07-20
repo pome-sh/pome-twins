@@ -100,6 +100,45 @@ twins: ["stripe"]
     expect(asStripe(scenario.seedState).api_keys[0]?.key).toBe("sk_test_pome_demo");
   });
 
+  it("parses a flat Gmail mailbox seed", () => {
+    const scenario = parseScenario(`# Gmail Demo
+
+## Prompt
+Triage the unread email.
+
+## Success Criteria
+- [code] Message msg_1 remains in the mailbox
+
+## Seed State
+\`\`\`json
+{
+  "primaryMailbox": {
+    "email": "pome-agent@pome-twin.test",
+    "messages": [{
+      "id": "msg_1",
+      "threadId": "thread_1",
+      "from": "alice@example.com",
+      "to": ["pome-agent@pome-twin.test"],
+      "subject": "Hello",
+      "text": "Please triage",
+      "labels": ["INBOX"]
+    }]
+  }
+}
+\`\`\`
+
+## Config
+\`\`\`yaml
+twins: ["gmail"]
+\`\`\`
+`);
+
+    expect(scenario.config.twins).toEqual(["gmail"]);
+    expect(scenario.seedState).toMatchObject({
+      primaryMailbox: { email: "pome-agent@pome-twin.test", messages: [{ id: "msg_1" }] },
+    });
+  });
+
   it("rejects wrapped Stripe seed shape (FDRS-365)", () => {
     expect(() =>
       parseScenario(`# Wrapped should fail

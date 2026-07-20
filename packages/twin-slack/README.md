@@ -1,6 +1,6 @@
 # Pome Twin: Slack
 
-> One of three twins in this repository (GitHub, Stripe x402, Slack).
+> One of four twins in this repository (GitHub, Stripe x402, Slack, Gmail).
 
 `@pome-sh/twin-slack` is a local, stateful Slack twin for agent testing. It exposes Slack Web API–shaped REST routes plus an 11-tool MCP-style API backed by the same SQLite domain services. The 11 visible MCP tools mirror the canonical Slack agent toolset (post message, reply to thread, add reaction, get channel history, get thread replies, list channels, list users, get user profile, search messages, get reactions, list channel members).
 

@@ -13,8 +13,8 @@ import {
 import { KNOWN_TWIN_IDS } from "../src/recorder-events.js";
 
 describe("MOUNTED_TWINS", () => {
-  it("includes slack alongside github and stripe", () => {
-    expect(MOUNTED_TWINS).toEqual(["github", "stripe", "slack"]);
+  it("includes slack and gmail alongside github and stripe", () => {
+    expect(MOUNTED_TWINS).toEqual(["github", "stripe", "slack", "gmail"]);
   });
 });
 

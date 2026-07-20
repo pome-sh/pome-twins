@@ -23,9 +23,10 @@ import { serve } from "@hono/node-server";
 import { sign } from "hono/jwt";
 import { defaultSeedState as defaultSlackSeedState } from "@pome-sh/twin-slack";
 import { defaultSeed as defaultStripeSeed } from "@pome-sh/twin-stripe";
+import { defaultSeedState as defaultGmailSeedState } from "@pome-sh/twin-gmail";
 import { bootTwin } from "./twinHarness.js";
 
-export const SUPPORTED_STANDALONE_TWINS = ["github", "slack", "stripe"] as const;
+export const SUPPORTED_STANDALONE_TWINS = ["github", "slack", "stripe", "gmail"] as const;
 
 /** The fixed session id a standalone twin serves under (`/s/standalone`). */
 const STANDALONE_SID = "standalone";
@@ -80,6 +81,8 @@ function defaultSeedFor(twin: string): unknown {
       return defaultSlackSeedState();
     case "stripe":
       return defaultStripeSeed();
+    case "gmail":
+      return defaultGmailSeedState();
     default:
       // github: bootTwin's adapter seeds the default world when the seed is
       // undefined (pre-existing standalone behavior).
@@ -164,6 +167,7 @@ export async function runTwinStartCommand(
   console.log(`POME_${harness.envName}_REST_URL=${restUrl}`);
   console.log(`POME_${harness.envName}_MCP_URL=${mcpUrl}`);
   console.log(`POME_AUTH_TOKEN=${token}`);
+  if (harness.tokenEnvName) console.log(`${harness.tokenEnvName}=${token}`);
   // F28 — every `/s/<sid>/*` endpoint requires a Bearer JWT, including
   // /s/standalone/healthz. New users curling the printed `${restUrl}` get
   // HTTP 401 and assume the twin is broken. The unauth liveness probe lives

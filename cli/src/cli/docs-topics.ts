@@ -74,6 +74,12 @@ export const DOCS_TOPICS: DocsTopic[] = [
     keywords: ["messaging", "channels", "workspace", "slack", "exfiltration"],
   },
   {
+    id: "gmail",
+    title: "Gmail twin",
+    path: "/docs/twins/gmail",
+    keywords: ["email", "inbox", "drafts", "labels", "gmail", "mcp"],
+  },
+  {
     id: "cli",
     title: "Command Line Interface",
     path: "/docs/cli",

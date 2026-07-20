@@ -4,6 +4,12 @@ All notable changes to the Stripe twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.4 — 2026-07-20
+
+Dependency-only release: repins the shared first-party contract to
+`@pome-sh/shared-types@0.11.0` and the additive Gmail-capable engine to
+`@pome-sh/sdk@0.5.0`. Stripe wire behavior is unchanged.
+
 ## 0.2.3 — 2026-07-16
 
 Strip trailing slashes from `twinBaseUrl` with an `endsWith`/`slice` loop

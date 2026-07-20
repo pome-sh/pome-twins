@@ -1,61 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
-//
 // Twin-core recorder (F-681 / F-720). Home: `packages/sdk/src/recorder.ts`
-// (`@pome-sh/sdk`). There is no separate `packages/twin-core` package — the
-// SDK *is* twin-core for recorder ownership. All first-party twins and the
-// CLI harness consume this module.
-//
+// (`@pome-sh/sdk`); all first-party twins and the CLI harness consume it.
 // In-memory recorder + `handle()` helper. `handle({mutation}, fn)` wraps a
 // Hono handler so every wrapped route emits a `RecorderEvent` matching
 // `recording-spec.md` v1.0:
 //   - `latency_ms` boundary: start = Date.now() before request body parse,
 //     end = Date.now() immediately before c.json() writes the response.
-//   - `state_mutation` = the `mutation` flag passed in. For tool-derived
-//     routes the SDK plumbs the tool's declared mutation flag, so the
-//     recording-spec invariant ("must equal the tool's declared mutation
-//     flag") holds by construction.
+//   - `state_mutation` = the declared route/tool mutation flag.
 //   - `error` = response_body.message when status >= 400, null otherwise.
-//   - Memory: bounded by session timeout × max-rps; events live for the
-//     pod's lifetime and are read once via GET /_pome/events at end-of-run.
-//
+//   - Memory is bounded by session timeout × max-rps.
 // ── Write-through contract (F-720) ──────────────────────────────────────────
-//
 // Acceptance: an event is *accepted* once `RecorderStore.record()` returns.
-// For the in-memory store that means the row is in the heap tape. For a
-// durable/file-backed store it means the row has been queued for append to
-// the NDJSON file (and is visible via `events()`); durability to disk is
-// completed by `flush()` / `close()` (see below). Callers must not treat
-// `record()` alone as a crash-safe fsync.
-//
-// Redaction: `createRecorderHandle` redacts *before* every `store.record()`
+// Heap stores retain it in memory; durable stores queue it for append.
+// `flush()` / `close()` are the durability barrier; `record()` is not fsync.
+// Recording pipeline: optional `recordingProjection` (twin-supplied) runs
+// first, then `createRecorderHandle` redacts *before* every `store.record()`
 // call — including custom stores and direct `recorder.record()` — so no
 // store ever sees unredacted secrets. Stores must not re-emit raw bodies.
-//
 // Persisted row shape (F-698): durable stores write one redacted
 // `TwinHttpEvent` NDJSON line per accepted event (shared-types
 // `twinHttpEventSchema`) so on-disk `events.jsonl` matches the uploaded
 // raw-trace byte shape. The in-memory mirror / `GET /_pome/events` still
 // exposes legacy `RecorderEvent` rows.
-//
 // `flush()`: optional. When present, resolves after every accepted event is
 // durable on the store's backing medium (fsync for file-backed). In-memory
 // stores may omit it (no-op if called via a handle that forwards). Callers
 // that need crash-bounded loss (≤ in-flight event) must await `flush()`
 // before relying on the on-disk tape, or use a store that fsyncs on each
 // `record()` (F-698 production default).
-//
 // `close()`: optional. When present, flushes pending writes, releases the
 // backing resource, and is idempotent. After `close()`, further `record()`
 // calls are undefined (stores should throw or no-op). Callers must await
 // `close()` (or at least `flush()`) before upload/finalize so every accepted
 // write has either landed on disk or surfaced as a flush/close error.
-//
 // Bounded stores (`maxEvents`): the cap applies only to the in-memory mirror
 // used by `events()` / `GET /_pome/events` (memory pressure). The durable
 // NDJSON tape is append-only and retains every accepted write — including
 // rows later dropped from the heap mirror — so crash-safe upload reads the
 // tape, not `events()`.
-//
 // Default runtime behavior: `createRecorderStore()` remains heap-only.
 // Set `POME_RECORDER_EVENTS_PATH` (or pass `createFileBackedRecorderStore`)
 // for durable write-through; twin boot resolves via `resolveRecorderStore()`.
@@ -355,11 +337,24 @@ export interface RecorderHandleOptions {
    * frozen tape shape). Default false — slack's frozen tape stamps null.
    */
   stampToolCallId?: boolean;
+  /**
+   * Optional pre-redaction projection (from `TwinDefinition.recordingProjection`).
+   * Runs before `redactEvent` so twins can replace raw payloads with digests
+   * without bypassing the secret scrubber. Unset = no-op (existing twins).
+   */
+  recordingProjection?: (event: RecorderEvent) => RecorderEvent;
 }
 
 export function createRecorderHandle(options: RecorderHandleOptions): RecorderHandle {
   const store = options.store ?? createRecorderStore();
   const errorEnvelope: ErrorEnvelopeFn = options.errorEnvelope ?? envelopeFor;
+  const project = options.recordingProjection;
+
+  function accept(event: RecorderEvent): void {
+    // Projection (optional) → secret redaction (always). Order is load-bearing:
+    // Gmail replaces MIME/attachment bytes with digests before scrubbing.
+    store.record(redactEvent(project ? project(event) : event));
+  }
 
   function emit(
     c: Context,
@@ -381,8 +376,8 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
     const correlationHeader = c.req.header("x-pome-correlation-id") ?? null;
     // Redaction is unconditional at the engine layer (F-681 / F-720): every
     // event that reaches any store — including custom stores — is already
-    // scrubbed.
-    store.record(redactEvent({
+    // scrubbed. Optional recordingProjection runs immediately before that.
+    accept({
       ts: new Date().toISOString(),
       run_id: options.runId,
       twin: options.twin,
@@ -404,12 +399,12 @@ export function createRecorderHandle(options: RecorderHandleOptions): RecorderHa
       state_mutation: mutation,
       state_delta: result.delta ?? null,
       error,
-    }));
+    });
   }
 
   return {
     record(event) {
-      store.record(redactEvent(event));
+      accept(event);
     },
     events() {
       return store.events();

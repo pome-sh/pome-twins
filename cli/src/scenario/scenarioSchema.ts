@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { seedSchema as githubSeedStateSchema } from "@pome-sh/twin-github";
+import { gmailSeedSchema as gmailSeedStateSchema } from "@pome-sh/twin-gmail";
 // Criterion kinds are owned by the published contract. The markdown marker
 // grammar is `[code]`/`[model]` (F-778); `criterionSchema`'s tolerant input
 // (legacy `D`/`P` enum values) exists only for 0.3.0-era persisted artifacts,
@@ -83,6 +84,7 @@ export const slackSeedStateSchema = z
 // seed carries keys it rejects, so it never mis-matches them; while a Slack
 // seed would otherwise be silently key-stripped by the non-strict GitHub arm.
 export const seedStateSchema = z.union([
+  gmailSeedStateSchema,
   slackSeedStateSchema,
   githubSeedStateSchema,
   stripeSeedStateSchema
@@ -116,6 +118,7 @@ export type ScenarioConfig = z.infer<typeof scenarioConfigSchema>;
 export type GithubSeedState = z.infer<typeof githubSeedStateSchema>;
 export type StripeSeedState = z.infer<typeof stripeSeedStateSchema>;
 export type SlackSeedState = z.infer<typeof slackSeedStateSchema>;
+export type GmailSeedState = z.infer<typeof gmailSeedStateSchema>;
 export type StripeFailureInjectionRule = z.infer<typeof stripeFailureInjectionRuleSchema>;
 export type SeedState = z.infer<typeof seedStateSchema>;
 export type SeedEnvelope = z.infer<typeof seedEnvelopeSchema>;

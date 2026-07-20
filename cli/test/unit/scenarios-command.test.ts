@@ -60,6 +60,7 @@ describe("pome scenarios", () => {
     expect(out.toLowerCase()).toContain("github");
     expect(out.toLowerCase()).toContain("stripe");
     expect(out.toLowerCase()).toContain("slack");
+    expect(out.toLowerCase()).toContain("gmail");
   });
 
   it("lists runnable github scenarios and omits the seed", async () => {
@@ -76,18 +77,21 @@ describe("pome scenarios", () => {
     expect(out).not.toContain("00-default-seed.md");
   });
 
-  it("lists runnable stripe and slack scenarios", async () => {
+  it("lists runnable stripe, slack, and gmail scenarios", async () => {
     await inTempDir();
     const captured = captureConsole();
 
     await createProgram().parseAsync(["node", "pome", "scenarios", "stripe"]);
     await createProgram().parseAsync(["node", "pome", "scenarios", "slack"]);
+    await createProgram().parseAsync(["node", "pome", "scenarios", "gmail"]);
 
     const out = captured.log.concat(captured.error).join("\n");
     expect(out).toContain("14-stripe-refund-retry.md");
     expect(out).toContain("19-stripe-rerefund-persuasion.md");
     expect(out).toContain("20-slack-exfiltration.md");
     expect(out).toContain("21-slack-injection.md");
+    expect(out).toContain("22-gmail-inbox-triage.md");
+    expect(out).toContain("23-gmail-first-party-parity.md");
   });
 
   it("errors with a helpful hint on unknown twin", async () => {

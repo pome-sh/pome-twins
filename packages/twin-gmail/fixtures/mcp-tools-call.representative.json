@@ -1,0 +1,511 @@
+{
+  "meta": {
+    "source": "reconstructed_from_live_outputSchema_and_public_docs",
+    "endpoint": "https://gmailmcp.googleapis.com/mcp/v1",
+    "method": "tools/call",
+    "protocolVersion": "2025-03-26",
+    "captureDate": "2026-07-20",
+    "provenance": [
+      "Authenticated tools/call success was unavailable (OAuth required; returns isError content on 401).",
+      "Request envelopes match public MCP tool reference curl shapes.",
+      "structuredContent field shapes follow each tool outputSchema from mcp-tools-list.raw.json.",
+      "Example scalar values are synthetic placeholders (pome-twin.test), not Google mailbox data.",
+      "Live unauthenticated error shape is committed separately in mcp-tools-call-unauth-error.raw.json."
+    ],
+    "docs": [
+      "https://developers.google.com/workspace/gmail/api/reference/mcp",
+      "https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server"
+    ]
+  },
+  "unauthenticatedError": {
+    "httpStatus": 401,
+    "sha256": "2f120b0b9e350f02b28106cd5a1a82020f807d52f6aabab22fa1489a2f4b53a8",
+    "response": {
+      "id": 2,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "Request is missing required authentication credential. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+            "type": "text"
+          }
+        ],
+        "isError": true
+      }
+    }
+  },
+  "representativeCalls": [
+    {
+      "name": "search_threads",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "search_threads",
+          "arguments": {
+            "query": "is:unread -in:draft",
+            "pageSize": 20
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"threads\": [{\"id\": \"thread_pome_001\", \"messages\": [{\"id\": \"msg_pome_001\", \"snippet\": \"Synthetic unread snippet\", \"subject\": \"Hello from pome-twin\", \"sender\": \"alice@example.com\", \"toRecipients\": [\"pome-agent@pome-twin.test\"], \"ccRecipients\": [], \"date\": \"2026-07-20\"}]}], \"nextPageToken\": \"\"}"
+            }
+          ],
+          "structuredContent": {
+            "threads": [
+              {
+                "id": "thread_pome_001",
+                "messages": [
+                  {
+                    "id": "msg_pome_001",
+                    "snippet": "Synthetic unread snippet",
+                    "subject": "Hello from pome-twin",
+                    "sender": "alice@example.com",
+                    "toRecipients": [
+                      "pome-agent@pome-twin.test"
+                    ],
+                    "ccRecipients": [],
+                    "date": "2026-07-20"
+                  }
+                ]
+              }
+            ],
+            "nextPageToken": ""
+          },
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Searches for email threads from the authenticated user's Gmail account."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "get_thread",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "get_thread",
+          "arguments": {
+            "threadId": "thread_pome_001",
+            "messageFormat": "FULL_CONTENT"
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"id\": \"thread_pome_001\", \"messages\": [{\"id\": \"msg_pome_001\", \"snippet\": \"Synthetic unread snippet\", \"subject\": \"Hello from pome-twin\", \"sender\": \"alice@example.com\", \"toRecipients\": [\"pome-agent@pome-twin.test\"], \"ccRecipients\": [], \"date\": \"2026-07-20\", \"plaintextBody\": \"Hello body\", \"attachmentIds\": []}]}"
+            }
+          ],
+          "structuredContent": {
+            "id": "thread_pome_001",
+            "messages": [
+              {
+                "id": "msg_pome_001",
+                "snippet": "Synthetic unread snippet",
+                "subject": "Hello from pome-twin",
+                "sender": "alice@example.com",
+                "toRecipients": [
+                  "pome-agent@pome-twin.test"
+                ],
+                "ccRecipients": [],
+                "date": "2026-07-20",
+                "plaintextBody": "Hello body",
+                "attachmentIds": []
+              }
+            ]
+          },
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Retrieves a specific email thread from the authenticated user's Gmail account."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "list_labels",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "list_labels",
+          "arguments": {
+            "pageSize": 50
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"labels\": [{\"labelId\": \"Label_pome_1\", \"name\": \"triage\", \"color\": {\"textColor\": \"#000000\", \"backgroundColor\": \"#ffffff\"}, \"threadsTotal\": 0, \"threadsUnread\": 0}], \"nextPageToken\": \"\"}"
+            }
+          ],
+          "structuredContent": {
+            "labels": [
+              {
+                "labelId": "Label_pome_1",
+                "name": "triage",
+                "color": {
+                  "textColor": "#000000",
+                  "backgroundColor": "#ffffff"
+                },
+                "threadsTotal": 0,
+                "threadsUnread": 0
+              }
+            ],
+            "nextPageToken": ""
+          },
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Lists user labels."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "create_draft",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "create_draft",
+          "arguments": {
+            "to": [
+              "bob@example.com"
+            ],
+            "subject": "Draft subject",
+            "body": "Draft body"
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"id\": \"draft_pome_001\", \"subject\": \"Draft subject\", \"threadId\": \"thread_pome_draft_001\", \"toRecipients\": [\"bob@example.com\"], \"ccRecipients\": [], \"bccRecipients\": [], \"plaintextBody\": \"Draft body\", \"date\": \"2026-07-20\"}"
+            }
+          ],
+          "structuredContent": {
+            "id": "draft_pome_001",
+            "subject": "Draft subject",
+            "threadId": "thread_pome_draft_001",
+            "toRecipients": [
+              "bob@example.com"
+            ],
+            "ccRecipients": [],
+            "bccRecipients": [],
+            "plaintextBody": "Draft body",
+            "date": "2026-07-20"
+          },
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Creates a new draft email in the authenticated user's Gmail account."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "create_label",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "create_label",
+          "arguments": {
+            "displayName": "triage"
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"labelId\": \"Label_pome_1\", \"name\": \"triage\", \"threadsTotal\": 0, \"threadsUnread\": 0}"
+            }
+          ],
+          "structuredContent": {
+            "labelId": "Label_pome_1",
+            "name": "triage",
+            "threadsTotal": 0,
+            "threadsUnread": 0
+          },
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Creates a new label."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "label_message",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "label_message",
+          "arguments": {
+            "messageId": "msg_pome_001",
+            "labelIds": [
+              "STARRED"
+            ]
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "OK"
+            }
+          ],
+          "structuredContent": {},
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Adds labels to a message."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "unlabel_message",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "unlabel_message",
+          "arguments": {
+            "messageId": "msg_pome_001",
+            "labelIds": [
+              "STARRED"
+            ]
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "OK"
+            }
+          ],
+          "structuredContent": {},
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Removes labels from a message."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "label_thread",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "label_thread",
+          "arguments": {
+            "threadId": "thread_pome_001",
+            "labelIds": [
+              "IMPORTANT"
+            ]
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "OK"
+            }
+          ],
+          "structuredContent": {},
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Adds labels to a thread."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "unlabel_thread",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "unlabel_thread",
+          "arguments": {
+            "threadId": "thread_pome_001",
+            "labelIds": [
+              "IMPORTANT"
+            ]
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "OK"
+            }
+          ],
+          "structuredContent": {},
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Removes labels from a thread."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    },
+    {
+      "name": "list_drafts",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+          "name": "list_drafts",
+          "arguments": {
+            "pageSize": 20,
+            "query": "in:draft"
+          }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"drafts\": [{\"id\": \"draft_pome_001\", \"subject\": \"Draft subject\", \"threadId\": \"thread_pome_draft_001\", \"toRecipients\": [\"bob@example.com\"], \"ccRecipients\": [], \"bccRecipients\": [], \"plaintextBody\": \"Draft body\", \"date\": \"2026-07-20\"}], \"nextPageToken\": \"\"}"
+            }
+          ],
+          "structuredContent": {
+            "drafts": [
+              {
+                "id": "draft_pome_001",
+                "subject": "Draft subject",
+                "threadId": "thread_pome_draft_001",
+                "toRecipients": [
+                  "bob@example.com"
+                ],
+                "ccRecipients": [],
+                "bccRecipients": [],
+                "plaintextBody": "Draft body",
+                "date": "2026-07-20"
+              }
+            ],
+            "nextPageToken": ""
+          },
+          "isError": false
+        }
+      },
+      "outputSchemaRef": "mcp-tools-list.canonical.json result.tools[].outputSchema",
+      "annotationsFromListing": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Lists draft emails from the authenticated user's Gmail account."
+      },
+      "note": "Representative success shape — not a live authenticated capture."
+    }
+  ]
+}

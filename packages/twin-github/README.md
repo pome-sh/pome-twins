@@ -1,6 +1,6 @@
 # Pome Twin: GitHub
 
-> One of three twins in this repository (GitHub, Stripe x402, Slack).
+> One of four twins in this repository (GitHub, Stripe x402, Slack, Gmail).
 
 `@pome-sh/twin-github` is a local, stateful GitHub twin for agent testing. It exposes GitHub-shaped REST routes plus a 65-tool MCP-style API backed by the same SQLite domain services.
 

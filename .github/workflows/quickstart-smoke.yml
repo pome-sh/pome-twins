@@ -10,6 +10,8 @@ on:
       - 'README.md'
       - 'examples/triage-agent/**'
       - 'packages/shared-types/**'
+      - 'packages/sdk/**'
+      - 'packages/twin-gmail/**'
       - 'packages/adapter-claude-sdk/**'
       - 'package.json'
       - 'package-lock.json'
@@ -65,8 +67,11 @@ jobs:
           npm ci
           npm test
       - name: Build the CLI from this checkout
-        working-directory: cli
         run: |
+          node scripts/pack-publishable.mjs --out "$RUNNER_TEMP/tarballs"
+          POME_TARBALL_DIR="$RUNNER_TEMP/tarballs" node scripts/use-local-pome-tarballs.mjs cli/package.json
+          cd cli
+          npm install --package-lock-only --ignore-scripts
           npm ci
           npm run build
       # One secret, shared via env by the twin and the agent — the README's
@@ -96,6 +101,20 @@ jobs:
           # but index.ts asserts the key is present, so a placeholder suffices.
           ANTHROPIC_API_KEY: "sk-ant-preflight-not-used"
         run: npm start
+      - name: Gmail quickstart boot and token alias
+        run: |
+          nohup node cli/dist/src/cli/main.js twin start gmail --port 3336 > gmail-twin.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3336/healthz >/dev/null 2>&1; then
+              grep -q '^POME_GMAIL_REST_URL=' gmail-twin.log
+              grep -q '^POME_GMAIL_MCP_URL=' gmail-twin.log
+              grep -q '^POME_GMAIL_TOKEN=' gmail-twin.log
+              exit 0
+            fi
+            sleep 1
+          done
+          cat gmail-twin.log
+          exit 1
       - name: Twin logs on failure
         if: failure()
-        run: cat twin.log
+        run: cat twin.log gmail-twin.log 2>/dev/null || true

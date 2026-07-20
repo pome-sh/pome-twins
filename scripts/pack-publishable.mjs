@@ -32,6 +32,7 @@ const packageDirs = [
   "packages/twin-github",
   "packages/twin-slack",
   "packages/twin-stripe",
+  "packages/twin-gmail",
 ];
 
 const sh = (cmd, cwd, extraArgs) =>

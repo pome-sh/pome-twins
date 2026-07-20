@@ -1,5 +1,22 @@
 # @pome-sh/sdk
 
+## 0.5.0 — 2026-07-20
+
+Additive MCP / recorder contract for the upcoming Gmail twin. Existing
+GitHub, Slack, and Stripe tool listings and calls stay byte-identical when
+the new optional fields are unset.
+
+- `ToolSpec.title` / `ToolSpec.outputSchema` — optional MCP list metadata;
+  successful JSON-RPC `tools/call` includes `structuredContent` only when
+  `outputSchema` is declared.
+- `toolListExtras()` helper keeps optional list keys absent when unset.
+- Upstream `annotations` remain independent of `ToolSpec.mutation`
+  (mutation is still local-state truth for the recorder).
+- `TwinDefinition.recordingProjection` — optional pre-redaction event
+  projection (MIME/attachment digests before secret scrubbing).
+
+No breaking changes; `{before,after}` `state_delta` unchanged.
+
 ## 0.4.0 — 2026-07-13
 
 Publish the `ensureTwinAuthSecret` server helper so the digest-pinned twin

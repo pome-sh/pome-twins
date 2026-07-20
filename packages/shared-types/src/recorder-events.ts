@@ -21,7 +21,7 @@ import { z } from "zod";
 // generic rendering for unknown values — losing a recording to parse failure
 // would be worse than rendering it generically. First-party twins SHOULD use
 // the canonical values for type-aware UI.
-export const KNOWN_TWIN_IDS = ["github", "stripe", "slack"] as const;
+export const KNOWN_TWIN_IDS = ["github", "stripe", "slack", "gmail"] as const;
 export type KnownTwinId = (typeof KNOWN_TWIN_IDS)[number];
 
 export const twinIdSchema = z.string().min(1);

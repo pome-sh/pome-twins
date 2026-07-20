@@ -1,0 +1,45 @@
+{
+  "primaryMailbox": {
+    "email": "pome-agent@pome-twin.test",
+    "displayName": "Pome Agent",
+    "labels": [
+      {
+        "id": "Label_parity",
+        "name": "Parity Seed"
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_parity",
+        "threadId": "thread_parity",
+        "from": "alice@example.com",
+        "to": [
+          "pome-agent@pome-twin.test"
+        ],
+        "subject": "Parity seed message",
+        "text": "Use this message for the first-party parity workflow.",
+        "date": "2026-07-19T12:00:00.000Z",
+        "messageId": "parity-message@example.com",
+        "labels": [
+          "INBOX",
+          "UNREAD"
+        ]
+      }
+    ],
+    "drafts": [
+      {
+        "id": "draft_parity",
+        "threadId": "thread_draft_parity",
+        "to": [
+          "bob@example.com"
+        ],
+        "subject": "Existing parity draft",
+        "text": "Draft body",
+        "date": "2026-07-19T13:00:00.000Z",
+        "messageId": "parity-draft@example.com"
+      }
+    ]
+  },
+  "deliveryMode": "sender-only",
+  "clock": "2026-07-20T00:00:00.000Z"
+}

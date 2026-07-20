@@ -38,6 +38,7 @@ const TWINS = [
   cliStart("github", "GITHUB_CLONE_DB"),
   cliStart("slack", "SLACK_CLONE_DB"),
   cliStart("stripe", "STRIPE_CLONE_DB"),
+  cliStart("gmail", "GMAIL_TWIN_DB"),
 ];
 
 for (const twin of TWINS) {

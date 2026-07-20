@@ -1,0 +1,32 @@
+{
+  "primaryMailbox": {
+    "email": "pome-agent@pome-twin.test",
+    "displayName": "Pome Agent",
+    "labels": [
+      {
+        "id": "Label_follow_up",
+        "name": "Follow Up"
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_support",
+        "threadId": "thread_support",
+        "from": "alice@example.com",
+        "to": [
+          "pome-agent@pome-twin.test"
+        ],
+        "subject": "Production export is stuck",
+        "text": "Our production export has been stuck for an hour. Can you investigate?",
+        "date": "2026-07-19T12:00:00.000Z",
+        "messageId": "support-001@example.com",
+        "labels": [
+          "INBOX",
+          "UNREAD"
+        ]
+      }
+    ]
+  },
+  "deliveryMode": "sender-only",
+  "clock": "2026-07-20T00:00:00.000Z"
+}

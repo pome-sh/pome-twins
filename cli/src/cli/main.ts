@@ -426,7 +426,7 @@ export function createProgram() {
     .description("Create a hosted sandbox session for one or more twins and print its connection info")
     .requiredOption(
       "--twin <name>",
-      "github | stripe | slack. Repeat the flag for a multi-twin session (e.g. --twin github --twin slack).",
+      "github | stripe | slack | gmail. Repeat the flag for a multi-twin session (e.g. --twin github --twin gmail).",
       (value: string, previous: string[] = []) => [...previous, value],
     )
     .option(
@@ -1084,7 +1084,7 @@ export function createProgram() {
   const twin = program.command("twin").description("Manage local twins");
   twin
     .command("start")
-    .argument("<name>", "Twin name (github | slack | stripe)")
+    .argument("<name>", "Twin name (github | slack | stripe | gmail)")
     .option("--port <port>", "Port to bind (default: $PORT or 3333)")
     .description(
       "Start a standalone twin as a long-lived foreground server (Ctrl-C to stop)",
@@ -1096,13 +1096,24 @@ export function createProgram() {
 
   twin
     .command("reset")
+    .argument("[name]", "Twin name (default: github)", "github")
     .description("Reset standalone twin state")
-    .action(async () => {
-      await rm(".pome/github.db", { force: true });
-      await rm(".pome/github.db-wal", { force: true });
-      await rm(".pome/github.db-shm", { force: true });
+    .action(async (name: string) => {
+      const supported = new Set(["github", "slack", "stripe", "gmail"]);
+      if (!supported.has(name)) {
+        throw new Error(`Unknown twin '${name}'. Supported: ${[...supported].join(", ")}.`);
+      }
+      const dbPaths =
+        name === "gmail"
+          ? [".pome/gmail.db", ".pome-data/gmail/gmail.db"]
+          : [`.pome/${name}.db`, `.pome-data/${name}/${name}.db`];
+      for (const dbPath of dbPaths) {
+        await rm(dbPath, { force: true });
+        await rm(`${dbPath}-wal`, { force: true });
+        await rm(`${dbPath}-shm`, { force: true });
+      }
       await rm(".pome/twin-status.json", { force: true });
-      console.log("Standalone GitHub twin state reset.");
+      console.log(`Standalone ${name} twin state reset.`);
     });
 
   twin
@@ -1121,8 +1132,16 @@ export function createProgram() {
     .argument("<name>", "Twin name")
     .description("List supported endpoints")
     .action((name: string) => {
-      if (name !== "github") throw new Error("Only the github twin exists in the MSP.");
-      for (const endpoint of SUPPORTED_GITHUB_ENDPOINTS) {
+      const endpoints =
+        name === "github"
+          ? SUPPORTED_GITHUB_ENDPOINTS
+          : name === "gmail"
+            ? SUPPORTED_GMAIL_ENDPOINTS
+            : null;
+      if (!endpoints) {
+        throw new Error("Endpoint listing is available for: github, gmail.");
+      }
+      for (const endpoint of endpoints) {
         console.log(`${endpoint}  semantic`);
       }
     });
@@ -1199,6 +1218,30 @@ const SUPPORTED_GITHUB_ENDPOINTS = [
   "DELETE /repos/:owner/:repo/issues/:number/labels/:name",
   "GET /repos/:owner/:repo/collaborators",
   "POST /repos/:owner/:repo/issues/:number/assignees"
+];
+
+const SUPPORTED_GMAIL_ENDPOINTS = [
+  "GET /gmail/v1/users/:userId/profile",
+  "GET|POST /gmail/v1/users/:userId/messages",
+  "GET|DELETE /gmail/v1/users/:userId/messages/:id",
+  "POST /gmail/v1/users/:userId/messages/{send,import,batchModify,batchDelete}",
+  "POST /gmail/v1/users/:userId/messages/:id/{modify,trash,untrash}",
+  "GET /gmail/v1/users/:userId/messages/:messageId/attachments/:id",
+  "GET|POST /gmail/v1/users/:userId/drafts",
+  "GET|PUT|DELETE /gmail/v1/users/:userId/drafts/:id",
+  "POST /gmail/v1/users/:userId/drafts/send",
+  "GET /gmail/v1/users/:userId/threads",
+  "GET|DELETE /gmail/v1/users/:userId/threads/:id",
+  "POST /gmail/v1/users/:userId/threads/:id/{modify,trash,untrash}",
+  "GET|POST /gmail/v1/users/:userId/labels",
+  "GET|PUT|PATCH|DELETE /gmail/v1/users/:userId/labels/:id",
+  "GET /gmail/v1/users/:userId/history",
+  "GET|POST /gmail/v1/users/:userId/settings/filters",
+  "GET|DELETE /gmail/v1/users/:userId/settings/filters/:id",
+  "GET /gmail/v1/users/:userId/settings/{forwardingAddresses,sendAs}",
+  "GET /gmail/v1/users/:userId/settings/forwardingAddresses/:email",
+  "GET /gmail/v1/users/:userId/settings/sendAs/:email",
+  "POST /upload/gmail/v1/users/:userId/{messages,drafts} (media|multipart)",
 ];
 
 async function scenarioFiles(target: string) {

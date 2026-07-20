@@ -168,4 +168,29 @@ describe("buildAgentEnv — single-twin old-cloud byte-identity", () => {
       "https://mcp.pome.sh/github/s/ses_new/mcp",
     );
   });
+
+  it("adds Gmail REST/MCP URLs and the Pome-token alias", () => {
+    const raw = oldCloudBody({
+      twin_url: "https://api.pome.sh/gmail/s/ses_gmail",
+      openapi_url: "https://api.pome.sh/gmail/openapi.json",
+      per_twin: {
+        gmail: {
+          api_url: "https://api.pome.sh/gmail/s/ses_gmail",
+          mcp_url: "https://mcp.pome.sh/gmail/s/ses_gmail",
+          openapi_url: "https://api.pome.sh/gmail/openapi.json",
+        },
+      },
+    });
+    const session = createSessionResponseSchema.parse(raw);
+    const env = buildAgentEnv({
+      session,
+      twins: ["gmail"],
+      perTwinFromCloud: true,
+      ...ENV_SCAFFOLD,
+    });
+    expect(env.POME_GMAIL_REST_URL).toBe("https://api.pome.sh/gmail/s/ses_gmail");
+    expect(env.POME_GMAIL_MCP_URL).toBe("https://mcp.pome.sh/gmail/s/ses_gmail/mcp");
+    expect(env.POME_GMAIL_TOKEN).toBe(AGENT_TOKEN);
+    expect(session.provider_credentials).not.toHaveProperty("gmail");
+  });
 });

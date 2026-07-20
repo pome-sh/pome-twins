@@ -1,6 +1,6 @@
 # Pome Twin: Stripe x402
 
-> One of three twins in this repository (GitHub, Stripe x402, Slack).
+> One of four twins in this repository (GitHub, Stripe x402, Slack, Gmail).
 
 `@pome-sh/twin-stripe` is the only deterministic test double for **Stripe
 x402 machine payments**. Real Stripe sandbox doesn't auto-settle crypto

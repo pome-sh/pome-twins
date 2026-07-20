@@ -1,5 +1,15 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.11.0
+
+### Added
+
+- First-party Gmail registration in `MOUNTED_TWINS` and `KNOWN_TWIN_IDS`.
+- Gmail mailbox seed schemas, including stable message/thread/draft/label IDs
+  and provider-scoped seed-envelope support.
+- Tolerant-reader coverage proving legacy sessions and community recorder IDs
+  remain valid. Gmail deliberately adds no `provider_credentials.gmail`.
+
 ## 0.10.1
 
 ### Added

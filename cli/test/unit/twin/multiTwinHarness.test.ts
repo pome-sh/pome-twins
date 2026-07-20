@@ -7,11 +7,12 @@
 // full self-host e2e (agent + capture-server).
 import { describe, expect, it } from "vitest";
 import { defaultSeedState, seedSchema } from "@pome-sh/twin-github";
+import { defaultSeedState as defaultGmailSeedState } from "@pome-sh/twin-gmail";
 import { bootTwin } from "../../../src/twin/twinHarness.js";
 import { createRecorder } from "../../../src/recorder/recorder.js";
 
 describe("bootTwin shared recorder (multi-twin local runner)", () => {
-  it("boots github + slack on one shared recorder and lets the caller own its lifecycle", async () => {
+  it("boots github + slack + gmail on one shared recorder and lets the caller own its lifecycle", async () => {
     const recorder = createRecorder(); // in-memory, runner-owned
 
     const github = await bootTwin({
@@ -26,20 +27,31 @@ describe("bootTwin shared recorder (multi-twin local runner)", () => {
       seedState: {},
       recorder,
     });
+    const gmail = await bootTwin({
+      twin: "gmail",
+      runId: "cli-multi-twin-test",
+      seedState: defaultGmailSeedState(),
+      recorder,
+    });
 
     try {
       // Distinct env prefixes → distinct POME_<TWIN>_{REST,MCP}_URL fan-out.
       expect(github.envName).toBe("GITHUB");
       expect(slack.envName).toBe("SLACK");
+      expect(gmail.envName).toBe("GMAIL");
+      expect(gmail.tokenEnvName).toBe("POME_GMAIL_TOKEN");
+      expect(gmail.extraClaims).toEqual({ gmail_email: "pome-agent@pome-twin.test" });
 
       // Both harnesses read from the SAME shared buffer.
       expect(github.events()).toEqual(slack.events());
+      expect(gmail.events()).toEqual(slack.events());
 
       // Each twin exports its own world.
       const githubState = (await github.exportState()) as { repositories?: unknown[] };
       expect(Array.isArray(githubState.repositories)).toBe(true);
       const slackState = await slack.exportState();
       expect(slackState).toBeTruthy();
+      expect(await gmail.exportState()).toMatchObject({ schemaVersion: 1 });
     } finally {
       // Closing a harness that does NOT own the recorder must only release its
       // DB handle — the shared recorder stays usable for its siblings and is
@@ -48,6 +60,7 @@ describe("bootTwin shared recorder (multi-twin local runner)", () => {
       // slack still works after a sibling closed.
       expect(await slack.exportState()).toBeTruthy();
       await slack.close();
+      await gmail.close();
       await recorder.close?.();
     }
   });

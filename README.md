@@ -5,8 +5,8 @@
 [![npm: @pome-sh/cli](https://img.shields.io/npm/v/%40pome-sh%2Fcli?label=%40pome-sh%2Fcli)](https://www.npmjs.com/package/@pome-sh/cli)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
-Open-source digital twins of GitHub, Stripe, and Slack: 102 MCP tools and 155
-REST routes across the three, plus the `pome` CLI to run your AI agents
+Open-source digital twins of GitHub, Stripe, Slack, and Gmail: 112 MCP tools
+plus broad frozen REST surfaces across all four, with the `pome` CLI to run your AI agents
 against them locally and capture every trace.
 
 A digital twin is a local emulation of a production API. It intercepts and
@@ -40,6 +40,8 @@ resettable.
   the balance and event ledger move.
 * **Slack:** Post messages, reply in threads, search, react — and verify all
   of it on the next read.
+* **Gmail:** Search/read threads, draft replies, label messages, and exercise a
+  frozen Gmail v1 REST/upload surface without Google OAuth or live delivery.
 
 ---
 
@@ -55,10 +57,11 @@ For questions or suggestions, email: `founders@pome.sh`
 Prerequisites: [Node.js ≥ 24](https://nodejs.org/). Nothing else — no
 installs, no git clone.
 
-Start a twin (GitHub, Stripe, or Slack):
+Start a twin (GitHub, Stripe, Slack, or Gmail):
 
 ```bash
 npx @pome-sh/cli twin start github         # GitHub twin on http://127.0.0.1:3333
+npx @pome-sh/cli twin start gmail --port 3336
 curl http://127.0.0.1:3333/healthz
 ```
 
@@ -112,11 +115,12 @@ reference lives in the [CLI README](./cli/README.md) and at
 | [`twin-github`](./packages/twin-github/) | **65** (63 semantic) | 62 | Repos, issues, PRs, reviews, merges, collaborators, checks — push-access gated ([FIDELITY](./packages/twin-github/FIDELITY.md)) |
 | [`twin-stripe`](./packages/twin-stripe/) | **26** (all semantic) | 43 | Card + x402 crypto PaymentIntents, customers, payment methods, refunds, charges, balance, events; billing surfaces at shape tier ([FIDELITY](./packages/twin-stripe/FIDELITY.md)) |
 | [`twin-slack`](./packages/twin-slack/) | **11** (all semantic) | 50 | Channels, messages, threads, reactions, search, users, pins, scheduled messages ([FIDELITY](./packages/twin-slack/FIDELITY.md)) |
+| [`twin-gmail`](./packages/twin-gmail/) | **10** (captured first-party launch set) | Frozen broad Gmail v1 set | Messages, drafts, threads, labels, history, settings, media/multipart uploads; no OAuth, Pub/Sub, or external delivery ([contract](./packages/twin-gmail/README.md)) |
 
 Each twin documents its surface, route by route, in its `FIDELITY.md`; the
 tier definitions live in the engine-level
-[endpoint-tier rubric](./packages/sdk/ENDPOINT-TIERS.md). All three honor the
-frozen v1.1.0 runtime contract in [`CONTRACT.md`](./CONTRACT.md), verified by
+[endpoint-tier rubric](./packages/sdk/ENDPOINT-TIERS.md). All four honor the
+frozen v1.2.0 runtime contract in [`CONTRACT.md`](./CONTRACT.md), verified by
 a black-box suite (`npm run test:contract`) that both pome-cloud and the CLI
 rely on. Published twin images are cosign-signed and ship SBOM attestations.
 
@@ -137,8 +141,8 @@ pome login && pome run scenarios/   # hosted: records + evaluates in one go
 
 ## The scenario library
 
-`pome init` ships 19 ready-made scenarios: GitHub issue triage and PR flows,
-Stripe x402 payment and refund flows, Slack messaging. Several are
+`pome init` ships a bundled scenario library: GitHub issue triage and PR flows,
+Stripe x402 payment and refund flows, Slack messaging, and Gmail inbox/MCP parity. Several are
 adversarial — they probe whether your agent can be talked into spoofing an
 identity, following an injected prompt, merging a backdoored PR, fabricating
 green CI, or re-refunding a charge because someone asked nicely. Browse them
@@ -168,7 +172,7 @@ npm start
 
 ## Build your own twin
 
-The three twins are thin domain plugins on [`@pome-sh/sdk`](./packages/sdk/).
+The four twins are thin domain plugins on [`@pome-sh/sdk`](./packages/sdk/).
 The engine supplies the mechanism — HTTP mounting, bearer auth, the trace
 recorder with secret redaction, MCP dispatch, SQLite state, and the admin
 reset/seed gate — so a twin is just its domain logic and tools:
@@ -199,7 +203,7 @@ Everything ships to npm with provenance (Trusted Publishing):
 | Package | Role |
 | --- | --- |
 | [`@pome-sh/cli`](https://www.npmjs.com/package/@pome-sh/cli) | The `pome` CLI |
-| [`@pome-sh/twin-github`](https://www.npmjs.com/package/@pome-sh/twin-github) [`/twin-stripe`](https://www.npmjs.com/package/@pome-sh/twin-stripe) [`/twin-slack`](https://www.npmjs.com/package/@pome-sh/twin-slack) | The three twins |
+| [`@pome-sh/twin-github`](https://www.npmjs.com/package/@pome-sh/twin-github) [`/twin-stripe`](https://www.npmjs.com/package/@pome-sh/twin-stripe) [`/twin-slack`](https://www.npmjs.com/package/@pome-sh/twin-slack) [`/twin-gmail`](https://www.npmjs.com/package/@pome-sh/twin-gmail) | The four twins |
 | [`@pome-sh/sdk`](https://www.npmjs.com/package/@pome-sh/sdk) | The twin engine (`defineTwin()`) |
 | [`@pome-sh/shared-types`](https://www.npmjs.com/package/@pome-sh/shared-types) | Zod schemas and the trace contract |
 | [`@pome-sh/adapter-claude-sdk`](https://www.npmjs.com/package/@pome-sh/adapter-claude-sdk) | Wire a Claude Agent SDK agent to a Pome run |
@@ -208,14 +212,14 @@ Everything ships to npm with provenance (Trusted Publishing):
 
 | Path | Role |
 | --- | --- |
-| [`packages/twin-{github,stripe,slack}`](./packages/) | The three twins (REST + MCP, SQLite) — each with `README` + `FIDELITY.md` |
+| [`packages/twin-{github,stripe,slack,gmail}`](./packages/) | The four twins (REST + MCP, SQLite) — each with package-level fidelity documentation |
 | [`packages/sdk`](./packages/sdk/) | The twin engine — build your own twin with `defineTwin()` |
 | [`packages/shared-types`](./packages/shared-types/) | Zod schemas and trace contracts |
 | [`packages/adapter-claude-sdk`](./packages/adapter-claude-sdk/) | Wire a Claude Agent SDK agent to a Pome run |
 | [`cli/`](./cli/) | The `pome` CLI (run scenarios, inspect traces, upload for evaluation) |
-| [`cli/scenarios/`](./cli/scenarios/) | The bundled scenario library (19 scenarios) |
+| [`cli/scenarios/`](./cli/scenarios/) | The bundled scenario library |
 | [`examples/`](./examples/) | Four worked example agents |
-| [`CONTRACT.md`](./CONTRACT.md) | The frozen twin runtime contract (v1.1.0) |
+| [`CONTRACT.md`](./CONTRACT.md) | The frozen twin runtime contract (v1.2.0) |
 | [`AGENTS.md`](./AGENTS.md) | Contributor and agent conventions for this repo |
 
 Full documentation lives at [docs.pome.sh](https://docs.pome.sh).

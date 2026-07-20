@@ -192,6 +192,11 @@ export function buildAgentEnv(params: {
       // agent_token — NOT provider_credentials.slack.token, which the proxy
       // would reject.
       env.POME_SLACK_TOKEN = session.agent_token;
+    } else if (twin === "gmail") {
+      // Gmail uses the Pome session JWT directly. This is an alias for agent
+      // SDKs that conventionally read a provider-specific bearer variable;
+      // there is deliberately no provider_credentials.gmail shape.
+      env.POME_GMAIL_TOKEN = session.agent_token;
     }
   }
 

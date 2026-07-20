@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'packages/twin-github/**'
+      - 'packages/twin-gmail/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
       - 'packages/shared-types/**'
@@ -53,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        twin: [github, slack, stripe]
+        twin: [github, slack, stripe, gmail]
     permissions:
       actions: read
       contents: read

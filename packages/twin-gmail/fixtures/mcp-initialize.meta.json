@@ -1,0 +1,8 @@
+{
+  "endpoint": "https://gmailmcp.googleapis.com/mcp/v1",
+  "method": "initialize",
+  "protocolVersion": "2025-03-26",
+  "captureDate": "2026-07-20",
+  "httpStatus": 200,
+  "sha256": "f8b0700cf39bd949e3a4f1d2c14e4f113e036920f9f6897aba02a245ebe3ca4e"
+}

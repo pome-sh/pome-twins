@@ -14,8 +14,8 @@ const packageRoot = resolve(here, "..", "..");
 const bundledScenariosDir = join(packageRoot, "scenarios");
 
 describe("scenarios catalog", () => {
-  it("exposes the github, stripe, and slack twins", () => {
-    for (const id of ["github", "stripe", "slack"]) {
+  it("exposes every first-party twin", () => {
+    for (const id of ["github", "stripe", "slack", "gmail"]) {
       const twin = findTwin(id);
       expect(twin, `twin ${id} should be registered`).not.toBeNull();
       expect(twin?.id).toBe(id);

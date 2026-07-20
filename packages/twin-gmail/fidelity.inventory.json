@@ -1,0 +1,951 @@
+{
+  "twin": "gmail",
+  "package": "@pome-sh/twin-gmail",
+  "updated": "2026-07-20",
+  "notes": "Heat from Gmail task chains is cross-validated against the captured 10-tool launch set. The ten launch MCP tools and frozen REST rows are implemented over one deterministic domain; users.watch, users.stop, resumable uploads, and three out-of-launch preview tools remain named cold 501/unsupported gaps.",
+  "evidenceCodes": {
+    "TC:inbox-triage": "Search/read threads and messages for agent email triage",
+    "TC:compose-draft": "Create/list/update drafts without sending",
+    "TC:compose-send": "Send messages / send drafts as mailbox-state transitions (no external SMTP)",
+    "TC:label-triage": "Apply/remove labels on messages and threads",
+    "TC:cleanup": "Trash/untrash/delete batch cleanup",
+    "TC:sync-history": "Mailbox history sync for incremental agents",
+    "TC:filter-setup": "Inbound filter configuration (non-forwarding actions)",
+    "TC:identity-read": "Send-as and forwarding address reads for From validation context",
+    "TC:mailbox-identity": "Profile / primary mailbox identity",
+    "TC:mailbox-seed": "Import path for deterministic mailbox seeding"
+  },
+  "tools": [
+    {
+      "name": "create_draft",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:create_draft (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by the shared deterministic Gmail domain."
+    },
+    {
+      "name": "list_drafts",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_drafts (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "get_thread",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:get_thread (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "search_threads",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:search_threads (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "label_thread",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:label_thread (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "unlabel_thread",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:unlabel_thread (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "list_labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_labels (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "label_message",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:label_message (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "unlabel_message",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:unlabel_message (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "create_label",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:create_label (vendor default Gmail MCP toolset); TC:inbox-triage|compose-draft|label-triage. Live capture schemas frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "get_message",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: present in live Developer Preview tools/list (2026-07-20) but outside the documented 10-tool launch set. Twin must not advertise these while claiming launch listing parity; catch-all/unsupported if called.",
+      "defer": "Keep as named cold unless a new ruling expands the launch toolset."
+    },
+    {
+      "name": "apply_sensitive_thread_label",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: present in live Developer Preview tools/list (2026-07-20) but outside the documented 10-tool launch set. Twin must not advertise these while claiming launch listing parity; catch-all/unsupported if called.",
+      "defer": "Keep as named cold unless a new ruling expands the launch toolset."
+    },
+    {
+      "name": "apply_sensitive_message_label",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: present in live Developer Preview tools/list (2026-07-20) but outside the documented 10-tool launch set. Twin must not advertise these while claiming launch listing parity; catch-all/unsupported if called.",
+      "defer": "Keep as named cold unless a new ruling expands the launch toolset."
+    }
+  ],
+  "rest": [
+    {
+      "name": "GET /gmail/v1/users/{userId}/profile",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:mailbox-identity; MCP:list_labels. Discovery id users.getProfile. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.getProfile",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/messages",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:inbox-triage; MCP:search_threads. Discovery id users.messages.list. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/messages/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:inbox-triage; MCP:get_thread. Discovery id users.messages.get. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/send",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-send. Discovery id users.messages.send. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.send",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /upload/gmail/v1/users/{userId}/messages/send (simple multipart)",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "Media upload simple protocol for users.messages.send; multipart=True. Discovery mediaUpload.simple.",
+      "discoveryId": "users.messages.send",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /resumable/upload/gmail/v1/users/{userId}/messages/send (resumable)",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: resumable upload for users.messages.send declared by discovery but explicitly unsupported in launch — loud 501, no chunk persistence.",
+      "discoveryId": "users.messages.send"
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-send; SB. Discovery id users.messages.insert. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.insert",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /upload/gmail/v1/users/{userId}/messages (simple multipart)",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "Media upload simple protocol for users.messages.insert; multipart=True. Discovery mediaUpload.simple.",
+      "discoveryId": "users.messages.insert",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /resumable/upload/gmail/v1/users/{userId}/messages (resumable)",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: resumable upload for users.messages.insert declared by discovery but explicitly unsupported in launch — loud 501, no chunk persistence.",
+      "discoveryId": "users.messages.insert"
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/import",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:mailbox-seed; SB. Discovery id users.messages.import. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.import",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /upload/gmail/v1/users/{userId}/messages/import (simple multipart)",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "Media upload simple protocol for users.messages.import; multipart=True. Discovery mediaUpload.simple.",
+      "discoveryId": "users.messages.import",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /resumable/upload/gmail/v1/users/{userId}/messages/import (resumable)",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: resumable upload for users.messages.import declared by discovery but explicitly unsupported in launch — loud 501, no chunk persistence.",
+      "discoveryId": "users.messages.import"
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/{id}/modify",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:label_message. Discovery id users.messages.modify. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.modify",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/batchModify",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage. Discovery id users.messages.batchModify. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.batchModify",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/batchDelete",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.messages.batchDelete. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.batchDelete",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/{id}/trash",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.messages.trash. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.trash",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/messages/{id}/untrash",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.messages.untrash. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.untrash",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "DELETE /gmail/v1/users/{userId}/messages/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.messages.delete. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.delete",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:inbox-triage. Discovery id users.messages.attachments.get. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.messages.attachments.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/drafts",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-draft; MCP:list_drafts. Discovery id users.drafts.list. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.drafts.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/drafts/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-draft; MCP:list_drafts. Discovery id users.drafts.get. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.drafts.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/drafts",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-draft; MCP:create_draft. Discovery id users.drafts.create. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.drafts.create",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /upload/gmail/v1/users/{userId}/drafts (simple multipart)",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "Media upload simple protocol for users.drafts.create; multipart=True. Discovery mediaUpload.simple.",
+      "discoveryId": "users.drafts.create",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /resumable/upload/gmail/v1/users/{userId}/drafts (resumable)",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: resumable upload for users.drafts.create declared by discovery but explicitly unsupported in launch — loud 501, no chunk persistence.",
+      "discoveryId": "users.drafts.create"
+    },
+    {
+      "name": "PUT /gmail/v1/users/{userId}/drafts/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-draft; MCP:create_draft. Discovery id users.drafts.update. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.drafts.update",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "PUT /upload/gmail/v1/users/{userId}/drafts/{id} (simple multipart)",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "Media upload simple protocol for users.drafts.update; multipart=True. Discovery mediaUpload.simple.",
+      "discoveryId": "users.drafts.update",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "PUT /resumable/upload/gmail/v1/users/{userId}/drafts/{id} (resumable)",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: resumable upload for users.drafts.update declared by discovery but explicitly unsupported in launch — loud 501, no chunk persistence.",
+      "discoveryId": "users.drafts.update"
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/drafts/send",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-send. Discovery id users.drafts.send. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.drafts.send",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /upload/gmail/v1/users/{userId}/drafts/send (simple multipart)",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "Media upload simple protocol for users.drafts.send; multipart=True. Discovery mediaUpload.simple.",
+      "discoveryId": "users.drafts.send",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /resumable/upload/gmail/v1/users/{userId}/drafts/send (resumable)",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: resumable upload for users.drafts.send declared by discovery but explicitly unsupported in launch — loud 501, no chunk persistence.",
+      "discoveryId": "users.drafts.send"
+    },
+    {
+      "name": "DELETE /gmail/v1/users/{userId}/drafts/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:compose-draft. Discovery id users.drafts.delete. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.drafts.delete",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/threads",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:inbox-triage; MCP:search_threads. Discovery id users.threads.list. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.threads.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/threads/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:inbox-triage; MCP:get_thread. Discovery id users.threads.get. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.threads.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/threads/{id}/modify",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:label_thread. Discovery id users.threads.modify. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.threads.modify",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/threads/{id}/trash",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.threads.trash. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.threads.trash",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/threads/{id}/untrash",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.threads.untrash. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.threads.untrash",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "DELETE /gmail/v1/users/{userId}/threads/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:cleanup. Discovery id users.threads.delete. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.threads.delete",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/labels",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:list_labels. Discovery id users.labels.list. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.labels.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/labels/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:list_labels. Discovery id users.labels.get. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.labels.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/labels",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:create_label. Discovery id users.labels.create. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.labels.create",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "PUT /gmail/v1/users/{userId}/labels/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:create_label. Discovery id users.labels.update. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.labels.update",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "PATCH /gmail/v1/users/{userId}/labels/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage; MCP:create_label. Discovery id users.labels.patch. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.labels.patch",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "DELETE /gmail/v1/users/{userId}/labels/{id}",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:label-triage. Discovery id users.labels.delete. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.labels.delete",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/history",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "justification": "TC:sync-history. Discovery id users.history.list. Gate 0: actual fidelity unsupported pending REST PR.",
+      "discoveryId": "users.history.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/settings/filters",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:filter-setup. Discovery id users.settings.filters.list. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.filters.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/settings/filters/{id}",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:filter-setup. Discovery id users.settings.filters.get. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.filters.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/settings/filters",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:filter-setup. Discovery id users.settings.filters.create. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.filters.create",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "DELETE /gmail/v1/users/{userId}/settings/filters/{id}",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:filter-setup. Discovery id users.settings.filters.delete. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.filters.delete",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/settings/forwardingAddresses",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:identity-read. Discovery id users.settings.forwardingAddresses.list. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.forwardingAddresses.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/settings/forwardingAddresses/{forwardingEmail}",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:identity-read. Discovery id users.settings.forwardingAddresses.get. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.forwardingAddresses.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/settings/sendAs",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:identity-read. Discovery id users.settings.sendAs.list. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.sendAs.list",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "GET /gmail/v1/users/{userId}/settings/sendAs/{sendAsEmail}",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "justification": "TC:identity-read. Discovery id users.settings.sendAs.get. Settings reads/writes adjacent to delivery/identity; target shape. Gate 0: unsupported pending REST PR.",
+      "discoveryId": "users.settings.sendAs.get",
+      "defer": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/watch",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: named gap — Pub/Sub watch/stop out of launch scope. Must return loud 501; never fake successful registration. Discovery id users.watch.",
+      "discoveryId": "users.watch"
+    },
+    {
+      "name": "POST /gmail/v1/users/{userId}/stop",
+      "heat": "cold",
+      "fidelity": "unsupported",
+      "justification": "PS: named gap — Pub/Sub watch/stop out of launch scope. Must return loud 501; never fake successful registration. Discovery id users.stop.",
+      "discoveryId": "users.stop"
+    }
+  ],
+  "gaps": [
+    {
+      "surface": "GET /gmail/v1/users/{userId}/profile",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/messages",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/messages/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/send",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /upload/gmail/v1/users/{userId}/messages/send (simple multipart)",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /upload/gmail/v1/users/{userId}/messages (simple multipart)",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/import",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /upload/gmail/v1/users/{userId}/messages/import (simple multipart)",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/{id}/modify",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/batchModify",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/batchDelete",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/{id}/trash",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/messages/{id}/untrash",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "DELETE /gmail/v1/users/{userId}/messages/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/drafts",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/drafts/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/drafts",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /upload/gmail/v1/users/{userId}/drafts (simple multipart)",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "PUT /gmail/v1/users/{userId}/drafts/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "PUT /upload/gmail/v1/users/{userId}/drafts/{id} (simple multipart)",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/drafts/send",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /upload/gmail/v1/users/{userId}/drafts/send (simple multipart)",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "DELETE /gmail/v1/users/{userId}/drafts/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/threads",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/threads/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/threads/{id}/modify",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/threads/{id}/trash",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/threads/{id}/untrash",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "DELETE /gmail/v1/users/{userId}/threads/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/labels",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/labels/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/labels",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "PUT /gmail/v1/users/{userId}/labels/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "PATCH /gmail/v1/users/{userId}/labels/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "DELETE /gmail/v1/users/{userId}/labels/{id}",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/history",
+      "kind": "rest",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/settings/filters",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/settings/filters/{id}",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "POST /gmail/v1/users/{userId}/settings/filters",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "DELETE /gmail/v1/users/{userId}/settings/filters/{id}",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/settings/forwardingAddresses",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/settings/forwardingAddresses/{forwardingEmail}",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/settings/sendAs",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "GET /gmail/v1/users/{userId}/settings/sendAs/{sendAsEmail}",
+      "kind": "rest",
+      "heat": "warm",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "create_draft",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "list_drafts",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "get_thread",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "search_threads",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "label_thread",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "unlabel_thread",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "list_labels",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "label_message",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "unlabel_message",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    },
+    {
+      "surface": "create_label",
+      "kind": "mcp",
+      "heat": "hot",
+      "fidelity": "unsupported",
+      "note": "Gate 0 freeze only — implementation deferred to REST/MCP/domain PRs. Target fidelity per heat: hot→semantic, warm→shape, cold→unsupported."
+    }
+  ],
+  "doc_drift": [
+    {
+      "item": "mcp_live_tools_list_count",
+      "detail": "Live tools/list returned 13 tools; public docs + launch plan freeze 10. Extras: get_message, apply_sensitive_thread_label, apply_sensitive_message_label."
+    },
+    {
+      "item": "list_drafts_readOnlyHint_docs_vs_live",
+      "detail": "Public HTML docs previously showed list_drafts Read Only Hint false; live capture annotations.readOnlyHint=true. Live capture is the listing oracle."
+    }
+  ],
+  "performanceBudgets": {
+    "note": "Placeholders for Gate 0 — record explicit numeric budgets before concurrency/MIME tests land.",
+    "maxRawMimeBytes": null,
+    "maxDecodedMimeBytes": null,
+    "maxAttachmentBytes": null,
+    "maxBatchIds": null,
+    "maxSearchQueryBytes": null,
+    "maxListPageSize": null,
+    "packagedBootSeconds": 3
+  }
+}

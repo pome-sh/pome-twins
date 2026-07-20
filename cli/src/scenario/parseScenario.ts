@@ -5,6 +5,10 @@ import { basename, extname } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { defaultSeedState, seedSchema } from "@pome-sh/twin-github";
+import {
+  defaultSeedState as defaultGmailSeedState,
+  gmailSeedSchema,
+} from "@pome-sh/twin-gmail";
 import { parseGitHubSeedState } from "./githubSeedCompat.js";
 import {
   criterionSchema,
@@ -151,6 +155,7 @@ function buildSeedEnvelope(raw: unknown | undefined, twins: string[]): SeedEnvel
 function parseSeedForTwin(twin: string, input: unknown): SeedState {
   if (twin === "stripe") return stripeSeedStateSchema.parse(input);
   if (twin === "slack") return slackSeedStateSchema.parse(input);
+  if (twin === "gmail") return gmailSeedSchema.parse(input);
   return parseGitHubSeedState(input);
 }
 
@@ -162,6 +167,9 @@ function defaultSeedForTwin(twin: string): SeedState {
   }
   if (twin === "slack") {
     return slackSeedStateSchema.parse({});
+  }
+  if (twin === "gmail") {
+    return gmailSeedSchema.parse(defaultGmailSeedState());
   }
   return seedSchema.parse(defaultSeedState());
 }
@@ -311,6 +319,7 @@ function parseFencedYaml(input: string) {
 function parseSeedStateForScenario(input: unknown, config: ScenarioConfig): SeedState {
   if (isStripeOnly(config.twins)) return stripeSeedStateSchema.parse(input);
   if (isSlackOnly(config.twins)) return slackSeedStateSchema.parse(input);
+  if (isGmailOnly(config.twins)) return gmailSeedSchema.parse(input);
   return parseGitHubSeedState(input);
 }
 
@@ -326,15 +335,22 @@ function defaultSeedStateForConfig(twins: string[]): SeedState {
     // schema-valid floor.
     return slackSeedStateSchema.parse({});
   }
+  if (isGmailOnly(twins)) {
+    return gmailSeedSchema.parse(defaultGmailSeedState());
+  }
   return seedSchema.parse(defaultSeedState());
 }
 
 function isStripeOnly(twins: string[]): boolean {
-  return twins.includes("stripe") && !twins.includes("github");
+  return twins.length === 1 && twins[0] === "stripe";
 }
 
 function isSlackOnly(twins: string[]): boolean {
-  return twins.includes("slack") && !twins.includes("github") && !twins.includes("stripe");
+  return twins.length === 1 && twins[0] === "slack";
+}
+
+function isGmailOnly(twins: string[]): boolean {
+  return twins.length === 1 && twins[0] === "gmail";
 }
 
 function stripFence(input: string) {

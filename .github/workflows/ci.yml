@@ -23,6 +23,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: node scripts/check-copy-markers.mjs
       - run: node scripts/lint-code-health.mjs
+      - run: npm run lint:twin-registration
       # F-778 — the legacy D/P criterion markers are retired; fail on any
       # reintroduction outside the parser's own legacy-detection code.
       - run: node scripts/lint-legacy-criterion-markers.mjs
@@ -51,7 +52,7 @@ jobs:
       - run: npm run typecheck
       # twin-github runs with coverage thresholds (90% lines/funcs/statements)
       # instead of a second plain `npm test` pass for that workspace.
-      - run: npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe
+      - run: npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail
       - run: npm run test:coverage -w @pome-sh/twin-github
       # F-722 — durable recorder crash-loss gate (SIGKILL mid-write). Covered
       # by packages/sdk test/recorder-crash.test.ts in the sdk workspace test
@@ -66,6 +67,6 @@ jobs:
       # asserts live tool list === fidelity.inventory.json === scenario
       # coverage, and drives every tool through POST /s/:sid/mcp/call.
       # Reuses the build above (`@pome-sh/sdk/parity` resolves from dist).
-      - run: npm run fidelity:parity -w @pome-sh/twin-github -w @pome-sh/twin-slack -w @pome-sh/twin-stripe
+      - run: npm run fidelity:parity -w @pome-sh/twin-github -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail
       # Twin Fidelity Watch (tools/fidelity) moved to pome-cloud
       # (packages/fidelity-watch) — it owns status.pome.sh now.

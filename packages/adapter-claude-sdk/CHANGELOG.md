@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.2 — 2026-07-20
+
+Dependency-only release: `@pome-sh/shared-types` pinned to 0.11.0 for the
+first-party Gmail registration contract. No adapter behavior changes.
+
 ## 0.2.1 — 2026-07-16
 
 Dependency-only release: `@pome-sh/shared-types` pinned to 0.9.0 after removal

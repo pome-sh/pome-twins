@@ -4,6 +4,12 @@ All notable changes to the GitHub twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.1 — 2026-07-20
+
+Dependency-only release: repins the shared first-party contract to
+`@pome-sh/shared-types@0.11.0` and the additive Gmail-capable engine to
+`@pome-sh/sdk@0.5.0`. GitHub wire behavior is unchanged.
+
 ## 0.2.0 — 2026-07-16
 
 Batches everything landed on main since 0.1.2 whose versions were never cut

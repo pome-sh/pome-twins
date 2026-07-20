@@ -10,6 +10,7 @@ const FILE_SIZE_LIMIT = 500;
 const FILE_SIZE_HEADER = /^\/\/\s*file-size:\s*.+/;
 
 const BARREL_PATHS = [
+  "packages/twin-gmail/src/index.ts",
   "packages/twin-github/src/index.ts",
   "packages/twin-slack/src/index.ts",
   "packages/twin-stripe/src/index.ts",
@@ -35,6 +36,7 @@ const FILE_SIZE_ALLOWLIST = new Set([
 ]);
 
 const SIZE_SCAN_DIRS = [
+  "packages/twin-gmail/src",
   "packages/twin-github/src",
   "packages/twin-slack/src",
   "packages/twin-stripe/src",

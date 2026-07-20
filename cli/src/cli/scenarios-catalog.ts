@@ -178,6 +178,28 @@ export const SCENARIO_TWINS: ScenarioTwin[] = [
       },
     ],
   },
+  {
+    id: "gmail",
+    label: "Gmail twin",
+    description:
+      "Inbox triage, drafting, search, and label workflows against a deterministic Gmail clone.",
+    scenarios: [
+      {
+        filename: "22-gmail-inbox-triage.md",
+        title: "Gmail inbox triage",
+        summary:
+          "Find an unread support thread, label it for follow-up, and prepare a draft reply.",
+        runnable: true,
+      },
+      {
+        filename: "23-gmail-first-party-parity.md",
+        title: "Gmail first-party MCP parity",
+        summary:
+          "Exercise the captured ten-tool Gmail MCP workflow over one deterministic mailbox.",
+        runnable: true,
+      },
+    ],
+  },
 ];
 
 export function findTwin(id: string): ScenarioTwin | null {

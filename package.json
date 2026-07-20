@@ -5,7 +5,7 @@
   "workspaces": ["packages/*"],
   "packageManager": "npm@11.5.1",
   "scripts": {
-    "build": "npm run build -w @pome-sh/shared-types && npm run build -w @pome-sh/sdk && npm run build -w @pome-sh/adapter-claude-sdk && npm run build -w @pome-sh/twin-github && npm run build -w @pome-sh/twin-slack && npm run build -w @pome-sh/twin-stripe",
+    "build": "npm run build -w @pome-sh/shared-types && npm run build -w @pome-sh/sdk && npm run build -w @pome-sh/adapter-claude-sdk && npm run build -w @pome-sh/twin-github && npm run build -w @pome-sh/twin-slack && npm run build -w @pome-sh/twin-stripe && npm run build -w @pome-sh/twin-gmail",
     "test": "npm run test --workspaces --if-present",
     "test:contract": "node contract/run.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -15,6 +15,7 @@
     "lint:no-catch": "node scripts/no-catch-and-continue.mjs",
     "lint:copy-markers": "node scripts/check-copy-markers.mjs",
     "lint:code-health": "node scripts/lint-code-health.mjs",
+    "lint:twin-registration": "node scripts/check-first-party-twin-registration.mjs",
     "lint:legacy-markers": "node scripts/lint-legacy-criterion-markers.mjs",
     "lint:dead-code": "knip --no-config-hints"
   },

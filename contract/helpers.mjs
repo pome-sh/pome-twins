@@ -21,6 +21,7 @@ const ALL_TWINS = [
   { name: "github", pkg: "packages/twin-github", dbEnv: "GITHUB_CLONE_DB", hostEnv: "GITHUB_CLONE_HOST" },
   { name: "slack", pkg: "packages/twin-slack", dbEnv: "SLACK_CLONE_DB", hostEnv: "SLACK_CLONE_HOST" },
   { name: "stripe", pkg: "packages/twin-stripe", dbEnv: "STRIPE_CLONE_DB", hostEnv: "STRIPE_CLONE_HOST" },
+  { name: "gmail", pkg: "packages/twin-gmail", dbEnv: "GMAIL_TWIN_DB", hostEnv: "GMAIL_TWIN_HOST" },
 ];
 
 // FDRS-714: the suite can target an external built twin — e.g. a cloud-built

@@ -6,6 +6,7 @@ on:
       - 'packages/shared-types/**'
       - 'packages/sdk/**'
       - 'packages/twin-github/**'
+      - 'packages/twin-gmail/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
       - 'package.json'
@@ -22,6 +23,7 @@ on:
       - 'packages/shared-types/**'
       - 'packages/sdk/**'
       - 'packages/twin-github/**'
+      - 'packages/twin-gmail/**'
       - 'packages/twin-slack/**'
       - 'packages/twin-stripe/**'
       - 'package.json'
@@ -82,11 +84,10 @@ jobs:
       - name: Use local package tarballs before first npm publish
         working-directory: ${{ github.workspace }}
         run: node scripts/use-local-pome-tarballs.mjs cli/package.json
-      # CLI has no committed lockfile: @pome-sh/* packages are not yet on npm,
-      # so CI rewrites deps to local tarballs, generates a lockfile from the
-      # rewritten manifest, then freezes install with npm ci (same pattern as
-      # the pre-publish npm flow). Commit cli/package-lock.json after first
-      # @pome-sh/* publish and switch to committed-lock npm ci.
+      # New package-batch versions may not exist on npm yet, so CI rewrites
+      # @pome-sh/* deps to local tarballs, regenerates the lock from that
+      # manifest, then freezes the install with npm ci. Refresh the committed
+      # registry lock after the package batch publishes.
       # --ignore-scripts on lock-only: `prepare` runs `tsc` before node_modules
       # exists and fails with missing commander/ai types. `npm ci` then installs
       # deps and runs prepare with a complete tree.
@@ -130,7 +131,7 @@ jobs:
           test -f node_modules/@pome-sh/cli/dist/src/cli/main.js
           # bundled packages made it into the tarball (must match
           # bundleDependencies in cli/package.json):
-          for t in sdk shared-types twin-github twin-slack twin-stripe; do
+          for t in sdk shared-types twin-gmail twin-github twin-slack twin-stripe; do
             ls node_modules/@pome-sh/cli/node_modules/@pome-sh/$t/package.json \
               || { echo "MISSING bundled @pome-sh/$t in published tarball"; exit 1; }
           done

@@ -24,6 +24,18 @@ Or run it without installing: `npx @pome-sh/cli <command>` — e.g.
 `npx @pome-sh/cli twin start github` boots a local GitHub twin with nothing
 but Node ≥ 24.
 
+Gmail is first-party too:
+
+```bash
+npx @pome-sh/cli twin start gmail --port 3336
+# prints POME_GMAIL_REST_URL, POME_GMAIL_MCP_URL, and POME_GMAIL_TOKEN
+pome scenarios gmail --copy
+```
+
+`POME_GMAIL_TOKEN` is the same Pome session JWT as `POME_AUTH_TOKEN`; it is not
+a Google OAuth token. Hosted Gmail availability is gated separately from the
+local/OSS package release.
+
 ## Quickstart
 
 ```bash

@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//
 // `@pome-sh/sdk` — public surface for community twin authors.
-//
-// `defineTwin()` returns a `TwinDefinition` value (data, not a class). Boot
-// it with `serve()` from `@pome-sh/sdk/server`. The SDK enforces wedge
-// invariants (recording-spec.md v1.0 emit shape, mutation-flag consistency,
-// `/_pome/*` shadowing) per OQ-B6 — community twins cannot ship broken
-// FIDELITY claims silently.
+// `defineTwin()` returns data booted by `serve()` from `@pome-sh/sdk/server`.
+// The SDK enforces recording, mutation, and reserved-route invariants.
 
 import { z } from "zod";
 import type { Context, Hono } from "hono";
@@ -58,11 +53,23 @@ export interface ToolSpec<TDomain = unknown, TInput = unknown, TOutput = unknown
   description: string;
   schema: z.ZodType<TInput>;
   handler: (domain: TDomain, args: TInput, ctx: ToolCallContext) => TOutput | Promise<TOutput>;
+  /**
+   * Whether this tool's handler actually mutates local twin state when it
+   * succeeds. Independent of upstream MCP `annotations` (e.g. Google's
+   * `readOnlyHint`): annotations are served verbatim for wire parity;
+   * `mutation` remains Pome's recorder truth for `state_mutation`.
+   */
   mutation: boolean;
   fidelity?: ToolFidelityMetadata;
   /**
+   * Optional MCP tool title. Emitted on tool-list surfaces only when set —
+   * existing twins omit it and stay wire-identical.
+   */
+  title?: string;
+  /**
    * MCP tool-list annotations (e.g. `{ readOnlyHint: true }`), emitted
-   * verbatim on both tool-list surfaces when present.
+   * verbatim on both tool-list surfaces when present. Do not derive
+   * `mutation` from these hints — they are upstream metadata only.
    */
   annotations?: Record<string, unknown>;
   /**
@@ -72,11 +79,38 @@ export interface ToolSpec<TDomain = unknown, TInput = unknown, TOutput = unknown
    * `z.toJSONSchema(schema)`.
    */
   inputSchema?: Record<string, unknown>;
+  /**
+   * Optional MCP output JSON Schema. When set, `tools/list` advertises it
+   * and successful `tools/call` results include `structuredContent` equal
+   * to the handler return value. Omitted tools stay byte-identical.
+   */
+  outputSchema?: Record<string, unknown>;
+  /**
+   * Optional text-content projection for JSON-RPC `tools/call`. The
+   * structured value remains the validated handler return value.
+   */
+  contentText?: (output: TOutput) => string;
+  /** Emit the explicit MCP `isError: false` success marker when captured upstream. */
+  includeIsError?: boolean;
 }
 
 /** The JSON-Schema a tool advertises: the declared override, else zod-derived. */
 export function toolInputSchema(tool: Pick<ToolSpec, "schema" | "inputSchema">): Record<string, unknown> {
   return tool.inputSchema ?? (z.toJSONSchema(tool.schema) as Record<string, unknown>);
+}
+
+/**
+ * Optional MCP tool-list fields that must stay absent when unset so existing
+ * GitHub/Slack/Stripe listings remain byte-identical.
+ */
+export function toolListExtras(
+  tool: Pick<ToolSpec, "title" | "outputSchema" | "annotations">
+): Record<string, unknown> {
+  return {
+    ...(tool.title !== undefined ? { title: tool.title } : {}),
+    ...(tool.outputSchema !== undefined ? { outputSchema: tool.outputSchema } : {}),
+    ...(tool.annotations ? { annotations: tool.annotations } : {}),
+  };
 }
 
 export interface TwinFidelity {
@@ -332,6 +366,13 @@ export interface TwinDefinition<
    * Mechanism lives in the engine's `bearerAuth`; this is pure shape.
    */
   auth?: import("./auth.js").BearerAuthOptions;
+  /**
+   * Optional pre-redaction projection applied to every recorded event
+   * before the central secret scrubber. Use to replace large/binary
+   * payloads (e.g. MIME/attachment bytes) with bounded digests. When
+   * unset, recording behavior is unchanged.
+   */
+  recordingProjection?: (event: RecorderEvent) => RecorderEvent;
 }
 
 // ─── Meta-validation ────────────────────────────────────────────────────────
@@ -372,8 +413,10 @@ const toolMeta = z.object({
   handler: z.custom<Function>(isFunction, "tool.handler must be a function"),
   mutation: z.boolean(),
   fidelity: toolFidelityMeta.optional(),
+  title: z.string().min(1).optional(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   inputSchema: z.record(z.string(), z.unknown()).optional(),
+  outputSchema: z.record(z.string(), z.unknown()).optional(),
 });
 
 const adminMeta = z.object({
@@ -416,6 +459,7 @@ const twinMeta = z.object({
   auth: z
     .custom<object>((value) => typeof value === "object" && value !== null, "auth must be an options object")
     .optional(),
+  recordingProjection: z.custom<Function>(isFunction).optional(),
 });
 
 /**

@@ -26,6 +26,7 @@ import { z } from "zod";
 import {
   RESERVED_SESSION_PREFIXES,
   toolInputSchema,
+  toolListExtras,
   type RecorderHandle,
   type ToolSpec,
   type TwinDefinition,
@@ -155,6 +156,7 @@ export function createApp<TDb, TSeed, TDomain>(
     store: options.recorder ?? resolveRecorderStore(),
     errorEnvelope: definition.errorEnvelope,
     stampToolCallId: definition.stampToolCallId,
+    recordingProjection: definition.recordingProjection,
   });
 
   // 4. Boot-time invariant: user routes must not shadow reserved prefixes.
@@ -342,7 +344,7 @@ export function createApp<TDb, TSeed, TDomain>(
         name: tool.name,
         description: tool.description,
         input_schema: toolInputSchema(tool),
-        ...(tool.annotations ? { annotations: tool.annotations } : {}),
+        ...toolListExtras(tool),
       })),
     })
   );

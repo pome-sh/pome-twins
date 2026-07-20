@@ -184,14 +184,86 @@ export const slackSeedStateSchema = z.object({
 });
 export type SlackSeedState = z.infer<typeof slackSeedStateSchema>;
 
+const gmailEmailSchema = z.string().trim().email().transform((value) => value.toLowerCase());
+const gmailIdSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);
+
+const gmailAttachmentSeedSchema = z.object({
+  filename: z.string().max(512),
+  mimeType: z.string().min(1).max(255).default("application/octet-stream"),
+  disposition: z.enum(["attachment", "inline"]).default("attachment"),
+  contentId: z.string().max(998).optional(),
+  data: z.string().max(50_000_000),
+});
+
+const gmailMessageSeedFields = {
+  id: gmailIdSchema.optional(),
+  threadId: gmailIdSchema.optional(),
+  raw: z.string().max(50_000_000).optional(),
+  from: gmailEmailSchema.optional(),
+  to: z.array(gmailEmailSchema).max(500).default([]),
+  cc: z.array(gmailEmailSchema).max(500).default([]),
+  bcc: z.array(gmailEmailSchema).max(500).default([]),
+  subject: z.string().max(998).default(""),
+  text: z.string().max(25_000_000).default(""),
+  html: z.string().max(25_000_000).default(""),
+  date: z.string().datetime({ offset: true }).optional(),
+  messageId: z.string().min(3).max(998).optional(),
+  inReplyTo: z.string().max(998).optional(),
+  references: z.array(z.string().max(998)).max(100).default([]),
+  attachments: z.array(gmailAttachmentSeedSchema).max(100).default([]),
+};
+
+const gmailMailboxSeedSchema = z.object({
+  email: gmailEmailSchema,
+  displayName: z.string().max(256).default(""),
+  labels: z
+    .array(
+      z.object({
+        id: gmailIdSchema.optional(),
+        name: z.string().trim().min(1).max(225),
+        color: z
+          .object({
+            textColor: z.string().max(32).optional(),
+            backgroundColor: z.string().max(32).optional(),
+          })
+          .optional(),
+      }),
+    )
+    .max(5000)
+    .default([]),
+  messages: z
+    .array(
+      z.object({
+        ...gmailMessageSeedFields,
+        labels: z.array(z.string().min(1).max(255)).max(100).default([]),
+      }),
+    )
+    .max(10_000)
+    .default([]),
+  drafts: z.array(z.object(gmailMessageSeedFields)).max(5000).default([]),
+  filters: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
+  forwardingAddresses: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
+  sendAs: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
+});
+
+export const gmailSeedStateSchema = z.object({
+  primaryMailbox: gmailMailboxSeedSchema,
+  mailboxes: z.array(gmailMailboxSeedSchema).max(100).default([]),
+  deliveryMode: z.enum(["sender-only", "seeded-mailboxes"]).default("sender-only"),
+  clock: z.string().datetime({ offset: true }).default("2025-01-01T00:00:00.000Z"),
+});
+export type GmailSeedState = z.infer<typeof gmailSeedStateSchema>;
+
 export const providerScopedSeedStateSchema = z
   .object({
     github: z.object({ seed: githubSeedStateSchema }).optional(),
     stripe: z.object({ seed: stripeSeedStateSchema }).optional(),
     slack: z.object({ seed: slackSeedStateSchema }).optional(),
+    gmail: z.object({ seed: gmailSeedStateSchema }).optional(),
   })
-  .refine((value) => Boolean(value.github || value.stripe || value.slack), {
-    message: "seedState must include github.seed, stripe.seed, slack.seed, or the legacy GitHub seed shape",
+  .refine((value) => Boolean(value.github || value.stripe || value.slack || value.gmail), {
+    message:
+      "seedState must include github.seed, stripe.seed, slack.seed, gmail.seed, or the legacy GitHub seed shape",
   });
 
 // SeedState accepts the legacy GitHub shape and the provider-scoped shape

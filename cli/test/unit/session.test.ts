@@ -53,6 +53,11 @@ const session: CreateSessionResponse = {
       mcp_url: "https://twin.example.com/s/ses_test/slack/mcp",
       openapi_url: "https://twin.example.com/s/ses_test/slack/openapi.json",
     },
+    gmail: {
+      api_url: "https://twin.example.com/s/ses_test/gmail",
+      mcp_url: "https://twin.example.com/s/ses_test/gmail/mcp",
+      openapi_url: "https://twin.example.com/s/ses_test/gmail/openapi.json",
+    },
   },
   provider_credentials: {
     github: {
@@ -245,6 +250,31 @@ describe("runSessionCreate secret output", () => {
       expect(contents).toContain('POME_SLACK_TOKEN="agent_secret_token"');
       expect(contents).not.toContain("slack_secret_token");
       expect(contents).toContain('POME_TWIN_NAMES="github,slack"');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes Gmail endpoints and aliases the session JWT without provider credentials", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "pome-session-gmail-"));
+    const secretsFile = join(dir, "session.env");
+    try {
+      await runSessionCreate({
+        apiBaseUrl: "https://api.example.com",
+        twins: ["gmail"],
+        showSecrets: false,
+        format: "env",
+        secretsFile,
+      });
+      const contents = await readFile(secretsFile, "utf8");
+      expect(contents).toContain(
+        'POME_GMAIL_REST_URL="https://twin.example.com/s/ses_test/gmail"',
+      );
+      expect(contents).toContain(
+        'POME_GMAIL_MCP_URL="https://twin.example.com/s/ses_test/gmail/mcp"',
+      );
+      expect(contents).toContain('POME_GMAIL_TOKEN="agent_secret_token"');
+      expect(session.provider_credentials).not.toHaveProperty("gmail");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

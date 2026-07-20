@@ -39,6 +39,12 @@ import {
   parseSeed as parseStripeSeed,
   StripeDomain,
 } from "@pome-sh/twin-stripe";
+import {
+  createGmailTwinApp,
+  GmailDomain,
+  openGmailTwinDatabase,
+  parseSeed as parseGmailSeed,
+} from "@pome-sh/twin-gmail";
 
 // The account every local Stripe scenario seeds under. The runner mints a JWT
 // whose `account_id` claim matches this, so `exportState` and the session
@@ -57,6 +63,8 @@ export type TwinHarness = {
   /** Extra JWT claims the runner mints into the agent token (e.g. Stripe's
    *  `account_id`, so the token resolves to the account the seed lives in). */
   extraClaims?: Record<string, unknown>;
+  /** Provider-specific bearer alias, when the provider SDK expects one. */
+  tokenEnvName?: string;
   /**
    * Durability barrier for the twin recorder without closing the DB.
    * Call before finalize/merge so pending TwinHttpEvent rows land on disk
@@ -71,7 +79,7 @@ export class UnsupportedTwinError extends Error {
   constructor(public readonly twin: string) {
     super(
       `Self-hosted local runs do not support the '${twin}' twin yet. ` +
-        `Supported: github, slack, stripe.`,
+        `Supported: github, slack, stripe, gmail.`,
     );
     this.name = "UnsupportedTwinError";
   }
@@ -201,6 +209,28 @@ export async function bootTwin(opts: {
         exportState: () => domain.exportState(STRIPE_LOCAL_ACCOUNT_ID),
         events: () => recorder.events(),
         extraClaims: { account_id: STRIPE_LOCAL_ACCOUNT_ID },
+        flush: () => flushRecorder(),
+        close: () => closeRecorderAndDb(() => db.close()),
+      };
+    }
+
+    case "gmail": {
+      const db = openGmailTwinDatabase(":memory:");
+      const seed = parseGmailSeed(opts.seedState);
+      const domain = new GmailDomain(db);
+      const app = createGmailTwinApp({
+        db,
+        seed,
+        recorder,
+        runId: opts.runId,
+      }) as TwinHarness["app"];
+      return {
+        app,
+        envName: "GMAIL",
+        exportState: () => domain.exportState(),
+        events: () => recorder.events(),
+        extraClaims: { gmail_email: seed.primaryMailbox.email },
+        tokenEnvName: "POME_GMAIL_TOKEN",
         flush: () => flushRecorder(),
         close: () => closeRecorderAndDb(() => db.close()),
       };

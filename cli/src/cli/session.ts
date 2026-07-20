@@ -25,9 +25,12 @@ export function ensureMcpSuffix(url: string): string {
 }
 
 // Multi-twin (M3): the CLI's ad-hoc session allowlist is the shared mounted-twin
-// set (github, stripe, slack). Slack is now reachable; repeated `--twin` flags
+// set (github, stripe, slack, gmail). Repeated `--twin` flags
 // stand up a multi-twin session in one call.
-const ALLOWED_TWINS = new Set<string>(MOUNTED_TWINS);
+// Keep the just-added Gmail id explicit during the shared-types 0.10 → 0.11
+// publish window: local development may still resolve the previous installed
+// package, while release tarballs pin 0.11.0 where Gmail is canonical.
+const ALLOWED_TWINS = new Set<string>([...MOUNTED_TWINS, "gmail"]);
 
 function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   const pcIn = res.provider_credentials;
@@ -99,6 +102,10 @@ function formatEnvExport(res: CreateSessionResponse, twins: string[]): string {
       // (same rationale as the Stripe api-key line in the hosted runner). So
       // the agent's Slack bearer is the JWT, not provider_credentials.slack.token.
       lines.push(`export POME_SLACK_TOKEN=${JSON.stringify(res.agent_token)}`);
+    } else if (twin === "gmail") {
+      // Gmail auth remains Pome-owned. The provider alias is the same session
+      // JWT as POME_AUTH_TOKEN; no provider_credentials.gmail is minted.
+      lines.push(`export POME_GMAIL_TOKEN=${JSON.stringify(res.agent_token)}`);
     }
   }
   return `${lines.join("\n")}\n`;

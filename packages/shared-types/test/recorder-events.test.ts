@@ -46,6 +46,7 @@ describe("KNOWN_TWIN_IDS", () => {
   it("contains the V1 canonical first-party twin ids", () => {
     expect(KNOWN_TWIN_IDS).toContain("github");
     expect(KNOWN_TWIN_IDS).toContain("stripe");
+    expect(KNOWN_TWIN_IDS).toContain("gmail");
   });
 });
 

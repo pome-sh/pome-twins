@@ -1,6 +1,6 @@
 # Twin Runtime Contract
 
-**Version 1.1.0** — frozen 2026-07-07 (FDRS-711), boot-secret self-generation added 2026-07-10 (F-708). Verified by the black-box suite in [`contract/`](./contract/).
+**Version 1.2.0** — Gmail contract added 2026-07-20; boot-secret self-generation added 2026-07-10 (F-708). Verified by the black-box suite in [`contract/`](./contract/).
 
 This document enumerates everything pome-cloud (and the pome CLI) may rely on when booting and driving a twin. **Changing any item below is a breaking contract change**: update this document and the suite in the same PR, then open the matching pome-cloud consumer PR that pins and verifies the new signed twin artifact (rule of record: `packages/twin-github/README.md`, runtime-contract section).
 
@@ -16,8 +16,8 @@ This document enumerates everything pome-cloud (and the pome CLI) may rely on wh
 | Variable | Meaning | Default |
 |---|---|---|
 | `PORT` / `<TWIN>_CLONE_PORT` | listen port | `3333` |
-| `GITHUB_CLONE_HOST` / `SLACK_CLONE_HOST` / `STRIPE_CLONE_HOST` | bind host | `127.0.0.1` |
-| `GITHUB_CLONE_DB` / `SLACK_CLONE_DB` / `STRIPE_CLONE_DB` | SQLite path or `:memory:` | `.<twin>_clone/<twin>.db` |
+| `GITHUB_CLONE_HOST` / `SLACK_CLONE_HOST` / `STRIPE_CLONE_HOST` / `GMAIL_TWIN_HOST` | bind host | `127.0.0.1` |
+| `GITHUB_CLONE_DB` / `SLACK_CLONE_DB` / `STRIPE_CLONE_DB` / `GMAIL_TWIN_DB` | SQLite path or `:memory:` | twin-specific data path |
 | `<TWIN>_CLONE_NO_SEED=1` | skip the default seed at boot | seed applied |
 | `POME_SEED_JSON` | cloud-supplied seed applied at boot (FDRS-353) | default seed |
 | `TWIN_AUTH_SECRET` | HS256 secret for session JWTs + provider-shaped tokens; env always wins | dev-only fallback on loopback; self-generated + persisted on non-loopback hosts (F-708); **required** in production |
@@ -26,6 +26,7 @@ This document enumerates everything pome-cloud (and the pome CLI) may rely on wh
 | `POME_RUN_ID` | recorder run id stamped on events | `"spawn"` |
 | `POME_TWIN_VERSION` / `POME_TWIN_GIT_SHA` / `POME_TWIN_BUILD_TIME` | `/healthz` `runtime` block | `0.1.0` / `dev` / `dev` |
 | `SLACK_DETERMINISTIC_TS` | deterministic Slack message timestamps | — |
+| `GMAIL_TWIN_PORT` / `GMAIL_TWIN_NO_SEED=1` | Gmail port / skip default seed | `3336` / seed applied |
 | `NODE_ENV=production` | strict secret requirement; admin gate denies unknown peer addresses | — |
 
 ## Control plane (all twins)
@@ -74,10 +75,33 @@ Probed against the pre-engine builds (`3cd86eb`); the contract suite asserts eve
 | `/_pome/state` fetches on the recorder tape | never | never | never |
 | `/admin/seed` on the recorder tape | recorded, `state_delta: null` | recorded, `state_delta: null` | not recorded |
 
+### Gmail 1.2.0 pins
+
+- Packaged entry: `packages/twin-gmail/dist/src/server.js`; `GET /healthz`
+  must answer within the shared three-second bound with `twin: "gmail"`,
+  `implementation: "gmail_twin"`, `fidelity: "semantic"`, and `tools: 10`.
+- Session identity is the normalized `gmail_email` JWT claim. Missing claims
+  default locally to `pome-agent@pome-twin.test`; hosted issuers must mint the
+  claim. `POME_GMAIL_TOKEN` is an alias of `POME_AUTH_TOKEN`. There is no
+  `provider_credentials.gmail` contract.
+- Auth failures and SID mismatches use Gmail's
+  `error.status: "UNAUTHENTICATED"` envelope. Raw prefix-less JWTs are rejected.
+- `POST /admin/seed` strictly validates the Gmail seed and records one
+  `{before,after}` aggregate state delta. Invalid/form/malformed JSON bodies use
+  `INVALID_ARGUMENT`.
+- `GET /s/:sid/_pome/health` has exactly
+  `fidelity, ok, twin, version`; `GET /s/:sid/healthz` is enabled.
+- MCP advertises exactly the captured ten launch tools. Legacy unknown-tool
+  calls return 404 `NOT_FOUND`; strict alias/form/malformed bodies return 400
+  `INVALID_ARGUMENT`.
+- Unknown session routes return 501 `UNIMPLEMENTED`; unknown root routes return
+  404. `users.watch`, `users.stop`, resumable uploads, forwarding delivery,
+  Calendar processing, and deleted writes remain loud no-side-effect 501 gaps.
+
 ## Verifying
 
 ```
 npm run test:contract
 ```
 
-builds the shared-types runtime + the three twins, then runs `node --test contract/contract.test.mjs`. The suite is dependency-free (node:test, global fetch, node:crypto) so the same file can be pointed at any built twin artifact — including a cloud-built snapshot (FDRS-714).
+builds the shared-types runtime + all four first-party twins, then runs `node --test contract/contract.test.mjs`. The suite is dependency-free (node:test, global fetch, node:crypto) so the same file can be pointed at any built twin artifact — including a cloud-built snapshot (FDRS-714).
