@@ -51,6 +51,34 @@ describe("gmailSeedStateSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("accepts structured filters and rejects action.forward", () => {
+    expect(
+      gmailSeedStateSchema.safeParse({
+        primaryMailbox: {
+          ...mailbox,
+          filters: [
+            {
+              criteria: { subject: "Invoice", query: "from:billing@example.com" },
+              action: { addLabelIds: ["STARRED"], removeLabelIds: [] },
+            },
+          ],
+        },
+      }).success,
+    ).toBe(true);
+    const forwarded = gmailSeedStateSchema.safeParse({
+      primaryMailbox: {
+        ...mailbox,
+        filters: [
+          {
+            criteria: { subject: "Forward me" },
+            action: { addLabelIds: [], removeLabelIds: [], forward: "other@example.com" },
+          },
+        ],
+      },
+    });
+    expect(forwarded.success).toBe(false);
+  });
 });
 
 describe("Gmail tolerant readers", () => {

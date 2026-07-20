@@ -213,6 +213,42 @@ const gmailMessageSeedFields = {
   attachments: z.array(gmailAttachmentSeedSchema).max(100).default([]),
 };
 
+/** Aligns with twin-gmail `seed.ts` filter shape; query AST is validated at twin parse time. */
+const gmailFilterSeedSchema = z
+  .object({
+    id: gmailIdSchema.optional(),
+    criteria: z
+      .object({
+        from: z.string().max(998).optional(),
+        to: z.string().max(998).optional(),
+        subject: z.string().max(998).optional(),
+        query: z.string().max(4096).optional(),
+        negatedQuery: z.string().max(4096).optional(),
+        hasAttachment: z.boolean().optional(),
+        excludeChats: z.boolean().optional(),
+        size: z.number().int().nonnegative().optional(),
+        sizeComparison: z.enum(["larger", "smaller"]).optional(),
+      })
+      .default({}),
+    action: z
+      .object({
+        addLabelIds: z.array(z.string().min(1)).max(100).default([]),
+        removeLabelIds: z.array(z.string().min(1)).max(100).default([]),
+        /** Twin rejects filter forwarding (no delivery); keep field for drift detection. */
+        forward: gmailEmailSchema.optional(),
+      })
+      .default({ addLabelIds: [], removeLabelIds: [] }),
+  })
+  .superRefine((filter, ctx) => {
+    if (filter.action.forward) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Filter forwarding is unsupported",
+        path: ["action", "forward"],
+      });
+    }
+  });
+
 const gmailMailboxSeedSchema = z.object({
   email: gmailEmailSchema,
   displayName: z.string().max(256).default(""),
@@ -241,7 +277,7 @@ const gmailMailboxSeedSchema = z.object({
     .max(10_000)
     .default([]),
   drafts: z.array(z.object(gmailMessageSeedFields)).max(5000).default([]),
-  filters: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
+  filters: z.array(gmailFilterSeedSchema).max(1000).default([]),
   forwardingAddresses: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
   sendAs: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
 });
