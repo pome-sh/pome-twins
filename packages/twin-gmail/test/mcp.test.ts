@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sign } from "hono/jwt";
-import { createRecorderStore } from "@pome-sh/sdk/server";
+import { createFileBackedRecorderStore, createRecorderStore } from "@pome-sh/sdk/server";
 import canonicalListing from "../fixtures/mcp-tools-list.canonical.json" with { type: "json" };
 import {
   createGmailTwinApp,
@@ -244,6 +247,61 @@ describe("Gmail MCP frozen contract", () => {
     ).json()) as { error: { code: number } };
     expect(invalidRpc.error.code).toBe(-32602);
   });
+
+  it("keeps MIME snippet canaries out of /_pome/events and durable tape", async () => {
+    const canary = "MCP-SNIPPET-MIME-CANARY-9f3a";
+    const dir = mkdtempSync(join(tmpdir(), "gmail-mcp-tape-"));
+    const tapePath = join(dir, "events.jsonl");
+    const recorder = createFileBackedRecorderStore({ path: tapePath, fsync: false });
+    try {
+      const app = createGmailTwinApp({
+        seed: {
+          ...seed(),
+          primaryMailbox: {
+            ...seed().primaryMailbox,
+            messages: [
+              {
+                id: "msg_canary",
+                threadId: "thread_canary",
+                from: "alice@example.com",
+                to: [email],
+                subject: "Canary subject",
+                text: `Hello ${canary} world`,
+                date: "2026-07-19T12:00:00.000Z",
+                messageId: "canary@example.com",
+                labels: ["INBOX", "UNREAD"],
+              },
+            ],
+          },
+        },
+        recorder,
+        runId: "run_snippet_canary",
+      });
+
+      const listed = await call(app, 1, "search_threads", { query: "in:inbox" });
+      expect(listed.result.isError).toBe(false);
+      const listedText = JSON.stringify(listed.result);
+      expect(listedText).toContain(canary);
+
+      const got = await call(app, 2, "get_thread", { threadId: "thread_canary" });
+      expect(got.result.isError).toBe(false);
+      expect(JSON.stringify(got.result)).toContain(canary);
+
+      const eventsRes = await app.request(`${base}/_pome/events`, withAuth());
+      expect(eventsRes.status).toBe(200);
+      const eventsJson = await eventsRes.text();
+      expect(eventsJson).not.toContain(canary);
+
+      await recorder.flush?.();
+      const durable = readFileSync(tapePath, "utf8");
+      expect(durable).not.toContain(canary);
+      expect(JSON.stringify(recorder.events())).not.toContain(canary);
+    } finally {
+      await recorder.close?.();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
 });
 
 describe("MCP page tokens", () => {

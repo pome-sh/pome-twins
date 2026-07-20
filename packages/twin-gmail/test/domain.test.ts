@@ -164,10 +164,14 @@ describe("Gmail domain", () => {
   it("projects MIME and attachment payloads before recording", () => {
     const event = {
       request_body: { raw: Buffer.from("secret mime").toString("base64url"), attachmentData: "YmluYXJ5" },
-      response_body: { plaintextBody: "MIME-CANARY-plaintext", html: "<p>MIME-CANARY-html</p>" },
+      response_body: {
+        plaintextBody: "MIME-CANARY-plaintext",
+        html: "<p>MIME-CANARY-html</p>",
+        snippet: "MIME-CANARY-snippet",
+      },
       state_delta: {
         before: null,
-        after: { messages: [{ id: "m1", text: "MIME-CANARY-delta", html: "<b>x</b>" }] },
+        after: { messages: [{ id: "m1", text: "MIME-CANARY-delta", html: "<b>x</b>", snippet: "MIME-CANARY-delta-snip" }] },
       },
       error: null,
     } as unknown as RecorderEvent;
@@ -179,6 +183,9 @@ describe("Gmail domain", () => {
       raw: { sha256: expect.any(String), size: 11 },
       attachmentData: { sha256: expect.any(String), size: 6 },
     });
+    expect(projected.response_body).toMatchObject({
+      snippet: { sha256: expect.any(String), size: "MIME-CANARY-snippet".length },
+    });
   });
 
   it("emits bounded state_delta summaries without plaintext bodies", () => {
@@ -187,22 +194,25 @@ describe("Gmail domain", () => {
     const canary = "STATE-DELTA-MIME-CANARY";
     gmail.insertMessage(sender, raw("Delta", canary));
     const delta = gmailStateDelta(before, gmail.exportState());
+    expect(delta).not.toBeNull();
     const tape = JSON.stringify(delta);
     expect(tape).not.toContain(canary);
-    for (const message of [...(delta.before?.messages ?? []), ...(delta.after?.messages ?? [])]) {
+    for (const message of [...(delta!.before?.messages ?? []), ...(delta!.after?.messages ?? [])]) {
       expect(message).not.toHaveProperty("text");
       expect(message).not.toHaveProperty("html");
       expect(message).not.toHaveProperty("snippet");
       expect(message).toMatchObject({ bodyOmitted: true });
     }
-    expect(delta.after?.messages).toEqual(
+    expect(delta!.after?.messages).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ subject: "Delta", bodyOmitted: true }),
       ])
     );
-    expect(delta.before?.messages ?? []).toEqual([]);
+    expect(delta!.before?.messages ?? []).toEqual([]);
   });
 
+  
+  
   it("maps category:primary and rejects unknown search operators", () => {
     const { gmail } = domain();
     const message = gmail.insertMessage(sender, raw("Category"));

@@ -18,6 +18,8 @@ const BODY_KEYS = new Set([
   "htmlbody",
   "plaintextbody",
   "body",
+  // Body-derived list/get fields (REST/MCP project up to 200 chars of body text).
+  "snippet",
 ]);
 
 export function projectGmailRecording(event: RecorderEvent): RecorderEvent {

@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { sign } from "hono/jwt";
+import { createFileBackedRecorderStore } from "@pome-sh/sdk/server";
 import {
   composeMime,
   createGmailTwinApp,
@@ -288,4 +292,57 @@ describe("Gmail REST routes", () => {
       ).status
     ).toBe(501);
   });
+
+  it("keeps REST snippet canaries out of /_pome/events and durable tape", async () => {
+    const canary = "REST-SNIPPET-MIME-CANARY-7c2b";
+    const dir = mkdtempSync(join(tmpdir(), "gmail-rest-tape-"));
+    const tapePath = join(dir, "events.jsonl");
+    const recorder = createFileBackedRecorderStore({ path: tapePath, fsync: false });
+    try {
+      const db = openGmailTwinDatabase(":memory:");
+      const app = createGmailTwinApp({ db, seed: seed(), recorder, runId: "rest-snippet-canary" });
+      const request = async (path: string, init: RequestInit = {}) =>
+        app.request(`/s/${SID}${path}`, {
+          ...init,
+          headers: { authorization: `Bearer ${token}`, ...init.headers },
+        });
+
+      const created = await json(
+        await request("/gmail/v1/users/me/messages", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            raw: encodeGmailRaw(
+              composeMime({
+                from: EMAIL,
+                to: ["recipient@example.test"],
+                subject: "Canary",
+                text: `body with ${canary}`,
+                date: "2025-01-01T12:00:00.000Z",
+                messageId: "rest-canary@test",
+              })
+            ),
+          }),
+        })
+      );
+      expect(created.snippet).toContain(canary);
+
+      const fetched = await json(
+        await request(`/gmail/v1/users/me/messages/${created.id}?format=minimal`)
+      );
+      expect(fetched.snippet).toContain(canary);
+
+      const eventsRes = await request("/_pome/events");
+      expect(eventsRes.status).toBe(200);
+      const eventsText = await eventsRes.text();
+      expect(eventsText).not.toContain(canary);
+
+      await recorder.flush?.();
+      expect(readFileSync(tapePath, "utf8")).not.toContain(canary);
+    } finally {
+      await recorder.close?.();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
 });
