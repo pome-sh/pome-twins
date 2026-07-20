@@ -38,13 +38,13 @@
     "zod": "^4.1.13"
   },
   "peerDependencies": {
-    "@hono/node-server": "^2.0.8"
+    "@hono/node-server": "^2.0.10"
   },
   "peerDependenciesMeta": {
     "@hono/node-server": { "optional": true }
   },
   "devDependencies": {
-    "@hono/node-server": "^2.0.8",
+    "@hono/node-server": "^2.0.10",
     "@types/node": "^26.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
