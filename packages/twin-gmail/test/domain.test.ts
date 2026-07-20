@@ -214,6 +214,25 @@ describe("Gmail domain", () => {
     );
   });
 
+  it("joins replies onto threads via In-Reply-To / References", () => {
+    const { gmail } = domain();
+    const parent = gmail.insertMessage(sender, raw("Thread join", "parent", { messageId: "parent@test" }));
+    const reply = gmail.insertMessage(
+      sender,
+      composeMime({
+        from: recipient,
+        to: [sender],
+        subject: "Re: Thread join",
+        text: "reply",
+        date: "2025-01-01T13:00:00.000Z",
+        messageId: "reply@test",
+        inReplyTo: "parent@test",
+        references: ["parent@test"],
+      })
+    );
+    expect(reply.threadId).toBe(parent.threadId);
+  });
+
   it("records history for filter-applied label changes", () => {
     const { gmail } = domain();
     gmail.seed({

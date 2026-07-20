@@ -263,17 +263,22 @@ function resolveThread(
   subject: string,
   references: string[]
 ): string {
-  const candidates = references.length
+  const uniqueRefs = [...new Set(references.filter(Boolean))];
+  const candidates = uniqueRefs.length
     ? (db
         .prepare(
           `SELECT thread_id, normalized_subject, rfc_message_id
-           FROM messages WHERE mailbox_id = ? ORDER BY internal_date DESC`
+           FROM messages
+           WHERE mailbox_id = ? AND rfc_message_id IN (${uniqueRefs.map(() => "?").join(", ")})
+           ORDER BY internal_date DESC`
         )
-        .all(mailboxId) as Array<{ thread_id: string; normalized_subject: string; rfc_message_id: string }>)
+        .all(mailboxId, ...uniqueRefs) as Array<{
+        thread_id: string;
+        normalized_subject: string;
+        rfc_message_id: string;
+      }>)
     : [];
-  const referenced = candidates.find(
-    (candidate) => candidate.normalized_subject === subject && references.includes(candidate.rfc_message_id)
-  );
+  const referenced = candidates.find((candidate) => candidate.normalized_subject === subject);
   if (requested) {
     const owned = db.prepare("SELECT 1 FROM threads WHERE mailbox_id = ? AND id = ?").get(mailboxId, requested);
     if (owned && referenced?.thread_id === requested) return requested;
