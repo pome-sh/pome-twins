@@ -12,7 +12,7 @@
 // production install (`npm ci --omit=dev`) or a published artifact.
 // Run against a root whose `npm ci` has already populated node_modules —
 // marker inspection needs the unpacked package on disk.
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,10 +58,37 @@ export async function findNativeModules(root) {
     } catch {
       // Unreadable manifest: binding.gyp check above still applies.
     }
+    // Packaged native addons sometimes ship prebuilt `.node` binaries without
+    // a binding.gyp in the published tarball — treat those as native too.
+    if (hasPackagedNodeBinary(pkgDir)) markers.push("packaged .node binary");
     if (markers.length > 0) offenders.push({ path, markers });
   }
 
   return { offenders, checked, skippedOptional };
+}
+
+function hasPackagedNodeBinary(pkgDir) {
+  // Shallow walk: package root + one level of subdirs (covers common
+  // prebuild/lib layouts without scanning deep trees).
+  const stack = [pkgDir];
+  let visited = 0;
+  while (stack.length > 0 && visited < 64) {
+    const dir = stack.pop();
+    visited += 1;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+      const abs = join(dir, entry.name);
+      if (entry.isFile() && entry.name.endsWith(".node")) return true;
+      if (entry.isDirectory() && dir === pkgDir) stack.push(abs);
+    }
+  }
+  return false;
 }
 
 // Run as a script (not when imported by the test).

@@ -107,4 +107,14 @@ describe("no-native-modules gate (F-705)", () => {
     expect(offenders).toEqual([]);
     expect(checked).toBe(0);
   });
+
+  it("flags a production package that ships a packaged .node binary", async () => {
+    const root = await makeRoot([{ path: "node_modules/prebuilt-addon" }]);
+    await mkdir(join(root, "node_modules/prebuilt-addon/lib"), { recursive: true });
+    await writeFile(join(root, "node_modules/prebuilt-addon/lib/addon.node"), "");
+    const { offenders } = await findNativeModules(root);
+    expect(offenders).toEqual([
+      { path: "node_modules/prebuilt-addon", markers: ["packaged .node binary"] },
+    ]);
+  });
 });
