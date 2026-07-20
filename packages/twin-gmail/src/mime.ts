@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { invalidArgument } from "./errors.js";
 import { createHash } from "node:crypto";
 import type { SeedAttachment } from "./types.js";
 
@@ -50,15 +51,15 @@ const MAX_DEPTH = 20;
 
 export function canonicalRaw(input: Uint8Array | string): Buffer {
   const raw = typeof input === "string" ? Buffer.from(input, "utf8") : Buffer.from(input);
-  if (raw.length === 0) throw new Error("MIME message is empty");
-  if (raw.length > MAX_RAW_BYTES) throw new Error(`MIME message exceeds ${MAX_RAW_BYTES} bytes`);
+  if (raw.length === 0) invalidArgument("MIME message is empty");
+  if (raw.length > MAX_RAW_BYTES) invalidArgument(`MIME message exceeds ${MAX_RAW_BYTES} bytes`);
   return raw;
 }
 
 export function decodeGmailRaw(input: string): Buffer {
-  if (!/^[A-Za-z0-9_-]*={0,2}$/.test(input)) throw new Error("Invalid base64url MIME");
+  if (!/^[A-Za-z0-9_-]*={0,2}$/.test(input)) invalidArgument("Invalid base64url MIME");
   const raw = Buffer.from(input, "base64url");
-  if (raw.toString("base64url") !== input.replace(/=+$/, "")) throw new Error("Invalid base64url MIME");
+  if (raw.toString("base64url") !== input.replace(/=+$/, "")) invalidArgument("Invalid base64url MIME");
   return canonicalRaw(raw);
 }
 
@@ -184,8 +185,8 @@ function splitHeadBody(raw: Buffer): { head: Buffer; body: Buffer; separator: st
     index = raw.indexOf(Buffer.from("\n\n"));
     separator = "\n\n";
   }
-  if (index < 0) throw new Error("Malformed MIME: missing header/body separator");
-  if (index > MAX_HEADER_BYTES) throw new Error("MIME headers exceed limit");
+  if (index < 0) invalidArgument("Malformed MIME: missing header/body separator");
+  if (index > MAX_HEADER_BYTES) invalidArgument("MIME headers exceed limit");
   return { head: raw.subarray(0, index), body: raw.subarray(index + separator.length), separator };
 }
 
@@ -194,18 +195,18 @@ function parseHeaders(raw: Buffer): Array<{ name: string; value: string }> {
   const unfolded: string[] = [];
   for (const line of lines) {
     if (/^[ \t]/.test(line)) {
-      if (!unfolded.length) throw new Error("Malformed folded MIME header");
+      if (!unfolded.length) invalidArgument("Malformed folded MIME header");
       unfolded[unfolded.length - 1] += ` ${line.trim()}`;
     } else {
       unfolded.push(line);
     }
   }
-  if (unfolded.length > MAX_HEADERS) throw new Error("MIME header count exceeds limit");
+  if (unfolded.length > MAX_HEADERS) invalidArgument("MIME header count exceeds limit");
   return unfolded.map((line) => {
     const colon = line.indexOf(":");
-    if (colon <= 0) throw new Error("Malformed MIME header");
+    if (colon <= 0) invalidArgument("Malformed MIME header");
     const name = line.slice(0, colon).trim();
-    if (!/^[!-9;-~]+$/.test(name)) throw new Error("Malformed MIME header name");
+    if (!/^[!-9;-~]+$/.test(name)) invalidArgument("Malformed MIME header name");
     return { name, value: line.slice(colon + 1).trim() };
   });
 }
@@ -217,10 +218,10 @@ function parsePart(
   state: { parts: number; text: string[]; html: string[]; attachments: ParsedAttachment[] },
   depth: number
 ): void {
-  if (depth > MAX_DEPTH || ++state.parts > MAX_PARTS) throw new Error("MIME nesting/part limit exceeded");
+  if (depth > MAX_DEPTH || ++state.parts > MAX_PARTS) invalidArgument("MIME nesting/part limit exceeded");
   if (contentType.type.startsWith("multipart/")) {
     const boundary = contentType.params.boundary;
-    if (!boundary) throw new Error("Multipart MIME missing boundary");
+    if (!boundary) invalidArgument("Multipart MIME missing boundary");
     for (const child of splitMultipart(body, boundary)) {
       const split = splitHeadBody(child);
       const childHeaders = parseHeaders(split.head);
@@ -258,7 +259,7 @@ function splitMultipart(body: Buffer, boundary: string): Buffer[] {
   const text = body.toString("latin1");
   const marker = `--${boundary}`;
   const pieces = text.split(marker);
-  if (pieces.length < 3) throw new Error("Malformed multipart boundary");
+  if (pieces.length < 3) invalidArgument("Malformed multipart boundary");
   const out: Buffer[] = [];
   for (const piece of pieces.slice(1)) {
     if (piece.startsWith("--")) break;
@@ -368,7 +369,7 @@ function foldBase64(value: string): string {
 }
 
 function validateHeader(value: string): void {
-  if (/[\r\n\0]/.test(value)) throw new Error("Header injection rejected");
+  if (/[\r\n\0]/.test(value)) invalidArgument("Header injection rejected");
 }
 
 function bracket(value: string): string {

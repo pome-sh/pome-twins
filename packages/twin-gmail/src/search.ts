@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { invalidArgument } from "./errors.js";
 
 export type SearchNode =
   | { type: "and"; children: SearchNode[] }
@@ -106,11 +107,11 @@ export function validateSearchQuery(query: string): SearchNode {
 function assertSearchTerm(field: string | undefined, value: string): void {
   if (!field) return;
   if (!KNOWN_FIELDS.has(field)) {
-    throw new Error(`Unsupported search operator: ${field}`);
+    invalidArgument(`Unsupported search operator: ${field}`);
   }
   if (field === "category") {
     if (!CATEGORY_LABELS[value.toLocaleLowerCase("en-US")]) {
-      throw new Error(`Unsupported search category: ${value}`);
+      invalidArgument(`Unsupported search category: ${value}`);
     }
     return;
   }
@@ -132,14 +133,14 @@ function assertSearchTerm(field: string | undefined, value: string): void {
 }
 
 export function parseSearchQuery(query: string): SearchNode {
-  if (Buffer.byteLength(query) > MAX_QUERY_BYTES) throw new Error("Search query exceeds limit");
+  if (Buffer.byteLength(query) > MAX_QUERY_BYTES) invalidArgument("Search query exceeds limit");
   const tokens = tokenize(query);
-  if (tokens.length > MAX_TOKENS) throw new Error("Search query has too many tokens");
+  if (tokens.length > MAX_TOKENS) invalidArgument("Search query has too many tokens");
   if (tokens.length === 0) return { type: "and", children: [] };
   let position = 0;
 
   const parseExpression = (depth: number, stop?: string): SearchNode => {
-    if (depth > MAX_DEPTH) throw new Error("Search query nesting exceeds limit");
+    if (depth > MAX_DEPTH) invalidArgument("Search query nesting exceeds limit");
     const alternatives: SearchNode[] = [];
     let conjunction: SearchNode[] = [];
     const flush = () => {
@@ -151,7 +152,7 @@ export function parseSearchQuery(query: string): SearchNode {
       if (stop && token.value === stop) break;
       if (token.value.toUpperCase() === "OR") {
         position++;
-        if (!conjunction.length) throw new Error("OR requires a left expression");
+        if (!conjunction.length) invalidArgument("OR requires a left expression");
         flush();
         continue;
       }
@@ -171,17 +172,17 @@ export function parseSearchQuery(query: string): SearchNode {
     if (token.value === "(" || token.value === "{") {
       const end = token.value === "(" ? ")" : "}";
       const child = parseExpression(depth, end);
-      if (tokens[position]?.value !== end) throw new Error(`Unclosed ${token.value}`);
+      if (tokens[position]?.value !== end) invalidArgument(`Unclosed ${token.value}`);
       position++;
       return token.value === "{" ? makeImplicitOr(child) : child;
     }
-    if (token.value === ")" || token.value === "}") throw new Error(`Unexpected ${token.value}`);
+    if (token.value === ")" || token.value === "}") invalidArgument(`Unexpected ${token.value}`);
     let value = token.value;
     let negate = false;
     if (value === "-") {
       negate = true;
       const next = tokens[position++];
-      if (!next) throw new Error("Negation requires an expression");
+      if (!next) invalidArgument("Negation requires an expression");
       position--;
       const child = parsePrimary(depth + 1);
       return { type: "not", child };
@@ -197,7 +198,7 @@ export function parseSearchQuery(query: string): SearchNode {
       const distance = Number(tokens[position++]?.value);
       const right = tokens[position++]?.value;
       if (!Number.isInteger(distance) || distance < 1 || distance > 100 || !right) {
-        throw new Error("AROUND requires a distance and right term");
+        invalidArgument("AROUND requires a distance and right term");
       }
       const node: SearchNode = { type: "around", left: value, right, distance };
       return negate ? { type: "not", child: node } : node;
@@ -223,7 +224,7 @@ export function parseSearchQuery(query: string): SearchNode {
   };
 
   const parseFieldGroup = (field: string, depth: number): SearchNode => {
-    if (depth > MAX_DEPTH) throw new Error("Search query nesting exceeds limit");
+    if (depth > MAX_DEPTH) invalidArgument("Search query nesting exceeds limit");
     const opening = tokens[position++]!.value;
     const end = opening === "(" ? ")" : "}";
     const groups: SearchNode[][] = [[]];
@@ -234,7 +235,7 @@ export function parseSearchQuery(query: string): SearchNode {
         continue;
       }
       if (token.value.toUpperCase() === "AND") continue;
-      if (["(", "{", ")", "}"].includes(token.value)) throw new Error("Nested field groups are unsupported");
+      if (["(", "{", ")", "}"].includes(token.value)) invalidArgument("Nested field groups are unsupported");
       let value = token.value;
       let negate = false;
       if (value.startsWith("-")) {
@@ -244,7 +245,7 @@ export function parseSearchQuery(query: string): SearchNode {
       const term: SearchNode = { type: "term", field, value, exact: token.quoted };
       groups.at(-1)!.push(negate ? { type: "not", child: term } : term);
     }
-    if (tokens[position]?.value !== end) throw new Error(`Unclosed ${opening}`);
+    if (tokens[position]?.value !== end) invalidArgument(`Unclosed ${opening}`);
     position++;
     const nodes = groups.map((children) =>
       children.length === 1 ? children[0]! : ({ type: "and", children } satisfies SearchNode)
@@ -254,8 +255,8 @@ export function parseSearchQuery(query: string): SearchNode {
   };
 
   const root = parseExpression(0);
-  if (position !== tokens.length) throw new Error("Unexpected search token");
-  if (countBranches(root) > MAX_BRANCHES) throw new Error("Search query has too many branches");
+  if (position !== tokens.length) invalidArgument("Unexpected search token");
+  if (countBranches(root) > MAX_BRANCHES) invalidArgument("Search query has too many branches");
   return root;
 }
 
@@ -312,7 +313,7 @@ function matchesTerm(
   const contains = (candidate: string) => matchText(candidate, value, exact);
   if (!field) return contains(searchable(document));
   if (!KNOWN_FIELDS.has(field)) {
-    throw new Error(`Unsupported search operator: ${field}`);
+    invalidArgument(`Unsupported search operator: ${field}`);
   }
   if (field === "from") return contains(document.from);
   if (field === "to") return document.to.some(contains);
@@ -339,12 +340,12 @@ function matchesTerm(
   if (field === "in") return matchesFolder(value, document);
   if (field === "is") return matchesStatus(value, document);
   if (field === "has") return matchesHas(value, document);
-  throw new Error(`Unsupported search operator: ${field}`);
+  invalidArgument(`Unsupported search operator: ${field}`);
 }
 
 function matchesCategory(value: string, document: SearchDocument): boolean {
   const mapped = CATEGORY_LABELS[value.toLocaleLowerCase("en-US")];
-  if (!mapped) throw new Error(`Unsupported search category: ${value}`);
+  if (!mapped) invalidArgument(`Unsupported search category: ${value}`);
   return hasLabel(document, mapped);
 }
 
@@ -367,7 +368,7 @@ function matchesStatus(value: string, document: SearchDocument): boolean {
 function assertHasOperator(value: string): void {
   const normalized = value.toLocaleLowerCase("en-US");
   if (normalized.endsWith("-star")) {
-    throw new Error(
+    invalidArgument(
       `Unsupported colored-star operator: has:${value}; twin maps only STARRED via is:starred`
     );
   }
@@ -444,20 +445,20 @@ function matchesAround(text: string, left: string, right: string, distance: numb
 function parseDate(value: string): number {
   const normalized = /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(value) ? value.replaceAll("/", "-") : value;
   const date = Date.parse(`${normalized}${/^\d{4}-\d/.test(normalized) ? "T00:00:00Z" : ""}`);
-  if (Number.isNaN(date)) throw new Error(`Invalid search date: ${value}`);
+  if (Number.isNaN(date)) invalidArgument(`Invalid search date: ${value}`);
   return date;
 }
 
 function parseDuration(value: string): number {
   const match = value.match(/^(\d+)([dmy])$/i);
-  if (!match) throw new Error(`Invalid search duration: ${value}`);
+  if (!match) invalidArgument(`Invalid search duration: ${value}`);
   const units = { d: 86_400_000, m: 30 * 86_400_000, y: 365 * 86_400_000 } as const;
   return Number(match[1]) * units[match[2]!.toLowerCase() as keyof typeof units];
 }
 
 function parseSize(value: string): number {
   const match = value.match(/^(\d+(?:\.\d+)?)([kmg])?$/i);
-  if (!match) throw new Error(`Invalid search size: ${value}`);
+  if (!match) invalidArgument(`Invalid search size: ${value}`);
   const scale = { k: 1024, m: 1024 ** 2, g: 1024 ** 3 } as const;
   return Math.floor(Number(match[1]) * (match[2] ? scale[match[2].toLowerCase() as keyof typeof scale] : 1));
 }
@@ -486,7 +487,7 @@ function tokenize(query: string): Token[] {
           if (query[index] === "\\" && index + 1 < query.length) index++;
           value += query[index++]!;
         }
-        if (query[index] !== '"') throw new Error("Unclosed search quote");
+        if (query[index] !== '"') invalidArgument("Unclosed search quote");
         index++;
       } else {
         value += query[index++]!;
