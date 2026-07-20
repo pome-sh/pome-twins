@@ -101,7 +101,7 @@ const implementations: Record<ToolName, ToolImplementation> = {
             input.view === "DRAFT_VIEW_METADATA_ONLY"
           )
         ),
-        nextPageToken: page.nextPageToken,
+        ...(page.nextPageToken ? { nextPageToken: page.nextPageToken } : {}),
       };
     },
   },
@@ -138,7 +138,7 @@ const implementations: Record<ToolName, ToolImplementation> = {
             input.view === "THREAD_VIEW_METADATA_ONLY" ? "metadata" : "minimal"
           )
         ),
-        nextPageToken: page.nextPageToken,
+        ...(page.nextPageToken ? { nextPageToken: page.nextPageToken } : {}),
       };
     },
   },
@@ -161,7 +161,7 @@ const implementations: Record<ToolName, ToolImplementation> = {
       );
       return {
         labels: page.items.map(labelResult),
-        nextPageToken: page.nextPageToken,
+        ...(page.nextPageToken ? { nextPageToken: page.nextPageToken } : {}),
       };
     },
   },
@@ -359,7 +359,7 @@ function paginate<T>(
   requestedSize: number | undefined,
   token: string | undefined,
   filter: Record<string, unknown>
-): { items: T[]; nextPageToken: string } {
+): { items: T[]; nextPageToken?: string } {
   const size = requestedSize ?? 20;
   const snapshot = domain.currentHistoryIdFor(email);
   const binding = normalizeListBinding(route, email, filter);
@@ -369,8 +369,9 @@ function paginate<T>(
   const nextOffset = offset + page.length;
   return {
     items: page,
-    nextPageToken:
-      nextOffset < items.length ? encodePageToken(nextOffset, binding, snapshot) : "",
+    ...(nextOffset < items.length
+      ? { nextPageToken: encodePageToken(nextOffset, binding, snapshot) }
+      : {}),
   };
 }
 

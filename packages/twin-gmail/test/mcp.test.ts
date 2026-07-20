@@ -199,8 +199,8 @@ describe("Gmail MCP frozen contract", () => {
     });
     expect(responses[3]!.result.structuredContent).toMatchObject({
       threads: [{ id: "thread_seed" }],
-      nextPageToken: "",
     });
+    expect(responses[3]!.result.structuredContent).not.toHaveProperty("nextPageToken");
     expect(responses[9]!.result.structuredContent).toMatchObject({
       name: "Projects/Alpha",
       threadsTotal: 0,

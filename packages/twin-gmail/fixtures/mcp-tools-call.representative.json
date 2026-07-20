@@ -56,7 +56,7 @@
           "content": [
             {
               "type": "text",
-              "text": "{\"threads\": [{\"id\": \"thread_pome_001\", \"messages\": [{\"id\": \"msg_pome_001\", \"snippet\": \"Synthetic unread snippet\", \"subject\": \"Hello from pome-twin\", \"sender\": \"alice@example.com\", \"toRecipients\": [\"pome-agent@pome-twin.test\"], \"ccRecipients\": [], \"date\": \"2026-07-20\"}]}], \"nextPageToken\": \"\"}"
+              "text": "{\"threads\": [{\"id\": \"thread_pome_001\", \"messages\": [{\"id\": \"msg_pome_001\", \"snippet\": \"Synthetic unread snippet\", \"subject\": \"Hello from pome-twin\", \"sender\": \"alice@example.com\", \"toRecipients\": [\"pome-agent@pome-twin.test\"], \"ccRecipients\": [], \"date\": \"2026-07-20\"}]}]}"
             }
           ],
           "structuredContent": {
@@ -77,8 +77,7 @@
                   }
                 ]
               }
-            ],
-            "nextPageToken": ""
+            ]
           },
           "isError": false
         }
@@ -91,7 +90,7 @@
         "readOnlyHint": true,
         "title": "Searches for email threads from the authenticated user's Gmail account."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "get_thread",
@@ -146,7 +145,7 @@
         "readOnlyHint": true,
         "title": "Retrieves a specific email thread from the authenticated user's Gmail account."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "list_labels",
@@ -168,7 +167,7 @@
           "content": [
             {
               "type": "text",
-              "text": "{\"labels\": [{\"labelId\": \"Label_pome_1\", \"name\": \"triage\", \"color\": {\"textColor\": \"#000000\", \"backgroundColor\": \"#ffffff\"}, \"threadsTotal\": 0, \"threadsUnread\": 0}], \"nextPageToken\": \"\"}"
+              "text": "{\"labels\": [{\"labelId\": \"Label_pome_1\", \"name\": \"triage\", \"color\": {\"textColor\": \"#000000\", \"backgroundColor\": \"#ffffff\"}, \"threadsTotal\": 0, \"threadsUnread\": 0}]}"
             }
           ],
           "structuredContent": {
@@ -183,8 +182,7 @@
                 "threadsTotal": 0,
                 "threadsUnread": 0
               }
-            ],
-            "nextPageToken": ""
+            ]
           },
           "isError": false
         }
@@ -197,7 +195,7 @@
         "readOnlyHint": true,
         "title": "Lists user labels."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "create_draft",
@@ -249,7 +247,7 @@
         "readOnlyHint": false,
         "title": "Creates a new draft email in the authenticated user's Gmail account."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "create_label",
@@ -291,7 +289,7 @@
         "readOnlyHint": false,
         "title": "Creates a new label."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "label_message",
@@ -331,7 +329,7 @@
         "readOnlyHint": false,
         "title": "Adds labels to a message."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "unlabel_message",
@@ -371,7 +369,7 @@
         "readOnlyHint": false,
         "title": "Removes labels from a message."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "label_thread",
@@ -411,7 +409,7 @@
         "readOnlyHint": false,
         "title": "Adds labels to a thread."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "unlabel_thread",
@@ -451,7 +449,7 @@
         "readOnlyHint": false,
         "title": "Removes labels from a thread."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     },
     {
       "name": "list_drafts",
@@ -474,7 +472,7 @@
           "content": [
             {
               "type": "text",
-              "text": "{\"drafts\": [{\"id\": \"draft_pome_001\", \"subject\": \"Draft subject\", \"threadId\": \"thread_pome_draft_001\", \"toRecipients\": [\"bob@example.com\"], \"ccRecipients\": [], \"bccRecipients\": [], \"plaintextBody\": \"Draft body\", \"date\": \"2026-07-20\"}], \"nextPageToken\": \"\"}"
+              "text": "{\"drafts\": [{\"id\": \"draft_pome_001\", \"subject\": \"Draft subject\", \"threadId\": \"thread_pome_draft_001\", \"toRecipients\": [\"bob@example.com\"], \"ccRecipients\": [], \"bccRecipients\": [], \"plaintextBody\": \"Draft body\", \"date\": \"2026-07-20\"}]}"
             }
           ],
           "structuredContent": {
@@ -491,8 +489,7 @@
                 "plaintextBody": "Draft body",
                 "date": "2026-07-20"
               }
-            ],
-            "nextPageToken": ""
+            ]
           },
           "isError": false
         }
@@ -505,7 +502,7 @@
         "readOnlyHint": true,
         "title": "Lists draft emails from the authenticated user's Gmail account."
       },
-      "note": "Representative success shape — not a live authenticated capture."
+      "note": "Representative success shape \u2014 not a live authenticated capture."
     }
   ]
 }
