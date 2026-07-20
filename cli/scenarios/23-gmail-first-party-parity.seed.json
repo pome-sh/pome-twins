@@ -6,37 +6,101 @@
       {
         "id": "Label_parity",
         "name": "Parity Seed"
+      },
+      {
+        "id": "Label_follow_up",
+        "name": "Follow Up"
+      },
+      {
+        "id": "Label_build",
+        "name": "Build"
       }
     ],
     "messages": [
       {
+        "id": "msg_welcome",
+        "threadId": "thread_welcome",
+        "from": "welcome@pome-twin.test",
+        "to": ["pome-agent@pome-twin.test"],
+        "subject": "Welcome to your Pome Gmail twin",
+        "text": "Your deterministic inbox is ready for agent testing.",
+        "html": "<p>Your deterministic inbox is ready for agent testing.</p>",
+        "date": "2026-07-18T09:00:00.000Z",
+        "messageId": "welcome@pome-twin.test",
+        "labels": ["INBOX"]
+      },
+      {
+        "id": "msg_build",
+        "threadId": "thread_build",
+        "from": "ci@example.com",
+        "to": ["pome-agent@pome-twin.test"],
+        "subject": "Build failed on main",
+        "text": "The nightly build failed. See the attached log.",
+        "date": "2026-07-19T10:00:00.000Z",
+        "messageId": "build-001@example.com",
+        "labels": ["INBOX", "UNREAD", "Build"],
+        "attachments": [
+          {
+            "filename": "build.log",
+            "mimeType": "text/plain",
+            "data": "QlVJTEQgRkFJTEVEIHN0ZXA9dGVzdAo="
+          }
+        ]
+      },
+      {
+        "id": "msg_build_reply",
+        "threadId": "thread_build",
+        "from": "pome-agent@pome-twin.test",
+        "to": ["ci@example.com"],
+        "subject": "Re: Build failed on main",
+        "text": "Looking into the failure now.",
+        "date": "2026-07-19T11:00:00.000Z",
+        "messageId": "build-reply@pome-twin.test",
+        "inReplyTo": "build-001@example.com",
+        "references": ["build-001@example.com"],
+        "labels": ["SENT"]
+      },
+      {
         "id": "msg_parity",
         "threadId": "thread_parity",
         "from": "alice@example.com",
-        "to": [
-          "pome-agent@pome-twin.test"
-        ],
+        "to": ["pome-agent@pome-twin.test"],
         "subject": "Parity seed message",
         "text": "Use this message for the first-party parity workflow.",
         "date": "2026-07-19T12:00:00.000Z",
         "messageId": "parity-message@example.com",
-        "labels": [
-          "INBOX",
-          "UNREAD"
-        ]
+        "labels": ["INBOX", "UNREAD"]
+      },
+      {
+        "id": "msg_support",
+        "threadId": "thread_support",
+        "from": "alice@example.com",
+        "to": ["pome-agent@pome-twin.test"],
+        "subject": "Production export is stuck",
+        "text": "Our production export has been stuck for an hour. Can you investigate?",
+        "date": "2026-07-19T12:30:00.000Z",
+        "messageId": "support-001@example.com",
+        "labels": ["INBOX", "UNREAD"]
       }
     ],
     "drafts": [
       {
         "id": "draft_parity",
         "threadId": "thread_draft_parity",
-        "to": [
-          "bob@example.com"
-        ],
+        "to": ["bob@example.com"],
         "subject": "Existing parity draft",
         "text": "Draft body",
         "date": "2026-07-19T13:00:00.000Z",
         "messageId": "parity-draft@example.com"
+      },
+      {
+        "id": "draft_ack",
+        "threadId": "thread_draft_ack",
+        "to": ["carol@example.com"],
+        "subject": "Draft acknowledgment",
+        "text": "Thanks — I'll follow up shortly.",
+        "date": "2026-07-19T13:30:00.000Z",
+        "messageId": "draft-ack@pome-twin.test"
       }
     ]
   },

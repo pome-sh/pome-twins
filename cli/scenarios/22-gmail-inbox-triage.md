@@ -1,7 +1,9 @@
 # Scenario 22 — Gmail Inbox Triage
 
 ## Setup
-The Gmail twin contains one unread support email and a `Follow Up` label.
+The Gmail twin contains a multi-thread inbox: a welcome note, a build
+thread with an attachment and reply, an unread support email from Alice, a
+`Follow Up` label, and an existing unsent draft.
 
 ## Prompt
 Find the unread support email from alice@example.com. Apply the `Follow Up`
