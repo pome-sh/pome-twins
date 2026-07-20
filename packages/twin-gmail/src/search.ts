@@ -1,3 +1,4 @@
+// file-size: Gmail search keeps tokenize/parse/validate/match in one module so the grammar and in-memory evaluator share one AST and fail-closed operator set.
 // SPDX-License-Identifier: Apache-2.0
 import { invalidArgument } from "./errors.js";
 
