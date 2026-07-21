@@ -10,8 +10,11 @@
   `ManifestInput` types. Only `agent.slug` is required; `artifacts_dir` /
   `pass_threshold` default to `runs` / `100` on parse.
 - `SLUG_RE`, `SLUG_MAX_LENGTH`, `agentSlugSchema`, and `deriveAgentSlug` —
-  the agent-slug authority, ported byte-identically from the pome-cloud
-  control-plane so local and server validation can never drift.
+  the agent-slug authority. `SLUG_RE` is byte-identical to the pome-cloud
+  control-plane's regex; `deriveAgentSlug` is a behavior-identical port
+  (equivalence-tested against the upstream body, with the edge-strip regex
+  rewritten to linear form to clear CodeQL's js/polynomial-redos) so local and
+  server validation can never drift.
   **Consumer note (pome-cloud):** as of F-820 the control-plane and dashboard
   must import these instead of their private copies
   (`apps/control-plane/src/routes/agents.ts`, `packages/db/src/agent-slug.ts`).

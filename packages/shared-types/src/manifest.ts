@@ -7,9 +7,10 @@
 // contract; top-level keys are CLI run-config and may evolve faster.
 //
 // SLUG_RE and deriveAgentSlug are THE slug authority for every consumer (CLI,
-// control-plane /v1/agents, dashboard, MCP). They were ported byte-identically
-// from pome-cloud (apps/control-plane/src/routes/agents.ts and
-// packages/db/src/agent-slug.ts), which import them from here as of F-820 —
+// control-plane /v1/agents, dashboard, MCP). SLUG_RE is byte-identical to the
+// pome-cloud control-plane's regex; deriveAgentSlug is a behavior-identical
+// port of packages/db/src/agent-slug.ts (equivalence pinned in
+// test/manifest.test.ts). pome-cloud imports both from here as of F-820 —
 // local and server validation must never drift again.
 
 import { z } from "zod";
@@ -22,13 +23,18 @@ export const SLUG_MAX_LENGTH = 64;
 // Shared agent slug derivation for REST, dashboard, and CLI registration
 // paths. Keep this pure: validation and reserved-slug checks live at each API
 // edge. Returns "" when nothing sluggable remains — callers must check.
+//
+// The first replace collapses every non-alphanumeric run (dashes included) to
+// a single dash, so afterwards each edge carries at most one dash — the
+// anchored single-char strips are exhaustive and stay linear (the upstream
+// `/^-+|-+$/g` form is a CodeQL js/polynomial-redos finding).
 export function deriveAgentSlug(input: string): string {
   return input
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-/, "")
+    .replace(/-$/, "");
 }
 
 export const agentSlugSchema = z

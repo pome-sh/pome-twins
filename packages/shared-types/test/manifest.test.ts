@@ -89,6 +89,37 @@ describe("deriveAgentSlug (F-818)", () => {
       expect(slug === "" || SLUG_RE.test(slug), input).toBe(true);
     }
   });
+
+  it("is behavior-identical to the pome-cloud reference implementation", () => {
+    // The upstream packages/db/src/agent-slug.ts body, verbatim. Our export
+    // rewrites the edge-strip to linear regexes (CodeQL js/polynomial-redos);
+    // this corpus pins that the observable mapping never diverged.
+    const reference = (input: string): string =>
+      input
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    const corpus = [
+      "PR Review Agent",
+      "  My --- Agent!  ",
+      "Émile's Agent",
+      "---",
+      "--a--b--",
+      "-a-",
+      "!!!",
+      "",
+      "a",
+      "9 Lives",
+      "x_y.z",
+      `${"-".repeat(500)}a${"-".repeat(500)}`,
+      "UPPER_case  mixed\t123",
+    ];
+    for (const input of corpus) {
+      expect(deriveAgentSlug(input), JSON.stringify(input)).toBe(reference(input));
+    }
+  });
 });
 
 describe("manifestSchema — carrier-agnostic (F-818)", () => {
