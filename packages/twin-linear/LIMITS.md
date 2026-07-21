@@ -19,3 +19,11 @@ Pinned limits enforced by seed, GraphQL, MCP, and OAuth paths.
 | Access token TTL | `3600s` | From seed clock unless seed overrides |
 
 See `performanceBudgets` in [`fidelity.inventory.json`](fidelity.inventory.json).
+
+## Recording notes
+
+- GraphQL and MCP writes go through `recorder.handle` / `reportDelta`.
+- Public OAuth (`/oauth/authorize`, `/oauth/token`, `/oauth/revoke`) sits outside
+  bearerAuth via `withPublicOAuth` and is **not** wrapped in `recorder.handle`.
+  Secrets must stay out of `/_pome/state` and any incidental recorder payloads;
+  covered by the OAuth canary matrix.

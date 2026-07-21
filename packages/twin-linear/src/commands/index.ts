@@ -244,6 +244,7 @@ export class LinearCommands {
   }
 
   async createIssue(input: IssueCreateInput, actor: ActorContext = {}): Promise<LinearIssue> {
+    this.requireScopes(actor, ["issues:create"]);
     assertTitle(input.title);
     if (input.description != null) assertBody(input.description);
     const team = this.requireTeam(input.teamId);
@@ -317,6 +318,7 @@ export class LinearCommands {
   }
 
   async updateIssue(id: string, input: IssueUpdateInput, actor: ActorContext = {}): Promise<LinearIssue> {
+    this.requireScopes(actor, ["write"]);
     const issue = this.requireIssue(id);
     const before = this.issueWebhookPayload(issue);
     const patch: Partial<IssueRow> = {};
@@ -524,6 +526,7 @@ export class LinearCommands {
     input: { issueId: string; body: string; createAsUser?: string | null; displayIconUrl?: string | null },
     actor: ActorContext = {}
   ): Promise<LinearComment> {
+    this.requireScopes(actor, ["comments:create"]);
     assertBody(input.body);
     const issue = this.requireIssue(input.issueId);
     const viewer = this.resolveViewer(actor);
@@ -554,6 +557,7 @@ export class LinearCommands {
   }
 
   async updateComment(id: string, body: string, actor: ActorContext = {}): Promise<LinearComment> {
+    this.requireScopes(actor, ["write"]);
     assertBody(body);
     const comment = this.requireComment(id);
     const before = this.commentWebhookPayload(comment);
@@ -574,6 +578,7 @@ export class LinearCommands {
   }
 
   async deleteComment(id: string, actor: ActorContext = {}): Promise<string> {
+    this.requireScopes(actor, ["write"]);
     const comment = this.requireComment(id);
     const issue = this.requireIssue(comment.issueId);
     this.db.prepare("DELETE FROM agent_activities WHERE session_id IN (SELECT id FROM agent_sessions WHERE comment_id = ?)").run(comment.id);
@@ -607,6 +612,7 @@ export class LinearCommands {
     input: { name: string; color?: string; description?: string | null; teamId?: string | null },
     actor: ActorContext = {}
   ): Promise<LinearIssueLabel> {
+    this.requireScopes(actor, ["write"]);
     const team = input.teamId ? this.requireTeam(input.teamId) : null;
     const now = this.tick();
     const id = this.nextId("label");

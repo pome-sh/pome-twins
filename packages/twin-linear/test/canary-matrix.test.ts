@@ -87,5 +87,10 @@ describe("canary matrix across recorder sinks", () => {
     const eventsText = await eventsRes.text();
     expect(eventsText).not.toContain(OAUTH_CANARY);
     expect(JSON.stringify(recorder.events())).not.toContain(OAUTH_CANARY);
+    // Public OAuth is mounted outside recorder.handle — token grant must not
+    // appear as a GraphQL/MCP mutation event carrying the client secret.
+    expect(
+      recorder.events().some((event) => event.path === "/oauth/token" && event.state_mutation)
+    ).toBe(false);
   });
 });

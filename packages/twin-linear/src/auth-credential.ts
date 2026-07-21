@@ -9,13 +9,10 @@ import {
 
 export function looksLikeLinearToken(token: string): boolean {
   if (!token || token.length < 8) return false;
+  // Provider tokens (`lin_pome_*`) resolve via SDK providerToken, not the DB path.
   if (token.startsWith(LINEAR_PROVIDER_TOKEN_PREFIX)) return false;
-  // Personal API keys / OAuth access tokens / client credentials stored in DB.
-  return (
-    token.startsWith("lin_") ||
-    token.startsWith("lin_oauth_") ||
-    /^[A-Za-z0-9_-]{20,}$/.test(token)
-  );
+  // Personal / OAuth / client-credential tokens issued by the twin.
+  return token.startsWith("lin_");
 }
 
 type TokenRow = {

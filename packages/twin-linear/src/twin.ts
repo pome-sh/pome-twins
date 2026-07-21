@@ -15,6 +15,7 @@ import { defaultSeedState, linearSeedSchema, type ParsedLinearStateSeed } from "
 import { linearStateDelta } from "./state.js";
 import {
   DEFAULT_LINEAR_EMAIL,
+  DEFAULT_SCOPES,
   LINEAR_PROVIDER_TOKEN_PREFIX,
   type LinearStateSeed,
   type LinearTwinDatabase,
@@ -80,11 +81,14 @@ function buildLinearTwinDefinition(
           typeof claims.linear_email === "string" && claims.linear_email.length > 0
             ? claims.linear_email.toLowerCase()
             : DEFAULT_LINEAR_EMAIL,
+        // JWT sessions are not OAuth-scoped; grant the twin default scope set.
+        scopes: [...DEFAULT_SCOPES],
       }),
       providerSession: (sid) => ({
         linear_email: DEFAULT_LINEAR_EMAIL,
         via: "provider_token",
         sid,
+        scopes: [...DEFAULT_SCOPES],
       }),
     },
   });
@@ -150,11 +154,13 @@ export function createLinearTwinDefinition(
           typeof claims.linear_email === "string" && claims.linear_email.length > 0
             ? claims.linear_email.toLowerCase()
             : DEFAULT_LINEAR_EMAIL,
+        scopes: [...DEFAULT_SCOPES],
       }),
       providerSession: (sid) => ({
         linear_email: DEFAULT_LINEAR_EMAIL,
         via: "provider_token",
         sid,
+        scopes: [...DEFAULT_SCOPES],
       }),
     },
   });

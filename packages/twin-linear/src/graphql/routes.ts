@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import { getOperationAST, graphql, parse } from "graphql";
+import { getOperationAST, graphql, parse, type GraphQLError, type GraphQLFormattedError } from "graphql";
 import type { Context } from "hono";
 import type { RouteContext } from "@pome-sh/sdk";
 import type { SessionValue } from "@pome-sh/sdk/server";
 import type { LinearCommands } from "../commands/index.js";
 import { LinearTwinError, badUserInput } from "../errors.js";
+// GraphQL v16 dropped `formatError` on `graphql()` — project twin errors after execute.
 import { byteLength } from "../ids.js";
 import { linearStateDelta } from "../state.js";
 import {
@@ -105,7 +106,7 @@ async function runGraphQL(
   };
 
   try {
-    return await graphql({
+    const result = await graphql({
       schema: linearGraphQLSchema,
       source: query,
       rootValue: createRootValue({ commands, actor }),
@@ -113,6 +114,11 @@ async function runGraphQL(
       variableValues: opts.variables,
       operationName: opts.operationName,
     });
+    if (!result.errors?.length) return result;
+    return {
+      ...result,
+      errors: result.errors.map(projectGraphQLError),
+    };
   } catch (error) {
     if (error instanceof LinearTwinError) {
       return { errors: [error.toGraphQLError()] };
@@ -121,6 +127,24 @@ async function runGraphQL(
       errors: [{ message: error instanceof Error ? error.message : "GraphQL error" }],
     };
   }
+}
+
+function projectGraphQLError(error: GraphQLError): GraphQLFormattedError {
+  const original = error.originalError;
+  if (original instanceof LinearTwinError) {
+    return {
+      message: original.message,
+      locations: error.locations,
+      path: error.path,
+      extensions: original.toGraphQLError().extensions,
+    };
+  }
+  return {
+    message: error.message,
+    locations: error.locations,
+    path: error.path,
+    ...(error.extensions ? { extensions: error.extensions } : {}),
+  };
 }
 
 function isMutationOperation(source: string, operationName?: string): boolean {
