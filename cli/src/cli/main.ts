@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   readLatestRun,
@@ -56,12 +56,11 @@ import {
   DEFAULT_CONTROL_PLANE_URL,
   DEFAULT_DASHBOARD_URL,
 } from "./defaults.js";
+import { deriveAgentSlug } from "@pome-sh/shared-types";
 import {
-  CONFIG_FILE,
-  normalizeConfigAgentCommand,
-  readProjectConfig,
-  writeProjectConfig,
-  type ProjectConfig,
+  MANIFEST_JSON,
+  readManifest,
+  writeManifest,
 } from "./project-config.js";
 import { createGitHubCloneApp } from "../twin/githubCloneAdapter.js";
 import {
@@ -80,6 +79,7 @@ import type { RecorderEvent } from "../types/shared.js";
 const PACKAGE_VERSION = readPackageVersion();
 const SESSION_CREATE_FORMATS = new Set(["text", "json", "env"]);
 const DEFAULT_AGENT_COMMAND = "npx tsx examples/agents/scripted-triage-agent.ts";
+const MANIFEST_SCHEMA_URL = "https://pome.sh/schemas/v1/pome.json";
 
 function readPackageVersion(): string {
   try {
@@ -117,7 +117,7 @@ export function createProgram() {
     .description("Create starter Pome config and folders")
     .option(
       "--sdk <name>",
-      "Scaffold for a specific agent SDK (claude | claude-managed). Adds the SDK-specific example file and pre-fills agent.sdk so the dashboard badges runs correctly.",
+      "Scaffold for a specific agent SDK (claude | claude-managed). Adds the SDK-specific example file and pre-fills agent.framework so the dashboard badges runs correctly.",
     )
     .action(async (opts: { sdk?: string }) => {
       const sdk = opts.sdk?.trim();
@@ -143,14 +143,13 @@ export function createProgram() {
       await mkdir("runs", { recursive: true });
       await copyStarterFiles();
 
-      let agentBlock: ProjectConfig["agent"] = {
-        command: DEFAULT_AGENT_COMMAND,
-      };
+      let command = DEFAULT_AGENT_COMMAND;
+      let framework: string | undefined;
       let postInitMessage =
         "Pome initialized.\n" +
         "Next steps:\n" +
         "  1. pome login                    # one-time, opens the dashboard to sign in\n" +
-        "  2. pome register agent <name>    # scopes runs to this project (writes agentId + agentSlug to pome.config.json)\n" +
+        "  2. pome register agent <name>    # scopes runs to this project (writes agent.slug to pome.json)\n" +
         "  3. pome run scenarios/01-bug-happy-path.md\n" +
         "\n" +
         "Optional follow-ups:\n" +
@@ -161,32 +160,39 @@ export function createProgram() {
 
       if (sdk) {
         const scaffold = await writeSdkScaffold(sdk);
-        agentBlock = {
-          sdk: scaffold.agentSdkValue,
-          command: scaffold.agentCommand,
-        };
+        command = scaffold.agentCommand;
+        framework = scaffold.agentSdkValue;
         postInitMessage =
           `Pome initialized with --sdk ${sdk}. Scaffolded ${scaffold.exampleAgentRelativePath}.\n` +
           scaffold.postInstallHint;
       }
 
-      const existingConfig = await readProjectConfig(process.cwd());
-      if (!existingConfig) {
-        await writeProjectConfig(CONFIG_FILE, {
-          agent: agentBlock,
-          artifactsDir: "runs",
-          passThreshold: 100,
+      // The manifest requires `agent.slug` (F-804). `pome init` runs before
+      // `pome register`, so seed a portable slug derived from the directory
+      // name; register later overwrites it with the server-canonical slug.
+      const existing = await readManifest(process.cwd());
+      if (!existing) {
+        const slug = deriveAgentSlug(basename(process.cwd())) || "my-agent";
+        const agent: Record<string, unknown> = { slug };
+        if (framework) agent.framework = framework;
+        await writeManifest(join(process.cwd(), MANIFEST_JSON), "json", {
+          $schema: MANIFEST_SCHEMA_URL,
+          agent,
+          command,
+          artifacts_dir: "runs",
+          pass_threshold: 100,
         });
       } else if (sdk) {
-        await writeProjectConfig(existingConfig.path, {
-          ...existingConfig.config,
-          agent: {
-            ...(typeof existingConfig.config.agent === "object" &&
-            existingConfig.config.agent !== null
-              ? existingConfig.config.agent
-              : {}),
-            ...agentBlock,
-          },
+        const priorAgent =
+          typeof existing.raw.agent === "object" && existing.raw.agent !== null
+            ? (existing.raw.agent as Record<string, unknown>)
+            : {};
+        const nextAgent = { ...priorAgent };
+        if (framework) nextAgent.framework = framework;
+        await writeManifest(existing.path, existing.format, {
+          ...existing.raw,
+          agent: nextAgent,
+          command,
         });
       }
       console.error(postInitMessage);
@@ -389,7 +395,7 @@ export function createProgram() {
     )
     .option(
       "--force",
-      "Overwrite an existing agentId in pome.config.json",
+      "Re-resolve the agent even when .pome/link.json already links one",
       false,
     )
     .option(
@@ -397,7 +403,7 @@ export function createProgram() {
       "Comma-separated services this agent may exercise (e.g. github,slack). Default: the cloud's default enablement.",
     )
     .description(
-      "Create a cloud agent under the current team and write agentId to pome.config.json",
+      "Create a cloud agent under the current team and write agent.slug to pome.json",
     )
     .action(
       async (name: string, opts: { apiUrl: string; force: boolean; twins?: string }) => {
@@ -565,6 +571,10 @@ export function createProgram() {
     )
     .option("--agent-model <name>", "Informational; recorded on the cloud run.", "unknown")
     .option(
+      "--agent-version <version>",
+      "Override the manifest's agent.version for this run (stamped on the session/run).",
+    )
+    .option(
       "--no-capture",
       "Self-host only: skip spawning the capture-server child and don't inject HTTP_PROXY/HTTPS_PROXY into the agent. Used by the CI overhead gate (FDRS-405) to baseline proxy-on-vs-off latency. No-op on hosted runs.",
     )
@@ -586,6 +596,7 @@ export function createProgram() {
           local?: boolean;
           apiUrl: string;
           agentModel: string;
+          agentVersion?: string;
           capture: boolean;
         }
       ) => {
@@ -641,10 +652,8 @@ export function createProgram() {
           return;
         }
 
-        const configRead = await readProjectConfig(process.cwd());
-        const configCommand = configRead
-          ? normalizeConfigAgentCommand(configRead.config)
-          : undefined;
+        const manifestRead = await readManifest(process.cwd()).catch(() => null);
+        const configCommand = manifestRead?.manifest.command;
         const agentCommand =
           options.agent ?? configCommand ?? DEFAULT_AGENT_COMMAND;
         let worstExit = 0;
@@ -759,7 +768,7 @@ export function createProgram() {
                   agentCommandSource: options.agent
                     ? "--agent"
                     : configCommand
-                      ? "pome.config.json"
+                      ? "pome.json"
                       : "built-in default",
                   trials: k,
                   artifactsDir: options.artifactsDir,
@@ -770,6 +779,7 @@ export function createProgram() {
                   dashboardBaseUrl:
                     process.env.POME_DASHBOARD_URL ?? DEFAULT_DASHBOARD_URL,
                   agentModel: options.agentModel,
+                  agentVersion: options.agentVersion,
                   rerunCommand,
                 });
                 if (groupResult.exitCode > worstExit) {
@@ -784,6 +794,7 @@ export function createProgram() {
                 artifactsDir: options.artifactsDir,
                 hosted: { baseUrl: hostedCreds.apiBaseUrl, apiKey: hostedCreds.apiKey },
                 agentModel: options.agentModel,
+                agentVersion: options.agentVersion,
               });
               const status = scoreStatus(
                 result.score,
@@ -896,7 +907,7 @@ export function createProgram() {
   program
     .command("doctor")
     .description(
-      "Check the agent↔twin wiring: pome.config.json present + valid, twin reachable, requests routed to the twin (not a hardcoded production host), egress floor active. On failure prints one named cause (file:line where knowable) + one concrete fix and exits non-zero.",
+      "Check the agent↔twin wiring: pome.json (or pome.yaml) present + valid, twin reachable, requests routed to the twin (not a hardcoded production host), egress floor active. On failure prints one named cause (file:line where knowable) + one concrete fix and exits non-zero.",
     )
     .action(async () => {
       const { runDoctorChecks } = await import("../doctor/checks.js");
@@ -919,7 +930,7 @@ export function createProgram() {
     )
     .option(
       "--agent <slug>",
-      "Agent identity for the eval session. Defaults to agentSlug/agentId from pome.config.json.",
+      "Agent identity for the eval session. Defaults to agent.slug from pome.json.",
     )
     .option(
       "--task <name>",

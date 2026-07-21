@@ -13,9 +13,8 @@ vi.mock("../../src/cli/credentials.js", () => ({
   resolveCredentials: mocks.resolveCredentials,
 }));
 
-vi.mock("../../src/cli/project-config.js", () => ({
-  normalizeConfigAgentId: vi.fn(),
-  readProjectConfig: vi.fn(async () => null),
+vi.mock("../../src/cli/agent-identity.js", () => ({
+  resolveRunAgentIdentity: vi.fn(async () => ({})),
 }));
 
 vi.mock("../../src/hosted/client.js", async (importOriginal) => {

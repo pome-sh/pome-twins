@@ -16,8 +16,8 @@ describe("pome doctor — wired triage-agent acceptance (FDRS-634)", () => {
     const exampleSrc = new URL("../../../examples/triage-agent/src/", import.meta.url).pathname;
     await cp(exampleSrc, join(dir, "src"), { recursive: true });
     await writeFile(
-      join(dir, "pome.config.json"),
-      JSON.stringify({ agent: { command: "npm start", sdk: "claude" } }, null, 2) + "\n",
+      join(dir, "pome.json"),
+      JSON.stringify({ agent: { slug: "triage-agent", framework: "claude" }, command: "npm start" }, null, 2) + "\n",
     );
 
     const report = await runDoctorChecks({ cwd: dir, env: {} });

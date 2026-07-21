@@ -29,35 +29,35 @@ async function repo(files: Record<string, string>): Promise<string> {
   return dir;
 }
 
-const VALID_CONFIG = JSON.stringify({ agent: { command: "npx tsx src/agent.ts", sdk: "claude" } });
+const VALID_CONFIG = JSON.stringify({ agent: { slug: "test-agent", framework: "claude" }, command: "npx tsx src/agent.ts" });
 
 describe("runDoctorChecks", () => {
-  it("fails the config check when no pome.config.json exists, pointing at pome init", async () => {
+  it("fails the config check when no pome manifest exists, pointing at pome init", async () => {
     const dir = await repo({ "src/agent.ts": WIRED_AGENT });
 
     const report = await runDoctorChecks({ cwd: dir });
     expect(report.ok).toBe(false);
     expect(report.checks).toHaveLength(1);
     expect(report.checks[0]).toMatchObject({ id: "config", status: "fail" });
-    expect(report.checks[0]!.cause).toContain("pome.config.json");
+    expect(report.checks[0]!.cause).toContain("pome.json");
     expect(report.checks[0]!.fix).toContain("pome init");
   });
 
   it("fails the config check on unparseable JSON, naming the file", async () => {
     const dir = await repo({
-      "pome.config.json": "{ not json",
+      "pome.json": "{ not json",
       "src/agent.ts": WIRED_AGENT,
     });
 
     const report = await runDoctorChecks({ cwd: dir });
     expect(report.ok).toBe(false);
     expect(report.checks[0]).toMatchObject({ id: "config", status: "fail" });
-    expect(report.checks[0]!.cause).toContain("pome.config.json");
+    expect(report.checks[0]!.cause).toContain("pome.json");
   });
 
   it("passes all four checks on a correctly wired repo", async () => {
     const dir = await repo({
-      "pome.config.json": VALID_CONFIG,
+      "pome.json": VALID_CONFIG,
       "src/agent.ts": WIRED_AGENT,
     });
 
@@ -73,7 +73,7 @@ describe("runDoctorChecks", () => {
 
   it("fails routing on a hardcoded production host with file:line cause and env-read fix", async () => {
     const dir = await repo({
-      "pome.config.json": VALID_CONFIG,
+      "pome.json": VALID_CONFIG,
       "src/agent.ts": [
         'import fetch from "node-fetch";',
         'const gh = "https://api.github.com";',
@@ -96,7 +96,7 @@ describe("runDoctorChecks", () => {
 
   it("fails routing when no wiring evidence exists at all", async () => {
     const dir = await repo({
-      "pome.config.json": VALID_CONFIG,
+      "pome.json": VALID_CONFIG,
       "src/agent.ts": "export const nothing = 1;",
     });
 
@@ -109,7 +109,7 @@ describe("runDoctorChecks", () => {
 
   it("skips the local twin boot in hosted mode but still gates config/routing/egress", async () => {
     const dir = await repo({
-      "pome.config.json": VALID_CONFIG,
+      "pome.json": VALID_CONFIG,
       "src/agent.ts": WIRED_AGENT,
     });
 
@@ -124,7 +124,7 @@ describe("runDoctorChecks", () => {
 
   it("fails the egress check when a wildcard disables the floor", async () => {
     const dir = await repo({
-      "pome.config.json": VALID_CONFIG,
+      "pome.json": VALID_CONFIG,
       "src/agent.ts": WIRED_AGENT,
     });
 

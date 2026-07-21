@@ -123,8 +123,8 @@ describe("pome run --hosted (e2e via spawn)", () => {
     // runs). Make tmp a wired repo and spawn the CLI from it, matching what
     // a real post-`pome install` project looks like.
     await writeFile(
-      join(tmp, "pome.config.json"),
-      JSON.stringify({ agent: { command: "true" } }, null, 2),
+      join(tmp, "pome.json"),
+      JSON.stringify({ agent: { slug: "e2e-agent" }, command: "true" }, null, 2),
       "utf8"
     );
     await mkdir(join(tmp, "src"), { recursive: true });

@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HostedOrchError } from "../../src/hosted/errors.js";
 import {
@@ -15,6 +14,7 @@ const originalCwd = process.cwd();
 const tempDirs: string[] = [];
 const savedKey = process.env.POME_API_KEY;
 const savedUrl = process.env.POME_API_URL;
+const savedCi = process.env.CI;
 
 function response(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -23,15 +23,43 @@ function response(body: unknown, init: ResponseInit = {}) {
   });
 }
 
-async function writeConfig(body: unknown) {
-  await writeFile("pome.config.json", `${JSON.stringify(body, null, 2)}\n`);
+const AGENT_OK = {
+  id: "agt_123",
+  slug: "triage-bot",
+  display_name: "Triage Bot",
+  judge_model: "google/gemini-2.5-flash",
+};
+
+async function writeManifest(body: unknown) {
+  await writeFile("pome.json", `${JSON.stringify(body, null, 2)}\n`);
 }
 
-function readConfig() {
-  return JSON.parse(readFileSync("pome.config.json", "utf8")) as Record<
+function readManifestFile() {
+  return JSON.parse(readFileSync("pome.json", "utf8")) as Record<string, unknown>;
+}
+
+function readLink() {
+  return JSON.parse(readFileSync(join(".pome", "link.json"), "utf8")) as Record<
     string,
     unknown
   >;
+}
+
+/** Write a 0600 credentials file so resolveCredentials surfaces a team_id
+ *  (the env-key path has no team, so link.json can't be team-gated there). */
+async function writeCreds(dir: string, teamId: string): Promise<string> {
+  const path = join(dir, "creds.json");
+  await writeFile(
+    path,
+    JSON.stringify({
+      api_key: "pme_test",
+      api_url: "https://api.example.com",
+      dashboard_url: "https://app.example.com",
+      team_id: teamId,
+    }),
+  );
+  await chmod(path, 0o600);
+  return path;
 }
 
 beforeEach(async () => {
@@ -40,6 +68,7 @@ beforeEach(async () => {
   process.chdir(projectDir);
   process.env.POME_API_KEY = "pme_test";
   delete process.env.POME_API_URL;
+  delete process.env.CI;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
@@ -49,6 +78,8 @@ afterEach(async () => {
   else process.env.POME_API_KEY = savedKey;
   if (savedUrl === undefined) delete process.env.POME_API_URL;
   else process.env.POME_API_URL = savedUrl;
+  if (savedCi === undefined) delete process.env.CI;
+  else process.env.CI = savedCi;
   vi.restoreAllMocks();
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
@@ -56,25 +87,10 @@ afterEach(async () => {
 });
 
 describe("runRegisterAgent", () => {
-  it("posts to the caller-supplied apiBaseUrl (F0-6 precedence: caller wins)", async () => {
-    await writeConfig({ agent: { command: "node agent.js" } });
-    // POME_API_URL is intentionally set to a *different* URL than the caller
-    // passes. Per F0-6, env folding happens in `cli/main.ts`'s Commander
-    // option default before reaching the runner, so by the time we land in
-    // `resolveCredentials`, the caller-supplied value is the canonical
-    // resolved override. Re-checking env here would shadow an explicit
-    // `--api-url` flag — see `credentials.ts` precedence doc-comment.
+  it("posts name + manifest identity to the caller-supplied apiBaseUrl and writes pome.json from the response", async () => {
+    await writeManifest({ agent: { slug: "old-slug", version: "0.2.0", framework: "langgraph" }, command: "node a.js" });
     process.env.POME_API_URL = "https://env-should-not-win.example.com/";
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        response({
-          id: "agt_123",
-          slug: "triage-bot",
-          display_name: "Triage Bot",
-          judge_model: "google/gemini-2.5-flash",
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response(AGENT_OK));
 
     await runRegisterAgent({
       apiBaseUrl: "https://input.example.com",
@@ -82,121 +98,121 @@ describe("runRegisterAgent", () => {
       force: false,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://input.example.com/v1/agents",
-      expect.objectContaining({
-        headers: expect.objectContaining({ "x-api-key": "pme_test" }),
-      }),
-    );
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://input.example.com/v1/agents");
+    const body = JSON.parse(String((init as RequestInit).body));
+    expect(body).toMatchObject({ name: "Triage Bot", version: "0.2.0", framework: "langgraph" });
+    // Manifest now carries the server-canonical slug (no agt_ id in the file).
+    const manifest = readManifestFile();
+    expect(manifest).toMatchObject({
+      agent: { slug: "triage-bot", name: "Triage Bot" },
+      command: "node a.js",
+    });
+    expect("agentId" in manifest).toBe(false);
+    expect(JSON.stringify(manifest)).not.toContain("agt_");
   });
 
-  it("fails clearly when pome.config.json is missing", async () => {
+  it("writes .pome/link.json (team-gated) and appends .pome/ to .gitignore", async () => {
+    const dir = process.cwd();
+    const credentialsPath = await writeCreds(dir, "tm_team");
+    delete process.env.POME_API_KEY;
+    await writeManifest({ agent: { slug: "triage-bot" } });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response(AGENT_OK));
+
+    await runRegisterAgent({
+      apiBaseUrl: "https://api.example.com",
+      name: "Triage Bot",
+      force: false,
+      credentialsPath,
+    });
+
+    expect(readLink()).toMatchObject({ agent_id: "agt_123", team_id: "tm_team" });
+    expect(readFileSync(".gitignore", "utf8").split(/\r?\n/)).toContain(".pome/");
+  });
+
+  it("fails clearly when no manifest is present", async () => {
     await expect(
-      runRegisterAgent({
-        apiBaseUrl: "https://api.example.com",
-        name: "Triage Bot",
-        force: false,
-      }),
-    ).rejects.toThrow(/pome\.config\.json not found/);
+      runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false }),
+    ).rejects.toThrow(/pome init/);
   });
 
-  it("is idempotent when agentId already exists without --force", async () => {
-    await writeConfig({ agentId: "agt_existing", agent: { command: "node a.js" } });
+  it("short-circuits (no network) when link.json already resolves under the caller's team", async () => {
+    const dir = process.cwd();
+    const credentialsPath = await writeCreds(dir, "tm_team");
+    delete process.env.POME_API_KEY;
+    await writeManifest({ agent: { slug: "triage-bot" } });
+    // Pre-seed a matching link cache.
+    const { writeLinkCache } = await import("../../src/cli/link-cache.js");
+    await writeLinkCache(dir, { agent_id: "agt_existing", team_id: "tm_team" });
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
     await runRegisterAgent({
       apiBaseUrl: "https://api.example.com",
       name: "Triage Bot",
       force: false,
+      credentialsPath,
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(readConfig().agentId).toBe("agt_existing");
   });
 
-  it("force overwrites agent fields while preserving unrelated keys", async () => {
-    await writeConfig({
-      agentId: "agt_old",
-      artifactsDir: "runs",
-      agent: { command: "node a.js" },
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      response({
-        id: "agt_new",
-        slug: "new-agent",
-        display_name: "New\nAgent",
-        judge_model: "google/gemini-2.5-flash",
-      }),
-    );
+  it("--force re-resolves even when a matching link cache exists", async () => {
+    const dir = process.cwd();
+    const credentialsPath = await writeCreds(dir, "tm_team");
+    delete process.env.POME_API_KEY;
+    await writeManifest({ agent: { slug: "triage-bot" } });
+    const { writeLinkCache } = await import("../../src/cli/link-cache.js");
+    await writeLinkCache(dir, { agent_id: "agt_existing", team_id: "tm_team" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response(AGENT_OK));
 
     await runRegisterAgent({
       apiBaseUrl: "https://api.example.com",
-      name: "New Agent",
+      name: "Triage Bot",
       force: true,
+      credentialsPath,
     });
 
-    expect(readConfig()).toMatchObject({
-      agentId: "agt_new",
-      agentSlug: "new-agent",
-      artifactsDir: "runs",
-      agent: { command: "node a.js" },
-    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(readLink().agent_id).toBe("agt_123");
   });
 
-  it("rejects unexpected response shapes", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
+  it("warns (not blocks) on an unknown framework via did-you-mean", async () => {
+    await writeManifest({ agent: { slug: "triage-bot", framework: "langraph" } });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((m?: unknown) => void errors.push(String(m)));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response(AGENT_OK));
+
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false });
+
+    expect(errors.join("\n")).toMatch(/langraph/);
+    expect(errors.join("\n")).toMatch(/langgraph/);
+  });
+
+  it("rejects an unexpected response shape via the shared zod schema", async () => {
+    await writeManifest({ agent: { slug: "triage-bot" } });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ id: "agt_only" }));
 
     await expect(
-      runRegisterAgent({
-        apiBaseUrl: "https://api.example.com",
-        name: "Bad Shape",
-        force: false,
-      }),
+      runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Bad", force: false }),
     ).rejects.toBeInstanceOf(HostedOrchError);
   });
 
   it("explains /v1/agents 404 as route/version skew", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
+    await writeManifest({ agent: { slug: "triage-bot" } });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(response({}, { status: 404 }));
 
     await expect(
-      runRegisterAgent({
-        apiBaseUrl: "https://api.example.com",
-        name: "Triage Bot",
-        force: false,
-      }),
+      runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false }),
     ).rejects.toThrow(/not available|version/);
   });
 
-  it("rejects malformed agentId instead of treating it as idempotent", async () => {
-    await writeConfig({ agentId: "   " });
-    await expect(
-      runRegisterAgent({
-        apiBaseUrl: "https://api.example.com",
-        name: "Triage Bot",
-        force: false,
-      }),
-    ).rejects.toThrow(/malformed agentId/);
-    expect(existsSync("pome.config.json")).toBe(true);
-  });
-
-  // ── Multi-twin (M3): --twins body + enabled_services print + old-cloud warn ──
   it("POSTs {name, twins} and prints the cloud's enabled services", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
+    await writeManifest({ agent: { slug: "triage-bot" } });
     const errors: string[] = [];
-    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
-      errors.push(String(msg));
-    });
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      response({
-        id: "agt_123",
-        slug: "triage-bot",
-        display_name: "Triage Bot",
-        judge_model: "google/gemini-2.5-flash",
-        enabled_services: ["github", "slack"],
-      }),
-    );
+    vi.spyOn(console, "error").mockImplementation((m?: unknown) => void errors.push(String(m)));
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(response({ ...AGENT_OK, enabled_services: ["github", "slack"] }));
 
     await runRegisterAgent({
       apiBaseUrl: "https://api.example.com",
@@ -206,80 +222,73 @@ describe("runRegisterAgent", () => {
     });
 
     const body = JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body));
-    expect(body).toEqual({ name: "Triage Bot", twins: ["github", "slack"] });
+    expect(body).toMatchObject({ name: "Triage Bot", twins: ["github", "slack"] });
     expect(errors.join("\n")).toContain("Enabled services: github, slack");
   });
+});
 
-  it("warns when an older cloud omits enabled_services", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
-    const errors: string[] = [];
-    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
-      errors.push(String(msg));
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      response({
-        id: "agt_123",
-        slug: "triage-bot",
-        display_name: "Triage Bot",
-        judge_model: "google/gemini-2.5-flash",
-      }),
+describe("runRegisterAgent near-miss", () => {
+  const conflict = () =>
+    response(
+      { error: { type: "conflict", message: "near-miss", details: { suggestion: "triage-bot" }, request_id: "req_1" } },
+      { status: 409 },
     );
 
-    await runRegisterAgent({
-      apiBaseUrl: "https://api.example.com",
-      name: "Triage Bot",
-      force: false,
-      twins: ["github", "slack"],
-    });
+  it("non-TTY / CI: warns and proceeds to create with confirm:true", async () => {
+    process.env.CI = "1";
+    await writeManifest({ agent: { slug: "triage-bott" } });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((m?: unknown) => void errors.push(String(m)));
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(response(AGENT_OK));
 
-    expect(errors.join("\n")).toMatch(/not reported by this pome cloud/i);
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bott", force: false });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retry = JSON.parse(String((fetchMock.mock.calls[1]![1] as RequestInit).body));
+    expect(retry.confirm).toBe(true);
+    expect(errors.join("\n")).toMatch(/triage-bot/);
   });
 
-  it("omits twins from the body when none are passed (byte-identical to pre-M3)", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      response({
-        id: "agt_123",
-        slug: "triage-bot",
-        display_name: "Triage Bot",
-        judge_model: "google/gemini-2.5-flash",
-      }),
-    );
+  it("interactive YES: re-resolves the suggested existing slug", async () => {
+    await writeManifest({ agent: { slug: "triage-bott" } });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(response(AGENT_OK));
 
     await runRegisterAgent({
       apiBaseUrl: "https://api.example.com",
-      name: "Triage Bot",
+      name: "Triage Bott",
       force: false,
+      stdinIsTTY: true,
+      confirm: async () => true,
     });
 
-    const body = JSON.parse(String((fetchMock.mock.calls[0]![1] as RequestInit).body));
-    expect(body).toEqual({ name: "Triage Bot" });
+    const retry = JSON.parse(String((fetchMock.mock.calls[1]![1] as RequestInit).body));
+    expect(retry.slug).toBe("triage-bot");
+    expect(retry.confirm).toBeUndefined();
   });
 
-  it("stays silent about enabled_services when no --twins was passed (older cloud)", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
-    const errors: string[] = [];
-    vi.spyOn(console, "error").mockImplementation((msg?: unknown) => {
-      errors.push(String(msg));
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      response({
-        id: "agt_123",
-        slug: "triage-bot",
-        display_name: "Triage Bot",
-        judge_model: "google/gemini-2.5-flash",
-      }),
-    );
+  it("interactive NO: creates the typed slug with confirm:true", async () => {
+    await writeManifest({ agent: { slug: "triage-bott" } });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(response(AGENT_OK));
 
     await runRegisterAgent({
       apiBaseUrl: "https://api.example.com",
-      name: "Triage Bot",
+      name: "Triage Bott",
       force: false,
+      stdinIsTTY: true,
+      confirm: async () => false,
     });
 
-    // No twin scoping was requested, so an absent enabled_services must not warn.
-    expect(errors.join("\n")).not.toMatch(/not reported by this pome cloud/i);
-    expect(errors.join("\n")).not.toMatch(/enabled services/i);
+    const retry = JSON.parse(String((fetchMock.mock.calls[1]![1] as RequestInit).body));
+    expect(retry.confirm).toBe(true);
   });
 });
 
@@ -296,79 +305,47 @@ describe("normalizeRegisterTwins", () => {
   });
 });
 
-// FDRS-669 — the `pome install` registration seam: same machinery as
-// `pome register agent`, but derives the name from the repo directory and
-// never errors on an already-registered repo (idempotent by design).
-describe("ensureAgentRegistered (FDRS-669)", () => {
-  it("registers a fresh repo under the config directory's name and writes agentId + agentSlug", async () => {
-    await writeConfig({ agent: { command: "node a.js" } });
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      response({
-        id: "agt_123",
-        slug: "my-repo",
-        display_name: "my-repo",
-        judge_model: "google/gemini-2.5-flash",
-      }),
-    );
+describe("ensureAgentRegistered", () => {
+  it("registers a fresh repo, writing the manifest slug + link.json under the caller's team", async () => {
+    const dir = process.cwd();
+    const credentialsPath = await writeCreds(dir, "tm_team");
+    delete process.env.POME_API_KEY;
+    await writeManifest({ agent: { slug: "old" }, command: "node a.js" });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(response({ ...AGENT_OK, slug: "my-repo", display_name: "my-repo" }));
 
-    const result = await ensureAgentRegistered({
-      apiBaseUrl: "https://api.example.com",
-    });
+    const result = await ensureAgentRegistered({ apiBaseUrl: "https://api.example.com", credentialsPath });
 
-    expect(result).toEqual({
-      status: "registered",
-      agentId: "agt_123",
-      agentSlug: "my-repo",
-    });
-    // The server-side name is the repo directory's basename (vercel-link
-    // shape: identity defaults to where you ran it).
-    const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("https://api.example.com/v1/agents");
-    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
-      name: basename(process.cwd()),
-    });
-    expect(readConfig()).toMatchObject({
-      agentId: "agt_123",
-      agentSlug: "my-repo",
-      agent: { command: "node a.js" },
-    });
+    expect(result).toEqual({ status: "registered", agentId: "agt_123", agentSlug: "my-repo" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(readManifestFile()).toMatchObject({ agent: { slug: "my-repo" }, command: "node a.js" });
+    expect(readLink()).toMatchObject({ agent_id: "agt_123", team_id: "tm_team" });
+    expect(basename(dir)).toBeTruthy();
   });
 
-  it("is idempotent: an already-registered repo makes no request and keeps the same slug", async () => {
-    await writeConfig({
-      agentId: "agt_existing",
-      agentSlug: "existing-agent",
-      agent: { command: "node a.js" },
-    });
+  it("is idempotent: a repo already linked under the caller's team makes no request", async () => {
+    const dir = process.cwd();
+    const credentialsPath = await writeCreds(dir, "tm_team");
+    delete process.env.POME_API_KEY;
+    await writeManifest({ agent: { slug: "existing-agent" } });
+    const { writeLinkCache } = await import("../../src/cli/link-cache.js");
+    await writeLinkCache(dir, { agent_id: "agt_existing", team_id: "tm_team" });
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
-    const first = await ensureAgentRegistered({
-      apiBaseUrl: "https://api.example.com",
-    });
-    const second = await ensureAgentRegistered({
-      apiBaseUrl: "https://api.example.com",
-    });
+    const result = await ensureAgentRegistered({ apiBaseUrl: "https://api.example.com", credentialsPath });
 
-    expect(first).toEqual({
+    expect(result).toEqual({
       status: "already-registered",
       agentId: "agt_existing",
       agentSlug: "existing-agent",
     });
-    expect(second).toEqual(first);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(readConfig()).toMatchObject({
-      agentId: "agt_existing",
-      agentSlug: "existing-agent",
-    });
   });
 
-  it("returns no-config without fetching when pome.config.json is absent", async () => {
+  it("returns no-config without fetching when no manifest is present", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
-
-    const result = await ensureAgentRegistered({
-      apiBaseUrl: "https://api.example.com",
-    });
-
+    const result = await ensureAgentRegistered({ apiBaseUrl: "https://api.example.com" });
     expect(result).toEqual({ status: "no-config" });
     expect(fetchMock).not.toHaveBeenCalled();
   });

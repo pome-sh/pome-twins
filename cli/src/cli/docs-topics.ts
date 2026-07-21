@@ -119,7 +119,7 @@ export const DOCS_TOPICS: DocsTopic[] = [
     id: "cli-init",
     title: "pome init",
     path: "/docs/cli/init",
-    keywords: ["init", "scaffold", "pome.config.json", "project"],
+    keywords: ["init", "scaffold", "pome.json", "manifest", "project"],
   },
   {
     id: "troubleshooting",

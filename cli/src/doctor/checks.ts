@@ -12,10 +12,10 @@
 
 import { serve } from "@hono/node-server";
 import { randomBytes, randomUUID } from "node:crypto";
-import { dirname, relative } from "node:path";
+import { basename, dirname, relative } from "node:path";
 import { sign } from "hono/jwt";
 import { buildEgressAllowlist } from "../capture-server/egress.js";
-import { findProjectConfigPath, readProjectConfig } from "../cli/project-config.js";
+import { findManifestPath, readManifest } from "../cli/project-config.js";
 import { getAvailablePort } from "../runner/ports.js";
 import { scanAgentSources } from "./scan.js";
 
@@ -79,49 +79,49 @@ export async function runDoctorChecks(
 type ConfigCheck = DoctorCheck & { configDir?: string };
 
 async function checkConfig(cwd: string): Promise<ConfigCheck> {
-  const path = await findProjectConfigPath(cwd);
-  if (!path) {
+  let found;
+  try {
+    found = await findManifestPath(cwd);
+  } catch (err) {
+    // Two manifests in one directory (pome.json + pome.yaml) is a hard error.
     return {
       id: "config",
       status: "fail",
-      label: "pome.config.json not found",
-      cause: `no pome.config.json found in ${cwd} or any parent directory.`,
+      label: "pome manifest is ambiguous",
+      cause: err instanceof Error ? err.message : String(err),
+      fix: "keep exactly one manifest (pome.json is canonical), then re-run pome doctor",
+    };
+  }
+  if (!found) {
+    return {
+      id: "config",
+      status: "fail",
+      label: "pome manifest not found",
+      cause: `no pome.json or pome.yaml found in ${cwd} or any parent directory.`,
       fix: "run pome init to scaffold one, then re-run pome doctor",
     };
   }
 
+  // readManifest validates against the shared-types schema (slug shape,
+  // command non-empty, etc.) and throws a named cause on any violation.
   let read;
   try {
-    read = await readProjectConfig(cwd);
-  } catch {
-    read = null;
-  }
-  if (!read) {
+    read = await readManifest(cwd);
+  } catch (err) {
     return {
       id: "config",
       status: "fail",
-      label: "pome.config.json is not valid",
-      cause: `${path} exists but is not parseable JSON.`,
-      fix: "fix the JSON (or delete the file and run pome init), then re-run pome doctor",
-    };
-  }
-
-  const command = read.config.agent?.command;
-  if (command !== undefined && (typeof command !== "string" || command.trim().length === 0)) {
-    return {
-      id: "config",
-      status: "fail",
-      label: "pome.config.json is not valid",
-      cause: `${path} has an agent.command that is not a non-empty string.`,
-      fix: 'set agent.command to the command that starts your agent, e.g. "npx tsx src/index.ts"',
+      label: `${basename(found.path)} is not valid`,
+      cause: err instanceof Error ? err.message : String(err),
+      fix: "fix the manifest (or delete it and run pome init), then re-run pome doctor",
     };
   }
 
   return {
     id: "config",
     status: "pass",
-    label: "pome.config.json found",
-    configDir: dirname(read.path),
+    label: `${basename(read!.path)} found`,
+    configDir: dirname(read!.path),
   };
 }
 

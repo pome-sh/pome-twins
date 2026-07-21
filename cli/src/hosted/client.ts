@@ -98,11 +98,16 @@ export interface CreateSessionInput {
   twins: string[];
   /** Omit for one-off sessions; reuse only when intentionally replaying a create after network uncertainty. */
   idempotencyKey?: string;
-  /** Agents-as-first-class-entity (ADR-013). Resolved from pome.config.json's
-   *  `agentId` by callers. Server validates `agent.team_id === apiKey.team_id`
-   *  and `requested_twins ⊆ agent_enabled_services`. Optional during rollout;
+  /** Agents-as-first-class-entity (ADR-013). Resolved by callers from the
+   *  manifest slug via `.pome/link.json` / the `POST /v1/agents` resolver
+   *  (F-819). Server validates `agent.team_id === apiKey.team_id` and
+   *  `requested_twins ⊆ agent_enabled_services`. Optional during rollout;
    *  will become required once the dashboard / control-plane catch up. */
   agentId?: string;
+  /** F-818 (spec F-804): per-run agent version. The manifest's `agent.version`,
+   *  or the `--agent-version` override. Opaque, user-declared; stamped onto the
+   *  session/run rows (F-820). An older cloud strips it, so sending is safe. */
+  agentVersion?: string;
   /** Pre-resolved seed JSON. When supplied, cloud uses it directly and skips
    *  extracting JSON from the scenario markdown — required for the post-2026-05-22
    *  prose `## Seed State` shape, where the markdown has no fenced JSON block. */
@@ -156,8 +161,8 @@ export interface SubmitResultInput {
   judgeTokensIn: number | null;
   judgeTokensOut: number | null;
   // Free-form SDK / framework label persisted to runs.agent_sdk (pome-cloud
-  // ADR-013). CLI reads it from `pome.config.json` { agent: { sdk: "..." } };
-  // common values: "claude-agent-sdk", "openai-agents", "openclaw", "hermes",
+  // ADR-013). CLI reads it from the manifest's `agent.framework` (F-819);
+  // common values: "claude-agent-sdk", "openai-agents", "langgraph",
   // "custom". Omit / null when the user has not declared it — control-plane
   // accepts both shapes.
   agentSdk?: string | null;
@@ -790,6 +795,9 @@ export function createHostedClient(config: HostedClientConfig): HostedClient {
       }
       if (input.agentId) {
         body.agent_id = input.agentId;
+      }
+      if (input.agentVersion) {
+        body.agent_version = input.agentVersion;
       }
       if (input.seed !== undefined) {
         body.seed = input.seed;

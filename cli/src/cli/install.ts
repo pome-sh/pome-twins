@@ -62,7 +62,7 @@ export const KICKOFF_PROMPT =
  *  (their agent won't have the pome-setup skill installed). */
 export const PASTE_PROMPT = [
   "Wire this repository to pome (https://pome.sh) so its agent runs against a twin in test:",
-  "1. If pome.config.json is missing, run `pome init`; set agent.command to how this agent starts.",
+  "1. If pome.json is missing, run `pome init`; set the top-level command to how this agent starts.",
   "2. Claude Agent SDK repos: add @pome-sh/adapter-claude-sdk, import query/tool from it (drop-in replacements), and call withPome() once at startup.",
   "3. Replace every hardcoded production API host (e.g. https://api.github.com) with the env the pome runner injects: read POME_GITHUB_REST_URL / POME_GITHUB_MCP_URL and POME_AUTH_TOKEN from process.env. Never write secrets or URLs into source.",
   "4. Make minimal, targeted edits and show each diff for approval before applying.",
@@ -286,7 +286,7 @@ export async function runInstall(options: InstallOptions): Promise<void> {
   }
 
   // 6. FDRS-669 — register the agent (idempotent) now that the session has
-  // had its chance to create pome.config.json. Runs before the doctor verify
+  // had its chance to create pome.json. Runs before the doctor verify
   // so even a red-doctor install leaves the repo registered: the first bare
   // `pome run` submits under this agent, and "Default agent" stays a
   // migration-era state only (Reliability IA v1, decision 2).
@@ -507,8 +507,8 @@ function printManualFallback(): void {
   );
   console.error("");
   console.error("wire it manually:");
-  console.error("  1. config       pome init                  # if pome.config.json is missing;");
-  console.error("                                              # then set agent.command to your agent's start command");
+  console.error("  1. config       pome init                  # if pome.json is missing;");
+  console.error("                                              # then set the top-level command to your agent's start command");
   console.error("  2. adapter      npm install @pome-sh/adapter-claude-sdk");
   console.error('  3. hook + env   import { withPome } from "@pome-sh/adapter-claude-sdk"; withPome();');
   console.error("                  read the twin URL from env, never hardcode:");

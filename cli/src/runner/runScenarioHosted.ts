@@ -22,11 +22,7 @@ import {
   scoreFromFinalizeResponse,
   uploadRunBlobs,
 } from "../hosted/uploadAndFinalize.js";
-import {
-  normalizeConfigAgentId,
-  normalizeConfigAgentSdk,
-  readProjectConfig,
-} from "../cli/project-config.js";
+import { resolveRunAgentIdentity } from "../cli/agent-identity.js";
 import { HostedOrchError, HostedTrialError } from "../hosted/errors.js";
 import type {
   CreateSessionResponse,
@@ -47,6 +43,9 @@ export interface RunScenarioHostedOptions {
   client?: HostedClient;
   /** Informational; passed through to `runs.agent_model`. Defaults to "unknown". */
   agentModel?: string;
+  /** F-819 — `--agent-version` override. Wins over the manifest's
+   *  `agent.version` when stamping the session/run. */
+  agentVersion?: string;
   /** FDRS-636 — a session minted by the caller (trial groups mint all k
    *  upfront with one shared `group_id`). When set, the runner skips its own
    *  POST /v1/sessions and runs against this session; the `finally` teardown
@@ -216,18 +215,19 @@ export async function runScenarioHosted(
     options.client ??
     createHostedClient({ baseUrl: options.hosted.baseUrl, apiKey: options.hosted.apiKey });
 
-  // ADR-013 — resolve agentId + agent.sdk from pome.config.json. Hosted runs
-  // are grouped under the agent the user registered with `pome register
-  // agent`. `agent.sdk` is a free-form string ("claude-agent-sdk",
-  // "openai-agents", "openclaw", "hermes", "custom") that the dashboard
-  // surfaces as a badge on every run. Both are optional during rollout.
-  let agentId: string | undefined;
-  let agentSdk: string | null = null;
-  const configRead = await readProjectConfig(dirname(options.scenarioPath));
-  if (configRead) {
-    agentId = normalizeConfigAgentId(configRead.config);
-    agentSdk = normalizeConfigAgentSdk(configRead.config);
-  }
+  // F-819 — resolve the agent id + version from the manifest (`agent.slug` →
+  // `.pome/link.json` cache, team-gated, re-resolved by slug on miss) and the
+  // `agent.framework` (the dashboard "SDK badge", formerly `agent.sdk`). The
+  // `agent_version` stamps the session; `--agent-version` overrides it. All are
+  // optional during rollout — a manifest-less repo runs unattributed.
+  const identity = await resolveRunAgentIdentity({
+    startDir: dirname(options.scenarioPath),
+    apiBaseUrl: options.hosted.baseUrl,
+    agentVersionOverride: options.agentVersion,
+  });
+  const agentId = identity.agentId;
+  const agentVersion = identity.agentVersion;
+  const agentSdk = identity.framework ?? null;
 
   // Per-run signals file. POME_ADAPTER_SIGNALS_PATH is injected into the agent
   // env so adapter-rich correlator gets step/tool_call signals when the agent
@@ -252,6 +252,7 @@ export async function runScenarioHosted(
       scenarioSource,
       twins: scenario.config.twins,
       agentId,
+      agentVersion,
       seed: scenario.seedState,
     },
   );
@@ -720,6 +721,7 @@ async function createSessionOrExplain(
     scenarioSource: string;
     twins: string[];
     agentId?: string;
+    agentVersion?: string;
     seed: unknown;
   },
 ): Promise<CreateSessionResponse> {

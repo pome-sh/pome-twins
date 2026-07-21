@@ -77,8 +77,8 @@ async function fixtureRepo(opts: { wired?: boolean } = {}): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pome-run-default-"));
   await mkdir(join(dir, "src"), { recursive: true });
   await writeFile(
-    join(dir, "pome.config.json"),
-    JSON.stringify({ agent: { command: 'node -e "process.exit(0)"' } }, null, 2),
+    join(dir, "pome.json"),
+    JSON.stringify({ agent: { slug: "fixture-agent" }, command: 'node -e "process.exit(0)"' }, null, 2),
   );
   if (opts.wired !== false) {
     await writeFile(join(dir, "src/agent.ts"), WIRED_AGENT_SOURCE);

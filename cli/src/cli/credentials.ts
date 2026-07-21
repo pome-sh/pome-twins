@@ -43,6 +43,10 @@ export interface ResolveCredentialsInput {
 export interface ResolvedCredentials {
   apiKey: string;
   apiBaseUrl: string;
+  /** The team the api key belongs to, when known (stored at login). Powers the
+   *  `.pome/link.json` team gate (F-819). Undefined for a bare `POME_API_KEY`
+   *  env key, whose team is known only server-side. */
+  teamId?: string;
 }
 
 export interface CredentialsFile {
@@ -112,6 +116,7 @@ export async function resolveCredentials(
     return {
       apiKey: keychain.api_key.trim(),
       apiBaseUrl: resolveApiBaseUrl(input.apiBaseUrl, keychain.api_url),
+      teamId: normalizeTeamId(keychain.team_id),
     };
   }
 
@@ -152,7 +157,14 @@ export async function resolveCredentials(
   return {
     apiKey: parsed.api_key.trim(),
     apiBaseUrl: resolveApiBaseUrl(input.apiBaseUrl, parsed.api_url),
+    teamId: normalizeTeamId(parsed.team_id),
   };
+}
+
+function normalizeTeamId(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function resolveApiBaseUrl(

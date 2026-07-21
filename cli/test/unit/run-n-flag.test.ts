@@ -72,8 +72,8 @@ async function fixtureRepo(scenarioSource: string): Promise<string> {
   await mkdir(join(dir, "src"), { recursive: true });
   await mkdir(join(dir, "scenarios"), { recursive: true });
   await writeFile(
-    join(dir, "pome.config.json"),
-    JSON.stringify({ agent: { command: 'node -e "process.exit(0)"' } }, null, 2),
+    join(dir, "pome.json"),
+    JSON.stringify({ agent: { slug: "fixture-agent" }, command: 'node -e "process.exit(0)"' }, null, 2),
   );
   await writeFile(join(dir, "src/agent.ts"), WIRED_AGENT_SOURCE);
   await writeFile(join(dir, "scenarios/scn.md"), scenarioSource, "utf8");
@@ -142,7 +142,7 @@ describe("pome run -n (FDRS-636)", () => {
     const options = vi.mocked(runTrialGroup).mock.calls[0]![0];
     expect(options.trials).toBe(5);
     expect(options.agentCommand).toBe('node -e "process.exit(0)"');
-    expect(options.agentCommandSource).toBe("pome.config.json");
+    expect(options.agentCommandSource).toBe("pome.json");
     expect(options.hosted.apiKey).toBe("pme_test_env_key");
     expect(options.dashboardBaseUrl).toBe("https://app.pome.sh");
   }, 30_000);

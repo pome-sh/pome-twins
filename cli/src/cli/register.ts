@@ -1,80 +1,56 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// `pome register agent <name>` — equivalent of `vercel link`. Creates the
-// agent in the cloud control-plane and writes the returned `agentId` into
-// `pome.config.json` so subsequent `pome run` is auto-scoped to it.
+// `pome register agent <name>` / `pome install` — the vercel-link seam. POSTs
+// the manifest identity to `POST /v1/agents` (the F-820 slug resolver: live
+// slug → alias → near-miss 409 → auto-create under the caller's team), then
+// persists the server-canonical identity into `pome.json` and caches the
+// resolved `agt_` id in gitignored `.pome/link.json`.
 //
-// Wire shape (see pome-cloud `docs/05-api-spec.md` and ADR-013):
-//   POST /v1/agents  { name, twins? }
-//     200 { id: "agt_…", slug, display_name, judge_model, enabled_services? }
-//     401 invalid_auth | 409 conflict (slug exists) | 422 validation_failed
+// Wire shape (pome-cloud `docs/05-api-spec.md`, ADR-013, F-820):
+//   POST /v1/agents  { name, slug?, description?, version?, framework?, twins?, confirm? }
+//     200 AgentResponse { id, slug, display_name, judge_model, framework?, … }
+//     401/403 auth | 404 route skew | 409 conflict (near-miss w/ details.suggestion)
 //
-// The CLI does not invent a slug — server is canonical. We persist whatever
-// slug the server returns next to the id. Multi-twin (M3): `--twins` narrows
-// the services this agent may exercise; an older cloud that predates the field
-// omits `enabled_services` from its response (we warn but still succeed).
+// The registered `agt_` id is NEVER written to the committed manifest (that is
+// the fork-404 bug class): the manifest carries only the portable `agent.slug`.
 
 import { basename, dirname } from "node:path";
 
-import { MOUNTED_TWINS } from "@pome-sh/shared-types";
+import { MOUNTED_TWINS, type AgentResponse } from "@pome-sh/shared-types";
 import {
-  HostedAuthError,
-  HostedOrchError,
-} from "../hosted/errors.js";
-import { resolveCredentials } from "./credentials.js";
-import { friendlyHostedError } from "./session.js";
+  postAgentResolver,
+  resolveSeams,
+  type AgentPostBody,
+  type InteractiveSeams,
+} from "./agent-resolver.js";
+import { resolveCredentials, type ResolvedCredentials } from "./credentials.js";
+import { suggestFramework } from "./frameworks.js";
 import {
-  CONFIG_FILE,
-  normalizeConfigAgentId,
-  readProjectConfig,
-  readRequiredProjectConfig,
-  writeProjectConfig,
-  type ProjectConfigRead,
+  ensurePomeGitignored,
+  readLinkCache,
+  resolveCachedAgentId,
+  writeLinkCache,
+} from "./link-cache.js";
+import {
+  readManifest,
+  readRequiredManifest,
+  writeManifest,
+  type ManifestRead,
 } from "./project-config.js";
+import { friendlyHostedError } from "./session.js";
 
-interface RegisterAgentOptions {
+const SCHEMA_URL = "https://pome.sh/schemas/v1/pome.json";
+
+interface RegisterAgentOptions extends InteractiveSeams {
   apiBaseUrl: string;
   name: string;
   force: boolean;
-  /** Multi-twin (M3): the services this agent is allowed to exercise. Absent =
-   *  the server's default enablement. Validated against MOUNTED_TWINS locally
-   *  for a friendly error before the round-trip. */
   twins?: string[];
+  /** Test seam — forwarded to resolveCredentials. */
+  credentialsPath?: string;
 }
 
-interface AgentResponse {
-  id: string;
-  slug: string;
-  display_name: string;
-  judge_model: string;
-  /** Multi-twin (M3): services the agent may exercise. Absent on an older
-   *  cloud that predates the field. */
-  enabled_services?: string[];
-}
-
-function parseAgentResponse(raw: unknown): AgentResponse {
-  if (
-    typeof raw === "object" &&
-    raw !== null &&
-    typeof (raw as { id?: unknown }).id === "string" &&
-    typeof (raw as { slug?: unknown }).slug === "string" &&
-    typeof (raw as { display_name?: unknown }).display_name === "string" &&
-    typeof (raw as { judge_model?: unknown }).judge_model === "string"
-  ) {
-    const enabled = (raw as { enabled_services?: unknown }).enabled_services;
-    const enabledServices =
-      Array.isArray(enabled) && enabled.every((s) => typeof s === "string")
-        ? (enabled as string[])
-        : undefined;
-    return { ...(raw as AgentResponse), enabled_services: enabledServices };
-  }
-  throw new HostedOrchError("POST /v1/agents returned unexpected shape");
-}
-
-/** Normalize a `--twins github,slack` comma list to a validated twin array.
- *  Validates against MOUNTED_TWINS locally so a typo fails with a friendly
- *  error before the network round-trip. Returns undefined for an empty input
- *  (the server picks its default enablement). */
+/** Normalize a `--twins github,slack` comma list to a validated twin array. */
 export function normalizeRegisterTwins(raw: string | undefined): string[] | undefined {
   if (raw === undefined) return undefined;
   const twins = raw
@@ -89,122 +65,126 @@ export function normalizeRegisterTwins(raw: string | undefined): string[] | unde
       `Unknown twin(s) ${unknown.map((t) => `"${t}"`).join(", ")}. Supported: ${MOUNTED_TWINS.join(", ")}.`,
     );
   }
-  // De-dupe while preserving order.
   return [...new Set(twins)];
 }
 
-/** POST /v1/agents and persist the returned identity into the config read.
- *  Shared by `pome register agent` and `pome install` (FDRS-669). */
+// ── Persist: manifest + link cache + gitignore ──────────────────────────────
+
+/** Read the manifest's existing agent block (for round-trip preservation and
+ *  did-you-mean input) without forcing schema defaults. */
+function rawAgentBlock(manifestRead: ManifestRead): Record<string, unknown> {
+  const agent = manifestRead.raw.agent;
+  return typeof agent === "object" && agent !== null && !Array.isArray(agent)
+    ? (agent as Record<string, unknown>)
+    : {};
+}
+
+/** Warn (never block) when the manifest declares an unrecognized framework. */
+function warnUnknownFramework(existingAgent: Record<string, unknown>): void {
+  const framework = existingAgent.framework;
+  if (typeof framework !== "string" || framework.trim().length === 0) return;
+  const result = suggestFramework(framework);
+  if (result.known) return;
+  const hint = result.suggestion ? ` Did you mean "${result.suggestion}"?` : "";
+  console.error(`Unknown agent.framework "${framework}".${hint} (Recorded as-is.)`);
+}
+
+/** POST the resolver, then write the server-canonical identity into the
+ *  manifest (preserving format + unrelated keys), cache the id in
+ *  `.pome/link.json` (team-gated), and ensure `.pome/` is gitignored. */
 async function createAndPersistAgent(input: {
-  apiBaseUrl: string;
+  creds: ResolvedCredentials;
   name: string;
-  configRead: ProjectConfigRead;
-  credentialsPath?: string;
-  /** Multi-twin (M3): when set, POSTed as `twins` so the cloud records the
-   *  agent's enabled services. Omitted from the body when absent so an older
-   *  cloud (and the byte-identical `pome install` path) is unchanged. */
+  manifestRead: ManifestRead;
+  projectDir: string;
   twins?: string[];
+  seams: Required<InteractiveSeams>;
 }): Promise<AgentResponse> {
-  const creds = await resolveCredentials({
-    apiBaseUrl: input.apiBaseUrl,
-    credentialsPath: input.credentialsPath,
-  });
-  const body: Record<string, unknown> = { name: input.name };
-  if (input.twins && input.twins.length > 0) {
-    body.twins = input.twins;
-  }
-  const res = await fetch(`${creds.apiBaseUrl}/v1/agents`, {
-    method: "POST",
-    headers: {
-      "x-api-key": creds.apiKey,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
-  }).catch((err: unknown) => {
-    throw new HostedOrchError(
-      err instanceof Error ? err.message : "network error",
-    );
-  });
+  const existingAgent = rawAgentBlock(input.manifestRead);
+  warnUnknownFramework(existingAgent);
 
-  const text = await res.text();
-  let json: unknown = {};
-  try {
-    json = text.length ? JSON.parse(text) : {};
-  } catch {
-    throw new HostedOrchError(`non-JSON response (status ${res.status})`);
-  }
-  if (!res.ok) {
-    const errObj = (json as { error?: { message?: string; type?: string } })
-      .error;
-    if (res.status === 401 || res.status === 403) {
-      throw new HostedAuthError(errObj?.message ?? `HTTP ${res.status}`);
-    }
-    if (res.status === 404) {
-      throw new HostedOrchError(
-        errObj?.message ??
-          "POST /v1/agents is not available at this API URL. Upgrade pome-cloud or check that --api-url/POME_API_URL points at a version that supports agent registration.",
-      );
-    }
-    throw new HostedOrchError(
-      errObj?.message ?? `POST /v1/agents → HTTP ${res.status}`,
-    );
-  }
+  const body: AgentPostBody = { name: input.name, twins: input.twins };
+  if (typeof existingAgent.description === "string") body.description = existingAgent.description;
+  if (typeof existingAgent.version === "string") body.version = existingAgent.version;
+  if (typeof existingAgent.framework === "string") body.framework = existingAgent.framework;
 
-  const agent = parseAgentResponse(json);
-  input.configRead.config.agentId = agent.id;
-  input.configRead.config.agentSlug = agent.slug;
-  await writeProjectConfig(input.configRead.path, input.configRead.config);
+  const agent = await postAgentResolver(input.creds, body, input.seams);
+
+  // Write the manifest from the response — slug + display name are canonical;
+  // description/version/framework fall back to the manifest when the cloud
+  // returns nothing (older control plane).
+  const nextAgent: Record<string, unknown> = { ...existingAgent, slug: agent.slug };
+  nextAgent.name = agent.display_name;
+  const description = agent.description ?? existingAgent.description;
+  if (typeof description === "string") nextAgent.description = description;
+  const version = agent.version ?? existingAgent.version;
+  if (typeof version === "string") nextAgent.version = version;
+  const framework = agent.framework ?? existingAgent.framework;
+  if (typeof framework === "string") nextAgent.framework = framework;
+
+  const nextRaw: Record<string, unknown> = {
+    ...input.manifestRead.raw,
+    agent: nextAgent,
+  };
+  if (typeof nextRaw.$schema !== "string") nextRaw.$schema = SCHEMA_URL;
+  await writeManifest(input.manifestRead.path, input.manifestRead.format, nextRaw);
+
+  // Cache the resolved id only when we know the caller's team (env-key auth
+  // has no local team; the cache stays absent and every run re-resolves).
+  if (input.creds.teamId) {
+    await writeLinkCache(input.projectDir, { agent_id: agent.id, team_id: input.creds.teamId });
+  }
+  await ensurePomeGitignored(input.projectDir);
   return agent;
 }
 
-export async function runRegisterAgent(
-  opts: RegisterAgentOptions,
-): Promise<void> {
-  const configRead = await readRequiredProjectConfig();
-  const existing = normalizeConfigAgentId(configRead.config) ?? null;
-  if (existing && !opts.force) {
-    console.error(
-      `Already registered agent ${existing}. Re-run with --force to overwrite.`,
-    );
-    return;
+export async function runRegisterAgent(opts: RegisterAgentOptions): Promise<void> {
+  const manifestRead = await readRequiredManifest();
+  const projectDir = dirname(manifestRead.path);
+  const creds = await resolveCredentials({
+    apiBaseUrl: opts.apiBaseUrl,
+    credentialsPath: opts.credentialsPath,
+  });
+
+  if (!opts.force) {
+    const cachedId = resolveCachedAgentId(await readLinkCache(projectDir), creds.teamId);
+    if (cachedId) {
+      console.error(
+        `Already linked to ${cachedId} (slug=${manifestRead.manifest.agent.slug}). Re-run with --force to re-resolve.`,
+      );
+      return;
+    }
   }
 
   const agent = await createAndPersistAgent({
-    apiBaseUrl: opts.apiBaseUrl,
+    creds,
     name: opts.name,
-    configRead,
+    manifestRead,
+    projectDir,
     twins: opts.twins,
+    seams: resolveSeams(opts),
   });
 
   const displayName = stripControlCharacters(agent.display_name);
-  console.error(
-    `Registered agent "${displayName}" (${agent.id}, slug=${agent.slug}).`,
-  );
-  console.error(`Wrote agentId to ${CONFIG_FILE}.`);
+  console.error(`Registered agent "${displayName}" (${agent.id}, slug=${agent.slug}).`);
+  console.error(`Wrote agent.slug to ${basename(manifestRead.path)}.`);
   console.error(`Judge model: ${agent.judge_model}.`);
-  // Multi-twin (M3): echo the services the cloud enabled. An older cloud that
-  // predates `enabled_services` omits it — warn so the user knows the twin
-  // scoping did not take effect on this control plane.
   if (agent.enabled_services !== undefined) {
     console.error(
       `Enabled services: ${agent.enabled_services.length > 0 ? agent.enabled_services.join(", ") : "(none)"}.`,
     );
   } else if (opts.twins && opts.twins.length > 0) {
-    // Only warn when the user asked to scope twins (`--twins`). An older cloud
-    // that predates `enabled_services` omits it; without `--twins` there was no
-    // scoping request to warn about, so a default `pome register agent` stays
-    // quiet (matches origin/main's silence in that path).
     console.error(
       "Enabled services: not reported by this pome cloud (older control plane) — twin scoping may not have taken effect.",
     );
   }
 }
 
-// ── FDRS-669 — `pome install` registration ─────────────────────────────────
+// ── `pome install` registration seam ────────────────────────────────────────
 
-export interface EnsureAgentRegisteredOptions {
+export interface EnsureAgentRegisteredOptions extends InteractiveSeams {
   apiBaseUrl: string;
-  /** Where to look for pome.config.json. Defaults to process.cwd(). */
+  /** Where to look for the manifest. Defaults to process.cwd(). */
   cwd?: string;
   /** Test seam — forwarded to resolveCredentials. */
   credentialsPath?: string;
@@ -215,31 +195,37 @@ export type EnsureAgentRegisteredResult =
   | { status: "already-registered"; agentId: string; agentSlug?: string }
   | { status: "no-config" };
 
-/** Idempotent registration for `pome install`: a repo with an agentId keeps
- *  it (no duplicate agents, no error, same slug); a fresh repo registers
- *  under the config directory's basename (vercel-link shape — the server
- *  canonicalizes the slug; we persist whatever it returns). */
+/** Idempotent registration for `pome install`: a repo already linked under the
+ *  caller's team keeps its id (no network, no duplicate); a fresh repo registers
+ *  under the manifest name (or the config directory's basename). */
 export async function ensureAgentRegistered(
   opts: EnsureAgentRegisteredOptions,
 ): Promise<EnsureAgentRegisteredResult> {
-  const configRead = await readProjectConfig(opts.cwd ?? process.cwd());
-  if (!configRead) return { status: "no-config" };
+  const manifestRead = await readManifest(opts.cwd ?? process.cwd());
+  if (!manifestRead) return { status: "no-config" };
 
-  const existing = normalizeConfigAgentId(configRead.config);
-  if (existing) {
-    const slug = configRead.config.agentSlug;
+  const projectDir = dirname(manifestRead.path);
+  const creds = await resolveCredentials({
+    apiBaseUrl: opts.apiBaseUrl,
+    credentialsPath: opts.credentialsPath,
+  });
+
+  const cachedId = resolveCachedAgentId(await readLinkCache(projectDir), creds.teamId);
+  if (cachedId) {
     return {
       status: "already-registered",
-      agentId: existing,
-      agentSlug: typeof slug === "string" && slug.trim() ? slug.trim() : undefined,
+      agentId: cachedId,
+      agentSlug: manifestRead.manifest.agent.slug,
     };
   }
 
+  const name = manifestRead.manifest.agent.name ?? basename(projectDir);
   const agent = await createAndPersistAgent({
-    apiBaseUrl: opts.apiBaseUrl,
-    name: basename(dirname(configRead.path)),
-    configRead,
-    credentialsPath: opts.credentialsPath,
+    creds,
+    name,
+    manifestRead,
+    projectDir,
+    seams: resolveSeams(opts),
   });
   return { status: "registered", agentId: agent.id, agentSlug: agent.slug };
 }

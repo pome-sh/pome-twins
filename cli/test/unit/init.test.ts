@@ -30,7 +30,9 @@ describe("pome init", () => {
 
     const githubTwin = findTwin("github");
     expect(githubTwin).not.toBeNull();
-    expect(existsSync("pome.config.json")).toBe(true);
+    expect(existsSync("pome.json")).toBe(true);
+    // The manifest is valid: it carries a slug derived from the project dir.
+    expect(JSON.parse(readFileSync("pome.json", "utf8")).agent.slug).toMatch(/^[a-z0-9-]+$/);
     for (const scenario of runnableScenarios(githubTwin!)) {
       expect(existsSync(join("scenarios", scenario.filename))).toBe(true);
     }
@@ -48,7 +50,7 @@ describe("pome init", () => {
 
     await createProgram().parseAsync(["node", "pome", "init"]);
 
-    expect(readFileSync("pome.config.json", "utf8")).toContain("scripted-triage-agent.ts");
+    expect(readFileSync("pome.json", "utf8")).toContain("scripted-triage-agent.ts");
     const messages = errSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(messages).toContain("pome register agent <name>");
 

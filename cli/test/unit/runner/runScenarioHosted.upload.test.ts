@@ -7,6 +7,11 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
+const identityMock = vi.hoisted(() => ({
+  resolveRunAgentIdentity: vi.fn(async () => ({}) as Record<string, unknown>),
+}));
+vi.mock("../../../src/cli/agent-identity.js", () => identityMock);
+
 import { runScenarioHosted } from "../../../src/runner/runScenarioHosted.js";
 import type { HostedClient } from "../../../src/hosted/client.js";
 import { HostedOrchError } from "../../../src/hosted/errors.js";
@@ -647,24 +652,24 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
     });
   });
 
-  it("reads agentId and agent.sdk from the nearest pome.config.json", async () => {
+  it("threads the resolved agent id + version into the create-session request", async () => {
     const { client, getCreateSessionInput } = makeStubClient({
       requestEventsUploadUrlImpl: async () => {
         throw new HostedOrchError("no route");
       },
+    });
+    // Identity resolution (manifest → link cache → slug re-resolve) is covered
+    // by agent-identity.test.ts; here we assert the runner threads its result.
+    identityMock.resolveRunAgentIdentity.mockResolvedValueOnce({
+      agentId: "agt_registered",
+      agentVersion: "0.2.0",
+      framework: "claude-agent-sdk",
     });
 
     const projectDir = join(tmp, "project");
     const scenarioDir = join(projectDir, "scenarios");
     await import("node:fs/promises").then((fs) =>
       fs.mkdir(scenarioDir, { recursive: true }),
-    );
-    await writeFile(
-      join(projectDir, "pome.config.json"),
-      JSON.stringify({
-        agentId: "agt_registered",
-        agent: { sdk: "claude-agent-sdk" },
-      }),
     );
     const scenarioPath = join(scenarioDir, "scn.md");
     await writeFile(scenarioPath, TRIVIAL_PASSING_SCENARIO, "utf8");
@@ -679,6 +684,7 @@ describe("runScenarioHosted events.jsonl upload orchestration (FDRS-357)", () =>
 
     expect(getCreateSessionInput()).toMatchObject({
       agentId: "agt_registered",
+      agentVersion: "0.2.0",
     });
   });
 });

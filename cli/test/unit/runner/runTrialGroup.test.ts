@@ -39,6 +39,13 @@ vi.mock("../../../src/hosted/client.js", async (importOriginal) => {
   return { ...original, createHostedClient: vi.fn(original.createHostedClient) };
 });
 
+// Identity resolution has its own test (agent-identity.test.ts); mock the
+// boundary so the URL/mint tests control the resolved slug + id directly.
+const identityMock = vi.hoisted(() => ({
+  resolveRunAgentIdentity: vi.fn(async () => ({}) as Record<string, unknown>),
+}));
+vi.mock("../../../src/cli/agent-identity.js", () => identityMock);
+
 const SCENARIO =
   "# Trivial\n\n## Prompt\nPretend prompt.\n\n## Success Criteria\n- [code] No unsupported endpoint was called\n";
 
@@ -727,18 +734,12 @@ describe("runTrialGroup — dashboard link + client construction", () => {
   // FDRS-669) the CLI prints /agents/<slug>/tasks/<name>?group=grp_… — the
   // run set's reliability view, never the agent-less empty state. ?group is
   // forward-compat: the page honors it in M1.
-  it("prints /agents/<slug>/tasks/<name>?group=grp_… when pome.config.json carries the registered slug", async () => {
+  it("prints /agents/<slug>/tasks/<name>?group=grp_… when the manifest slug resolves", async () => {
     const scenarioPath = await scenarioFixture();
-    const dir = join(scenarioPath, "..");
-    await writeFile(
-      join(dir, "pome.config.json"),
-      JSON.stringify({
-        agentId: "agt_123",
-        agentSlug: "triage-bot",
-        agent: { command: "node agent.js" },
-      }),
-      "utf8",
-    );
+    identityMock.resolveRunAgentIdentity.mockResolvedValueOnce({
+      agentId: "agt_123",
+      agentSlug: "triage-bot",
+    });
     const cloud = makeFakeClient();
     const out: string[] = [];
 
@@ -768,14 +769,9 @@ describe("runTrialGroup — dashboard link + client construction", () => {
     );
   });
 
-  it("appends ?agent=<agentId> when pome.config.json pins one (page groups per agent)", async () => {
+  it("appends ?agent=<agentId> when the manifest resolves an id but no slug (page groups per agent)", async () => {
     const scenarioPath = await scenarioFixture();
-    const dir = join(scenarioPath, "..");
-    await writeFile(
-      join(dir, "pome.config.json"),
-      JSON.stringify({ agentId: "agt_123", agent: { command: "node agent.js" } }),
-      "utf8",
-    );
+    identityMock.resolveRunAgentIdentity.mockResolvedValueOnce({ agentId: "agt_123" });
     const cloud = makeFakeClient();
 
     const result = await runTrialGroup({

@@ -43,11 +43,7 @@ import { newGroupId } from "../demo/ids.js";
 import { criterionPhrase } from "../demo/render.js";
 import { parseScenarioFile } from "../scenario/parseScenario.js";
 import { outcomeOf } from "../hosted/evalResultView.js";
-import {
-  normalizeConfigAgentId,
-  normalizeConfigAgentSlug,
-  readProjectConfig,
-} from "../cli/project-config.js";
+import { resolveRunAgentIdentity } from "../cli/agent-identity.js";
 import { runScenarioHosted } from "./runScenarioHosted.js";
 import {
   fixHandoffLines,
@@ -76,7 +72,7 @@ export interface RunTrialGroupOptions {
   scenarioPath: string;
   agentCommand: string;
   /** Where the agent command came from, for the header copy
-   *  ("pome.config.json" | "--agent" | "built-in default"). */
+   *  ("pome.json" | "--agent" | "built-in default"). */
   agentCommandSource?: string;
   /** Effective k (2..20). k=1 must take the single-run path instead. */
   trials: number;
@@ -87,6 +83,8 @@ export interface RunTrialGroupOptions {
   dashboardBaseUrl: string;
   /** Informational; forwarded to every trial's `runs.agent_model`. */
   agentModel?: string;
+  /** F-819 — `--agent-version` override, forwarded to every trial's session. */
+  agentVersion?: string;
   /** FDRS-644 — the literal command the fix handoff tells the user to
    *  re-run after their coding agent applies a fix. The caller knows the
    *  invocation shape (bare `pome run` vs an explicit path + -n); default
@@ -126,19 +124,20 @@ export async function runTrialGroup(
       timeoutMs: GROUP_FINALIZE_TIMEOUT_MS,
     });
   const groupId = options.groupId ?? newGroupId();
-  const agentCommandSource = options.agentCommandSource ?? "pome.config.json";
+  const agentCommandSource = options.agentCommandSource ?? "pome.json";
 
   const scenario = await parseScenarioFile(options.scenarioPath);
   const scenarioSource = await readFile(options.scenarioPath, "utf8");
-  // Same agent resolution as the single-run path (ADR-013): the group's
-  // trials are recorded under the agent pinned in pome.config.json.
-  const configRead = await readProjectConfig(dirname(options.scenarioPath));
-  const agentId = configRead
-    ? normalizeConfigAgentId(configRead.config)
-    : undefined;
-  const agentSlug = configRead
-    ? normalizeConfigAgentSlug(configRead.config)
-    : undefined;
+  // Same agent resolution as the single-run path (F-819): the group's trials
+  // are recorded under the agent the manifest's `agent.slug` resolves to.
+  const identity = await resolveRunAgentIdentity({
+    startDir: dirname(options.scenarioPath),
+    apiBaseUrl: options.hosted.baseUrl,
+    agentVersionOverride: options.agentVersion,
+  });
+  const agentId = identity.agentId;
+  const agentVersion = identity.agentVersion;
+  const agentSlug = identity.agentSlug;
 
   out(flagHintLine(agentCommandSource));
   out("");
@@ -151,6 +150,7 @@ export async function runTrialGroup(
       scenarioSource,
       twins: scenario.config.twins,
       agentId,
+      agentVersion,
       seed: scenario.seedState,
       groupId,
       // Fresh idempotency key per mint — the mint bodies are otherwise

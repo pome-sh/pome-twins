@@ -10,7 +10,7 @@
 
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { promisify } from "node:util";
@@ -48,16 +48,28 @@ async function tempDir(prefix: string): Promise<string> {
   return dir;
 }
 
-/** A repo the doctor engine can walk: config + one agent source file. */
+/** A repo the doctor engine can walk: manifest + one agent source file. */
 async function fixtureRepo(agentSource: string): Promise<string> {
   const dir = await tempDir("pome-install-repo-");
   await mkdir(join(dir, "src"), { recursive: true });
   await writeFile(
-    join(dir, "pome.config.json"),
-    JSON.stringify({ agent: { command: 'node -e "process.exit(0)"' } }, null, 2),
+    join(dir, "pome.json"),
+    JSON.stringify({ agent: { slug: "fixture-repo" }, command: 'node -e "process.exit(0)"' }, null, 2),
   );
   await writeFile(join(dir, "src/agent.ts"), agentSource);
   return dir;
+}
+
+/** A 0600 creds file so ensureAgentRegistered surfaces a team_id (the link
+ *  cache is team-gated; env-key auth carries no local team). */
+async function writeCredsFile(dir: string, teamId: string): Promise<string> {
+  const path = join(dir, "creds.json");
+  await writeFile(
+    path,
+    JSON.stringify({ api_key: "pme_test", api_url: API_URL, dashboard_url: DASHBOARD_URL, team_id: teamId }),
+  );
+  await chmod(path, 0o600);
+  return path;
 }
 
 /** A stubbed HOME with ~/.claude present so runSkillsInstall has a dest. */
@@ -253,9 +265,9 @@ describe("pome install (FDRS-642)", () => {
     const { binDir } = await fakeClaudeBin();
     const home = await fakeHome();
     const repo = await fixtureRepo(WIRED_SOURCE);
+    const credentialsPath = await writeCredsFile(repo, "tm_team");
     vi.stubEnv("PATH", binDir);
     vi.stubEnv("HOME", home);
-    vi.stubEnv("POME_API_KEY", "pme_test");
     vi.stubEnv("POME_CLI_DISABLE_KEYCHAIN", "1");
     const realFetch = globalThis.fetch;
     const agentPosts: unknown[] = [];
@@ -281,15 +293,21 @@ describe("pome install (FDRS-642)", () => {
       dashboardUrl: DASHBOARD_URL,
       stdinIsTTY: true,
       cwd: repo,
+      credentialsPath,
       confirm: async () => true,
     });
 
     expect(agentPosts).toHaveLength(1);
-    const config = JSON.parse(
-      await readFile(join(repo, "pome.config.json"), "utf8"),
+    // The resolved id lands in the gitignored link cache, not the manifest.
+    const link = JSON.parse(
+      await readFile(join(repo, ".pome", "link.json"), "utf8"),
     ) as Record<string, unknown>;
-    expect(config.agentId).toBe("agt_fresh");
-    expect(config.agentSlug).toBe("fixture-repo");
+    expect(link.agent_id).toBe("agt_fresh");
+    expect(link.team_id).toBe("tm_team");
+    const manifest = JSON.parse(
+      await readFile(join(repo, "pome.json"), "utf8"),
+    ) as { agent: { slug?: string } };
+    expect(manifest.agent.slug).toBe("fixture-repo");
     const text = stderrText();
     expect(text).toContain("registered agent");
     expect(text).toContain("fixture-repo");
@@ -301,20 +319,18 @@ describe("pome install (FDRS-642)", () => {
     const home = await fakeHome();
     const repo = await fixtureRepo(WIRED_SOURCE);
     await writeFile(
-      join(repo, "pome.config.json"),
-      JSON.stringify(
-        {
-          agent: { command: 'node -e "process.exit(0)"' },
-          agentId: "agt_existing",
-          agentSlug: "already-there",
-        },
-        null,
-        2,
-      ),
+      join(repo, "pome.json"),
+      JSON.stringify({ agent: { slug: "already-there" }, command: 'node -e "process.exit(0)"' }, null, 2),
     );
+    // Already linked under the caller's team → the short-circuit path.
+    await mkdir(join(repo, ".pome"), { recursive: true });
+    await writeFile(
+      join(repo, ".pome", "link.json"),
+      JSON.stringify({ agent_id: "agt_existing", team_id: "tm_team", resolved_at: "2026-07-19T00:00:00Z" }),
+    );
+    const credentialsPath = await writeCredsFile(repo, "tm_team");
     vi.stubEnv("PATH", binDir);
     vi.stubEnv("HOME", home);
-    vi.stubEnv("POME_API_KEY", "pme_test");
     vi.stubEnv("POME_CLI_DISABLE_KEYCHAIN", "1");
     const realFetch = globalThis.fetch;
     let agentPosts = 0;
@@ -332,15 +348,15 @@ describe("pome install (FDRS-642)", () => {
       dashboardUrl: DASHBOARD_URL,
       stdinIsTTY: true,
       cwd: repo,
+      credentialsPath,
       confirm: async () => true,
     });
 
     expect(agentPosts).toBe(0);
-    const config = JSON.parse(
-      await readFile(join(repo, "pome.config.json"), "utf8"),
+    const link = JSON.parse(
+      await readFile(join(repo, ".pome", "link.json"), "utf8"),
     ) as Record<string, unknown>;
-    expect(config.agentId).toBe("agt_existing");
-    expect(config.agentSlug).toBe("already-there");
+    expect(link.agent_id).toBe("agt_existing");
     expect(stderrText()).toContain("already-there");
     expect(process.exitCode).toBeFalsy();
   }, 60_000);

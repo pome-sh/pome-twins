@@ -19,8 +19,8 @@ async function fixtureRepo(agentSource: string): Promise<string> {
   await mkdir(join(dir, "src"), { recursive: true });
   await mkdir(join(dir, "scenarios"), { recursive: true });
   await writeFile(
-    join(dir, "pome.config.json"),
-    JSON.stringify({ agent: { command: 'node -e "process.exit(0)"' } }, null, 2),
+    join(dir, "pome.json"),
+    JSON.stringify({ agent: { slug: "gate-agent" }, command: 'node -e "process.exit(0)"' }, null, 2),
   );
   await writeFile(join(dir, "src/agent.ts"), agentSource);
   await cp(SCENARIO_SRC, join(dir, "scenarios/01-bug-happy-path.md"));

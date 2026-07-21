@@ -51,11 +51,7 @@ import {
   type Score,
 } from "../hosted/evalResultView.js";
 import { resolveCredentials } from "./credentials.js";
-import {
-  normalizeConfigAgentSdk,
-  readProjectConfig,
-  type ProjectConfig,
-} from "./project-config.js";
+import { readManifest } from "./project-config.js";
 import type { RecorderEvent as LegacyGithubRecorderEvent } from "@pome-sh/shared-types";
 import { isLegacyEventRow, type FinalizeResponse } from "../types/shared.js";
 
@@ -233,13 +229,19 @@ export interface EvalIdentity {
   taskName: string;
 }
 
+/** The manifest fields `pome eval` reads: the agent slug (identity) and the
+ *  framework (the finalize "SDK badge"). */
+export interface EvalProjectIdentity {
+  agentSlug?: string;
+  framework?: string;
+}
+
 /** Precedence: explicit flags → meta.json (`scenario`, then `title`) for the
- *  task; explicit flag → pome.config.json (`agentSlug`, then `agentId`) for
- *  the agent. */
+ *  task; explicit flag → manifest `agent.slug` for the agent. */
 export function deriveEvalIdentity(
   meta: RunMeta,
   flags: { agent?: string; task?: string },
-  config: ProjectConfig | null,
+  identity: EvalProjectIdentity | null,
 ): EvalIdentity {
   const taskName = flags.task?.trim() || meta.scenario || meta.title;
   if (!taskName) {
@@ -247,44 +249,40 @@ export function deriveEvalIdentity(
       "pome eval: could not derive a task name — meta.json has no `scenario` or `title` field. Pass --task <name>.",
     );
   }
-  const agent = flags.agent?.trim() || configAgent(config);
+  const agent = flags.agent?.trim() || identity?.agentSlug?.trim() || "";
   if (!agent) {
     throw new HostedUsageError(
-      "pome eval: no agent identity found. Pass --agent <slug>, or run `pome register agent <name>` so pome.config.json carries agentSlug.",
+      "pome eval: no agent identity found. Pass --agent <slug>, or run `pome register agent <name>` so pome.json carries agent.slug.",
     );
   }
   return { agent, taskName };
 }
 
-function configAgent(config: ProjectConfig | null): string | null {
-  if (!config) return null;
-  const slug = typeof config.agentSlug === "string" ? config.agentSlug.trim() : "";
-  if (slug.length > 0) return slug;
-  const id = typeof config.agentId === "string" ? config.agentId.trim() : "";
-  if (id.length > 0) return id;
-  return null;
-}
-
 /** Walk up from the run dir first (in-project runs), then from the CWD
  *  (external run dirs like `pome eval /tmp/some-run` invoked from a
- *  configured project). Corrupt configs surface as named usage errors
- *  instead of raw JSON.parse throws (exit 2). */
+ *  configured project). Corrupt manifests surface as named usage errors
+ *  instead of raw parse throws (exit 2). */
 async function discoverProjectConfig(
   runDir: string,
-): Promise<ProjectConfig | null> {
-  const fromRunDir = await readConfigNamed(runDir);
+): Promise<EvalProjectIdentity | null> {
+  const fromRunDir = await readIdentityNamed(runDir);
   if (fromRunDir) return fromRunDir;
-  return readConfigNamed(process.cwd());
+  return readIdentityNamed(process.cwd());
 }
 
-async function readConfigNamed(startDir: string): Promise<ProjectConfig | null> {
+async function readIdentityNamed(
+  startDir: string,
+): Promise<EvalProjectIdentity | null> {
+  let read;
   try {
-    return (await readProjectConfig(startDir))?.config ?? null;
+    read = await readManifest(startDir);
   } catch (err) {
     throw new HostedUsageError(
-      `pome eval: pome.config.json is corrupt — ${err instanceof Error ? err.message : String(err)}`,
+      `pome eval: pome manifest is corrupt — ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+  if (!read) return null;
+  return { agentSlug: read.manifest.agent.slug, framework: read.manifest.agent.framework };
 }
 
 // ---------------------------------------------------------------------------
@@ -380,8 +378,8 @@ export interface RunEvalOptions {
   hosted: { baseUrl: string; apiKey: string };
   /** For tests: inject a client. Otherwise constructed from `hosted`. */
   client?: EvalClient;
-  /** For tests: bypass pome.config.json discovery (pass null for "none"). */
-  projectConfig?: ProjectConfig | null;
+  /** For tests: bypass manifest discovery (pass null for "none"). */
+  projectConfig?: EvalProjectIdentity | null;
 }
 
 export interface RunEvalResult {
@@ -401,7 +399,7 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
   const runDir = options.runDir;
   const artifacts = await readRunDirArtifacts(runDir);
 
-  const config =
+  const projectIdentity =
     options.projectConfig !== undefined
       ? options.projectConfig
       : await discoverProjectConfig(runDir);
@@ -409,7 +407,7 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
   const identity = deriveEvalIdentity(
     artifacts.meta,
     { agent: options.agent, task: options.task },
-    config,
+    projectIdentity,
   );
   const { agent, taskName } = identity;
 
@@ -493,7 +491,7 @@ export async function runEval(options: RunEvalOptions): Promise<RunEvalResult> {
       exitCode: artifacts.meta.exitCode ?? -1,
       durationMs: durationMsFrom(artifacts.meta),
       agentModel: "unknown",
-      agentSdk: config ? normalizeConfigAgentSdk(config) : null,
+      agentSdk: projectIdentity?.framework ?? null,
       // Eval sessions carry no client-side criteria — the cloud eval judge
       // owns them (FDRS-655). Cloud's finalize schema defaults all scenario
       // fields, so empty strings are accepted.

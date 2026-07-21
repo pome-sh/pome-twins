@@ -11,9 +11,9 @@ import {
   HostedOrchError,
   HostedQuotaError,
 } from "../hosted/errors.js";
+import { resolveRunAgentIdentity } from "./agent-identity.js";
 import { resolveCredentials } from "./credentials.js";
 import { DEFAULT_DASHBOARD_URL } from "./defaults.js";
-import { normalizeConfigAgentId, readProjectConfig } from "./project-config.js";
 
 // Defensive append: the server's per_twin.mcp_url has been observed missing
 // the `/mcp` suffix that agents need to mount the MCP transport (F19). The
@@ -147,16 +147,17 @@ export async function runSessionCreate(opts: {
     baseUrl: creds.apiBaseUrl,
     apiKey: creds.apiKey,
   });
-  const configRead = await readProjectConfig(process.cwd());
-  const agentId = configRead
-    ? normalizeConfigAgentId(configRead.config)
-    : undefined;
+  const identity = await resolveRunAgentIdentity({
+    startDir: process.cwd(),
+    apiBaseUrl: creds.apiBaseUrl,
+  });
 
   const session = await client.createSession({
     twins,
     scenarioSource: "# ..\n",
     idempotencyKey: randomUUID(),
-    agentId,
+    agentId: identity.agentId,
+    agentVersion: identity.agentVersion,
   });
 
   if (opts.secretsFile) {

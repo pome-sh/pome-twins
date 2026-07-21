@@ -304,16 +304,15 @@ describe("pome eval meta parsing + identity derivation (FDRS-656)", () => {
     expect(() => deriveEvalIdentity(meta, { agent: "a" }, null)).toThrow(/--task/);
   });
 
-  it("agent precedence: --agent > config agentSlug > config agentId", () => {
+  it("agent precedence: --agent > manifest agent.slug", () => {
     const meta = parseRunMeta(META);
-    const config = { agentSlug: "triage-bot", agentId: "agt_123" };
-    expect(deriveEvalIdentity(meta, { agent: "cli-agent" }, config).agent).toBe(
+    const identity = { agentSlug: "triage-bot" };
+    expect(deriveEvalIdentity(meta, { agent: "cli-agent" }, identity).agent).toBe(
       "cli-agent",
     );
-    expect(deriveEvalIdentity(meta, {}, config).agent).toBe("triage-bot");
-    expect(deriveEvalIdentity(meta, {}, { agentId: "agt_123" }).agent).toBe(
-      "agt_123",
-    );
+    expect(deriveEvalIdentity(meta, {}, identity).agent).toBe("triage-bot");
+    // No id fallback — identity is the portable slug (agt_ ids never leak here).
+    expect(() => deriveEvalIdentity(meta, {}, {})).toThrow(/--agent/);
   });
 
   it("no agent anywhere → usage error naming --agent and pome register", () => {
@@ -777,8 +776,8 @@ describe("pome eval review fixes (FDRS-656 follow-up)", () => {
     const projectDir = join(tmp, "project");
     await mkdir(projectDir, { recursive: true });
     await writeFile(
-      join(projectDir, "pome.config.json"),
-      JSON.stringify({ agentSlug: "cfg-bot" }),
+      join(projectDir, "pome.json"),
+      JSON.stringify({ agent: { slug: "cfg-bot" } }),
     );
     const externalRoot = join(tmp, "external");
     await mkdir(externalRoot, { recursive: true });
@@ -799,10 +798,10 @@ describe("pome eval review fixes (FDRS-656 follow-up)", () => {
     ]);
   });
 
-  it("corrupt pome.config.json → named usage error", async () => {
+  it("corrupt pome manifest → named usage error", async () => {
     const projectDir = join(tmp, "project-corrupt");
     await mkdir(projectDir, { recursive: true });
-    await writeFile(join(projectDir, "pome.config.json"), "{nope");
+    await writeFile(join(projectDir, "pome.json"), "{nope");
     const runDir = await writeRunDir(projectDir);
     const { client } = makeEvalClient();
     mockPutFetch();
@@ -817,7 +816,7 @@ describe("pome eval review fixes (FDRS-656 follow-up)", () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(HostedUsageError);
-    expect((err as Error).message).toContain("pome.config.json is corrupt");
+    expect((err as Error).message).toContain("pome manifest is corrupt");
   });
 
   it("meta exit_code accepts integer-like strings; unknown sends -1, never 0", async () => {

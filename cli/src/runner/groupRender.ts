@@ -3,9 +3,9 @@
 // matching the design-of-record (CLI moments.dc.html moment 04,
 // task/code-model vocabulary):
 //
-//   -n sets how many isolated trials to run · the agent command comes from pome.config.json
+//   -n sets how many isolated trials to run · the agent command comes from pome.json
 //   provisioning 5 isolated github twins … ready
-//   spawning agent <cmd> · from pome.config.json …
+//   spawning agent <cmd> · from pome.json …
 //   trial 1  ✓  100      14.3s
 //   trial 2  ✓  96       12.1s
 //   trial 3  ✗  58       15.9s  <failing criteria summary>
@@ -36,7 +36,7 @@ export type TrialRow =
   | { kind: "errored"; reason: string };
 
 /** The muted hint under the command echo, naming where the agent command
- *  came from (pome.config.json / --agent / the built-in default). */
+ *  came from (pome.json / --agent / the built-in default). */
 export function flagHintLine(agentCommandSource: string): string {
   return `-n sets how many isolated trials to run · the agent command comes from ${agentCommandSource}`;
 }
