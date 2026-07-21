@@ -72,6 +72,11 @@ const createSessionRequestObjectSchema = z
     // runs.group_id at finalize; the demo/eval mints already accept the same
     // field. Format mirrors the cloud's GROUP_ID_RE. Legacy clients omit it.
     group_id: z.string().regex(/^[A-Za-z0-9_-]{6,64}$/).optional(),
+    // F-818 (spec F-804): per-run override of the manifest's agent.version —
+    // an opaque user-declared label stamped onto the session/run rows (F-820).
+    // Absent = the agent's registered version. Additive; older clients omit it
+    // and an older cloud strips it.
+    agent_version: z.string().optional(),
   })
   .refine(
     (v) => Boolean(v.task_source) !== Boolean(v.task_id),
@@ -297,6 +302,18 @@ export type CriterionDefInput = z.input<typeof criterionDefSchema>;
 // canonical for the slug; the CLI persists whatever id/slug it returns.
 export const createAgentRequestSchema = z.object({
   name: z.string().min(1),
+  // Manifest identity (F-818, spec F-804): human-ish slug input — the server
+  // derives the canonical kebab slug with the same deriveAgentSlug exported
+  // from `./manifest.js`, then validates it against SLUG_RE. Cap mirrors the
+  // control-plane edge; shape is deliberately NOT enforced here.
+  slug: z.string().min(1).max(64).optional(),
+  description: z.string().optional(),
+  // User-declared version label from the manifest's agent.version — an opaque
+  // string, never auto-bumped, never semver-interpreted.
+  version: z.string().optional(),
+  // Open enum by design (F-804): unknown frameworks get a did-you-mean warning
+  // server-side, never a validation error.
+  framework: z.string().min(1).optional(),
   // Multi-twin (M3): the twins this agent is allowed to exercise. Absent = the
   // server's default enablement. The cloud intersects a session's requested
   // twins with the agent's enabled services. Additive; older clients omit it.
@@ -311,6 +328,16 @@ export const agentResponseSchema = z.object({
   slug: z.string(),
   display_name: z.string(),
   judge_model: z.string(),
+  // Manifest identity (F-818): registered agent.framework / agent.description /
+  // agent.version, nullable where the server has nothing stored. Optional for
+  // the pre-F-820 cloud, which omits them.
+  framework: z.string().optional(),
+  description: z.string().nullable().optional(),
+  version: z.string().nullable().optional(),
+  // F-818 resolver semantics: true when POST /v1/agents auto-registered a new
+  // agent for this slug, false when it resolved an existing one. Optional for
+  // the pre-F-820 cloud; absence means "unknown", not "resolved".
+  created: z.boolean().optional(),
   // Multi-twin (M3): the services (twins) this agent may exercise. Absent on an
   // older cloud; new CLIs treat absence as "unconstrained / server default".
   enabled_services: z.array(z.string()).optional(),

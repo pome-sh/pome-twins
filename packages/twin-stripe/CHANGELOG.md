@@ -4,6 +4,11 @@ All notable changes to the Stripe twin are documented here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the package follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.5 — 2026-07-21
+
+Dependency-only patch: repin `@pome-sh/sdk` to 0.5.1 and
+`@pome-sh/shared-types` to 0.12.0 (F-818). No twin surface change.
+
 ## 0.2.4 — 2026-07-20
 
 Dependency-only release: repins the shared first-party contract to

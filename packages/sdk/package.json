@@ -1,17 +1,28 @@
 {
   "name": "@pome-sh/sdk",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Twin engine for Pome digital twins — defineTwin() + serve(): HTTP mounting, bearer auth, trace recorder, MCP dispatch, SQLite-backed state.",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" },
-    "./parity": { "types": "./dist/parity.d.ts", "default": "./dist/parity.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./parity": {
+      "types": "./dist/parity.d.ts",
+      "default": "./dist/parity.js"
+    }
   },
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pome-sh/digital-twins.git",
@@ -33,7 +44,7 @@
     "emit-fidelity": "tsx scripts/emit-fidelity.ts"
   },
   "dependencies": {
-    "@pome-sh/shared-types": "0.11.0",
+    "@pome-sh/shared-types": "0.12.0",
     "hono": "^4.12.27",
     "zod": "^4.1.13"
   },
@@ -41,7 +52,9 @@
     "@hono/node-server": "^2.0.8"
   },
   "peerDependenciesMeta": {
-    "@hono/node-server": { "optional": true }
+    "@hono/node-server": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@hono/node-server": "^2.0.10",

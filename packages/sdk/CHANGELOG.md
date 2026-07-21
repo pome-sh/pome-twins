@@ -1,5 +1,10 @@
 # @pome-sh/sdk
 
+## 0.5.1 — 2026-07-21
+
+Dependency-only patch: repin `@pome-sh/shared-types` to 0.12.0 (manifest data
+model + slug authority, F-818). No SDK surface change.
+
 ## 0.5.0 — 2026-07-20
 
 Additive MCP / recorder contract for the upcoming Gmail twin. Existing

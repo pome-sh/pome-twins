@@ -50,6 +50,9 @@ import type {
   FinalizeStatusUrl,
   GmailSeedState,
   GithubSeedState,
+  Manifest,
+  ManifestAgent,
+  ManifestInput,
   MeResponse,
   PerTwinStateKeys,
   PersistedScenario,
@@ -109,6 +112,9 @@ type _TypeSurfaceAssert = [
   FinalizeStatusUrl,
   GmailSeedState,
   GithubSeedState,
+  Manifest,
+  ManifestAgent,
+  ManifestInput,
   MeResponse,
   PerTwinStateKeys,
   PersistedScenario,
@@ -139,7 +145,7 @@ type _TypeSurfaceAssert = [
 // Compile-time anchor: exactly one tuple entry per guarded type. The literal
 // type on the left fails to compile if an entry is added or removed above
 // without updating the count.
-const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 54;
+const TYPE_SURFACE_SIZE: _TypeSurfaceAssert["length"] = 57;
 
 // Runtime value exports (types are erased and cannot appear on `Object.keys`).
 const EXPECTED_EXPORTS = [
@@ -182,16 +188,20 @@ const EXPECTED_EXPORTS = [
   "OTEL_STATUS_CODES",
   "SERVER_ADDRESS",
   "SERVER_PORT",
+  "SLUG_MAX_LENGTH",
+  "SLUG_RE",
   "UINT64_MAX",
   "URL_FULL",
   "URL_PATH",
   "acceptInviteRequestSchema",
   "acceptInviteResponseSchema",
   "agentResponseSchema",
+  "agentSlugSchema",
   "apiErrorSchema",
   "apiErrorTypeSchema",
   "apiKeyCreatedSchema",
   "apiKeySchema",
+  "buildManifestJsonSchema",
   "canonicalSpanIdSchema",
   "canonicalTraceIdSchema",
   "compareUint64",
@@ -206,6 +216,7 @@ const EXPECTED_EXPORTS = [
   "criterionKindSchema",
   "criterionResultSchema",
   "criterionSchema",
+  "deriveAgentSlug",
   "deterministicCriterionResultSchema",
   "eventSchema",
   "finalizeAcceptedResponseSchema",
@@ -236,6 +247,8 @@ const EXPECTED_EXPORTS = [
   "laneSchema",
   "llmCallEventSchema",
   "llmTurnEventSchema",
+  "manifestAgentSchema",
+  "manifestSchema",
   "mapOtelSpanToEvent",
   "meResponseSchema",
   "msToNanos",
@@ -300,10 +313,10 @@ describe("@pome-sh/shared-types barrel export surface (F-754)", () => {
     expect(Object.keys(api).sort()).toEqual([...EXPECTED_EXPORTS]);
   });
 
-  it("guards the TYPE surface (54 types/interfaces)", () => {
+  it("guards the TYPE surface (57 types/interfaces)", () => {
     // The real guard is the type-only import + _TypeSurfaceAssert tuple above,
     // enforced at typecheck time. This assertion just anchors the count at
     // runtime so the guard's scope is visible in test output.
-    expect(TYPE_SURFACE_SIZE).toBe(54);
+    expect(TYPE_SURFACE_SIZE).toBe(57);
   });
 });

@@ -1,5 +1,30 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.12.0
+
+### Added
+
+- Canonical `pome.json` / `pome.yaml` manifest data model (F-818, spec F-804):
+  `manifestSchema` + `manifestAgentSchema` (agent identity block + snake_case
+  CLI run-config keys, carrier-agnostic), with `Manifest` / `ManifestAgent` /
+  `ManifestInput` types. Only `agent.slug` is required; `artifacts_dir` /
+  `pass_threshold` default to `runs` / `100` on parse.
+- `SLUG_RE`, `SLUG_MAX_LENGTH`, `agentSlugSchema`, and `deriveAgentSlug` —
+  the agent-slug authority, ported byte-identically from the pome-cloud
+  control-plane so local and server validation can never drift.
+  **Consumer note (pome-cloud):** as of F-820 the control-plane and dashboard
+  must import these instead of their private copies
+  (`apps/control-plane/src/routes/agents.ts`, `packages/db/src/agent-slug.ts`).
+- `manifest-schema.json` — JSON Schema generated from the zod manifest schema
+  at build time (`emit:manifest-schema`, snapshot-tested, shipped in the
+  tarball). This is the document pome.sh/schemas/v1/pome.json serves (F-821);
+  `buildManifestJsonSchema()` is exported for that route.
+- Additive `/v1` agent-identity fields, all optional (tolerant reader both
+  directions): `createAgentRequestSchema` gains `slug` / `description` /
+  `version` / `framework`; `createSessionRequestSchema` gains `agent_version`
+  (per-run override); `agentResponseSchema` gains `framework` / `description` /
+  `version` / `created` (resolver auto-register flag).
+
 ## 0.11.0
 
 ### Added

@@ -1,5 +1,10 @@
 # @pome-sh/adapter-claude-sdk — CHANGELOG
 
+## 0.2.3 — 2026-07-21
+
+Dependency-only patch: repin `@pome-sh/shared-types` to 0.12.0 (F-818). No
+adapter surface change.
+
 ## Unreleased
 
 ## 0.2.2 — 2026-07-20

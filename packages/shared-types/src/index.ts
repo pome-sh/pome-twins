@@ -33,3 +33,4 @@ export * from "./task.js";              // §3 TASKS — task config / task / pe
 export * from "./rest.js";              // §4 PUBLIC REST API (minus finalize family)
 export * from "./finalize-shapes.js";   // §4 PUBLIC REST API — /finalize response family
 export * from "./errors.js";            // §5 ERROR ENVELOPE
+export * from "./manifest.js";          // §6 MANIFEST — pome.json/pome.yaml + slug authority (F-818)

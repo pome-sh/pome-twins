@@ -1,6 +1,6 @@
 {
   "package": "@pome-sh/shared-types",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "zod": {
     "range": "^4.1.13",
     "major": 4

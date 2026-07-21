@@ -1,5 +1,10 @@
 # @pome-sh/twin-gmail — CHANGELOG
 
+## 0.1.1 — 2026-07-21
+
+Dependency-only patch: repin `@pome-sh/sdk` to 0.5.1 (F-818 batch). No twin
+surface change.
+
 ## 0.1.0 — 2026-07-20
 
 First public release of the deterministic Gmail twin:

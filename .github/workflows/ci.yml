@@ -45,6 +45,9 @@ jobs:
       # was folded in here).
       - run: npm run gate:no-eval
       - run: npm run check:trace-contract -w @pome-sh/shared-types
+      # F-818 — the committed manifest JSON Schema (served at
+      # pome.sh/schemas/v1/pome.json) must match the zod source.
+      - run: npm run check:manifest-schema -w @pome-sh/shared-types
       # Consumers import sibling packages through their published `exports`
       # (e.g. `@pome-sh/sdk/server` → dist/server.d.ts). Build the workspace in
       # dependency order so those subpaths resolve before typecheck/test.
