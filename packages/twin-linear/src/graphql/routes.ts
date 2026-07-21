@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { graphql } from "graphql";
+import { getOperationAST, graphql, parse } from "graphql";
 import type { Context } from "hono";
+import type { RouteContext } from "@pome-sh/sdk";
 import type { SessionValue } from "@pome-sh/sdk/server";
 import type { LinearCommands } from "../commands/index.js";
 import { LinearTwinError, badUserInput } from "../errors.js";
 import { byteLength } from "../ids.js";
+import { linearStateDelta } from "../state.js";
 import {
   GRAPHQL_QUERY_MAX_BYTES,
   GRAPHQL_SELECTION_DEPTH_MAX,
@@ -15,24 +17,49 @@ import { linearGraphQLSchema } from "./schema.js";
 
 export function registerGraphqlRoutes(
   app: { get: Function; post: Function },
-  commands: LinearCommands
+  ctx: RouteContext<LinearCommands>
 ): void {
-  app.get("/graphql", async (c: Context) => {
-    const result = await runGraphQL(commands, c, c.req.query("query") ?? "", {
-      variables: parseVariables(c.req.query("variables")),
-      operationName: c.req.query("operationName") ?? undefined,
-    });
-    return c.json(result, result.errors ? 400 : 200);
-  });
+  app.get(
+    "/graphql",
+    ctx.recorder.handle({ mutation: false }, async (c) => {
+      const query = c.req.query("query") ?? "";
+      return executeRecordedGraphQL(ctx, c, query, {
+        variables: parseVariables(c.req.query("variables")),
+        operationName: c.req.query("operationName") ?? undefined,
+      });
+    })
+  );
 
-  app.post("/graphql", async (c: Context) => {
-    const body = await readGraphQLBody(c);
-    const result = await runGraphQL(commands, c, body.query, {
-      variables: body.variables,
-      operationName: body.operationName,
-    });
-    return c.json(result, result.errors ? 400 : 200);
-  });
+  app.post(
+    "/graphql",
+    ctx.recorder.handle({ mutation: false }, async (c) => {
+      const body = await readGraphQLBody(c);
+      return executeRecordedGraphQL(ctx, c, body.query, {
+        variables: body.variables,
+        operationName: body.operationName,
+      });
+    })
+  );
+}
+
+async function executeRecordedGraphQL(
+  ctx: RouteContext<LinearCommands>,
+  c: Context,
+  query: string,
+  opts: { variables?: Record<string, unknown>; operationName?: string }
+) {
+  const before = ctx.domain.exportState();
+  const result = await runGraphQL(ctx.domain, c, query, opts);
+  const wantsMutation = isMutationOperation(query, opts.operationName);
+  const delta = wantsMutation
+    ? linearStateDelta(before, ctx.domain.exportState())
+    : null;
+  return {
+    status: result.errors ? 400 : 200,
+    body: result,
+    mutation: wantsMutation && delta !== null,
+    delta: wantsMutation ? delta : null,
+  };
 }
 
 async function runGraphQL(
@@ -93,6 +120,16 @@ async function runGraphQL(
     return {
       errors: [{ message: error instanceof Error ? error.message : "GraphQL error" }],
     };
+  }
+}
+
+function isMutationOperation(source: string, operationName?: string): boolean {
+  try {
+    const document = parse(source);
+    const operation = getOperationAST(document, operationName ?? null);
+    return operation?.operation === "mutation";
+  } catch {
+    return /^\s*mutation\b/i.test(source);
   }
 }
 

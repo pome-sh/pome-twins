@@ -10,5 +10,5 @@ import { registerGraphqlRoutes } from "./graphql/routes.js";
  * must not sit behind bearerAuth.
  */
 export function registerLinearRoutes(app: Hono, ctx: RouteContext<LinearCommands>): void {
-  registerGraphqlRoutes(app, ctx.domain);
+  registerGraphqlRoutes(app, ctx);
 }
