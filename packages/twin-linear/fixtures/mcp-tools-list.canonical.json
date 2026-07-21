@@ -5,19 +5,19 @@
     "method": "tools/list",
     "protocol": "JSON-RPC 2.0 streamable HTTP",
     "captureDate": "2026-07-21",
-    "launchToolCount": 20,
+    "launchToolCount": 18,
     "notes": [
-      "Frozen from Linear's publicly documented MCP tool surface (issues/projects/comments/teams/users/statuses/labels/cycles).",
-      "Documents tools (list/get/create/update_document) are out of launch scope — cold/unsupported.",
-      "Schemas are twin-owned Gate 0 fixtures matching the documented tool names and agent-eval needs; live capture may be refreshed later without expanding the launch count without a new Gate 0 ruling."
+      "Re-frozen against current official Linear MCP: create/update issue+project collapsed to save_issue/save_project; create_comment → save_comment.",
+      "Documents/initiatives/milestones MCP tools stay out of launch scope — cold/unsupported.",
+      "GraphQL keeps issueCreate/issueUpdate for SDK parity; MCP follows the vendor listing.",
+      "Schemas are twin-owned Gate 0 fixtures matching documented tool names and agent-eval needs."
     ],
     "launchToolOrder": [
       "list_issues",
       "get_issue",
-      "create_issue",
-      "update_issue",
+      "save_issue",
       "list_comments",
-      "create_comment",
+      "save_comment",
       "list_teams",
       "get_team",
       "list_users",
@@ -28,8 +28,7 @@
       "create_issue_label",
       "list_projects",
       "get_project",
-      "create_project",
-      "update_project",
+      "save_project",
       "list_cycles",
       "search_documentation"
     ]
@@ -67,11 +66,12 @@
         }
       },
       {
-        "name": "create_issue",
-        "description": "Create a new Linear issue.",
+        "name": "save_issue",
+        "description": "Create or update a Linear issue. Omit id to create (title and team required); provide id for a partial update.",
         "inputSchema": {
           "type": "object",
           "properties": {
+            "id": { "type": "string", "description": "Issue id or identifier (update)" },
             "title": { "type": "string" },
             "team": { "type": "string" },
             "description": { "type": "string" },
@@ -82,27 +82,6 @@
             "project": { "type": "string" },
             "cycle": { "type": "string" }
           },
-          "required": ["title", "team"],
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "update_issue",
-        "description": "Update an existing Linear issue.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "title": { "type": "string" },
-            "description": { "type": "string" },
-            "assignee": { "type": "string" },
-            "state": { "type": "string" },
-            "priority": { "type": "number" },
-            "labels": { "type": "array", "items": { "type": "string" } },
-            "project": { "type": "string" },
-            "cycle": { "type": "string" }
-          },
-          "required": ["id"],
           "additionalProperties": false
         }
       },
@@ -121,15 +100,16 @@
         }
       },
       {
-        "name": "create_comment",
-        "description": "Create a comment on a specific Linear issue.",
+        "name": "save_comment",
+        "description": "Create a comment on a Linear issue. Provide id to edit an existing comment body when supported.",
         "inputSchema": {
           "type": "object",
           "properties": {
+            "id": { "type": "string", "description": "Comment id (edit)" },
             "issueId": { "type": "string" },
             "body": { "type": "string" }
           },
-          "required": ["issueId", "body"],
+          "required": ["body"],
           "additionalProperties": false
         }
       },
@@ -260,32 +240,17 @@
         }
       },
       {
-        "name": "create_project",
-        "description": "Create a new project in Linear.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "team": { "type": "string" },
-            "description": { "type": "string" },
-            "state": { "type": "string" }
-          },
-          "required": ["name"],
-          "additionalProperties": false
-        }
-      },
-      {
-        "name": "update_project",
-        "description": "Update an existing Linear project.",
+        "name": "save_project",
+        "description": "Create or update a Linear project. Omit id to create (name required); provide id for a partial update.",
         "inputSchema": {
           "type": "object",
           "properties": {
             "id": { "type": "string" },
             "name": { "type": "string" },
+            "team": { "type": "string" },
             "description": { "type": "string" },
             "state": { "type": "string" }
           },
-          "required": ["id"],
           "additionalProperties": false
         }
       },

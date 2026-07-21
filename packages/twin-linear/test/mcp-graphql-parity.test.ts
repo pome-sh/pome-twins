@@ -82,7 +82,7 @@ async function gql(
 describe("MCP / GraphQL parity", () => {
   it("creates via MCP and reads via GraphQL", async () => {
     const { app } = fixture();
-    const created = await mcpCall(app, 1, "create_issue", {
+    const created = await mcpCall(app, 1, "save_issue", {
       title: "Parity MCP→GQL",
       team: "ENG",
     });

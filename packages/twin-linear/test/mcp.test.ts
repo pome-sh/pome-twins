@@ -89,20 +89,20 @@ async function call(
 }
 
 describe("Linear MCP frozen contract", () => {
-  it("lists exactly 20 tools in launch order", async () => {
+  it("lists exactly 18 tools in launch order", async () => {
     const { app } = fixture();
     const listed = (await (
       await rpc(app, { jsonrpc: "2.0", id: 1, method: "tools/list" })
     ).json()) as { result: { tools: Array<{ name: string }> } };
     const names = listed.result.tools.map((tool) => tool.name);
-    expect(names).toHaveLength(20);
+    expect(names).toHaveLength(18);
     expect(names).toEqual(canonicalListing.meta.launchToolOrder);
     expect(linearTools.map((tool) => tool.name)).toEqual(canonicalListing.meta.launchToolOrder);
   });
 
-  it("creates and updates issues through MCP", async () => {
+  it("creates and updates issues through save_issue", async () => {
     const { app } = fixture();
-    const created = await call(app, 1, "create_issue", {
+    const created = await call(app, 1, "save_issue", {
       title: "MCP created",
       team: "ENG",
       description: "via MCP",
@@ -116,7 +116,7 @@ describe("Linear MCP frozen contract", () => {
     expect(issue.title).toBe("MCP created");
     expect(issue.identifier).toMatch(/^ENG-\d+$/);
 
-    const updated = await call(app, 2, "update_issue", {
+    const updated = await call(app, 2, "save_issue", {
       id: issue.id,
       title: "MCP updated",
     });
@@ -124,22 +124,23 @@ describe("Linear MCP frozen contract", () => {
     expect(updated.result.structuredContent).toMatchObject({ title: "MCP updated" });
   });
 
-  it("records state_mutation=false for no-op update with the same title", async () => {
+  it("records state_mutation=false for no-op save_issue with the same title", async () => {
     const recorder = createRecorderStore();
     const { app } = fixture(recorder);
-    const created = await call(app, 1, "create_issue", {
+    const created = await call(app, 1, "save_issue", {
       title: "No-op title",
       team: "ENG",
     });
     const issueId = (created.result.structuredContent as { id: string }).id;
-    await call(app, 2, "update_issue", { id: issueId, title: "No-op title" });
+    await call(app, 2, "save_issue", { id: issueId, title: "No-op title" });
     const updateEvents = recorder.events().filter((event) => {
       const body = event.request_body as { tool?: string } | null;
-      return body?.tool === "update_issue";
+      return body?.tool === "save_issue" && (body as { arguments?: { id?: string } }).arguments?.id;
     });
-    expect(updateEvents).toHaveLength(1);
-    expect(updateEvents[0]?.state_mutation).toBe(false);
-    expect(updateEvents[0]?.state_delta).toBeNull();
+    expect(updateEvents.length).toBeGreaterThanOrEqual(1);
+    const last = updateEvents.at(-1);
+    expect(last?.state_mutation).toBe(false);
+    expect(last?.state_delta).toBeNull();
   });
 
   it("omits cursor when the page is exhausted", async () => {

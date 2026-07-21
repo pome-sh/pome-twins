@@ -123,11 +123,12 @@ const implementations: Record<
       return projectIssue(issue, commands);
     },
   },
-  create_issue: {
+  save_issue: {
     schema: z
       .object({
-        title: z.string().min(1),
-        team: z.string().min(1),
+        id: z.string().min(1).optional(),
+        title: z.string().min(1).optional(),
+        team: z.string().min(1).optional(),
         description: z.string().optional(),
         assignee: z.string().optional(),
         state: z.string().optional(),
@@ -140,6 +141,29 @@ const implementations: Record<
     mutation: true,
     handler: (commands, args, ctx) =>
       mutate(commands, ctx, async () => {
+        if (args.id) {
+          const issue = await commands.updateIssue(
+            String(args.id),
+            {
+              title: args.title as string | undefined,
+              description: "description" in args ? ((args.description as string | null) ?? null) : undefined,
+              assigneeId:
+                "assignee" in args
+                  ? (resolveAssignee(commands, args.assignee as string | undefined, ctx) ?? null)
+                  : undefined,
+              stateId: "state" in args ? ((args.state as string | null) ?? null) : undefined,
+              priority: args.priority as number | undefined,
+              labelIds: "labels" in args ? ((args.labels as string[]) ?? []) : undefined,
+              projectId: "project" in args ? ((args.project as string | null) ?? null) : undefined,
+              cycleId: "cycle" in args ? ((args.cycle as string | null) ?? null) : undefined,
+            },
+            actorFrom(ctx)
+          );
+          return projectIssue(issue, commands);
+        }
+        if (!args.title || !args.team) {
+          throw new Error("title and team are required when creating an issue (omit id)");
+        }
         const team = commands.getTeam(String(args.team));
         if (!team) throw new Error(`Team not found: ${args.team}`);
         const issue = await commands.createIssue(
@@ -153,43 +177,6 @@ const implementations: Record<
             labelIds: (args.labels as string[] | undefined) ?? null,
             projectId: (args.project as string | undefined) ?? null,
             cycleId: (args.cycle as string | undefined) ?? null,
-          },
-          actorFrom(ctx)
-        );
-        return projectIssue(issue, commands);
-      }),
-  },
-  update_issue: {
-    schema: z
-      .object({
-        id: z.string().min(1),
-        title: z.string().optional(),
-        description: z.string().optional(),
-        assignee: z.string().optional(),
-        state: z.string().optional(),
-        priority: z.number().optional(),
-        labels: z.array(z.string()).optional(),
-        project: z.string().optional(),
-        cycle: z.string().optional(),
-      })
-      .strict(),
-    mutation: true,
-    handler: (commands, args, ctx) =>
-      mutate(commands, ctx, async () => {
-        const issue = await commands.updateIssue(
-          String(args.id),
-          {
-            title: args.title as string | undefined,
-            description: "description" in args ? ((args.description as string | null) ?? null) : undefined,
-            assigneeId:
-              "assignee" in args
-                ? (resolveAssignee(commands, args.assignee as string | undefined, ctx) ?? null)
-                : undefined,
-            stateId: "state" in args ? ((args.state as string | null) ?? null) : undefined,
-            priority: args.priority as number | undefined,
-            labelIds: "labels" in args ? ((args.labels as string[]) ?? []) : undefined,
-            projectId: "project" in args ? ((args.project as string | null) ?? null) : undefined,
-            cycleId: "cycle" in args ? ((args.cycle as string | null) ?? null) : undefined,
           },
           actorFrom(ctx)
         );
@@ -222,11 +209,32 @@ const implementations: Record<
       return { comments: page.items, ...(page.cursor ? { cursor: page.cursor } : {}) };
     },
   },
-  create_comment: {
-    schema: z.object({ issueId: z.string().min(1), body: z.string().min(1) }).strict(),
+  save_comment: {
+    schema: z
+      .object({
+        id: z.string().min(1).optional(),
+        issueId: z.string().min(1).optional(),
+        body: z.string().min(1),
+      })
+      .strict(),
     mutation: true,
     handler: (commands, args, ctx) =>
       mutate(commands, ctx, async () => {
+        if (args.id) {
+          const comment = await commands.updateComment(
+            String(args.id),
+            String(args.body),
+            actorFrom(ctx)
+          );
+          return {
+            id: comment.id,
+            body: comment.body,
+            issueId: comment.issueId,
+            userId: comment.userId,
+            createdAt: comment.createdAt,
+          };
+        }
+        if (!args.issueId) throw new Error("issueId is required when creating a comment");
         const comment = await commands.createComment(
           { issueId: String(args.issueId), body: String(args.body) },
           actorFrom(ctx)
@@ -431,10 +439,11 @@ const implementations: Record<
       };
     },
   },
-  create_project: {
+  save_project: {
     schema: z
       .object({
-        name: z.string().min(1),
+        id: z.string().min(1).optional(),
+        name: z.string().min(1).optional(),
         team: z.string().optional(),
         description: z.string().optional(),
         state: z.string().optional(),
@@ -443,37 +452,26 @@ const implementations: Record<
     mutation: true,
     handler: (commands, args, ctx) =>
       mutate(commands, ctx, () => {
+        if (args.id) {
+          const project = commands.updateProject(String(args.id), {
+            name: args.name as string | undefined,
+            description: "description" in args ? ((args.description as string | null) ?? null) : undefined,
+            state: args.state as LinearProjectState | undefined,
+          });
+          return {
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            state: project.state,
+            teamId: project.teamId,
+          };
+        }
+        if (!args.name) throw new Error("name is required when creating a project (omit id)");
         const project = commands.createProject({
           name: String(args.name),
           teamId: (args.team as string | undefined) ?? null,
           description: (args.description as string | undefined) ?? null,
           state: (args.state as LinearProjectState | undefined) ?? "planned",
-        });
-        return {
-          id: project.id,
-          name: project.name,
-          description: project.description,
-          state: project.state,
-          teamId: project.teamId,
-        };
-      }),
-  },
-  update_project: {
-    schema: z
-      .object({
-        id: z.string().min(1),
-        name: z.string().optional(),
-        description: z.string().optional(),
-        state: z.string().optional(),
-      })
-      .strict(),
-    mutation: true,
-    handler: (commands, args, ctx) =>
-      mutate(commands, ctx, () => {
-        const project = commands.updateProject(String(args.id), {
-          name: args.name as string | undefined,
-          description: "description" in args ? ((args.description as string | null) ?? null) : undefined,
-          state: args.state as LinearProjectState | undefined,
         });
         return {
           id: project.id,

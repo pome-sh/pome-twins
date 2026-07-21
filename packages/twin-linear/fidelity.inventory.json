@@ -2,7 +2,7 @@
   "twin": "linear",
   "package": "@pome-sh/twin-linear",
   "updated": "2026-07-21",
-  "notes": "Heat from Linear agent chains is cross-validated against the captured 20-tool MCP launch set and graphql-surface.json. Launch MCP tools and in-scope GraphQL ops are semantic/shape over one deterministic domain; documents MCP tools remain named cold unsupported gaps.",
+  "notes": "Heat from Linear agent chains is cross-validated against the captured 18-tool MCP launch set (save_* upserts) and graphql-surface.json. Launch MCP tools and in-scope GraphQL ops are semantic/shape over one deterministic domain; documents MCP tools remain named cold unsupported gaps.",
   "evidenceCodes": {
     "TC:issue-triage": "List/get/update issues and statuses for agent triage",
     "TC:issue-create": "Create issues with team/assignee/label context",
@@ -26,17 +26,10 @@
       "defer": "Implemented by LinearCommands."
     },
     {
-      "name": "create_issue",
+      "name": "save_issue",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:create_issue; TC:issue-create. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
-    },
-    {
-      "name": "update_issue",
-      "heat": "hot",
-      "fidelity": "semantic",
-      "justification": "MCP:update_issue; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "justification": "MCP:save_issue; TC:issue-create|issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
       "defer": "Implemented by LinearCommands."
     },
     {
@@ -47,10 +40,10 @@
       "defer": "Implemented by LinearCommands."
     },
     {
-      "name": "create_comment",
+      "name": "save_comment",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:create_comment; TC:comment. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "justification": "MCP:save_comment; TC:comment. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
       "defer": "Implemented by LinearCommands."
     },
     {
@@ -124,17 +117,10 @@
       "defer": "Implemented by LinearCommands."
     },
     {
-      "name": "create_project",
+      "name": "save_project",
       "heat": "warm",
       "fidelity": "shape",
-      "justification": "MCP:create_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
-    },
-    {
-      "name": "update_project",
-      "heat": "warm",
-      "fidelity": "shape",
-      "justification": "MCP:update_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "justification": "MCP:save_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
       "defer": "Implemented by LinearCommands."
     },
     {

@@ -10,14 +10,13 @@ function readJson(rel) {
   return JSON.parse(readFileSync(join(root, rel), "utf8"));
 }
 
-/** Frozen Linear MCP launch tool order (Gate 0). */
+/** Frozen Linear MCP launch tool order (Gate 0 — current official save_* surface). */
 const LINEAR_LAUNCH_TOOLS = [
   "list_issues",
   "get_issue",
-  "create_issue",
-  "update_issue",
+  "save_issue",
   "list_comments",
-  "create_comment",
+  "save_comment",
   "list_teams",
   "get_team",
   "list_users",
@@ -28,19 +27,18 @@ const LINEAR_LAUNCH_TOOLS = [
   "create_issue_label",
   "list_projects",
   "get_project",
-  "create_project",
-  "update_project",
+  "save_project",
   "list_cycles",
   "search_documentation",
 ];
 
-test("MCP canonical launchToolOrder is exactly 20 tools in LINEAR order", () => {
+test("MCP canonical launchToolOrder matches Gate 0 freeze", () => {
   const canonical = readJson("fixtures/mcp-tools-list.canonical.json");
-  assert.equal(canonical.meta.launchToolCount, 20);
-  assert.equal(LINEAR_LAUNCH_TOOLS.length, 20);
+  assert.equal(canonical.meta.launchToolCount, LINEAR_LAUNCH_TOOLS.length);
+  assert.equal(LINEAR_LAUNCH_TOOLS.length, 18);
   assert.deepEqual(canonical.meta.launchToolOrder, LINEAR_LAUNCH_TOOLS);
   const names = canonical.result.tools.map((t) => t.name);
-  assert.equal(names.length, 20);
+  assert.equal(names.length, LINEAR_LAUNCH_TOOLS.length);
   assert.deepEqual(names, LINEAR_LAUNCH_TOOLS);
   for (const tool of canonical.result.tools) {
     assert.ok(tool.inputSchema, tool.name);

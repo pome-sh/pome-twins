@@ -34,4 +34,4 @@ Emulate’s Linear package may be used as a **coverage checklist**. It is **neve
 - Real Linear.app network sync
 - Full GraphQL schema / introspection dump
 - Production rate limits, inbox, initiatives, customer APIs
-- Expanding MCP beyond the frozen 20-tool launch set without a new Gate 0 ruling
+- Expanding MCP beyond the frozen 18-tool launch set without a new Gate 0 ruling

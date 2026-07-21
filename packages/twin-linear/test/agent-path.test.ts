@@ -79,7 +79,7 @@ describe("Linear agent-path MCP triage", () => {
     expect(issues.length).toBeGreaterThanOrEqual(4);
     const backlog = issues.find((issue) => issue.state?.name === "Backlog") ?? issues[0]!;
 
-    const updated = await mcp(app, 2, "update_issue", {
+    const updated = await mcp(app, 2, "save_issue", {
       id: backlog.id,
       state: "In Progress",
       title: backlog.title,
@@ -90,7 +90,7 @@ describe("Linear agent-path MCP triage", () => {
       state: { name: "In Progress" },
     });
 
-    const commented = await mcp(app, 3, "create_comment", {
+    const commented = await mcp(app, 3, "save_comment", {
       issueId: backlog.id,
       body: "Agent triage: moving into progress.",
     });

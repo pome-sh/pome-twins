@@ -26,23 +26,24 @@ tokens from the seed for official-client parity.
 | Path | Role |
 | --- | --- |
 | [`fixtures/graphql-surface.json`](fixtures/graphql-surface.json) | Frozen GraphQL query/mutation/OAuth operation floor |
-| [`fixtures/mcp-tools-list.canonical.json`](fixtures/mcp-tools-list.canonical.json) | Official Linear MCP launch set (20 tools) |
+| [`fixtures/mcp-tools-list.canonical.json`](fixtures/mcp-tools-list.canonical.json) | Official Linear MCP launch set (18 tools) |
 | [`fidelity.inventory.json`](fidelity.inventory.json) | Heat × fidelity × evidence for every launch MCP/GraphQL row |
 | [`REFERENCE-DIVERGENCES.md`](REFERENCE-DIVERGENCES.md) | Emulate rejected; never an oracle |
 | [`LIMITS.md`](LIMITS.md) | Seed/GraphQL/MCP/state-export caps |
 
 See [`fixtures/README.md`](fixtures/README.md) for capture provenance.
 
-## Launch MCP tools (exactly 20)
+## Launch MCP tools (exactly 18)
 
-`list_issues`, `get_issue`, `create_issue`, `update_issue`, `list_comments`,
-`create_comment`, `list_teams`, `get_team`, `list_users`, `get_user`,
-`list_issue_statuses`, `get_issue_status`, `list_issue_labels`,
-`create_issue_label`, `list_projects`, `get_project`, `create_project`,
-`update_project`, `list_cycles`, `search_documentation`.
+`list_issues`, `get_issue`, `save_issue`, `list_comments`, `save_comment`,
+`list_teams`, `get_team`, `list_users`, `get_user`, `list_issue_statuses`,
+`get_issue_status`, `list_issue_labels`, `create_issue_label`, `list_projects`,
+`get_project`, `save_project`, `list_cycles`, `search_documentation`.
 
-Order and names are frozen from the launch listing. Documents tools are
-**out of launch scope** (named cold in the inventory).
+Order and names are frozen from the current official Linear MCP listing
+(`save_*` upserts). Documents tools are **out of launch scope** (named cold
+in the inventory). GraphQL still exposes `issueCreate`/`issueUpdate` for SDK
+parity.
 
 ## Named gaps (not fake success)
 
@@ -53,7 +54,7 @@ Order and names are frozen from the launch listing. Documents tools are
 ## Non-goals
 
 - Live Linear network calls
-- Expanding MCP beyond the frozen 20-tool launch set without a new Gate 0 ruling
+- Expanding MCP beyond the frozen 18-tool launch set without a new Gate 0 ruling
 - Hosted product enablement (see [`HOSTED.md`](HOSTED.md))
 
 ## Limits

@@ -2,16 +2,15 @@
 
 Heat × fidelity per [`ENDPOINT-TIERS.md`](../sdk/ENDPOINT-TIERS.md). Machine-readable twin: [`fidelity.inventory.json`](fidelity.inventory.json).
 
-## MCP launch tools (20)
+## MCP launch tools (18)
 
 | Surface | Heat | Fidelity | Justification |
 | --- | --- | --- | --- |
 | `list_issues` | hot | semantic | `TC:issue-triage`; `MCP:list_issues` |
 | `get_issue` | hot | semantic | `TC:issue-triage`; `MCP:get_issue` |
-| `create_issue` | hot | semantic | `TC:issue-create`; `MCP:create_issue` |
-| `update_issue` | hot | semantic | `TC:issue-triage`; `MCP:update_issue` |
+| `save_issue` | hot | semantic | `TC:issue-create\|issue-triage`; `MCP:save_issue` (create+update) |
 | `list_comments` | hot | semantic | `TC:comment`; `MCP:list_comments` |
-| `create_comment` | hot | semantic | `TC:comment`; `MCP:create_comment` |
+| `save_comment` | hot | semantic | `TC:comment`; `MCP:save_comment` |
 | `list_teams` | hot | semantic | `TC:issue-create`; `MCP:list_teams` |
 | `get_team` | warm | shape | `MCP:get_team` |
 | `list_users` | hot | semantic | `TC:issue-create`; `MCP:list_users` |
@@ -22,8 +21,7 @@ Heat × fidelity per [`ENDPOINT-TIERS.md`](../sdk/ENDPOINT-TIERS.md). Machine-re
 | `create_issue_label` | warm | shape | `MCP:create_issue_label` |
 | `list_projects` | warm | shape | `MCP:list_projects` |
 | `get_project` | warm | shape | `MCP:get_project` |
-| `create_project` | warm | shape | `MCP:create_project` |
-| `update_project` | warm | shape | `MCP:update_project` |
+| `save_project` | warm | shape | `MCP:save_project` (create+update) |
 | `list_cycles` | warm | shape | `MCP:list_cycles` |
 | `search_documentation` | cold | shape | `MCP:search_documentation` — static/empty twin docs |
 
