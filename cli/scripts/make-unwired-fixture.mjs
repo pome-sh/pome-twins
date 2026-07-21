@@ -7,7 +7,7 @@
 // and the twin base URL replaced by a hardcoded production host
 // (https://api.github.com) — exactly the finding doctor's routing scan
 // names with file:line. `pome install` + the pome-setup skill should take
-// this copy back to doctor-green. There is no pome.config.json either, so
+// this copy back to doctor-green. There is no pome.json manifest either, so
 // the first doctor red is "config missing" (the skill runs `pome init`),
 // then the hardcoded-host red.
 //
@@ -198,6 +198,6 @@ console.error("");
 console.error("unwired fixture ready. acceptance run:");
 console.error(`  cd ${dest}`);
 console.error("  npm install");
-console.error("  pome doctor     # red: no pome.config.json; after the skill runs pome init,");
+console.error("  pome doctor     # red: no pome.json manifest; after the skill runs pome init,");
 console.error("                  # red: hardcoded https://api.github.com in src/index.ts");
 console.error("  pome install    # hands off to your coding agent; approve its edits; ends green");

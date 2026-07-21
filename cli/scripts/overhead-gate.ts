@@ -60,18 +60,18 @@ const TSX_BIN = resolve(CLI_ROOT, "node_modules/.bin/tsx");
 
 // FDRS-641 — `pome run` now hard-gates on the doctor wiring checks (config →
 // twin → routing → egress) with no --force. This synthetic benchmark used to
-// run in a bare `cli/` with no pome.config.json, so post-FDRS-641 it dies at
-// the config check before spawning the agent. We can't (and shouldn't) bypass
-// the gate, so instead we run `pome run` from a throwaway directory that holds
-// a valid pome.config.json plus a wiring-marker source that reads
+// run in a bare `cli/` with no manifest, so post-FDRS-641 it dies at the config
+// check before spawning the agent. We can't (and shouldn't) bypass the gate, so
+// instead we run `pome run` from a throwaway directory that holds a valid
+// pome.json manifest (F-819) plus a wiring-marker source that reads
 // POME_GITHUB_REST_URL — exactly what doctor's routing scan wants and nothing
 // that trips its hardcoded-host detection. The twin/egress checks pass against
 // the local github twin + deny-by-default floor the run already uses.
 async function makeDoctorScaffold(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pome-overhead-scaffold-"));
   await writeFile(
-    join(dir, "pome.config.json"),
-    `${JSON.stringify({ agent: { command: "npx tsx agent.ts" } }, null, 2)}\n`,
+    join(dir, "pome.json"),
+    `${JSON.stringify({ agent: { slug: "overhead-gate-agent" }, command: "npx tsx agent.ts" }, null, 2)}\n`,
   );
   await writeFile(
     join(dir, "agent.ts"),
@@ -261,7 +261,7 @@ async function runPome(input: { noCapture: boolean; target: string; scaffold: st
   env.POME_CLI_DISABLE_KEYCHAIN = "1";
 
   // cwd = scaffold dir so `pome run`'s FDRS-641 doctor preflight finds the
-  // scaffolded pome.config.json + wiring marker (and passes).
+  // scaffolded pome.json manifest + wiring marker (and passes).
   const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env, input.scaffold);
   if (exitCode !== 0) {
     process.stderr.write(stderr);

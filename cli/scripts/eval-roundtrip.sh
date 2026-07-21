@@ -14,7 +14,7 @@
 #      scripted example agent (`pome run --local`) — capture-only, no
 #      network, no credentials needed for this half. `pome run` hard-gates
 #      on `pome doctor`'s wiring checks with no --force, so this spins up a
-#      disposable scaffold dir with a minimal pome.config.json + a wiring
+#      disposable scaffold dir with a minimal pome.json manifest + a wiring
 #      marker source (same technique as scripts/cas-adapter-acceptance.ts)
 #      rather than bypassing the gate.
 #   2. Uploads that trace with `pome eval <run-dir>` against POME_API_URL,
@@ -67,13 +67,14 @@ if [[ -z "$RUN_DIR" ]]; then
   # caller-owned artifacts dir is never removed.
   trap 'rm -rf "$SCAFFOLD_DIR" "$ARTIFACTS_DIR"' EXIT
 
-  # FDRS-641 — `pome run`'s doctor preflight requires a pome.config.json
-  # (agent.command is enough) plus a routing-scan-friendly source in the cwd.
-  # The REAL agent is passed via --agent below; this marker file only exists
-  # so the wiring check has something to scan.
-  cat > "$SCAFFOLD_DIR/pome.config.json" <<'EOF'
+  # FDRS-641 — `pome run`'s doctor preflight requires a pome.json manifest
+  # (F-819: agent.slug + a top-level command) plus a routing-scan-friendly
+  # source in the cwd. The REAL agent is passed via --agent below; this marker
+  # file only exists so the wiring check has something to scan.
+  cat > "$SCAFFOLD_DIR/pome.json" <<'EOF'
 {
-  "agent": { "command": "npx tsx agent.ts" }
+  "agent": { "slug": "eval-roundtrip-agent" },
+  "command": "npx tsx agent.ts"
 }
 EOF
   cat > "$SCAFFOLD_DIR/agent.ts" <<'EOF'

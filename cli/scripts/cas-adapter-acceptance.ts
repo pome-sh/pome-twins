@@ -60,17 +60,17 @@ const TSX_BIN = resolve(CLI_ROOT, "node_modules/.bin/tsx");
 
 // FDRS-641 — `pome run` hard-gates on the doctor wiring checks (config → twin
 // → routing → egress) with no --force. This synthetic gate used to run in a
-// bare `cli/` with no pome.config.json, so post-FDRS-641 it dies at the config
-// check before spawning the agent. Rather than bypass the gate, run `pome run`
-// from a throwaway directory holding a valid pome.config.json + a wiring-marker
-// source that reads POME_GITHUB_REST_URL — what doctor's routing scan wants,
-// with no hardcoded host to trip it. Twin/egress pass against the local github
-// twin + deny-by-default floor the run already uses.
+// bare `cli/` with no manifest, so post-FDRS-641 it dies at the config check
+// before spawning the agent. Rather than bypass the gate, run `pome run` from a
+// throwaway directory holding a valid pome.json manifest (F-819) + a
+// wiring-marker source that reads POME_GITHUB_REST_URL — what doctor's routing
+// scan wants, with no hardcoded host to trip it. Twin/egress pass against the
+// local github twin + deny-by-default floor the run already uses.
 async function makeDoctorScaffold(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pome-cas-scaffold-"));
   await writeFile(
-    join(dir, "pome.config.json"),
-    `${JSON.stringify({ agent: { command: "npx tsx agent.ts" } }, null, 2)}\n`,
+    join(dir, "pome.json"),
+    `${JSON.stringify({ agent: { slug: "cas-acceptance-agent" }, command: "npx tsx agent.ts" }, null, 2)}\n`,
   );
   await writeFile(
     join(dir, "agent.ts"),
@@ -162,7 +162,7 @@ async function runPome(input: { target: string; scaffold: string }): Promise<str
   env.POME_AGENT_ENV_ALLOWLIST = appendAllowlist(process.env.POME_AGENT_ENV_ALLOWLIST, "POME_CAPTURE_TEST_TARGET");
 
   // cwd = scaffold dir so `pome run`'s FDRS-641 doctor preflight finds the
-  // scaffolded pome.config.json + wiring marker (and passes).
+  // scaffolded pome.json manifest + wiring marker (and passes).
   const { stdout, stderr, exitCode } = await runChild(pomeExec, args, env, input.scaffold);
   if (exitCode !== 0) {
     process.stdout.write(stdout);
