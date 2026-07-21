@@ -9,6 +9,10 @@ import {
   defaultSeedState as defaultGmailSeedState,
   gmailSeedSchema,
 } from "@pome-sh/twin-gmail";
+import {
+  defaultSeedState as defaultLinearSeedState,
+  linearSeedSchema as linearSeedStateSchema,
+} from "@pome-sh/twin-linear";
 import { parseGitHubSeedState } from "./githubSeedCompat.js";
 import {
   criterionSchema,
@@ -156,6 +160,7 @@ function parseSeedForTwin(twin: string, input: unknown): SeedState {
   if (twin === "stripe") return stripeSeedStateSchema.parse(input);
   if (twin === "slack") return slackSeedStateSchema.parse(input);
   if (twin === "gmail") return gmailSeedSchema.parse(input);
+  if (twin === "linear") return linearSeedStateSchema.parse(input);
   return parseGitHubSeedState(input);
 }
 
@@ -170,6 +175,9 @@ function defaultSeedForTwin(twin: string): SeedState {
   }
   if (twin === "gmail") {
     return gmailSeedSchema.parse(defaultGmailSeedState());
+  }
+  if (twin === "linear") {
+    return linearSeedStateSchema.parse(defaultLinearSeedState());
   }
   return seedSchema.parse(defaultSeedState());
 }
@@ -320,6 +328,7 @@ function parseSeedStateForScenario(input: unknown, config: ScenarioConfig): Seed
   if (isStripeOnly(config.twins)) return stripeSeedStateSchema.parse(input);
   if (isSlackOnly(config.twins)) return slackSeedStateSchema.parse(input);
   if (isGmailOnly(config.twins)) return gmailSeedSchema.parse(input);
+  if (isLinearOnly(config.twins)) return linearSeedStateSchema.parse(input);
   return parseGitHubSeedState(input);
 }
 
@@ -338,6 +347,9 @@ function defaultSeedStateForConfig(twins: string[]): SeedState {
   if (isGmailOnly(twins)) {
     return gmailSeedSchema.parse(defaultGmailSeedState());
   }
+  if (isLinearOnly(twins)) {
+    return linearSeedStateSchema.parse(defaultLinearSeedState());
+  }
   return seedSchema.parse(defaultSeedState());
 }
 
@@ -351,6 +363,10 @@ function isSlackOnly(twins: string[]): boolean {
 
 function isGmailOnly(twins: string[]): boolean {
   return twins.length === 1 && twins[0] === "gmail";
+}
+
+function isLinearOnly(twins: string[]): boolean {
+  return twins.length === 1 && twins[0] === "linear";
 }
 
 function stripFence(input: string) {

@@ -39,18 +39,18 @@
     "dev": "tsx src/server.ts",
     "start": "node dist/src/server.js",
     "prepack": "npm run build",
-    "test": "node --test test/gate0-fixtures.test.mjs && vitest run test/domain.test.ts test/graphql.test.ts test/mcp.test.ts test/mcp-graphql-parity.test.ts test/oauth.test.ts test/webhooks.test.ts test/agent-path.test.ts test/official-client.test.ts test/limits.test.ts test/concurrency.test.ts test/canary-matrix.test.ts",
+    "test": "node --test test/gate0-fixtures.test.mjs test/package-deps.test.mjs && vitest run test/domain.test.ts test/graphql.test.ts test/mcp.test.ts test/mcp-graphql-parity.test.ts test/oauth.test.ts test/webhooks.test.ts test/agent-path.test.ts test/official-client.test.ts test/limits.test.ts test/concurrency.test.ts test/canary-matrix.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "fidelity:parity": "tsx scripts/fidelity-parity.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.10",
     "@pome-sh/sdk": "0.5.0",
     "graphql": "^16.11.0",
     "hono": "^4.12.27",
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@hono/node-server": "^2.0.10",
     "@linear/sdk": "^55.0.0",
     "@types/node": "^26.1.0",
     "tsx": "^4.23.1",

@@ -139,6 +139,51 @@ twins: ["gmail"]
     });
   });
 
+  it("parses a flat Linear workspace seed", () => {
+    const scenario = parseScenario(`# Linear Demo
+
+## Prompt
+Triage the open issue.
+
+## Success Criteria
+- [code] Issue ENG-1 is In Progress
+
+## Seed State
+\`\`\`json
+{
+  "organization": { "name": "Pome Twin", "urlKey": "pome-twin" },
+  "users": [{ "email": "admin@pome-twin.test", "name": "Admin", "admin": true }],
+  "teams": [{
+    "key": "ENG",
+    "name": "Engineering",
+    "states": [
+      { "name": "Todo", "type": "unstarted" },
+      { "name": "In Progress", "type": "started" }
+    ]
+  }],
+  "issues": [{
+    "team": "ENG",
+    "title": "Triage me",
+    "state": "Todo",
+    "priority": 2
+  }]
+}
+\`\`\`
+
+## Config
+\`\`\`yaml
+twins: ["linear"]
+\`\`\`
+`);
+
+    expect(scenario.config.twins).toEqual(["linear"]);
+    expect(scenario.seedState).toMatchObject({
+      organization: { urlKey: "pome-twin" },
+      teams: [{ key: "ENG" }],
+      issues: [{ title: "Triage me" }],
+    });
+  });
+
   it("rejects wrapped Stripe seed shape (FDRS-365)", () => {
     expect(() =>
       parseScenario(`# Wrapped should fail

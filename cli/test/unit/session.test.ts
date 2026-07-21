@@ -205,11 +205,11 @@ describe("runSessionCreate secret output", () => {
     await expect(
       runSessionCreate({
         apiBaseUrl: "https://api.example.com",
-        twins: ["linear"],
+        twins: ["notion"],
         showSecrets: false,
         format: "json",
       }),
-    ).rejects.toThrow(/Unknown twin "linear"/);
+    ).rejects.toThrow(/Unknown twin "notion"/);
   });
 
   it("redacts provider_credentials.slack.token in JSON output", async () => {

@@ -25,12 +25,11 @@ export function ensureMcpSuffix(url: string): string {
 }
 
 // Multi-twin (M3): the CLI's ad-hoc session allowlist is the shared mounted-twin
-// set (github, stripe, slack, gmail). Repeated `--twin` flags
+// set (github, stripe, slack, gmail, linear). Repeated `--twin` flags
 // stand up a multi-twin session in one call.
-// Keep the just-added Gmail id explicit during the shared-types 0.10 → 0.11
-// publish window: local development may still resolve the previous installed
-// package, while release tarballs pin 0.11.0 where Gmail is canonical.
-const ALLOWED_TWINS = new Set<string>([...MOUNTED_TWINS, "gmail"]);
+// Keep newly-added twin ids explicit during shared-types publish windows: local
+// development may still resolve a previous installed package.
+const ALLOWED_TWINS = new Set<string>([...MOUNTED_TWINS, "gmail", "linear"]);
 
 function redactSession(res: CreateSessionResponse): Record<string, unknown> {
   const pcIn = res.provider_credentials;
