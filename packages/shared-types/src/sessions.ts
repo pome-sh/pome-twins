@@ -16,7 +16,7 @@ import { z } from "zod";
 // (re-exported from `./recorder-events.ts`) which serves dashboard-rendering
 // pattern-matching for arbitrary `RecorderEvent.twin` values. Mirrored from
 // pome-cloud shared-types (FDRS-613).
-export const MOUNTED_TWINS = ["github", "stripe", "slack", "gmail"] as const;
+export const MOUNTED_TWINS = ["github", "stripe", "slack", "gmail", "linear"] as const;
 
 export const sessionStateSchema = z.enum([
   "provisioning",

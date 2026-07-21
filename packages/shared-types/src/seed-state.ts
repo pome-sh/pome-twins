@@ -290,17 +290,203 @@ export const gmailSeedStateSchema = z.object({
 });
 export type GmailSeedState = z.infer<typeof gmailSeedStateSchema>;
 
+/** Aligns with twin-linear `seed.ts` shape; twin parseSeed applies strict cross-refs. */
+const linearEmailSchema = z.string().trim().email().transform((value) => value.toLowerCase());
+const linearIdSchema = z.string().min(1).max(128);
+const linearDatetimeSchema = z.string().datetime({ offset: true });
+const linearScopesSchema = z
+  .union([z.array(z.string().min(1).max(64)).max(50), z.string().max(500)])
+  .optional();
+const linearStateTypeSchema = z.enum(["backlog", "unstarted", "started", "completed", "canceled"]);
+
+export const linearSeedStateSchema = z.object({
+  clock: linearDatetimeSchema.default("2026-07-21T00:00:00.000Z"),
+  defaultSid: z.string().min(1).max(128).default("standalone"),
+  baseUrl: z.string().url().default("http://127.0.0.1:3337"),
+  strictScopes: z.boolean().default(false),
+  organization: z
+    .object({
+      id: linearIdSchema.optional(),
+      name: z.string().min(1).max(200).optional(),
+      urlKey: z.string().min(1).max(100).optional(),
+    })
+    .optional(),
+  users: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        email: linearEmailSchema,
+        name: z.string().min(1).max(200).optional(),
+        displayName: z.string().min(1).max(200).optional(),
+        avatarUrl: z.string().url().nullable().optional(),
+        active: z.boolean().default(true),
+        admin: z.boolean().default(false),
+        app: z.boolean().default(false),
+      }),
+    )
+    .max(500)
+    .default([]),
+  teams: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        key: z.string().min(1).max(20),
+        name: z.string().min(1).max(200),
+        description: z.string().max(2000).nullable().optional(),
+        private: z.boolean().default(false),
+        states: z
+          .array(
+            z.object({
+              id: linearIdSchema.optional(),
+              name: z.string().min(1).max(100),
+              type: linearStateTypeSchema.optional(),
+              position: z.number().int().nonnegative().optional(),
+            }),
+          )
+          .max(50)
+          .optional(),
+      }),
+    )
+    .max(50)
+    .default([]),
+  labels: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        name: z.string().min(1).max(100),
+        color: z.string().max(32).optional(),
+        description: z.string().max(2000).nullable().optional(),
+        team: z.string().min(1).max(128).optional(),
+      }),
+    )
+    .max(500)
+    .default([]),
+  projects: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        name: z.string().min(1).max(200),
+        description: z.string().max(10_000).nullable().optional(),
+        state: z.enum(["planned", "started", "completed", "canceled"]).default("planned"),
+        team: z.string().min(1).max(128).optional(),
+      }),
+    )
+    .max(200)
+    .default([]),
+  cycles: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        team: z.string().min(1).max(128),
+        name: z.string().min(1).max(200),
+        number: z.number().int().positive().optional(),
+        startsAt: linearDatetimeSchema.nullable().optional(),
+        endsAt: linearDatetimeSchema.nullable().optional(),
+      }),
+    )
+    .max(200)
+    .default([]),
+  issues: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        team: z.string().min(1).max(128),
+        title: z.string().min(1).max(512),
+        description: z.string().max(65_536).nullable().optional(),
+        priority: z
+          .union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+          .default(0),
+        state: z.string().min(1).max(128).optional(),
+        assignee: z.string().min(1).max(200).optional(),
+        creator: z.string().min(1).max(200).optional(),
+        delegate: z.string().min(1).max(200).optional(),
+        project: z.string().min(1).max(200).optional(),
+        cycle: z.string().min(1).max(200).optional(),
+        labels: z.array(z.string().min(1).max(100)).max(50).default([]),
+        dueDate: z.string().max(32).nullable().optional(),
+        createdAt: linearDatetimeSchema.optional(),
+        updatedAt: linearDatetimeSchema.optional(),
+      }),
+    )
+    .max(5000)
+    .default([]),
+  comments: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        issue: z.string().min(1).max(128),
+        body: z.string().min(1).max(65_536),
+        user: z.string().min(1).max(200).optional(),
+        createdAt: linearDatetimeSchema.optional(),
+      }),
+    )
+    .max(20_000)
+    .default([]),
+  oauthApps: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        clientId: z.string().min(1).max(200),
+        clientSecret: z.string().min(1).max(500),
+        name: z.string().min(1).max(200),
+        redirectUris: z.array(z.string().url()).min(1).max(20),
+        scopes: linearScopesSchema,
+        actor: z.enum(["user", "app"]).default("user"),
+        assignable: z.boolean().default(false),
+        mentionable: z.boolean().default(false),
+        appUserId: z.string().min(1).max(128).nullable().optional(),
+      }),
+    )
+    .max(20)
+    .default([]),
+  tokens: z
+    .array(
+      z.object({
+        token: z.string().min(1).max(500),
+        type: z.enum(["personal", "oauth_access", "client_credentials"]).default("personal"),
+        user: z.string().min(1).max(200).optional(),
+        app: z.string().min(1).max(200).optional(),
+        scopes: linearScopesSchema,
+        actor: z.enum(["user", "app"]).optional(),
+        sid: z.string().min(1).max(128).optional(),
+        expiresAt: linearDatetimeSchema.nullable().optional(),
+      }),
+    )
+    .max(50)
+    .default([]),
+  webhooks: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        label: z.string().min(1).max(200).optional(),
+        url: z.string().url(),
+        resourceTypes: linearScopesSchema,
+        team: z.string().min(1).max(128).optional(),
+        allPublicTeams: z.boolean().optional(),
+        secret: z.string().max(500).nullable().optional(),
+        enabled: z.boolean().default(true),
+      }),
+    )
+    .max(50)
+    .default([]),
+});
+export type LinearSeedState = z.infer<typeof linearSeedStateSchema>;
+
 export const providerScopedSeedStateSchema = z
   .object({
     github: z.object({ seed: githubSeedStateSchema }).optional(),
     stripe: z.object({ seed: stripeSeedStateSchema }).optional(),
     slack: z.object({ seed: slackSeedStateSchema }).optional(),
     gmail: z.object({ seed: gmailSeedStateSchema }).optional(),
+    linear: z.object({ seed: linearSeedStateSchema }).optional(),
   })
-  .refine((value) => Boolean(value.github || value.stripe || value.slack || value.gmail), {
-    message:
-      "seedState must include github.seed, stripe.seed, slack.seed, gmail.seed, or the legacy GitHub seed shape",
-  });
+  .refine(
+    (value) => Boolean(value.github || value.stripe || value.slack || value.gmail || value.linear),
+    {
+      message:
+        "seedState must include github.seed, stripe.seed, slack.seed, gmail.seed, linear.seed, or the legacy GitHub seed shape",
+    },
+  );
 
 // SeedState accepts the legacy GitHub shape and the provider-scoped shape
 // used by GitHub + Stripe scenario templates.

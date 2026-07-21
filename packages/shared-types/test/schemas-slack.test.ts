@@ -14,7 +14,7 @@ import { KNOWN_TWIN_IDS } from "../src/recorder-events.js";
 
 describe("MOUNTED_TWINS", () => {
   it("includes slack and gmail alongside github and stripe", () => {
-    expect(MOUNTED_TWINS).toEqual(["github", "stripe", "slack", "gmail"]);
+    expect(MOUNTED_TWINS).toEqual(["github", "stripe", "slack", "gmail", "linear"]);
   });
 });
 

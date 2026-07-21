@@ -27,8 +27,8 @@ const mailbox = {
 
 describe("Gmail first-party registrations", () => {
   it("mounts and renders gmail under its canonical id", () => {
-    expect(MOUNTED_TWINS).toEqual(["github", "stripe", "slack", "gmail"]);
-    expect(KNOWN_TWIN_IDS).toEqual(["github", "stripe", "slack", "gmail"]);
+    expect(MOUNTED_TWINS).toEqual(["github", "stripe", "slack", "gmail", "linear"]);
+    expect(KNOWN_TWIN_IDS).toEqual(["github", "stripe", "slack", "gmail", "linear"]);
   });
 });
 

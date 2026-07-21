@@ -234,6 +234,7 @@ const EXPECTED_EXPORTS = [
   "isUint64",
   "judgeModelSchema",
   "laneSchema",
+  "linearSeedStateSchema",
   "llmCallEventSchema",
   "llmTurnEventSchema",
   "mapOtelSpanToEvent",
