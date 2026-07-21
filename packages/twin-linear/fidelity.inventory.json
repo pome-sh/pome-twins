@@ -1,0 +1,233 @@
+{
+  "twin": "linear",
+  "package": "@pome-sh/twin-linear",
+  "updated": "2026-07-21",
+  "notes": "Heat from Linear agent chains is cross-validated against the captured 20-tool MCP launch set and graphql-surface.json. Launch MCP tools and in-scope GraphQL ops are semantic/shape over one deterministic domain; documents MCP tools remain named cold unsupported gaps.",
+  "evidenceCodes": {
+    "TC:issue-triage": "List/get/update issues and statuses for agent triage",
+    "TC:issue-create": "Create issues with team/assignee/label context",
+    "TC:comment": "List/create issue comments",
+    "TC:webhook-integrate": "Webhook CRUD and delivery log",
+    "TC:oauth-app": "OAuth authorize/token/revoke for app installs"
+  },
+  "tools": [
+    {
+      "name": "list_issues",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_issues; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "get_issue",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:get_issue; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "create_issue",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:create_issue; TC:issue-create. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "update_issue",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:update_issue; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_comments",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_comments; TC:comment. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "create_comment",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:create_comment; TC:comment. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_teams",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_teams; TC:issue-create. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "get_team",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:get_team. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_users",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_users; TC:issue-create. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "get_user",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:get_user. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_issue_statuses",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_issue_statuses; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "get_issue_status",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:get_issue_status. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_issue_labels",
+      "heat": "hot",
+      "fidelity": "semantic",
+      "justification": "MCP:list_issue_labels; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "create_issue_label",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:create_issue_label. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_projects",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:list_projects. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "get_project",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:get_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "create_project",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:create_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "update_project",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:update_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "list_cycles",
+      "heat": "warm",
+      "fidelity": "shape",
+      "justification": "MCP:list_cycles. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Implemented by LinearCommands."
+    },
+    {
+      "name": "search_documentation",
+      "heat": "cold",
+      "fidelity": "shape",
+      "justification": "MCP:search_documentation — static/empty twin docs. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "defer": "Returns deterministic empty/static docs in the twin."
+    }
+  ],
+  "graphql": [
+    { "name": "viewer", "heat": "hot", "fidelity": "semantic", "justification": "Session actor for GraphQL chains." },
+    { "name": "organization", "heat": "warm", "fidelity": "shape", "justification": "Org context for workspace reads." },
+    { "name": "users", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-create assignee context." },
+    { "name": "user", "heat": "warm", "fidelity": "shape", "justification": "Single-user lookup." },
+    { "name": "teams", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-create team context." },
+    { "name": "team", "heat": "warm", "fidelity": "shape", "justification": "Single-team lookup." },
+    { "name": "workflowStates", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage status context." },
+    { "name": "workflowState", "heat": "warm", "fidelity": "shape", "justification": "Single workflow state lookup." },
+    { "name": "issues", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage|issue-create." },
+    { "name": "issue", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage|issue-create." },
+    { "name": "comments", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment." },
+    { "name": "comment", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment." },
+    { "name": "issueLabels", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
+    { "name": "issueLabel", "heat": "warm", "fidelity": "shape", "justification": "Single label lookup." },
+    { "name": "projects", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
+    { "name": "project", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
+    { "name": "cycles", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
+    { "name": "cycle", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
+    { "name": "webhooks", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
+    { "name": "webhook", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
+    { "name": "agentSessions", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "agentSession", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "issueCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-create." },
+    { "name": "issueUpdate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage." },
+    { "name": "issueDelete", "heat": "warm", "fidelity": "shape", "justification": "Issue lifecycle mutation." },
+    { "name": "issueArchive", "heat": "warm", "fidelity": "shape", "justification": "Issue lifecycle mutation." },
+    { "name": "issueUnarchive", "heat": "warm", "fidelity": "shape", "justification": "Issue lifecycle mutation." },
+    { "name": "commentCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment." },
+    { "name": "commentUpdate", "heat": "warm", "fidelity": "shape", "justification": "Comment lifecycle mutation." },
+    { "name": "commentDelete", "heat": "warm", "fidelity": "shape", "justification": "Comment lifecycle mutation." },
+    { "name": "issueLabelCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
+    { "name": "issueLabelUpdate", "heat": "warm", "fidelity": "shape", "justification": "Label lifecycle mutation." },
+    { "name": "issueLabelDelete", "heat": "warm", "fidelity": "shape", "justification": "Label lifecycle mutation." },
+    { "name": "issueAddLabel", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
+    { "name": "issueRemoveLabel", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
+    { "name": "webhookCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
+    { "name": "webhookDelete", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
+    { "name": "agentSessionCreateOnIssue", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "agentSessionCreateOnComment", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "agentSessionUpdate", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "agentActivityCreate", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "GET /oauth/authorize", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." },
+    { "name": "POST /oauth/authorize/callback", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." },
+    { "name": "POST /oauth/token", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." },
+    { "name": "POST /oauth/revoke", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." }
+  ],
+  "doc_drift": [
+    {
+      "item": "documents_mcp_tools_out_of_launch",
+      "detail": "Documents list/get/create/update tools are documented by Linear but out of Gate 0 launch scope (cold/unsupported)."
+    }
+  ],
+  "performanceBudgets": {
+    "note": "Pinned from LIMITS.md; enforced by seed/GraphQL/MCP/state export.",
+    "maxIssueTitleBytes": 512,
+    "maxIssueBodyBytes": 65536,
+    "maxCommentBodyBytes": 65536,
+    "maxGraphqlQueryBytes": 100000,
+    "maxGraphqlSelectionDepth": 20,
+    "maxSeedUsers": 500,
+    "maxSeedTeams": 50,
+    "maxSeedIssues": 5000,
+    "maxSeedLabels": 500,
+    "maxSeedProjects": 200,
+    "maxSeedCycles": 200,
+    "maxSeedOauthApps": 20,
+    "maxSeedTokens": 50,
+    "maxSeedWebhooks": 50,
+    "maxMcpPageSize": 250,
+    "defaultMcpPageSize": 50,
+    "maxRelayPageSize": 250,
+    "defaultRelayPageSize": 50,
+    "maxStateExportCollectionRows": 2000,
+    "oauthCodeTtlSeconds": 600,
+    "accessTokenTtlSeconds": 3600,
+    "packagedBootSeconds": 3
+  }
+}

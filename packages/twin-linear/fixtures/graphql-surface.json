@@ -1,0 +1,59 @@
+{
+  "source": "emulate_linear_checklist_x_linear_public_docs",
+  "updated": "2026-07-21",
+  "queries": [
+    "viewer",
+    "organization",
+    "users",
+    "user",
+    "teams",
+    "team",
+    "workflowStates",
+    "workflowState",
+    "issues",
+    "issue",
+    "comments",
+    "comment",
+    "issueLabels",
+    "issueLabel",
+    "projects",
+    "project",
+    "cycles",
+    "cycle",
+    "webhooks",
+    "webhook",
+    "agentSessions",
+    "agentSession"
+  ],
+  "mutations": [
+    "issueCreate",
+    "issueUpdate",
+    "issueDelete",
+    "issueArchive",
+    "issueUnarchive",
+    "commentCreate",
+    "commentUpdate",
+    "commentDelete",
+    "issueLabelCreate",
+    "issueLabelUpdate",
+    "issueLabelDelete",
+    "issueAddLabel",
+    "issueRemoveLabel",
+    "webhookCreate",
+    "webhookDelete",
+    "agentSessionCreateOnIssue",
+    "agentSessionCreateOnComment",
+    "agentSessionUpdate",
+    "agentActivityCreate"
+  ],
+  "oauth": [
+    "GET /oauth/authorize",
+    "POST /oauth/authorize/callback",
+    "POST /oauth/token",
+    "POST /oauth/revoke"
+  ],
+  "notes": [
+    "GraphQL surface is the Emulate Linear operation floor rewritten against SQLite commands.",
+    "Relay connections use nodes/edges/pageInfo; omit endCursor when exhausted."
+  ]
+}
