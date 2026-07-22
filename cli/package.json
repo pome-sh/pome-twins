@@ -71,7 +71,7 @@
     "@pome-sh/twin-gmail": "0.1.0",
     "@pome-sh/twin-github": "0.2.1",
     "@pome-sh/twin-linear": "0.1.0",
-    "@pome-sh/twin-slack": "0.2.1",
+    "@pome-sh/twin-slack": "0.2.2",
     "@pome-sh/twin-stripe": "0.2.4",
     "ai": "^7.0.18",
     "commander": "^15.0.0",
