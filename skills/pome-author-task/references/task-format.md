@@ -276,7 +276,7 @@ criteria: <detail>`.
 
 Each example below is a complete task document that parses clean against the
 parser above (they are verified by a unit test in
-`apps/mcp/test/scenario-format-doc.test.ts`).
+`apps/mcp/test/task-format-doc.test.ts`).
 
 ### Example 1 — single-twin GitHub
 
