@@ -208,7 +208,8 @@ describe("LIMITS.md max+1 enforcement", () => {
         blob.run(mailboxId, id);
       }
     })();
-    expect(() => gmail.searchMessages(EMAIL, "is:unread")).toThrow(/in-memory search budget/);
+    // Free-text cannot use the SQL prefilter; budget still guards the in-memory path.
+    expect(() => gmail.searchMessages(EMAIL, "budget-sentinel-term")).toThrow(/in-memory search budget/);
   });
 
   it("rejects REST batch ids and maxResults max+1", async () => {

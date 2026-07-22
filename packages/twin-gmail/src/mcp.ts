@@ -2,26 +2,32 @@
 import type { ToolCallContext, ToolSpec } from "@pome-sh/sdk";
 import { z } from "zod";
 import canonicalListing from "../fixtures/mcp-tools-list.canonical.json" with { type: "json" };
-import { GmailDomain } from "./domain.js";
+import { GmailDomain } from "./domain/index.js";
 import { invalidArgument } from "./errors.js";
 import { identityFromSession } from "./identity.js";
 import {
   createDraftInputSchema,
   createLabelInputSchema,
+  getMessageInputSchema,
   getThreadInputSchema,
   listDraftsInputSchema,
   listLabelsInputSchema,
   mcpOutputSchemas,
   messageLabelsInputSchema,
   searchThreadsInputSchema,
+  sensitiveMessageLabelInputSchema,
+  sensitiveThreadLabelInputSchema,
   threadLabelsInputSchema,
   type CreateDraftInput,
   type CreateLabelInput,
+  type GetMessageInput,
   type GetThreadInput,
   type ListDraftsInput,
   type ListLabelsInput,
   type MessageLabelsInput,
   type SearchThreadsInput,
+  type SensitiveMessageLabelInput,
+  type SensitiveThreadLabelInput,
   type ThreadLabelsInput,
 } from "./mcp-schemas.js";
 import {
@@ -117,6 +123,18 @@ const implementations: Record<ToolName, ToolImplementation> = {
       );
     },
   },
+  get_message: {
+    schema: getMessageInputSchema,
+    mutation: false,
+    handler: (domain, args, ctx) => {
+      const input = args as GetMessageInput;
+      const email = identityFromSession(ctx.session).email;
+      return messageResult(
+        domain.getMessage(email, input.messageId),
+        normalizeMessageFormat(input.messageFormat)
+      );
+    },
+  },
   search_threads: {
     schema: searchThreadsInputSchema,
     mutation: false,
@@ -144,6 +162,24 @@ const implementations: Record<ToolName, ToolImplementation> = {
   },
   label_thread: labelThreadImplementation(true),
   unlabel_thread: labelThreadImplementation(false),
+  apply_sensitive_thread_label: {
+    schema: sensitiveThreadLabelInputSchema,
+    mutation: true,
+    contentText: () => "OK",
+    handler: (domain, args, ctx) =>
+      mutate(domain, ctx, () => {
+        const input = args as SensitiveThreadLabelInput;
+        const label = resolveSensitiveLabel(input.labelOption);
+        const other = label === "TRASH" ? "SPAM" : "TRASH";
+        domain.modifyThreadLabels(
+          identityFromSession(ctx.session).email,
+          input.threadId,
+          [label],
+          ["INBOX", other]
+        );
+        return {};
+      }),
+  },
   list_labels: {
     schema: listLabelsInputSchema,
     mutation: false,
@@ -167,6 +203,24 @@ const implementations: Record<ToolName, ToolImplementation> = {
   },
   label_message: labelMessageImplementation(true),
   unlabel_message: labelMessageImplementation(false),
+  apply_sensitive_message_label: {
+    schema: sensitiveMessageLabelInputSchema,
+    mutation: true,
+    contentText: () => "OK",
+    handler: (domain, args, ctx) =>
+      mutate(domain, ctx, () => {
+        const input = args as SensitiveMessageLabelInput;
+        const label = resolveSensitiveLabel(input.labelOption);
+        const other = label === "TRASH" ? "SPAM" : "TRASH";
+        domain.modifyMessageLabels(
+          identityFromSession(ctx.session).email,
+          input.messageId,
+          [label],
+          ["INBOX", other]
+        );
+        return {};
+      }),
+  },
   create_label: {
     schema: createLabelInputSchema,
     mutation: true,
@@ -344,11 +398,18 @@ function labelResult(label: {
 }
 
 function normalizeMessageFormat(
-  format: GetThreadInput["messageFormat"]
+  format: GetThreadInput["messageFormat"] | GetMessageInput["messageFormat"]
 ): "metadata" | "minimal" | "full" {
   if (format === "METADATA_ONLY") return "metadata";
   if (format === "MINIMAL") return "minimal";
   return "full";
+}
+
+function resolveSensitiveLabel(
+  option: SensitiveThreadLabelInput["labelOption"] | SensitiveMessageLabelInput["labelOption"]
+): "TRASH" | "SPAM" {
+  if (option === "TRASH" || option === "SPAM") return option;
+  invalidArgument("labelOption must be TRASH or SPAM");
 }
 
 function paginate<T>(

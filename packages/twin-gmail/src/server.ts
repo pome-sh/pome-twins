@@ -21,4 +21,4 @@ await serve(gmailTwinDefinition, {
   runId: process.env.POME_RUN_ID ?? "spawn",
 });
 
-console.log(`Gmail twin domain scaffold listening at http://${host}:${port}`);
+console.log(`Gmail twin listening at http://${host}:${port}`);

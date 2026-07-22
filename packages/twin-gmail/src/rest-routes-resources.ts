@@ -24,10 +24,9 @@ import type { SeedFilter } from "./types.js";
 const USERS = "/gmail/v1/users/:userId";
 
 export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
-  const { context, serializers, store } = kit;
-  const domain = context.domain;
+  const { serializers, domain } = kit;
 
-  app.get(`${USERS}/profile`, kit.read((c) => ({ body: store.profile(emailFromContext(c)) })));
+  app.get(`${USERS}/profile`, kit.read((c) => ({ body: domain.profile(emailFromContext(c)) })));
 
   app.get(
     `${USERS}/threads`,
@@ -43,7 +42,7 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
         threads = threads.filter((thread) => labelIds.every((label) => thread.labelIds.includes(label)));
       }
       const maxResults = numberQuery(c, "maxResults", 100, 500);
-      const snapshot = store.currentHistoryIdFor(email);
+      const snapshot = domain.currentHistoryIdFor(email);
       const binding = normalizeListBinding("threads.list", email, { query, includeSpamTrash, labelIds });
       const { page, nextPageToken } = paginate(threads, {
         maxResults,
@@ -57,7 +56,7 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
             ? {
                 threads: page.map((thread) => ({
                   id: thread.id,
-                  historyId: store.latestThreadHistory(email, thread.id),
+                  historyId: domain.latestThreadHistory(email, thread.id),
                   ...(thread.messages.at(-1)?.snippet ? { snippet: thread.messages.at(-1)!.snippet } : {}),
                 })),
               }
@@ -131,15 +130,15 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
   app.delete(
     `${USERS}/threads/:id`,
     kit.write((c) => {
-      store.deleteThread(emailFromContext(c), routeParam(c, "id"));
+      domain.deleteThread(emailFromContext(c), routeParam(c, "id"));
       return { status: 204, body: null };
     })
   );
 
-  app.get(`${USERS}/labels`, kit.read((c) => ({ body: { labels: store.labels(emailFromContext(c)).map(labelSummary) } })));
+  app.get(`${USERS}/labels`, kit.read((c) => ({ body: { labels: domain.labels(emailFromContext(c)).map(labelSummary) } })));
   app.get(
     `${USERS}/labels/:id`,
-    kit.read((c) => ({ body: labelDetail(store.label(emailFromContext(c), routeParam(c, "id"))) }))
+    kit.read((c) => ({ body: labelDetail(domain.label(emailFromContext(c), routeParam(c, "id"))) }))
   );
 
   app.post(
@@ -149,7 +148,7 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
       const body = await readJsonObject(c);
       if (body.type !== undefined && body.type !== "user") invalidArgument("Only user labels can be created");
       const created = domain.createLabel(email, stringField(body, "name", true)!, colorInput(body));
-      return { body: labelDetail(store.label(email, created.id)) };
+      return { body: labelDetail(domain.label(email, created.id)) };
     })
   );
 
@@ -157,7 +156,7 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
     `${USERS}/labels/:id`,
     kit.write(async (c) => {
       const body = await readJsonObject(c);
-      const label = store.updateLabel(
+      const label = domain.updateLabel(
         emailFromContext(c),
         routeParam(c, "id"),
         { name: stringField(body, "name", true), color: colorInput(body) },
@@ -171,7 +170,7 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
     `${USERS}/labels/:id`,
     kit.write(async (c) => {
       const body = await readJsonObject(c);
-      const label = store.updateLabel(
+      const label = domain.updateLabel(
         emailFromContext(c),
         routeParam(c, "id"),
         { name: stringField(body, "name"), color: colorInput(body) },
@@ -184,7 +183,7 @@ export function registerResourceRoutes(app: Hono, kit: GmailRouteKit): void {
   app.delete(
     `${USERS}/labels/:id`,
     kit.write((c) => {
-      store.deleteLabel(emailFromContext(c), routeParam(c, "id"));
+      domain.deleteLabel(emailFromContext(c), routeParam(c, "id"));
       return { status: 204, body: null };
     })
   );
@@ -234,14 +233,14 @@ function registerHistory(app: Hono, kit: GmailRouteKit): void {
 }
 
 function registerSettings(app: Hono, kit: GmailRouteKit): void {
-  const { store } = kit;
+  const { domain } = kit;
   app.get(
     `${USERS}/settings/filters`,
-    kit.read((c) => ({ body: { filter: store.filters(emailFromContext(c)) } }))
+    kit.read((c) => ({ body: { filter: domain.filters(emailFromContext(c)) } }))
   );
   app.get(
     `${USERS}/settings/filters/:id`,
-    kit.read((c) => ({ body: store.filter(emailFromContext(c), routeParam(c, "id")) }))
+    kit.read((c) => ({ body: domain.filter(emailFromContext(c), routeParam(c, "id")) }))
   );
   app.post(
     `${USERS}/settings/filters`,
@@ -249,7 +248,7 @@ function registerSettings(app: Hono, kit: GmailRouteKit): void {
       const body = await readJsonObject(c);
       return {
         body: asInputError(() =>
-          store.createFilter(
+          domain.createFilter(
             emailFromContext(c),
             filterCriteria(objectField(body, "criteria") ?? {}),
             filterAction(objectField(body, "action") ?? {})
@@ -261,29 +260,29 @@ function registerSettings(app: Hono, kit: GmailRouteKit): void {
   app.delete(
     `${USERS}/settings/filters/:id`,
     kit.write((c) => {
-      store.deleteFilter(emailFromContext(c), routeParam(c, "id"));
+      domain.deleteFilter(emailFromContext(c), routeParam(c, "id"));
       return { status: 204, body: null };
     })
   );
 
   app.get(
     `${USERS}/settings/forwardingAddresses`,
-    kit.read((c) => ({ body: { forwardingAddresses: store.forwardingAddresses(emailFromContext(c)) } }))
+    kit.read((c) => ({ body: { forwardingAddresses: domain.forwardingAddresses(emailFromContext(c)) } }))
   );
   app.get(
     `${USERS}/settings/forwardingAddresses/:forwardingEmail`,
     kit.read((c) => ({
-      body: store.forwardingAddress(emailFromContext(c), decodeURIComponent(routeParam(c, "forwardingEmail"))),
+      body: domain.forwardingAddress(emailFromContext(c), decodeURIComponent(routeParam(c, "forwardingEmail"))),
     }))
   );
   app.get(
     `${USERS}/settings/sendAs`,
-    kit.read((c) => ({ body: { sendAs: store.sendAs(emailFromContext(c)) } }))
+    kit.read((c) => ({ body: { sendAs: domain.sendAs(emailFromContext(c)) } }))
   );
   app.get(
     `${USERS}/settings/sendAs/:sendAsEmail`,
     kit.read((c) => ({
-      body: store.sendAsAddress(emailFromContext(c), decodeURIComponent(routeParam(c, "sendAsEmail"))),
+      body: domain.sendAsAddress(emailFromContext(c), decodeURIComponent(routeParam(c, "sendAsEmail"))),
     }))
   );
 }

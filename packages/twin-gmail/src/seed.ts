@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from "zod";
-import { validateSearchQuery } from "./search.js";
+import { validateSearchQuery } from "./search-parse.js";
 import type { GmailStateSeed, SeedMailbox } from "./types.js";
 
 const email = z.string().trim().email().transform((value) => value.toLowerCase());

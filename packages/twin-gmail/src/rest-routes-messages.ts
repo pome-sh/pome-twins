@@ -23,8 +23,7 @@ const BASE = "/gmail/v1/users/:userId/messages";
 const UPLOAD = "/upload/gmail/v1/users/:userId/messages";
 
 export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
-  const { context, serializers, store } = kit;
-  const domain = context.domain;
+  const { serializers, domain } = kit;
 
   app.get(
     BASE,
@@ -41,7 +40,7 @@ export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
         messages = messages.filter((message) => labelIds.every((labelId) => message.labelIds.includes(labelId)));
       }
       const maxResults = numberQuery(c, "maxResults", 100, 500);
-      const snapshot = store.currentHistoryIdFor(email);
+      const snapshot = domain.currentHistoryIdFor(email);
       const binding = normalizeListBinding("messages.list", email, { query, includeSpamTrash, labelIds });
       const { page, nextPageToken } = paginate(messages, {
         maxResults,
@@ -83,7 +82,7 @@ export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
       const body = await readJsonObject(c);
       const ids = stringArray(body, "ids", 1000);
       if (!ids.length) invalidArgument("ids is required");
-      store.batchDeleteMessages(email, ids);
+      domain.batchDeleteMessages(email, ids);
       return { status: 204, body: null };
     })
   );
@@ -110,7 +109,7 @@ export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
         incoming: true,
       })
     );
-    const message = store.applyInternalDateSource(email, inserted.id, source);
+    const message = domain.applyInternalDateSource(email, inserted.id, source);
     return { body: serializers.message(email, message, "full") };
   });
   app.post(`${BASE}/import`, importMessage);
@@ -127,7 +126,7 @@ export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
         labels: input.labelIds,
       })
     );
-    const message = store.applyInternalDateSource(email, inserted.id, source);
+    const message = domain.applyInternalDateSource(email, inserted.id, source);
     return { body: serializers.message(email, message, "full") };
   });
   app.post(BASE, insert);
@@ -180,7 +179,7 @@ export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
   app.delete(
     `${BASE}/:id`,
     kit.write((c) => {
-      store.deleteMessage(emailFromContext(c), routeParam(c, "id"));
+      domain.deleteMessage(emailFromContext(c), routeParam(c, "id"));
       return { status: 204, body: null };
     })
   );
@@ -188,7 +187,7 @@ export function registerMessageRoutes(app: Hono, kit: GmailRouteKit): void {
   app.get(
     `${BASE}/:messageId/attachments/:id`,
     kit.read((c) => ({
-      body: store.attachment(emailFromContext(c), routeParam(c, "messageId"), routeParam(c, "id")),
+      body: domain.attachment(emailFromContext(c), routeParam(c, "messageId"), routeParam(c, "id")),
     }))
   );
 

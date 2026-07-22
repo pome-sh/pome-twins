@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-export { GmailDomain } from "./domain.js";
+export { GmailDomain } from "./domain/index.js";
+export type { DraftResource, FilterResource, LabelResource } from "./domain/index.js";
 export { openGmailTwinDatabase, migrate, resetDatabase } from "./db.js";
 export { GmailError, gmailErrorEnvelope } from "./errors.js";
-export { DEFAULT_GMAIL_EMAIL, identityFromSession, resolveUserEmail, resolveTokenAlias } from "./identity.js";
+export { DEFAULT_GMAIL_EMAIL, identityFromSession, resolveUserEmail } from "./identity.js";
 export {
   canonicalRaw,
   composeMime,
@@ -16,7 +17,6 @@ export {
 export { gmailTools } from "./mcp.js";
 export { projectGmailRecording } from "./recording.js";
 export {
-  compileSearchToSql,
   matchesSearch,
   parseSearchQuery,
   SEARCH_MAILBOX_MESSAGE_BUDGET,

@@ -20,12 +20,15 @@ const LAUNCH_TOOLS = [
   "create_draft",
   "list_drafts",
   "get_thread",
+  "get_message",
   "search_threads",
   "label_thread",
   "unlabel_thread",
+  "apply_sensitive_thread_label",
   "list_labels",
   "label_message",
   "unlabel_message",
+  "apply_sensitive_message_label",
   "create_label",
 ];
 
@@ -47,13 +50,16 @@ test("rest-surface freezes launch methods and names watch/stop as 501 gaps", () 
   assert.equal(send.mediaUpload.protocols.resumable.launchStatus, "unsupported_501");
 });
 
-test("MCP canonical launch listing is exactly 10 tools in live relative order", () => {
+test("MCP canonical launch listing is exactly 13 tools in live relative order", () => {
   const canonical = readJson("fixtures/mcp-tools-list.canonical.json");
   const meta = readJson("fixtures/mcp-tools-list.meta.json");
   assert.equal(canonical.meta.protocolVersion, "2025-03-26");
   assert.equal(meta.sha256, sha256File("fixtures/mcp-tools-list.raw.json"));
+  assert.equal(canonical.meta.launchToolCount, 13);
+  assert.equal(meta.launchToolCount, 13);
   const names = canonical.result.tools.map((t) => t.name);
   assert.deepEqual(names, LAUNCH_TOOLS);
+  assert.deepEqual(canonical.meta.launchToolOrder, LAUNCH_TOOLS);
   for (const tool of canonical.result.tools) {
     assert.ok(tool.inputSchema, tool.name);
     assert.ok(tool.outputSchema, tool.name);

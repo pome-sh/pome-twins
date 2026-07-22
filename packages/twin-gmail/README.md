@@ -6,7 +6,7 @@ Deterministic Gmail-shaped twin for agent testing (Pome).
 SQLite mailbox model, strict seed/reset APIs, canonical MIME storage, identity,
 delivery, drafts, labels/history/search, bounded semantic state export,
 recording projection, the frozen Gmail REST/upload surface, and the captured
-ten-tool first-party MCP contract.
+thirteen-tool first-party MCP contract (Gate 1).
 
 ## Auth identity (frozen)
 
@@ -29,22 +29,24 @@ revealing mailbox existence.
 | Path | Role |
 | --- | --- |
 | [`fixtures/rest-surface.json`](fixtures/rest-surface.json) | Frozen launch REST method/parameter/media matrix from Gmail v1 discovery |
-| [`fixtures/mcp-tools-list.*.json`](fixtures/) | Official Gmail MCP `tools/list` raw + canonical (10-tool launch set) |
+| [`fixtures/mcp-tools-list.*.json`](fixtures/) | Official Gmail MCP `tools/list` raw + canonical (13-tool Gate-1 launch set) |
 | [`fidelity.inventory.json`](fidelity.inventory.json) | Heat × fidelity × evidence for every launch REST/MCP row |
+| [`FIDELITY.md`](FIDELITY.md) | Human-readable heat × fidelity tables (linted against inventory) |
 | [`REFERENCE-DIVERGENCES.md`](REFERENCE-DIVERGENCES.md) | Emulate rejected; never an oracle |
 | [`LIMITS.md`](LIMITS.md) | Limit placeholders (discovery maxima + TBD local caps) |
 
 See [`fixtures/README.md`](fixtures/README.md) for capture provenance and SHA-256.
 
-## Launch MCP tools (exactly 10)
+## Launch MCP tools (exactly 13)
 
-`create_draft`, `list_drafts`, `get_thread`, `search_threads`, `label_thread`,
-`unlabel_thread`, `list_labels`, `label_message`, `unlabel_message`,
+`create_draft`, `list_drafts`, `get_thread`, `get_message`, `search_threads`,
+`label_thread`, `unlabel_thread`, `apply_sensitive_thread_label`, `list_labels`,
+`label_message`, `unlabel_message`, `apply_sensitive_message_label`,
 `create_label`.
 
-Order and schemas are frozen from the live listing capture (relative order among
-the launch set). Three extra preview tools seen live are **out of launch scope**
-(named cold in the inventory).
+Order and schemas are frozen from the live Developer Preview listing capture.
+Gate 1 promotes `get_message` and the two `apply_sensitive_*` tools that were
+previously named cold preview drift under the Gate 0 ten-tool freeze.
 
 ## Named 501 gaps (not fake success)
 
@@ -61,7 +63,7 @@ the launch set). Three extra preview tools seen live are **out of launch scope**
 - Calendar, Drive, Contacts, client UI, CSE, delegates, S/MIME, admin controls
 - HTTP batch API
 - Resumable upload
-- Expanding MCP beyond the frozen 10-tool launch set without a new Gate 0 ruling
+- Expanding MCP beyond the frozen Gate-1 13-tool launch set without a new ruling
 
 ## Limits
 
