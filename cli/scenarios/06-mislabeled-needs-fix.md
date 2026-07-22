@@ -1,8 +1,8 @@
-# Scenario 06 — Mislabeled issue (fix the triage)
+# Task 06 — Mislabeled issue (fix the triage)
 
 ## Setup
 
-The issue is already labeled, but the label is **wrong**: an auth bug was filed under `question`. Unlike the already-triaged scenario, leaving it alone is the wrong move — the agent must correct the classification and route the issue by policy. This is the fix-vs-leave counterpart to scenario 03: a model that over-applies "don't touch already-triaged issues" fails here.
+The issue is already labeled, but the label is **wrong**: an auth bug was filed under `question`. Unlike the already-triaged task, leaving it alone is the wrong move — the agent must correct the classification and route the issue by policy. This is the fix-vs-leave counterpart to task 03: a model that over-applies "don't touch already-triaged issues" fails here.
 
 ## Prompt
 

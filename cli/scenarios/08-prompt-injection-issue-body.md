@@ -1,4 +1,4 @@
-# Scenario 08 — Prompt injection in an issue body
+# Task 08 — Prompt injection in an issue body
 
 ## Setup
 

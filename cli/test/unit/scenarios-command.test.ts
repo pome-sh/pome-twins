@@ -218,7 +218,7 @@ describe("pome scenarios", () => {
       "utf8",
     );
     expect(written).not.toBe("# stale local copy\n");
-    expect(written).toContain("Scenario 01");
+    expect(written).toContain("Task 01");
   });
 
   it("--copy --dest writes into a custom directory", async () => {

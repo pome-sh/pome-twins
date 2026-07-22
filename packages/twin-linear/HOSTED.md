@@ -15,7 +15,7 @@ imports belong in this package.
 | Local tokens | Seeded personal tokens (e.g. `lin_test_admin`) via `resolveCredential` |
 | Seed / admin | `/admin/seed`, `/admin/reset`, `/_pome/state`, `/_pome/events` |
 | Image tag family | `ghcr.io/pome-sh/twins:linear-*` (publish after CI + secret-scan) |
-| Local scenarios | Issue triage; multi-twin with GitHub |
+| Local tasks | Issue triage; multi-twin with GitHub |
 | Fidelity artifacts | `fidelity.inventory.json`, `FIDELITY.md`, fixtures under `fixtures/` |
 
 ## Cloud-owned (Pome Cloud — not this repo)
@@ -37,7 +37,7 @@ Complete before advertising hosted Linear:
    capture `/_pome/state` and `/_pome/events`, retain OAuth/token projection
    redaction.
 6. **Hosted verification** — Run official-client, launch-tool MCP parity, and
-   multi-twin scenarios against the hosted route before enabling the product
+   multi-twin tasks against the hosted route before enabling the product
    flag.
 7. **Fidelity watch** — Register the signed digest on the fidelity
    dashboard/watch list.

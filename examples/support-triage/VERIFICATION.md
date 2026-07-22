@@ -10,7 +10,7 @@ on team **AFFF's workspace**. Runs are visible on `app.pome.sh`.
   - `support-triage-v1` (baseline) — a distinct Pome agent (id redacted; the
     committed-manifest convention keeps `agt_` ids out of the repo)
   - `support-triage-v2` (fixed) — a second distinct Pome agent (id redacted)
-- **Scenario**: `duplicate-issue` (saved as `support-triage-dedup`,
+- **Task**: `duplicate-issue` (saved as `support-triage-dedup`,
   `task_OJue2tyNX-EpAoAC3k51`). Seed pre-loads open issue #1 for the coupon bug;
   `#support` gets a *new* report of the *same* bug.
 - **Examinee runtime**: Claude managed agent on Anthropic's Managed Agents cloud,

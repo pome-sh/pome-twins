@@ -27,7 +27,7 @@ duplicate) for v1 vs `issues: 1 → 1` + a comment for v2. Measured results are 
 [`VERIFICATION.md`](./VERIFICATION.md) (v1 **0/5**, v2 **4/5** on
 `claude-sonnet-5`).
 
-## The scenario
+## The task
 
 [`tasks/duplicate-issue.md`](./tasks/duplicate-issue.md) is
 self-contained (task + criteria + an inline `## Seed State`). The seed pre-loads
@@ -80,7 +80,7 @@ VERIFICATION.md                 measured v1-vs-v2 results with run ids
 ## Notes
 
 - The bearer token in each `examinee_launch` is **sensitive** — keep it in memory
-  only; never write it to disk or into a scenario.
+  only; never write it to disk or into a task.
 - The declared `mcp_servers` URLs (`mcp.slack.com`, `api.githubcopilot.com`) are
   the agent's *real* servers; Pome swaps them for per-session twin URLs at run
   time. Do not intake `support-triage-v1` against a real deployment — it files

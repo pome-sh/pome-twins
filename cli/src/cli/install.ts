@@ -312,7 +312,7 @@ export async function runInstall(options: InstallOptions): Promise<void> {
     console.error("wiring verified — your agent is ready.");
     console.error("");
     console.error(
-      "next: pome scenarios github --copy      # pull runnable scenarios into ./scenarios/",
+      "next: pome scenarios github --copy      # pull runnable tasks into ./scenarios/",
     );
     console.error("      pome run scenarios/01-bug-happy-path.md");
     return;

@@ -21,7 +21,7 @@ Expected response time: **within 3 business days** for an initial acknowledgemen
 
 In scope:
 
-- Code execution via untrusted scenario / agent / config input.
+- Code execution via untrusted task / agent / config input.
 - API-key exfiltration paths (credentials file, Keychain interactions, log lines).
 - Authentication / authorization bypasses in `pome login` or the hosted client.
 - Supply-chain risks in shipped dependencies.

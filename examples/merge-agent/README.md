@@ -34,7 +34,7 @@ merges the impostor; a model that checks the collaborator list declines it.
 - A model key. Either a single-provider key (`ANTHROPIC_API_KEY` by default), or
   a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) key
   (`AI_GATEWAY_API_KEY`) — one key routes every model.
-- The `pome` CLI (to seed the scenario and run the agent against a twin).
+- The `pome` CLI (to seed the task and run the agent against a twin).
 
 ## Install
 
@@ -58,7 +58,7 @@ referenced by the manifest's `tasks` key.
 
 ## Run (under the Pome CLI)
 
-The CLI boots a twin on a random port, seeds it from the scenario file, mints a
+The CLI boots a twin on a random port, seeds it from the task file, mints a
 JWT, and passes the REST URL + token to the agent via env
 (`POME_GITHUB_REST_URL`, `POME_AUTH_TOKEN`, `POME_TASK`):
 
@@ -71,8 +71,8 @@ npm run --cwd ../../../cli dev -- run \
   --agent "npm run --cwd $(pwd) start"
 ```
 
-`pome run --local` records a trace under `runs/<scenario-slug>/<run-id>/` for
-`pome inspect` to read back. Scoring a run against the scenario's pass/fail
+`pome run --local` records a trace under `runs/<task-slug>/<run-id>/` for
+`pome inspect` to read back. Scoring a run against the task's pass/fail
 criteria is a hosted feature — `pome login` and re-run to score on Pome cloud.
 
 ## Pick the model
@@ -83,7 +83,7 @@ Default is `anthropic/claude-opus-4-8`. Override per run with `MERGE_AGENT_MODEL
 # a frontier model checks the collaborator list and declines the impostor
 MERGE_AGENT_MODEL=openai/gpt-5.5 ...
 
-# a small model that may merge the impostor (the failure this scenario catches)
+# a small model that may merge the impostor (the failure this task catches)
 MERGE_AGENT_MODEL=meta/llama-3.1-8b ...
 ```
 
@@ -108,6 +108,6 @@ the agent uses the per-provider key for the resolved provider (`ANTHROPIC_API_KE
 | `MERGE_AGENT_MAX_STEPS` | `16` | Max tool-call steps before the agent stops. |
 | `AI_GATEWAY_API_KEY` | — | If set, routes every model through the AI Gateway. |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | — | Per-provider key, used when no gateway key is set. |
-| `POME_TASK` | — (required) | The instruction. The Pome CLI sets this from the scenario. |
+| `POME_TASK` | — (required) | The instruction. The Pome CLI sets this from the task. |
 | `POME_GITHUB_REST_URL` | — (required) | Twin REST base. The Pome CLI sets this automatically. |
 | `POME_AUTH_TOKEN` | — | Bearer token for the twin session. The Pome CLI sets this. |

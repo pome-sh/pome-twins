@@ -134,7 +134,7 @@ function buildSeedEnvelope(raw: unknown | undefined, twins: string[]): SeedEnvel
   }
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     throw new Error(
-      `Multi-twin scenarios need a per-twin seed envelope { <twin>: <seed> } for twins [${twins.join(", ")}], not a bare seed object.`,
+      `Multi-twin tasks need a per-twin seed envelope { <twin>: <seed> } for twins [${twins.join(", ")}], not a bare seed object.`,
     );
   }
   const allowed = new Set(twins);
@@ -142,7 +142,7 @@ function buildSeedEnvelope(raw: unknown | undefined, twins: string[]): SeedEnvel
   for (const key of Object.keys(provided)) {
     if (!allowed.has(key)) {
       throw new Error(
-        `Seed envelope key "${key}" is not one of the scenario's twins [${twins.join(", ")}].`,
+        `Seed envelope key "${key}" is not one of the task's twins [${twins.join(", ")}].`,
       );
     }
   }
@@ -183,16 +183,16 @@ function defaultSeedForTwin(twin: string): SeedState {
 }
 
 function missingSidecarMessage(scenarioPath: string | undefined): string {
-  const pathLabel = scenarioPath ?? "<scenario>.md";
+  const pathLabel = scenarioPath ?? "<task>.md";
   const sidecarLabel = scenarioPath
     ? scenarioPath.replace(/\.md$/i, ".seed.json")
-    : "<scenario>.seed.json";
+    : "<task>.seed.json";
   return [
-    `Scenario has a prose ## Seed State section but no compiled sidecar (${sidecarLabel}). Run:`,
+    `Task has a prose ## Seed State section but no compiled sidecar (${sidecarLabel}). Run:`,
     "",
     `    pome compile-seeds ${pathLabel}`,
     "",
-    "then re-run the scenario. (See `pome docs scenarios-github`.)",
+    "then re-run the task. (See `pome docs scenarios-github`.)",
   ].join("\n");
 }
 
@@ -274,13 +274,13 @@ function parseCriteria(input: string, twins: string[]): Criterion[] {
         // Single-twin: an explicit tag is allowed but must equal the sole twin.
         if (tag !== primary) {
           throw new Error(
-            `Criterion "${marker} ${text}" tags twin "${tag}", but this single-twin scenario runs "${primary}". Drop the tag or set config.twins to include "${tag}".`,
+            `Criterion "${marker} ${text}" tags twin "${tag}", but this single-twin task runs "${primary}". Drop the tag or set config.twins to include "${tag}".`,
           );
         }
       } else if (!allowed.has(tag)) {
         // Multi-twin: an explicit tag must name one of the scenario's twins.
         throw new Error(
-          `Criterion "${marker} ${text}" tags twin "${tag}", which is not in the scenario's twins [${twins.join(", ")}].`,
+          `Criterion "${marker} ${text}" tags twin "${tag}", which is not in the task's twins [${twins.join(", ")}].`,
         );
       }
     } else if (multiTwin && kind === "code") {
@@ -288,7 +288,7 @@ function parseCriteria(input: string, twins: string[]): Criterion[] {
       // which twin's state to check it against. [model] may stay bare
       // (attributes to the primary twin).
       throw new Error(
-        `Criterion "${marker} ${text}" needs a twin tag ([code:<twin>]) in a multi-twin scenario (twins [${twins.join(", ")}]).`,
+        `Criterion "${marker} ${text}" needs a twin tag ([code:<twin>]) in a multi-twin task (twins [${twins.join(", ")}]).`,
       );
     }
 
@@ -383,10 +383,10 @@ function slugFromPath(path: string) {
 
 export function formatScenarioError(error: unknown, filePath: string) {
   if (error instanceof z.ZodError) {
-    return `Invalid scenario ${filePath}: ${error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`;
+    return `Invalid task ${filePath}: ${error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`;
   }
   if (error instanceof Error) {
-    return `Invalid scenario ${filePath}: ${error.message}`;
+    return `Invalid task ${filePath}: ${error.message}`;
   }
-  return `Invalid scenario ${filePath}`;
+  return `Invalid task ${filePath}`;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `pome scenarios` — browse the bundled scenarios library and optionally
- * copy a twin's runnable scenarios into the current project.
+ * `pome scenarios` — browse the bundled task library and optionally
+ * copy a twin's runnable tasks into the current project.
  *
  * Discovery only — no network. Source files live under `scenarios/` in
  * the published tarball; `resolvePackageRoot` locates them whether the
@@ -76,24 +76,24 @@ export async function runScenariosCommand(
 }
 
 function printTwinIndex(): void {
-  console.log(bold("Pome scenarios"));
-  console.log(dim("Bundled scenario library, grouped by twin."));
+  console.log(bold("Pome tasks"));
+  console.log(dim("Bundled task library, grouped by twin."));
   console.log("");
   for (const twin of SCENARIO_TWINS) {
     const count = runnableScenarios(twin).length;
-    console.log(`  ${bold(twin.id)} ${dim(`(${count} scenarios)`)} — ${twin.label}`);
+    console.log(`  ${bold(twin.id)} ${dim(`(${count} tasks)`)} — ${twin.label}`);
     console.log(`    ${dim(twin.description)}`);
   }
   console.log("");
   console.log(
-    dim("Run `pome scenarios <twin>` to list scenarios, or add `--copy` to drop them into ./scenarios/."),
+    dim("Run `pome scenarios <twin>` to list tasks, or add `--copy` to drop them into ./scenarios/."),
   );
 }
 
 function printTwinScenarios(twin: ScenarioTwin): void {
   const runnable = runnableScenarios(twin);
-  console.log(bold(`Pome scenarios — ${twin.label}`));
-  console.log(dim(`${runnable.length} scenarios bundled with this CLI.`));
+  console.log(bold(`Pome tasks — ${twin.label}`));
+  console.log(dim(`${runnable.length} tasks bundled with this CLI.`));
   console.log("");
   for (const scenario of runnable) {
     console.log(`  ${bold(scenario.filename)}`);
@@ -149,7 +149,7 @@ export async function copyTwinScenarios(
 
   console.log(
     bold(
-      `Copied ${outcome.copied.length} ${twin.label} scenario${outcome.copied.length === 1 ? "" : "s"} into ${opts.destDir}/.`,
+      `Copied ${outcome.copied.length} ${twin.label} task${outcome.copied.length === 1 ? "" : "s"} into ${opts.destDir}/.`,
     ),
   );
   for (const file of outcome.copied) {
@@ -199,7 +199,7 @@ async function copyScenarioFiles(input: {
       outcome.copied.push(scenario.filename);
     }
 
-    // Sidecar seeds (`<name>.seed.json`) are optional — scenarios that use
+    // Sidecar seeds (`<name>.seed.json`) are optional — tasks that use
     // default seed state don't have one. Missing source is silent; missing
     // dest is copied; existing dest follows the same --force rule as the .md.
     const sidecar = scenario.filename.replace(/\.md$/i, ".seed.json");
