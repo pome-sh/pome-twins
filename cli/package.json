@@ -68,7 +68,7 @@
     "@openrouter/ai-sdk-provider": "^3.0.0",
     "@pome-sh/sdk": "0.5.1",
     "@pome-sh/shared-types": "0.12.1",
-    "@pome-sh/twin-gmail": "0.1.0",
+    "@pome-sh/twin-gmail": "0.1.1",
     "@pome-sh/twin-github": "0.2.1",
     "@pome-sh/twin-linear": "0.1.0",
     "@pome-sh/twin-slack": "0.2.1",
