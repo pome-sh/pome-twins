@@ -132,7 +132,11 @@ describe("agentResponseSchema — slug-rename hint fields (F-861)", () => {
     expect(parsed.hint).toBeUndefined();
   });
 
-  it("rejects an out-of-enum resolved_via rather than silently coercing", () => {
-    expect(agentResponseSchema.safeParse({ ...base, resolved_via: "renamed" }).success).toBe(false);
+  it("tolerates an unknown resolver mode (open enum) instead of rejecting the response", () => {
+    // A future control plane may add a resolver mode. Since resolved_via only
+    // drives an informational CLI notice, an unknown value must not fail the
+    // whole parse (which would break register/install).
+    const parsed = agentResponseSchema.parse({ ...base, resolved_via: "merged" });
+    expect(parsed.resolved_via).toBe("merged");
   });
 });

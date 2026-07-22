@@ -96,25 +96,25 @@ function warnUnknownFramework(existingAgent: Record<string, unknown>): void {
  *  by `pome register agent` and `pome install` (both go through
  *  createAndPersistAgent), so the notice prints on either path.
  *
- *  Alias branch ONLY — no notice on a live-slug resolve or a fresh auto-create.
- *  "The slug the CLI sent" is the manifest's prior `agent.slug`
- *  (createAndPersistAgent posts only name/twins, never a slug), compared against
- *  the server-returned canonical slug. */
+ *  Gated strictly on `resolved_via === "alias"` — the "alias branch only" rule.
+ *  A bare `hint` is NOT a rename signal (a future cloud may attach a hint to a
+ *  non-alias response), and real alias responses always carry resolved_via, so
+ *  strict gating never drops a genuine rename. "The slug the CLI sent" is the
+ *  manifest's prior `agent.slug` (createAndPersistAgent posts only name/twins,
+ *  never a slug), compared against the server-returned canonical slug. */
 function maybeWarnSlugRenamed(
   existingAgent: Record<string, unknown>,
   agent: AgentResponse,
   manifestPath: string,
 ): void {
+  if (agent.resolved_via !== "alias") return;
   const sentSlug = typeof existingAgent.slug === "string" ? existingAgent.slug : undefined;
-  const hint = typeof agent.hint === "string" && agent.hint.trim().length > 0 ? agent.hint : undefined;
-  // Older cloud may send a hint without resolved_via; treat that as alias too.
-  const viaAlias =
-    agent.resolved_via === "alias" || (agent.resolved_via === undefined && hint !== undefined);
-  if (!viaAlias || sentSlug === undefined || agent.slug === sentSlug) return;
+  if (sentSlug === undefined || agent.slug === sentSlug) return;
 
   console.error(
     `Agent slug "${sentSlug}" was renamed to "${agent.slug}" in Pome. Updated agent.slug in ${basename(manifestPath)}.`,
   );
+  const hint = typeof agent.hint === "string" && agent.hint.trim().length > 0 ? agent.hint : undefined;
   if (hint !== undefined) console.error(stripControlCharacters(hint));
 }
 

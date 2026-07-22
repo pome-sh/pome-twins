@@ -363,6 +363,33 @@ describe("slug-rename hint (F-861)", () => {
 
     expect(errors.join("\n")).not.toMatch(/renamed/i);
   });
+
+  it("no notice from a bare hint (no resolved_via: alias) even when the slug differs", async () => {
+    await writeManifest({ agent: { slug: "old-slug" } });
+    const errors = spyErrors();
+    // A hint unrelated to a rename must not be reported as one — gated on alias.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({ ...AGENT_OK, slug: "triage-bot", hint: "Heads up: judge model changed." }),
+    );
+
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false });
+
+    expect(errors.join("\n")).not.toMatch(/renamed/i);
+  });
+
+  it("does not break registration when the cloud sends an unknown resolver mode", async () => {
+    await writeManifest({ agent: { slug: "old-slug" } });
+    const errors = spyErrors();
+    // Forward-compat: an unknown resolved_via is tolerated, not rejected.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({ ...AGENT_OK, slug: "triage-bot", resolved_via: "merged" }),
+    );
+
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false });
+
+    expect(errors.join("\n")).not.toMatch(/renamed/i);
+    expect(readManifestFile()).toMatchObject({ agent: { slug: "triage-bot" } });
+  });
 });
 
 describe("normalizeRegisterTwins", () => {
