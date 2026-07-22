@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { badUserInput } from "../errors.js";
 import type { LinearIssueRelations } from "../types.js";
 import type { LinearDomain } from "./linear-domain.js";
 
@@ -51,4 +52,19 @@ export function appendIssueRelations(
   append(input.blockedBy, "blocked_by");
   append(input.relatedTo, "related");
   return changed;
+}
+
+/** Reject ancestry cycles when setting issue.parentId (A→B→A). */
+export function assertNoParentCycle(domain: LinearDomain, issueId: string, parentId: string): void {
+  if (parentId === issueId) badUserInput("Issue cannot be its own parent");
+  let cursor: string | null = parentId;
+  const seen = new Set<string>([issueId]);
+  while (cursor) {
+    if (seen.has(cursor)) badUserInput("Issue parent would create a cycle");
+    seen.add(cursor);
+    const row = domain.db
+      .prepare("SELECT parent_id AS parentId FROM issues WHERE id = ?")
+      .get(cursor) as { parentId: string | null } | undefined;
+    cursor = row?.parentId ?? null;
+  }
 }

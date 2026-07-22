@@ -1,7 +1,8 @@
+// file-size: Issue CRUD + label/relation patches share one transaction surface with webhook emit; further split would duplicate ActorContext/scope checks.
 // SPDX-License-Identifier: Apache-2.0
 import { badUserInput } from "../errors.js";
 import type { LinearIssue } from "../types.js";
-import { appendIssueRelations, type IssueRelationAppendInput } from "./issue-relations.js";
+import { appendIssueRelations, assertNoParentCycle, type IssueRelationAppendInput } from "./issue-relations.js";
 import { assertBody, assertTitle, normalizePriority } from "./normalize.js";
 import type { ActorContext, LinearDomain } from "./linear-domain.js";
 import { mapIssue, type IssueRow } from "./rows.js";
@@ -265,20 +266,7 @@ export async function updateIssue(
   }
   if ("parentId" in input) {
     patch.parent_id = input.parentId ? domain.requireIssue(input.parentId).id : null;
-    if (patch.parent_id === issue.id) badUserInput("Issue cannot be its own parent");
-    if (patch.parent_id) {
-      // Reject ancestry cycles (A→B→A) by walking the proposed parent's chain.
-      let cursor: string | null = patch.parent_id;
-      const seen = new Set<string>([issue.id]);
-      while (cursor) {
-        if (seen.has(cursor)) badUserInput("Issue parent would create a cycle");
-        seen.add(cursor);
-        const row = domain.db
-          .prepare("SELECT parent_id AS parentId FROM issues WHERE id = ?")
-          .get(cursor) as { parentId: string | null } | undefined;
-        cursor = row?.parentId ?? null;
-      }
-    }
+    if (patch.parent_id) assertNoParentCycle(domain, issue.id, patch.parent_id);
     if (patch.parent_id !== issue.parentId) changed = true;
   }
   if ("stateId" in input && input.stateId != null) {
