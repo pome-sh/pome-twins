@@ -29,7 +29,7 @@ duplicate) for v1 vs `issues: 1 → 1` + a comment for v2. Measured results are 
 
 ## The scenario
 
-[`scenarios/duplicate-issue.md`](./scenarios/duplicate-issue.md) is
+[`tasks/duplicate-issue.md`](./tasks/duplicate-issue.md) is
 self-contained (task + criteria + an inline `## Seed State`). The seed pre-loads
 open issue #1 for the coupon bug, then `#support` receives a *new* report of the
 *same* bug. A good agent recognizes the duplicate.
@@ -73,7 +73,7 @@ by filing a duplicate → switch to v2 (the one-line fix) → watch it pass.
 ```
 agents/support-triage-v1.yaml   baseline (files a duplicate) — fails
 agents/support-triage-v2.yaml   fixed (searches first) — passes; one line different
-scenarios/duplicate-issue.md    the scenario (inline ## Seed State)
+tasks/duplicate-issue.md        the task (inline ## Seed State)
 VERIFICATION.md                 measured v1-vs-v2 results with run ids
 ```
 

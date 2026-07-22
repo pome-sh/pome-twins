@@ -46,26 +46,36 @@ The agent resolves `ANTHROPIC_API_KEY` in this order:
 export ANTHROPIC_API_KEY=sk-ant-...
 
 # Infisical — store the key in your project, then either:
-infisical run -- pome run 01-clean-prs.md   # injects all secrets as env vars
+infisical run -- pome run tasks/01-clean-prs.md   # injects all secrets as env vars
 # ...or let the agent fetch it via the CLI (needs `infisical init` / login)
 ```
 
 Infisical lookups honor `INFISICAL_ENV` (default `dev`), `INFISICAL_PROJECT_ID`,
 and `POME_INFISICAL_SECRET_NAME` (default `ANTHROPIC_API_KEY`).
 
-## Register the agent (hosted)
+## Identity (`pome.json`) and hosted registration
+
+Identity ships in the repo — the committed [`pome.json`](./pome.json) manifest
+carries the portable `agent.slug` (`pr-summary-review`) and
+`framework: "claude-agent-sdk"`, with **no** agent id. On the first hosted
+`pome run` the CLI resolves that slug to an `agt_` id under **your** team and
+caches it in gitignored `.pome/link.json`, so a fork self-onboards onto your own
+dashboard with nothing sensitive committed.
+
+To resolve it ahead of time (or re-resolve after a team switch):
 
 ```bash
-# from the repo root, after `pome login`
+# after `pome login`
 pome register agent pr-summary-review
 ```
 
-This creates a cloud agent under your team and writes its `agentId` into
-`pome.config.json` so runs are attributed to it on the dashboard.
+This resolves the committed slug to a cloud agent under your team and caches the
+id in gitignored `.pome/link.json`; runs are then attributed to it on the
+dashboard.
 
 ## Scenarios
 
-Three hand-authored scenarios live next to this README, each with a full
+Three hand-authored tasks live under [`tasks/`](./tasks/), each with a full
 `.seed.json` fixture:
 
 | Scenario | What it exercises | Expected verdict(s) |
@@ -77,11 +87,11 @@ Three hand-authored scenarios live next to this README, each with a full
 ## Run
 
 ```bash
-# one scenario
-pome run 01-clean-prs.md
+# one task
+pome run tasks/01-clean-prs.md
 
 # all three (directory)
-pome run .
+pome run tasks
 ```
 
 `pome run` boots its own twin on a random port, seeds it from the scenario's

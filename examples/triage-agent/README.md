@@ -6,7 +6,7 @@ each open issue it picks one of `bug` / `feature` / `question`, applies the
 label, and posts a one-sentence reasoning comment.
 
 This is the example referenced in the README quickstart and the demo video
-(see `01-triage-acme-issues.md` for the bundled Pome scenario).
+(see `tasks/01-triage-acme-issues.md` for the bundled Pome task).
 
 ## Prerequisites
 
@@ -28,6 +28,15 @@ npm install
 This package is intentionally **not** part of the root npm workspace — that
 keeps the Claude Agent SDK out of the monorepo install for everyone who isn't
 running the example.
+
+## Identity (`pome.json`)
+
+This example ships a committed [`pome.json`](./pome.json) manifest carrying the
+portable `agent.slug` (`triage-agent`) and `framework: "claude-agent-sdk"` — no
+agent id. On a hosted `pome run` the CLI resolves that slug to an `agt_` id under
+**your** team and caches it in the gitignored `.pome/` dir, so a fork
+self-onboards onto your own dashboard with nothing sensitive committed. Task
+files live under [`tasks/`](./tasks/), referenced by the manifest's `tasks` key.
 
 ## Run (standalone, against `pome twin start`)
 
@@ -78,7 +87,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 # from this directory, with the CLI at ../../cli
 npm run --cwd ../../cli dev -- run \
-  ../examples/triage-agent/01-triage-acme-issues.md \
+  ../examples/triage-agent/tasks/01-triage-acme-issues.md \
   --agent "npm run --cwd $(pwd) start"
 ```
 
