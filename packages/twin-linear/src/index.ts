@@ -24,7 +24,6 @@ export type { LinearStateExport } from "./state.js";
 export {
   createLinearTwinApp,
   createLinearTwinDefinition,
-  linearTwinDefinition,
   linearEmailFromSession,
   withPublicOAuth,
 } from "./twin.js";
