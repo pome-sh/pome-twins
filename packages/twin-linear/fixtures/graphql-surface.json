@@ -46,7 +46,7 @@
     "agentSessionUpdate",
     "agentActivityCreate"
   ],
-  "oauth": [
+  "authRoutes": [
     "GET /oauth/authorize",
     "POST /oauth/authorize/callback",
     "POST /oauth/token",

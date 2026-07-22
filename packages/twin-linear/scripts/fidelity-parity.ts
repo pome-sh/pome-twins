@@ -20,7 +20,8 @@ type Inventory = {
 type GraphqlSurface = {
   queries: string[];
   mutations: string[];
-  oauth?: string[];
+  /** Named HTTP auth routes (not credentials). */
+  authRoutes?: string[];
 };
 
 const root = join(import.meta.dirname, "..");
@@ -47,7 +48,7 @@ if (inventory.twin !== "linear") {
 }
 
 const inventoryGraphqlNames = new Set((inventory.graphql ?? []).map((row) => row.name));
-const surfaceOps = [...surface.queries, ...surface.mutations, ...(surface.oauth ?? [])];
+const surfaceOps = [...surface.queries, ...surface.mutations, ...(surface.authRoutes ?? [])];
 for (const op of surfaceOps) {
   if (!inventoryGraphqlNames.has(op)) {
     failures.push(`graphql-surface op missing from inventory.graphql: ${op}`);

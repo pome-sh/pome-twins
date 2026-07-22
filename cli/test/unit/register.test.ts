@@ -301,7 +301,7 @@ describe("normalizeRegisterTwins", () => {
     expect(normalizeRegisterTwins("  , ")).toBeUndefined();
   });
   it("rejects an unknown twin against MOUNTED_TWINS", () => {
-    expect(() => normalizeRegisterTwins("github,linear")).toThrow(/Unknown twin/);
+    expect(() => normalizeRegisterTwins("github,notion")).toThrow(/Unknown twin/);
   });
 });
 
