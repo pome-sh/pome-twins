@@ -153,7 +153,6 @@ async function main() {
       maxTurns: 30,
       // Allow every tool the two twins expose; keep the run closed-book (the
       // seeded twin world is the whole exam — no web).
-      allowedTools: ["mcp__github", "mcp__slack"],
       disallowedTools: ["WebSearch", "WebFetch"],
       mcpServers,
     },
