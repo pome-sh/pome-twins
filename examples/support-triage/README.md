@@ -68,12 +68,22 @@ dashboard shows two separate identities with separate scores.
 The self-fix loop is the swap between step 3's two agents: run v1 → watch it fail
 by filing a duplicate → switch to v2 (the one-line fix) → watch it pass.
 
+## Local examinee
+
+[`local/`](./local/) is the same agent as a minimal **Claude Agent SDK process
+on your machine** — no managed-agent platform needed. The coach spawns it as a
+subprocess after `run_task` (per-twin MCP URLs + bearer arrive via env), it
+works the task over MCP, and exits when done. The v1/v2 one-liner lives as a
+prompt constant in its code: v1 ships as the default, the fix is a one-line
+swap. See [`local/README.md`](./local/README.md).
+
 ## Layout
 
 ```
 agents/support-triage-v1.yaml   baseline (files a duplicate) — fails
 agents/support-triage-v2.yaml   fixed (searches first) — passes; one line different
 tasks/duplicate-issue.md        the task (inline ## Seed State)
+local/                          the same agent as a local Claude Agent SDK examinee
 VERIFICATION.md                 measured v1-vs-v2 results with run ids
 ```
 
