@@ -52,7 +52,7 @@ Heat × fidelity per [`ENDPOINT-TIERS.md`](../sdk/ENDPOINT-TIERS.md). Machine-re
 
 ## Opt-in OAuth scope denial
 
-`seed.strictScopes` defaults to `false`. Enable it for scenarios that mint
+`seed.strictScopes` defaults to `false`. Enable it for tasks that mint
 restricted tokens and expect Linear-like scope errors. With the flag on, GraphQL
 and MCP writes share `LinearDomain.requireScopes`. JWT / provider sessions are
 granted the full default scope set so common agent paths stay unblocked.

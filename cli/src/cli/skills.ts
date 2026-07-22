@@ -117,7 +117,7 @@ export async function runSkillsInstall(
     console.log("");
     console.log("Invoke them from your agent:");
     console.log(`  ${bold("/pome-setup")}   — wire your agent up to pome`);
-    console.log(`  ${bold("/pome-test")}    — run scenarios for a registered agent`);
+    console.log(`  ${bold("/pome-test")}    — run tasks for a registered agent`);
   }
 }
 

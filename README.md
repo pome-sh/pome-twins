@@ -22,7 +22,7 @@ resettable.
 * **Comprehensive Testing:** Build robust, end-to-end test suites that mimic
   production systems entirely without touching live infrastructure.
 * **Agent Evaluation & ML Training:** Run your AI agents against the bundled
-  scenario library, locally or in CI. Several scenarios are adversarial:
+  task library, locally or in CI. Several tasks are adversarial:
   identity spoofing, prompt injection, and friends.
 * **Zero Friction:** Say goodbye to live rate limits, flaky networks, and
   messy shared sandbox accounts. Need a fresh start? Reset the twin and
@@ -73,9 +73,9 @@ It runs in the foreground (Ctrl-C to stop) and prints the twin's MCP URL plus
 a ready-minted `POME_AUTH_TOKEN` for the session it serves — everything an
 agent needs to connect.
 
-Then run your first agent scenario. `pome init` scaffolds the scenario
+Then run your first agent task. `pome init` scaffolds the task
 library and a scripted example agent; `pome run --local` boots its own twin
-in-process, seeds the scenario, runs the agent, and records the trace:
+in-process, seeds the task, runs the agent, and records the trace:
 
 ```bash
 npx @pome-sh/cli init
@@ -108,7 +108,7 @@ pome --help
 ```
 
 Run `pome login` once to connect the CLI to your Pome account, then `pome init`
-in any project where you want scenarios and run artifacts. The full command
+in any project where you want tasks and run artifacts. The full command
 reference lives in the [CLI README](./cli/README.md) and at
 [docs.pome.sh](https://docs.pome.sh).
 
@@ -134,19 +134,19 @@ rely on. Published twin images are cosign-signed and ship SBOM attestations.
 `pome run --local` boots a twin in-process, runs your agent against it, and
 records the run (the trace plus before/after state) for you to read back with
 `pome inspect`. The CLI is **capture-only**: it never scores or judges
-locally. Evaluation — scoring a run against a scenario's pass/fail criteria —
+locally. Evaluation — scoring a run against a task's pass/fail criteria —
 is a hosted feature on the Pome platform. `pome eval` bridges the two:
 capture a trace anywhere, then upload it for a cloud verdict.
 
 ```bash
 pome run --local scenarios/         # self-hosted: records a raw trace
-pome eval runs/<scenario>/<run-id>  # uploads it for a cloud verdict
+pome eval runs/<task>/<run-id>      # uploads it for a cloud verdict
 pome login && pome run scenarios/   # hosted: records + evaluates in one go
 ```
 
-## The scenario library
+## The task library
 
-`pome init` ships a bundled scenario library: GitHub issue triage and PR flows,
+`pome init` ships a bundled task library: GitHub issue triage and PR flows,
 Stripe x402 payment and refund flows, Slack messaging, Gmail inbox/MCP parity, and Linear
 issue triage. Several are
 adversarial — they probe whether your agent can be talked into spoofing an
@@ -161,7 +161,7 @@ Four worked agents live under [`examples/`](./examples/):
 | Example | Stack | What it does |
 | --- | --- | --- |
 | [`triage-agent`](./examples/triage-agent/) | Claude Agent SDK + MCP | Triages the seeded issues on `acme/api` end-to-end |
-| [`merge-agent`](./examples/merge-agent/) | Vercel AI SDK + REST | A PR merge agent vs. an identity-spoof scenario |
+| [`merge-agent`](./examples/merge-agent/) | Vercel AI SDK + REST | A PR merge agent vs. an identity-spoof task |
 | [`pr-summary-agent`](./examples/pr-summary-agent/) | Claude Agent SDK + MCP | Summarizes PRs: what/why/risk/checklist |
 | [`pr-summary-review`](./examples/pr-summary-review/) | Claude Agent SDK + MCP | Summarizes **and** reviews PRs (approve / comment / request changes) |
 
@@ -222,8 +222,8 @@ Everything ships to npm with provenance (Trusted Publishing):
 | [`packages/sdk`](./packages/sdk/) | The twin engine — build your own twin with `defineTwin()` |
 | [`packages/shared-types`](./packages/shared-types/) | Zod schemas and trace contracts |
 | [`packages/adapter-claude-sdk`](./packages/adapter-claude-sdk/) | Wire a Claude Agent SDK agent to a Pome run |
-| [`cli/`](./cli/) | The `pome` CLI (run scenarios, inspect traces, upload for evaluation) |
-| [`cli/scenarios/`](./cli/scenarios/) | The bundled scenario library |
+| [`cli/`](./cli/) | The `pome` CLI (run tasks, inspect traces, upload for evaluation) |
+| [`cli/scenarios/`](./cli/scenarios/) | The bundled task library |
 | [`examples/`](./examples/) | Four worked example agents |
 | [`CONTRACT.md`](./CONTRACT.md) | The frozen twin runtime contract (v1.2.0) |
 | [`AGENTS.md`](./AGENTS.md) | Contributor and agent conventions for this repo |

@@ -25,7 +25,7 @@ See `performanceBudgets` in [`fidelity.inventory.json`](fidelity.inventory.json)
 
 - OAuth/API token **scope denial is opt-in fidelity**: set `seed.strictScopes: true`.
   The default (`false`) matches other twins — auth gate is always on; fine-grained
-  Linear scopes are not enforced unless a scenario opts in.
+  Linear scopes are not enforced unless a task opts in.
 - When `strictScopes` is on, write mutators call `requireScopes` (`write`,
   `issues:create`, `comments:create`; `admin` bypasses). JWT / `lin_pome_*`
   sessions receive the full default scope set.

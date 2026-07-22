@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # @pome-sh/shared-types
 
 The shared wire-format contract for [Pome](https://pome.sh) — Zod schemas
-and TypeScript types for traces, recorder events, runs, scenario seeds,
+and TypeScript types for traces, recorder events, runs, task seeds,
 OTel span mapping, and secret redaction. The `pome` CLI, the twin engine
 (`@pome-sh/sdk`), the first-party twins, the Claude adapter, and the Pome
 cloud all speak this vocabulary; the wire format is the contract, not any

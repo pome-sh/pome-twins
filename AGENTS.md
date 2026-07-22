@@ -21,6 +21,11 @@ live at **https://docs.pome.sh**.
 
 - **npm only** — one root `package-lock.json` for `packages/*`; use
   `npm ci` / `npm install`.
+- **Vocabulary: the product term is "task"** — "scenario" is retired (F-778,
+  F-860). Never introduce "scenario" in new code, docs, or CLI copy. Legacy
+  compatibility surfaces (the `pome scenarios` command, the `./scenarios/`
+  directory, `scenario_*` wire keys, internal `*Scenario*` symbols) stay until
+  F-859/M2 (manifest key, Gen-1 skills) and F-825/M4 (examples layout).
 - **The CLI (`cli/`) is not a root workspace** — use `cd cli && npm ...`, not
   `npm run -w` from the root.
 - **`cli/pnpm-workspace.yaml` is not pnpm** — it is only the changesets/manypkg

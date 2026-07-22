@@ -1,0 +1,11 @@
+{
+  "$schema": "https://pome.sh/schemas/v1/pome.json",
+  "agent": {
+    "slug": "minimal-viktor"
+  },
+  "command": "npm start",
+  "twins": ["github", "slack"],
+  "tasks": "tasks",
+  "artifacts_dir": "runs",
+  "pass_threshold": 100
+}

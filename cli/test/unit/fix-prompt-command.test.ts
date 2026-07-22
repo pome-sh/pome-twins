@@ -109,7 +109,7 @@ describe("pome fix-prompt command (FDRS-644)", () => {
     await writeFile(join(dir, "events.jsonl"), EVENT, "utf8");
     await run(join(dir, "events.jsonl"));
     expect(process.exitCode).toBe(5);
-    expect(stderr.join("\n")).toContain("needs the scenario");
+    expect(stderr.join("\n")).toContain("needs the task file");
   });
 
   it("a second argument with a dir target is a usage error", async () => {

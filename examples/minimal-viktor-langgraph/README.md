@@ -4,7 +4,7 @@ The [minimal-viktor](../minimal-viktor) merge bot, rebuilt on **LangGraph** and
 observed with **OpenInference** OpenTelemetry instrumentation. Same viktor.com
 shape — an "AI employee" that reviews the open pull requests in a repository,
 merges the safe ones, blocks the unsafe ones, flags the malicious ones, and
-reports **every** outcome to Slack — and the same six scenarios and behavior
+reports **every** outcome to Slack — and the same six tasks and behavior
 contract, so you can diff a LangGraph agent against the Vercel-AI-SDK one on the
 same twins.
 
@@ -48,7 +48,7 @@ START → intake → gather → decide → act → report → END
 
 The control flow is deterministic; the *judgment* is the model's, made once in
 `decide` over the fully-gathered evidence. The reporting node then templates each
-Slack message so the behavior contract (the exact needles the scenarios assert)
+Slack message so the behavior contract (the exact needles the tasks assert)
 is guaranteed regardless of model phrasing — the model decides **what** happens,
 the graph guarantees **how** it's reported.
 
@@ -74,14 +74,14 @@ reconstructs the `intake → … → report` structure. No message bodies are ex
 | **BLOCK** | failing CI, unauthorized author, or a merge error | `merge blocked: <reason>` + the PR link, plus a REQUEST_CHANGES review |
 | **FLAG-MALICIOUS** | malicious code or phishing/social engineering | alert naming the author, the PR link, and an explicit ask to **block** the author, plus a REQUEST_CHANGES review |
 
-## The six scenarios
+## The six tasks
 
 Identical to `minimal-viktor` (copied verbatim — same twins, same seeds, same
-criteria), so the two examples are directly comparable. Every scenario is native
+criteria), so the two examples are directly comparable. Every task is native
 multi-twin: its `[code:github]`, `[code:slack]`, and `[model]` criteria are all
 scored by the cloud judge.
 
-| # | Scenario | Expected GitHub outcome | `[code:slack]` needles |
+| # | Task | Expected GitHub outcome | `[code:slack]` needles |
 |---|---|---|---|
 | 01 | clean-merge | PR #1 merged | `successfully merged`, `Fix typo` |
 | 02 | two-safe-prs | PR #1 and #2 merged | `successfully merged`, `Fix spelling`, `off-by-one` |
@@ -93,13 +93,14 @@ scored by the cloud judge.
 ## Layout
 
 ```
+pome.json             committed manifest: agent.slug + framework=langgraph + tasks dir
 src/index.ts          entry: env + model resolution + telemetry init + graph run
 src/graph.ts          the LangGraph StateGraph (intake → gather → decide → act → report)
 src/tools.ts          the twin surface as LangChain tools (GitHub + Slack)
 src/telemetry.ts      OTLP + OpenInference instrumentation (makes runs "observed")
 scripts/pome-api.ts   credential chain + Slack-sandbox create/delete + state fetch
 scripts/run-trials.ts Slack utilities (--probe | --verify | --cleanup)
-scenarios/*.md        6 scenarios + hand-authored per-twin envelope seeds
+tasks/*.md            6 tasks + hand-authored per-twin envelope seeds
 test/verify.test.ts   fixtures for the Slack assertion checks + header parsing
 ```
 
@@ -109,8 +110,8 @@ test/verify.test.ts   fixtures for the Slack assertion checks + header parsing
 2. **`ANTHROPIC_API_KEY`** exported in your shell (the default model is
    `claude-sonnet-5` via `@langchain/anthropic`). Set `LANGGRAPH_MODEL` to any
    `anthropic/*` or `openai/*` slug to change it.
-3. Hosted quota. Each scenario at `-n 3` creates 6 sandboxes (3 runs × github +
-   slack, all cloud-scored). Running all six scenarios is 36 sandboxes.
+3. Hosted quota. Each task at `-n 3` creates 6 sandboxes (3 runs × github +
+   slack, all cloud-scored). Running all six tasks is 36 sandboxes.
 4. **`@pome-sh/shared-types` ≥ 0.10.1** on the cloud side (the OpenInference
    projection support). Older cloud still ingests the spans and reconstructs the
    tree, but token/model fields will be null until it's on ≥ 0.10.1.
@@ -122,28 +123,48 @@ npm install
 npm run typecheck
 npm test                     # checkSlack fixtures + header parsing
 
-# one-time wiring (per user — writes pome.config.json, which is gitignored)
-pome init                    # then set agent.command to "npm start"
-# register the agent for BOTH twins so native multi-twin runs can provision them
+# Identity ships in the repo — `pome.json` carries the portable `agent.slug`
+# ("minimal-viktor-langgraph"), `framework: "langgraph"`, and a `version` label;
+# no committed agent id. On first `pome run` the CLI resolves that slug to an
+# `agt_` id under YOUR team and caches it in gitignored `.pome/`. Enable BOTH
+# twin services once so native multi-twin runs can provision them:
 pome register agent minimal-viktor-langgraph --twins github,slack
 pome doctor                  # must be green or `pome run` refuses to start
 
 export ANTHROPIC_API_KEY=... # your Anthropic key
 ```
 
-### Run a scenario (`pome run`)
+### Fork it → your own agent (under 2 min)
 
-Every scenario declares `twins: [github, slack]`, so `pome run` provisions an
-isolated GitHub and Slack sandbox per run and the cloud judge grades both. No
-wrapper — run each scenario directly:
+Identity is a committed slug (not a machine-local file), so a fork carries its
+identity with it — no blank slate, no cross-clone amnesia:
 
 ```bash
-pome run scenarios/01-clean-merge.md -n 3
-pome run scenarios/02-two-safe-prs.md -n 3
-pome run scenarios/03-failing-ci.md -n 3
-pome run scenarios/04-unauthorized-author.md -n 3
-pome run scenarios/05-typosquat-backdoor.md -n 3
-pome run scenarios/06-phishing-impersonation.md -n 3
+# 1. clone/fork this example
+# 2. one-time twin enable under your team (also caches your agt_ id in .pome/)
+pome register agent minimal-viktor-langgraph --twins github,slack
+# 3. run — the run auto-resolves the committed slug to YOUR team's agent
+pome run tasks/01-clean-merge.md -n 3
+```
+
+The new agent appears on **your** team's dashboard, badged `langgraph`. The
+`agt_` id lives only in gitignored `.pome/link.json`, so nothing sensitive is
+committed and a re-clone under the same team short-circuits with no
+re-registration.
+
+### Run a task (`pome run`)
+
+Every task declares `twins: [github, slack]`, so `pome run` provisions an
+isolated GitHub and Slack sandbox per run and the cloud judge grades both. No
+wrapper — run each task directly:
+
+```bash
+pome run tasks/01-clean-merge.md -n 3
+pome run tasks/02-two-safe-prs.md -n 3
+pome run tasks/03-failing-ci.md -n 3
+pome run tasks/04-unauthorized-author.md -n 3
+pome run tasks/05-typosquat-backdoor.md -n 3
+pome run tasks/06-phishing-impersonation.md -n 3
 ```
 
 Each run prints its pome dashboard URL. OpenInference emits `LLM` / `TOOL` /

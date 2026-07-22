@@ -14,7 +14,7 @@ imports belong in this package.
 | Agent token env | `POME_AUTH_TOKEN` + alias `POME_GMAIL_TOKEN` (same JWT) |
 | Seed / admin | `/admin/seed`, `/admin/reset`, `/_pome/state`, `/_pome/events` |
 | Image tag family | `ghcr.io/pome-sh/twins:gmail-*` (publish after CI + secret-scan) |
-| Local scenarios | Inbox triage, first-party MCP parity, multi-twin with GitHub |
+| Local tasks | Inbox triage, first-party MCP parity, multi-twin with GitHub |
 | Fidelity artifacts | `fidelity.inventory.json`, `FIDELITY.md`, fixtures under `fixtures/` |
 
 ## Cloud-owned (Pome Cloud — not this repo)
@@ -36,7 +36,7 @@ Complete before advertising hosted Gmail:
    capture `/_pome/state` and `/_pome/events`, retain MIME/attachment
    projection redaction.
 6. **Hosted verification** — Run official-client, thirteen-tool MCP parity,
-   and multi-twin scenarios against the hosted route before enabling the
+   and multi-twin tasks against the hosted route before enabling the
    product flag.
 7. **Fidelity watch** — Register the signed digest on the fidelity
    dashboard/watch list.

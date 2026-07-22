@@ -19,7 +19,7 @@ Each directory above has its own README with images, ports, and the shared contr
 
 | Directory | npm name | Role |
 | --- | --- | --- |
-| [`shared-types/`](./shared-types/) | `@pome-sh/shared-types` | Zod schemas, recorder/scenario types |
+| [`shared-types/`](./shared-types/) | `@pome-sh/shared-types` | Zod schemas, recorder/task types |
 | [`sdk/`](./sdk/) | `@pome-sh/sdk` | Twin authoring SDK |
 | [`adapter-claude-sdk/`](./adapter-claude-sdk/) | `@pome-sh/adapter-claude-sdk` | Claude Agent SDK adapter |
 

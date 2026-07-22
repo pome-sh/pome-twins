@@ -107,5 +107,5 @@ npx @pome-sh/cli twin start gmail
 ```
 
 Use `pome scenarios gmail --copy` for the inbox-triage and captured first-party
-MCP parity scenarios. Hosted rollout is gated separately; see
+MCP parity tasks. Hosted rollout is gated separately; see
 [`HOSTED.md`](HOSTED.md).

@@ -132,7 +132,7 @@ async function readRequiredFile(runDir: string, name: string): Promise<string> {
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       throw new HostedUsageError(
-        `pome eval: ${name} not found in ${runDir} — expected a pome run directory (runs/<scenario>/<run-id>).`,
+        `pome eval: ${name} not found in ${runDir} — expected a pome run directory (runs/<task>/<run-id>).`,
       );
     }
     throw new HostedUsageError(
@@ -591,7 +591,7 @@ export async function runEvalCommand(
       }
       if (!latest || typeof latest.run_dir !== "string" || latest.run_dir.length === 0) {
         throw new HostedUsageError(
-          `pome eval: no run directory given and ${latestPath} ${latest ? "has no run_dir field" : "not found"}. Pass a run directory (runs/<scenario>/<run-id>).`,
+          `pome eval: no run directory given and ${latestPath} ${latest ? "has no run_dir field" : "not found"}. Pass a run directory (runs/<task>/<run-id>).`,
         );
       }
       runDir = resolve(latest.run_dir);

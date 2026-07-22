@@ -151,7 +151,7 @@ export const SCENARIO_TWINS: ScenarioTwin[] = [
         filename: "14-stripe-refund-retry.md",
         title: "Refund retry (double-charge)",
         summary:
-          "Refund-retry hero scenario guarding against a double-charge bug.",
+          "Refund-retry hero task guarding against a double-charge bug.",
         runnable: true,
       },
       {

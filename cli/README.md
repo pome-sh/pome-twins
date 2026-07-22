@@ -1,6 +1,6 @@
 # Pome CLI
 
-The `pome` command runs AI-agent scenarios against resettable digital twins of
+The `pome` command runs AI-agent tasks against resettable digital twins of
 real SaaS APIs (GitHub, Stripe, â€¦), captures the trace, and gets a verdict from
 Pome cloud.
 
@@ -53,7 +53,7 @@ pome run --local scenarios/01-bug-happy-path.md   # captures a raw trace only â€
 pome eval runs/01-bug-happy-path/<run-id>         # uploads it for a cloud verdict
 ```
 
-See [docs.pome.sh](https://docs.pome.sh) for the scenario library, exit-code
+See [docs.pome.sh](https://docs.pome.sh) for the task library, exit-code
 contract, authentication, the Stripe/Slack twins, and everything else.
 
 ## Development

@@ -5,7 +5,7 @@
  * provisions one isolated sandbox per twin per run and the cloud judge grades
  * both twins' state directly (`[code:github]` / `[code:slack]` criteria). Run each
  * scenario directly, no wrapper trial loop:
- *     pome run scenarios/<scenario>.md -n 3
+ *     pome run tasks/<task>.md -n 3
  *
  * This file is kept only for its out-of-band Slack utilities:
  *   --probe                 create → post → assert in state → delete a sandbox
@@ -160,7 +160,7 @@ async function main() {
   }
 
   throw new Error(
-    `unknown mode "${mode}". Scenarios run natively (pome run scenarios/<scenario>.md -n 3); ` +
+    `unknown mode "${mode}". Tasks run natively (pome run tasks/<task>.md -n 3); ` +
       "this script only provides --probe, --verify <twin_url> [--scenario <slug>], and --cleanup <session_id...>.",
   );
 }

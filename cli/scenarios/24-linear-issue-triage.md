@@ -1,4 +1,4 @@
-# Scenario 24 — Linear Issue Triage
+# Task 24 — Linear Issue Triage
 
 ## Setup
 The Linear twin contains an Engineering team with backlog, todo, in-progress,
