@@ -1,0 +1,24 @@
+{
+  "name": "@pome-sh/support-triage-local-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pome hero example: the support-triage examinee as a local Claude Agent SDK subprocess, wired to the GitHub + Slack twins over MCP.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.2.141"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
