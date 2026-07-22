@@ -43,6 +43,9 @@ matrix-results/
 Thumbs.db
 .idea/
 *.swp
+__pycache__/
+*.pyc
+*.pyo
 
 # Local Claude Code symlink to AGENTS.md (not part of the OSS tree)
 /CLAUDE.md
