@@ -27,6 +27,7 @@ claude mcp add --transport http pome https://mcp.pome.sh/mcp
 
 | Skill | Role |
 | --- | --- |
+| [`pome`](./pome/SKILL.md) | **Entry router** — owns "test my agent with pome"; routes to the right coach skill by context |
 | [`pome-intake`](./pome-intake/SKILL.md) | Skill 0 — register the examinee clone scope, report twin coverage |
 | [`pome-author-task`](./pome-author-task/SKILL.md) | Skill 1 — author a graded task and save it to the team catalog |
 | [`pome-verify-seed`](./pome-verify-seed/SKILL.md) | Skill 2 — verify a task's seed is a fair exam before any run |
@@ -47,6 +48,6 @@ under `apps/docs/docs/skills/`.
 The Gen-1 CLI-era skills in [`cli/skills/`](../cli/skills/) (`pome-setup`,
 `pome-test`, installed by `pome skills install`) are a separate legacy surface
 scheduled for retirement (F-859, M2); the `skills` CLI does not pick them up —
-only this top-level `skills/` directory is a standard discovery location.
-Entry-point routing (so the two generations never collide on the "test my
-agent with pome" trigger) is owned by the entry router skill (F-801).
+only this top-level `skills/` directory is a standard discovery location. The
+[`pome`](./pome/SKILL.md) router supersedes Gen-1 `pome-test`'s trigger
+phrases so the two generations never collide on an entry point (F-801).
