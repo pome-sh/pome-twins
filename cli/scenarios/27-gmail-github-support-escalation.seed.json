@@ -1,0 +1,57 @@
+{
+  "gmail": {
+    "primaryMailbox": {
+      "email": "pome-agent@pome-twin.test",
+      "displayName": "Pome Agent",
+      "labels": [
+        {
+          "id": "Label_follow_up",
+          "name": "Follow Up"
+        }
+      ],
+      "messages": [
+        {
+          "id": "msg_support",
+          "threadId": "thread_support",
+          "from": "alice@example.com",
+          "to": ["pome-agent@pome-twin.test"],
+          "subject": "Production export is stuck",
+          "text": "Our production export has been stuck for an hour. Can you investigate and open a tracking issue?",
+          "date": "2026-07-19T12:00:00.000Z",
+          "messageId": "support-001@example.com",
+          "labels": ["INBOX", "UNREAD"]
+        }
+      ],
+      "drafts": []
+    }
+  },
+  "github": {
+    "repositories": [
+      {
+        "owner": "acme",
+        "name": "api",
+        "description": "ACME API service",
+        "default_branch": "main",
+        "labels": [
+          {
+            "name": "bug",
+            "color": "d73a4a",
+            "description": "Something isn't working"
+          },
+          {
+            "name": "feature",
+            "color": "a2eeef",
+            "description": "New feature request"
+          },
+          {
+            "name": "question",
+            "color": "d876e3",
+            "description": "Further information is requested"
+          }
+        ],
+        "collaborators": ["alice", "bob"],
+        "issues": []
+      }
+    ]
+  }
+}
