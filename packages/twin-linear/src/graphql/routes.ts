@@ -198,9 +198,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Cheap brace-depth check — not a full GraphQL parser. */
 function assertSelectionDepth(query: string, max: number): void {
+  // Strip block strings and quoted strings first so braces inside string
+  // literals (e.g. `title: "}}}"`) don't skew the count.
+  const stripped = query
+    .replace(/"""[\s\S]*?"""/g, '""')
+    .replace(/"(?:\\.|[^"\\])*"/g, '""');
   let depth = 0;
   let maxSeen = 0;
-  for (const ch of query) {
+  for (const ch of stripped) {
     if (ch === "{") {
       depth += 1;
       maxSeen = Math.max(maxSeen, depth);

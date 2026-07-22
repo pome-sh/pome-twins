@@ -25,9 +25,12 @@ export function createRootValue(ctx: GraphQLRuntimeContext): Record<string, unkn
   const { commands, actor } = ctx;
   const connect = <T, U>(items: T[], args: ConnectionArgs, map: (item: T) => U, binding: string) => {
     const page = connectionFromArray(items, args, binding);
+    // Map each node once; edges share the mapped node (page.nodes and page.edges
+    // are the same slice in the same order).
+    const nodes = page.nodes.map(map);
     return {
-      nodes: page.nodes.map(map),
-      edges: page.edges.map((edge) => ({ cursor: edge.cursor, node: map(edge.node) })),
+      nodes,
+      edges: page.edges.map((edge, i) => ({ cursor: edge.cursor, node: nodes[i] })),
       pageInfo: page.pageInfo,
     };
   };
@@ -39,7 +42,9 @@ export function createRootValue(ctx: GraphQLRuntimeContext): Record<string, unkn
     email: user.email,
     description: null,
     avatarUrl: user.avatarUrl,
-    createdIssueCount: commands.listIssues({ includeArchived: true }).filter((i) => i.creatorId === user.id).length,
+    // Deferred: a full issues scan only runs when the field is actually selected.
+    createdIssueCount: () =>
+      commands.listIssues({ includeArchived: true }).filter((i) => i.creatorId === user.id).length,
     avatarBackgroundColor: null,
     statusUntilAt: null,
     statusEmoji: null,
@@ -59,7 +64,7 @@ export function createRootValue(ctx: GraphQLRuntimeContext): Record<string, unkn
     owner: user.admin,
     app: user.app,
     isMentionable: user.active,
-    isMe: commands.resolveViewer(actor).id === user.id,
+    isMe: () => commands.resolveViewer(actor).id === user.id,
     supportsAgentSessions: user.app,
     canAccessAnyPublicTeam: true,
     calendarHash: null,
@@ -271,7 +276,9 @@ export function createRootValue(ctx: GraphQLRuntimeContext): Record<string, unkn
     enabled: webhook.enabled,
     resourceTypes: webhook.resourceTypes,
     allPublicTeams: webhook.allPublicTeams,
-    secret: webhook.secret,
+    // Real Linear returns the signing secret only in the create response, never
+    // on subsequent reads. Do not leak seeded/stored secrets via queries.
+    secret: null,
     createdAt: webhook.createdAt,
     updatedAt: webhook.updatedAt,
     team: () => (webhook.teamId ? formatTeam(commands.getTeam(webhook.teamId)!) : null),
@@ -289,13 +296,7 @@ export function createRootValue(ctx: GraphQLRuntimeContext): Record<string, unkn
     agentUser: () => formatUser(commands.getUser(session.agentUserId)!),
     activities: (args: ConnectionArgs) =>
       connect(
-        (
-          commands.db
-            .prepare("SELECT id FROM agent_activities WHERE session_id = ? ORDER BY created_at")
-            .all(session.id) as Array<{ id: string }>
-        )
-          .map((row) => commands.getAgentActivity(row.id)!)
-          .filter(Boolean),
+        commands.listAgentActivities(session.id),
         args,
         formatAgentActivity,
         `agentSession:${session.id}:activities`
@@ -626,13 +627,9 @@ function filterUsers(users: LinearUser[], filter?: Record<string, unknown>): Lin
 }
 
 function filterIssues(commands: LinearCommands, filter?: Record<string, unknown>): LinearIssue[] {
-  let issues = commands.listIssues({ includeArchived: true });
+  // Match team.issues and Linear's default: archived issues are hidden unless asked for.
+  const issues = commands.listIssues({ includeArchived: false });
   if (!filter) return issues;
-  if (Array.isArray(filter.or)) {
-    return issues.filter((issue) =>
-      (filter.or as Record<string, unknown>[]).some((part) => issueMatches(commands, issue, part))
-    );
-  }
   return issues.filter((issue) => issueMatches(commands, issue, filter));
 }
 
@@ -641,6 +638,13 @@ function issueMatches(
   issue: LinearIssue,
   filter: Record<string, unknown>
 ): boolean {
+  // `or` groups AND with any sibling fields and recurse, matching Linear semantics.
+  if (Array.isArray(filter.or)) {
+    const matched = (filter.or as Record<string, unknown>[]).some((part) =>
+      issueMatches(commands, issue, part)
+    );
+    if (!matched) return false;
+  }
   if (!matchStringComparator(issue.id, filter.id)) return false;
   if (!matchStringComparator(issue.identifier, filter.identifier)) return false;
   if (!matchStringComparator(issue.title, filter.title)) return false;
@@ -664,6 +668,45 @@ function issueMatches(
     ) {
       return false;
     }
+  }
+  if (filter.creator) {
+    const user = issue.creatorId ? commands.getUser(issue.creatorId) : null;
+    if (
+      !matchStringComparator(user?.email ?? "", filter.creator) &&
+      !matchStringComparator(issue.creatorId ?? "", filter.creator)
+    ) {
+      return false;
+    }
+  }
+  if (filter.project) {
+    const project = issue.projectId ? commands.getProject(issue.projectId) : null;
+    if (
+      !matchStringComparator(project?.name ?? "", filter.project) &&
+      !matchStringComparator(issue.projectId ?? "", filter.project)
+    ) {
+      return false;
+    }
+  }
+  if (filter.cycle) {
+    const cycle = issue.cycleId ? commands.getCycle(issue.cycleId) : null;
+    if (
+      !matchStringComparator(cycle?.name ?? "", filter.cycle) &&
+      !matchStringComparator(cycle ? String(cycle.number) : "", filter.cycle) &&
+      !matchStringComparator(issue.cycleId ?? "", filter.cycle)
+    ) {
+      return false;
+    }
+  }
+  if (filter.labels) {
+    // Match when any label on the issue satisfies the comparator (by name or id).
+    const labels = issue.labelIds
+      .map((id) => commands.getLabel(id))
+      .filter(Boolean) as LinearIssueLabel[];
+    const anyMatch = labels.some(
+      (label) =>
+        matchStringComparator(label.name, filter.labels) || matchStringComparator(label.id, filter.labels)
+    );
+    if (!anyMatch) return false;
   }
   return true;
 }

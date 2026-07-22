@@ -39,6 +39,9 @@ export function connectionFromArray<T>(
   binding = "default",
   secret: string = resolveCursorSecret()
 ): Connection<T> {
+  if (typeof args.first === "number" && typeof args.last === "number") {
+    badUserInput("Cannot provide both first and last to a connection");
+  }
   const beforeIndex = args.before != null ? decodeCursor(args.before, binding, secret) : items.length;
   const afterIndex = args.after != null ? decodeCursor(args.after, binding, secret) + 1 : 0;
   let start = Math.max(0, afterIndex);
@@ -65,13 +68,10 @@ export function connectionFromArray<T>(
     hasNextPage,
     hasPreviousPage: start > 0,
     startCursor: edges[0]?.cursor ?? null,
+    // Relay/Linear: endCursor is the last edge's cursor regardless of exhaustion
+    // (hasNextPage carries the "more pages?" signal). Null only when empty.
+    endCursor: edges[edges.length - 1]?.cursor ?? null,
   };
-  // Omit endCursor when exhausted — never emit empty-string cursors.
-  if (hasNextPage && edges.length > 0) {
-    pageInfo.endCursor = edges[edges.length - 1]!.cursor;
-  } else if (edges.length > 0) {
-    pageInfo.endCursor = null;
-  }
 
   return { nodes: slice, edges, pageInfo };
 }
