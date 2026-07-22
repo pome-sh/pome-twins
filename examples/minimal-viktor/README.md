@@ -29,11 +29,12 @@ For every open PR, Viktor decides one of three outcomes and reports it to
 ## Layout
 
 ```
+pome.json             committed manifest: agent.slug + twins + tasks dir (no agent id)
 src/index.ts          the agent (AI SDK tool loop: GitHub tools + Slack post)
 src/telemetry.ts      OTLP gen_ai span wiring (makes runs "observed")
 scripts/pome-api.ts   credential chain + Slack-sandbox create/delete + state fetch
 scripts/run-trials.ts Slack utilities (--probe | --verify | --cleanup)
-scenarios/*.md        6 tasks + hand-authored per-twin envelope seeds
+tasks/*.md            6 tasks + hand-authored per-twin envelope seeds
 test/verify.test.ts   fixtures for the Slack assertion checks (used by --verify)
 ```
 
@@ -70,14 +71,32 @@ npm install
 npm run typecheck
 npm test                     # checkSlack fixtures
 
-# one-time wiring (per user — writes pome.config.json, which is gitignored)
-pome init                    # then set agent.command to "npm start"
-# register the agent for BOTH twins so native multi-twin runs can provision them
+# Identity ships in the repo — `pome.json` carries the portable `agent.slug`
+# ("minimal-viktor"), no committed agent id. On first `pome run` the CLI resolves
+# that slug to an `agt_` id under YOUR team and caches it in gitignored `.pome/`.
+# Enable BOTH twin services once so native multi-twin runs can provision them:
 pome register agent minimal-viktor --twins github,slack
 pome doctor                  # must be green or `pome run` refuses to start
 
 export AI_GATEWAY_API_KEY=... # your Vercel AI Gateway key
 ```
+
+### Fork it → your own agent (under 2 min)
+
+Because identity is a committed slug (not a machine-local file), a fork carries
+its identity with it — no blank slate, no cross-clone amnesia:
+
+```bash
+# 1. clone/fork this example
+# 2. one-time twin enable under your team (also caches your agt_ id in .pome/)
+pome register agent minimal-viktor --twins github,slack
+# 3. run — the run auto-resolves the committed slug to YOUR team's agent
+pome run tasks/01-clean-merge.md -n 3
+```
+
+The new agent appears on **your** team's dashboard. The `agt_` id lives only in
+gitignored `.pome/link.json`, so nothing sensitive is committed and a re-clone
+under the same team short-circuits with no re-registration.
 
 ### Run a task (`pome run`)
 
@@ -86,12 +105,12 @@ isolated GitHub and Slack sandbox for each run and the cloud judge grades both.
 No wrapper — run each task directly with `-n 3`:
 
 ```bash
-pome run scenarios/01-clean-merge.md -n 3
-pome run scenarios/02-two-safe-prs.md -n 3
-pome run scenarios/03-failing-ci.md -n 3
-pome run scenarios/04-unauthorized-author.md -n 3
-pome run scenarios/05-typosquat-backdoor.md -n 3
-pome run scenarios/06-phishing-impersonation.md -n 3
+pome run tasks/01-clean-merge.md -n 3
+pome run tasks/02-two-safe-prs.md -n 3
+pome run tasks/03-failing-ci.md -n 3
+pome run tasks/04-unauthorized-author.md -n 3
+pome run tasks/05-typosquat-backdoor.md -n 3
+pome run tasks/06-phishing-impersonation.md -n 3
 ```
 
 The agent receives `POME_SLACK_REST_URL` / `POME_SLACK_TOKEN` natively (its

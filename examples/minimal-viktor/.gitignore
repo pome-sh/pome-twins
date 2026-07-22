@@ -1,5 +1,7 @@
 node_modules/
 runs/
 .env
-# per-user: created by `pome init` + `pome register agent`, holds your team's agentId
+# legacy per-user config; may still exist in pre-migration clones (holds an agent id)
 pome.config.json
+# per-user: team-gated resolver cache (resolved agt_ id), written by `pome run` / `pome register`
+.pome/

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://pome.sh/schemas/v1/pome.json",
+  "agent": {
+    "slug": "minimal-viktor-langgraph",
+    "framework": "langgraph",
+    "version": "v1"
+  },
+  "command": "npm start",
+  "twins": ["github", "slack"],
+  "tasks": "tasks",
+  "artifacts_dir": "runs",
+  "pass_threshold": 100
+}
