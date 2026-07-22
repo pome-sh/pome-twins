@@ -27,11 +27,24 @@ Emulate’s Linear package may be used as a **coverage checklist**. It is **neve
 | OAuth actor | user vs app | Seed `oauth_apps[].actor` authoritative |
 | Webhook headers | `Linear-Delivery`, `Linear-Event`, optional `Linear-Signature` | Emitted on mutation dispatch |
 | Agent sessions | Subset for local agent tests | GraphQL-only create/update/activity (not in MCP launch set) |
-| MCP documents tools | Present in some live listings | Out of launch scope (cold) |
+| MCP documents tools | Full parent set incl. initiative | Gate-1: project/team/issue/cycle parents only |
+| MCP tool count | ~50+ live tools | Frozen 22-tool Gate-1 subset |
+
+## Webhook asymmetries (documented Gate-0 gaps)
+
+These are intentional twin divergences — not silent stubs:
+
+| Mutation / path | Official-ish expectation | Twin behavior |
+| --- | --- | --- |
+| `agentSessionCreateOnIssue` | `AgentSessionEvent` create webhook | Emits webhook (`action: created`) |
+| `agentSessionCreateOnComment` | Same family as on-issue create | **No webhook** — session row only (mention path stays quiet) |
+| `createProject` / `updateProject` (MCP `save_project`) | Project create/update webhook | **No webhook emit** — projects mutate SQLite state only |
+| `agentActivityCreate` with `type: prompt` | Prompted session event | Emits `AgentSessionEvent` / `prompted` |
+| Issue / comment CRUD | Issue / Comment webhooks | Emitted (create/update/remove/archive) |
 
 ## Other non-oracles
 
 - Real Linear.app network sync
 - Full GraphQL schema / introspection dump
 - Production rate limits, inbox, initiatives, customer APIs
-- Expanding MCP beyond the frozen 18-tool launch set without a new Gate 0 ruling
+- Expanding MCP beyond the frozen 22-tool Gate-1 set without a new ruling

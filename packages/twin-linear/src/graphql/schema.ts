@@ -1,4 +1,6 @@
+// file-size: Linear GraphQL schema SDL string — single source of truth for the twin schema surface.
 // SPDX-License-Identifier: Apache-2.0
+// file-size: GraphQL SDL floor; keep ops + input fields co-located for fidelity parity.
 import { buildSchema, type GraphQLSchema } from "graphql";
 
 /** Emulate Linear operation-floor schema (rewritten for twin-linear). */
@@ -214,6 +216,7 @@ export const linearGraphQLSchema: GraphQLSchema = buildSchema(`
     title: String!
     description: String
     priority: Int!
+    estimate: Int
     url: String!
     createdAt: String!
     updatedAt: String!
@@ -230,6 +233,7 @@ export const linearGraphQLSchema: GraphQLSchema = buildSchema(`
     assignee: User
     creator: User
     delegate: User
+    parent: Issue
     labels(first: Int, after: String, last: Int, before: String): IssueLabelConnection!
     comments(first: Int, after: String, last: Int, before: String): CommentConnection!
     project: Project
@@ -244,6 +248,7 @@ export const linearGraphQLSchema: GraphQLSchema = buildSchema(`
     createAsUser: String
     displayIconUrl: String
     issue: Issue!
+    parent: Comment
     user: User
   }
 
@@ -402,12 +407,14 @@ export const linearGraphQLSchema: GraphQLSchema = buildSchema(`
     title: String!
     description: String
     priority: Int
+    estimate: Int
     stateId: String
     assigneeId: String
     delegateId: String
     labelIds: [String!]
     projectId: String
     cycleId: String
+    parentId: String
     createAsUser: String
     displayIconUrl: String
     dueDate: String
@@ -418,18 +425,21 @@ export const linearGraphQLSchema: GraphQLSchema = buildSchema(`
     title: String
     description: String
     priority: Int
+    estimate: Int
     stateId: String
     assigneeId: String
     delegateId: String
     labelIds: [String!]
     projectId: String
     cycleId: String
+    parentId: String
     archivedAt: String
     dueDate: String
   }
 
   input CommentCreateInput {
-    issueId: String!
+    issueId: String
+    parentId: String
     body: String!
     createAsUser: String
     displayIconUrl: String

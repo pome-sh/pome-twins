@@ -48,7 +48,7 @@ import {
 import {
   createLinearTwinApp,
   DEFAULT_LINEAR_EMAIL,
-  LinearCommands,
+  LinearDomain,
   openLinearTwinDatabase,
   parseSeed as parseLinearSeed,
 } from "@pome-sh/twin-linear";
@@ -246,7 +246,7 @@ export async function bootTwin(opts: {
     case "linear": {
       const db = openLinearTwinDatabase(":memory:");
       const seed = parseLinearSeed(opts.seedState);
-      const domain = new LinearCommands(db);
+      const domain = new LinearDomain(db);
       const app = createLinearTwinApp({
         db,
         seed,

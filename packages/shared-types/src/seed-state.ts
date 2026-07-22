@@ -1,3 +1,4 @@
+// file-size: Shared seed-state Zod schemas across twins — kept together so seed contracts stay one module.
 // SPDX-License-Identifier: Apache-2.0
 //
 // shared-types — provider seed-state schemas (part of §3 TASKS). The
@@ -178,6 +179,15 @@ export const slackSeedStateSchema = z.object({
             })
           )
           .default([]),
+      })
+    )
+    .default([]),
+  emoji: z
+    .array(
+      z.object({
+        name: z.string().regex(/^[a-z0-9_+-]{1,100}$/),
+        url: z.string().url().optional(),
+        alias: z.string().regex(/^[a-z0-9_+-]{1,100}$/).optional(),
       })
     )
     .default([]),
@@ -402,6 +412,8 @@ export const linearSeedStateSchema = z.object({
         delegate: z.string().min(1).max(200).optional(),
         project: z.string().min(1).max(200).optional(),
         cycle: z.string().min(1).max(200).optional(),
+        parent: z.string().min(1).max(200).optional(),
+        estimate: z.number().int().nonnegative().nullable().optional(),
         labels: z.array(z.string().min(1).max(100)).max(50).default([]),
         dueDate: z.string().max(32).nullable().optional(),
         createdAt: linearDatetimeSchema.optional(),
@@ -416,11 +428,32 @@ export const linearSeedStateSchema = z.object({
         id: linearIdSchema.optional(),
         issue: z.string().min(1).max(128),
         body: z.string().min(1).max(65_536),
+        parent: z.string().min(1).max(128).optional(),
         user: z.string().min(1).max(200).optional(),
         createdAt: linearDatetimeSchema.optional(),
       }),
     )
     .max(20_000)
+    .default([]),
+  documents: z
+    .array(
+      z.object({
+        id: linearIdSchema.optional(),
+        title: z.string().min(1).max(512),
+        content: z.string().max(65_536).nullable().optional(),
+        slug: z.string().min(1).max(200).optional(),
+        project: z.string().min(1).max(200).optional(),
+        team: z.string().min(1).max(128).optional(),
+        issue: z.string().min(1).max(200).optional(),
+        cycle: z.string().min(1).max(200).optional(),
+        icon: z.string().max(64).nullable().optional(),
+        color: z.string().max(32).nullable().optional(),
+        creator: z.string().min(1).max(200).optional(),
+        createdAt: linearDatetimeSchema.optional(),
+        updatedAt: linearDatetimeSchema.optional(),
+      }),
+    )
+    .max(500)
     .default([]),
   oauthApps: z
     .array(

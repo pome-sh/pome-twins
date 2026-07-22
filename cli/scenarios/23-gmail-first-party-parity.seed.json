@@ -81,6 +81,28 @@
         "date": "2026-07-19T12:30:00.000Z",
         "messageId": "support-001@example.com",
         "labels": ["INBOX", "UNREAD"]
+      },
+      {
+        "id": "msg_trash_target",
+        "threadId": "thread_trash_target",
+        "from": "trash@example.com",
+        "to": ["pome-agent@pome-twin.test"],
+        "subject": "Disposable trash target",
+        "text": "Use apply_sensitive_thread_label TRASH only on this thread.",
+        "date": "2026-07-19T12:40:00.000Z",
+        "messageId": "trash-target@example.com",
+        "labels": ["INBOX"]
+      },
+      {
+        "id": "msg_spam_target",
+        "threadId": "thread_spam_target",
+        "from": "spam@example.com",
+        "to": ["pome-agent@pome-twin.test"],
+        "subject": "Disposable spam target",
+        "text": "Use apply_sensitive_message_label SPAM only on this message.",
+        "date": "2026-07-19T12:41:00.000Z",
+        "messageId": "spam-target@example.com",
+        "labels": ["INBOX"]
       }
     ],
     "drafts": [

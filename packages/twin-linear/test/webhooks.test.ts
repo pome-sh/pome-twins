@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   DEFAULT_LINEAR_TOKEN,
-  LinearCommands,
+  LinearDomain,
   createLinearTwinApp,
   defaultSeedState,
   openLinearTwinDatabase,
@@ -118,7 +118,7 @@ describe("Linear webhooks", () => {
     expect(deliveries[0]!.headers["linear-event"]).toBe("Issue");
     expect(deliveries[0]!.body).toContain("Webhook trigger");
 
-    const commands = new LinearCommands(db);
+    const commands = new LinearDomain(db);
     const state = commands.exportState();
     const logged = state.webhookDeliveries as Array<{ webhookId: string; event: string }>;
     expect(logged.some((row) => row.webhookId === webhookId && row.event === "Issue")).toBe(true);
@@ -126,7 +126,7 @@ describe("Linear webhooks", () => {
 
   it("rejects non-http webhook URLs and credentials in the URL", () => {
     const db = openLinearTwinDatabase(":memory:");
-    const commands = new LinearCommands(db);
+    const commands = new LinearDomain(db);
     commands.seed(seedWithoutWebhooks());
     expect(() => commands.createWebhook({ url: "file:///tmp/hooks" })).toThrow(
       /http or https/i
@@ -141,7 +141,7 @@ describe("Linear webhooks", () => {
     delete process.env.LINEAR_TWIN_ALLOW_PRIVATE_WEBHOOKS;
     try {
       const db = openLinearTwinDatabase(":memory:");
-      const commands = new LinearCommands(db);
+      const commands = new LinearDomain(db);
       commands.seed(seedWithoutWebhooks());
       // Cloud metadata endpoint — a classic SSRF target.
       commands.createWebhook({
@@ -179,7 +179,7 @@ describe("Linear webhooks", () => {
       const redirectUrl = `http://127.0.0.1:${(redirectServer.address() as AddressInfo).port}/redir`;
 
       const db = openLinearTwinDatabase(":memory:");
-      const commands = new LinearCommands(db);
+      const commands = new LinearDomain(db);
       commands.seed(seedWithoutWebhooks());
       commands.createWebhook({
         url: redirectUrl,

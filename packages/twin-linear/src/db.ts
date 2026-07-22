@@ -95,12 +95,14 @@ CREATE TABLE IF NOT EXISTS issues (
   title TEXT NOT NULL,
   description TEXT,
   priority INTEGER NOT NULL DEFAULT 0,
+  estimate INTEGER,
   state_id TEXT NOT NULL,
   assignee_id TEXT,
   creator_id TEXT,
   delegate_id TEXT,
   project_id TEXT,
   cycle_id TEXT,
+  parent_id TEXT,
   url TEXT NOT NULL,
   archived_at TEXT,
   canceled_at TEXT,
@@ -117,7 +119,8 @@ CREATE TABLE IF NOT EXISTS issues (
   FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (delegate_id) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-  FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE SET NULL
+  FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE SET NULL,
+  FOREIGN KEY (parent_id) REFERENCES issues(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS issue_label_links (
@@ -128,9 +131,19 @@ CREATE TABLE IF NOT EXISTS issue_label_links (
   FOREIGN KEY (label_id) REFERENCES issue_labels(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS issue_relations (
+  issue_id TEXT NOT NULL,
+  related_issue_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  PRIMARY KEY (issue_id, related_issue_id, type),
+  FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE CASCADE,
+  FOREIGN KEY (related_issue_id) REFERENCES issues(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   issue_id TEXT NOT NULL,
+  parent_id TEXT,
   user_id TEXT,
   body TEXT NOT NULL,
   create_as_user TEXT,
@@ -138,7 +151,29 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT,
+  slug TEXT NOT NULL,
+  project_id TEXT,
+  team_id TEXT,
+  issue_id TEXT,
+  cycle_id TEXT,
+  icon TEXT,
+  color TEXT,
+  creator_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL,
+  FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE SET NULL,
+  FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE SET NULL,
+  FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS oauth_apps (
@@ -253,6 +288,7 @@ CREATE INDEX IF NOT EXISTS idx_issues_team_number ON issues(team_id, number);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tokens_token ON tokens(token);
 CREATE INDEX IF NOT EXISTS idx_workflow_states_team_name ON workflow_states(team_id, name);
 CREATE INDEX IF NOT EXISTS idx_comments_issue_id ON comments(issue_id);
+CREATE INDEX IF NOT EXISTS idx_documents_slug ON documents(slug);
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_created ON webhook_deliveries(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_activities_created ON agent_activities(created_at DESC);
 `;
@@ -265,7 +301,9 @@ DELETE FROM webhook_deliveries;
 DELETE FROM webhooks;
 DELETE FROM tokens;
 DELETE FROM oauth_apps;
+DELETE FROM documents;
 DELETE FROM comments;
+DELETE FROM issue_relations;
 DELETE FROM issue_label_links;
 DELETE FROM issues;
 DELETE FROM cycles;
@@ -286,8 +324,18 @@ export function openLinearTwinDatabase(
 
 export function migrate(db: LinearTwinDatabase): void {
   db.exec(MIGRATION_SQL);
+  ensureColumn(db, "issues", "estimate", "INTEGER");
+  ensureColumn(db, "issues", "parent_id", "TEXT");
+  ensureColumn(db, "comments", "parent_id", "TEXT");
 }
 
 export function resetDatabase(db: LinearTwinDatabase): void {
   db.exec(RESET_SQL);
+}
+
+function ensureColumn(db: LinearTwinDatabase, table: string, column: string, definition: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((row) => row.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }

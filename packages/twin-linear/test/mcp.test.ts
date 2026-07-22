@@ -89,13 +89,13 @@ async function call(
 }
 
 describe("Linear MCP frozen contract", () => {
-  it("lists exactly 18 tools in launch order", async () => {
+  it("lists exactly 22 tools in launch order", async () => {
     const { app } = fixture();
     const listed = (await (
       await rpc(app, { jsonrpc: "2.0", id: 1, method: "tools/list" })
     ).json()) as { result: { tools: Array<{ name: string }> } };
     const names = listed.result.tools.map((tool) => tool.name);
-    expect(names).toHaveLength(18);
+    expect(names).toHaveLength(22);
     expect(names).toEqual(canonicalListing.meta.launchToolOrder);
     expect(linearTools.map((tool) => tool.name)).toEqual(canonicalListing.meta.launchToolOrder);
   });
@@ -149,5 +149,54 @@ describe("Linear MCP frozen contract", () => {
     expect(listed.result.isError).toBe(false);
     expect(listed.result.structuredContent).toHaveProperty("issues");
     expect(listed.result.structuredContent).not.toHaveProperty("cursor");
+  });
+
+  it("supports estimate, parentId, threaded comments, delete_comment, and documents", async () => {
+    const { app } = fixture();
+    const parent = await call(app, 1, "save_issue", {
+      title: "Parent epic",
+      team: "ENG",
+      estimate: 5,
+    });
+    expect(parent.result.isError).toBe(false);
+    const parentId = (parent.result.structuredContent as { id: string }).id;
+
+    const child = await call(app, 2, "save_issue", {
+      title: "Child task",
+      team: "ENG",
+      parentId,
+      blockedBy: [(parent.result.structuredContent as { identifier: string }).identifier],
+    });
+    expect(child.result.isError).toBe(false);
+    expect(child.result.structuredContent).toMatchObject({
+      parentId,
+      relations: { blockedBy: [(parent.result.structuredContent as { identifier: string }).identifier] },
+    });
+
+    const root = await call(app, 3, "save_comment", {
+      issueId: parentId,
+      body: "Root triage note",
+    });
+    const rootId = (root.result.structuredContent as { id: string }).id;
+    const reply = await call(app, 4, "save_comment", {
+      parentId: rootId,
+      body: "Threaded reply",
+    });
+    expect(reply.result.isError).toBe(false);
+    expect(reply.result.structuredContent).toMatchObject({ parentId: rootId, issueId: parentId });
+
+    const replyId = (reply.result.structuredContent as { id: string }).id;
+    const deleted = await call(app, 5, "delete_comment", { id: replyId });
+    expect(deleted.result.isError).toBe(false);
+
+    const doc = await call(app, 6, "save_document", {
+      title: "Triage runbook",
+      content: "# Steps",
+      team: "ENG",
+    });
+    expect(doc.result.isError).toBe(false);
+    const docId = (doc.result.structuredContent as { id: string }).id;
+    const got = await call(app, 7, "get_document", { id: docId });
+    expect(got.result.structuredContent).toMatchObject({ title: "Triage runbook", content: "# Steps" });
   });
 });

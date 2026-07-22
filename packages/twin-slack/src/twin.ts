@@ -19,7 +19,7 @@ import {
 } from "@pome-sh/sdk/server";
 import type { Hono } from "hono";
 import { openSlackTwinDatabase } from "./db.js";
-import { SlackDomain, type Actor } from "./domain.js";
+import { SlackDomain, type Actor } from "./domain/index.js";
 import { TwinError, twinErrorFromSqliteConstraint } from "./errors.js";
 import { registerSlackRoutes } from "./routes.js";
 import { defaultSeedState } from "./seed.js";

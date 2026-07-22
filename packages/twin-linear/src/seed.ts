@@ -136,6 +136,8 @@ export const linearSeedSchema = z
             delegate: z.string().min(1).max(200).optional(),
             project: z.string().min(1).max(200).optional(),
             cycle: z.string().min(1).max(200).optional(),
+            parent: z.string().min(1).max(200).optional(),
+            estimate: z.number().int().nonnegative().nullable().optional(),
             labels: z.array(z.string().min(1).max(100)).max(50).default([]),
             dueDate: z.string().max(32).nullable().optional(),
             createdAt: datetime.optional(),
@@ -152,12 +154,35 @@ export const linearSeedSchema = z
             id: id.optional(),
             issue: z.string().min(1).max(128),
             body: z.string().min(1).max(65_536),
+            parent: z.string().min(1).max(128).optional(),
             user: z.string().min(1).max(200).optional(),
             createdAt: datetime.optional(),
           })
           .strict()
       )
       .max(20_000)
+      .default([]),
+    documents: z
+      .array(
+        z
+          .object({
+            id: id.optional(),
+            title: z.string().min(1).max(512),
+            content: z.string().max(65_536).nullable().optional(),
+            slug: z.string().min(1).max(200).optional(),
+            project: z.string().min(1).max(200).optional(),
+            team: z.string().min(1).max(128).optional(),
+            issue: z.string().min(1).max(200).optional(),
+            cycle: z.string().min(1).max(200).optional(),
+            icon: z.string().max(64).nullable().optional(),
+            color: z.string().max(32).nullable().optional(),
+            creator: z.string().min(1).max(200).optional(),
+            createdAt: datetime.optional(),
+            updatedAt: datetime.optional(),
+          })
+          .strict()
+      )
+      .max(500)
       .default([]),
     oauthApps: z
       .array(
@@ -476,7 +501,7 @@ export function defaultSeedState(): LinearStateSeed {
         id: "issue_progress",
         team: "ENG",
         title: "Wire MCP tools to commands",
-        description: "Keep GraphQL and MCP on the same LinearCommands layer.",
+        description: "Keep GraphQL and MCP on the same LinearDomain layer.",
         priority: 2,
         state: "In Progress",
         assignee: DEFAULT_LINEAR_EMAIL,

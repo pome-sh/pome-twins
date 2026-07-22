@@ -54,6 +54,28 @@ const seed = {
         messageId: "parity-seed@example.com",
         labels: ["INBOX", "UNREAD"],
       },
+      {
+        id: "msg_trash_target",
+        threadId: "thread_trash_target",
+        from: "trash@example.com",
+        to: [email],
+        subject: "Trash target",
+        text: "Disposable sensitive-label thread target",
+        date: "2026-07-19T12:30:00.000Z",
+        messageId: "trash-target@example.com",
+        labels: ["INBOX"],
+      },
+      {
+        id: "msg_spam_target",
+        threadId: "thread_spam_target",
+        from: "spam@example.com",
+        to: [email],
+        subject: "Spam target",
+        text: "Disposable sensitive-label message target",
+        date: "2026-07-19T12:31:00.000Z",
+        messageId: "spam-target@example.com",
+        labels: ["INBOX"],
+      },
     ],
     drafts: [
       {
@@ -85,6 +107,10 @@ const steps: ParityStep[] = [
     tool: "get_thread",
     arguments: { threadId: "thread_seed", messageFormat: "FULL_CONTENT" },
   },
+  {
+    tool: "get_message",
+    arguments: { messageId: "msg_seed", messageFormat: "FULL_CONTENT" },
+  },
   { tool: "search_threads", arguments: { query: "is:unread", pageSize: 20 } },
   {
     tool: "label_thread",
@@ -104,6 +130,14 @@ const steps: ParityStep[] = [
     arguments: { messageId: "msg_seed", labelIds: ["STARRED"] },
   },
   { tool: "create_label", arguments: { displayName: "Parity Complete" } },
+  {
+    tool: "apply_sensitive_thread_label",
+    arguments: { threadId: "thread_trash_target", labelOption: "TRASH" },
+  },
+  {
+    tool: "apply_sensitive_message_label",
+    arguments: { messageId: "msg_spam_target", labelOption: "SPAM" },
+  },
 ];
 
 const sendRaw = encodeGmailRaw(

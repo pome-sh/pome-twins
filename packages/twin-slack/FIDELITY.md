@@ -4,7 +4,7 @@
 not a universal clone. This page documents exactly which surfaces are
 faithful to real Slack today, at what tier, and how fidelity is verified.
 
-Last verified: 2026-07-12.
+Last verified: 2026-07-22.
 
 ## What "fidelity" means here
 
@@ -91,6 +91,9 @@ are all locked. Any drift breaks the contract test loudly.
 | `files.upload` / `info` / `list` / `delete` | warm | shape | `domain.test.ts`, `app-routes.test.ts` | Metadata-only; no binary storage. URL fields point to deterministic `pome-twin-files.slack.com` hosts. Shape is at the warm target (SL5). |
 | `bookmarks.add` / `remove` / `list` | warm | semantic | `domain.test.ts`, `app-routes.test.ts` | `link` type accepted; other bookmark types are unsupported per real Slack 2024 changelog. Warm-ruled: see the tier-mismatch ledger. |
 | `team.info` | warm | semantic | `app-routes.test.ts` | Returns workspace metadata; enterprise fields are NULL for non-Enterprise twins. Warm-ruled context read: see the tier-mismatch ledger. |
+| `canvases.create` / `canvases.edit` / `canvases.delete` | warm | shape | `domain-wave3.test.ts`, `app-routes.test.ts` | Wave 3 (SL3). Markdown title/content persistence; section_id-relative edits are coarse whole-document ops (shape at warm target). |
+| `conversations.setTopic` / `conversations.setPurpose` | warm | semantic | `domain-wave3.test.ts`, `domain-conversations.test.ts` | Wave 3 (SL4). Membership required; `too_long` at 250 chars; IM/MPIM → `method_not_supported_for_channel_type`. Warm-ruled: see the tier-mismatch ledger. |
+| `emoji.list` | warm | semantic | `domain-wave3.test.ts`, `app-routes.test.ts` | Wave 3 (SL4). Seeded custom emoji map; `alias:` protocol preserved. Warm-ruled: see the tier-mismatch ledger. |
 
 Routes not listed return **501 + `_twin.fidelity:"unsupported"`** so agents
 fail loudly rather than silently no-op. Cold surfaces agents plausibly probe
@@ -99,19 +102,14 @@ rest of the upstream API is implicitly cold via the catch-all.
 
 ## Ruled gaps and named cold surfaces
 
-Per the F-729 twin-slack ruling, the hot and warm sets are exhaustive: warm
-surfaces the twin does not implement yet appear here as explicit gaps
-(fidelity below the `shape` target) with their defer rationale — F-736 filled
-hot gaps only (SL2); warm gaps were ruled defer (SL3/SL4). Named cold rows
-document the loud 501 for surfaces agents plausibly probe. Message drafts are
-deliberately absent: a client-UI concept with no Web API analog to name a row
-for (PS).
+Per the F-729 twin-slack ruling, the hot and warm sets are exhaustive. Wave 3
+filled the remaining warm gaps (SL3 canvases, SL4 topic/purpose + emoji.list).
+Named cold rows document the loud 501 for surfaces agents plausibly probe.
+Message drafts are deliberately absent: a client-UI concept with no Web API
+analog to name a row for (PS).
 
 | Endpoint | Heat | Tier | Notes |
 | --- | --- | --- | --- |
-| `canvases.create` / `canvases.edit` / `canvases.delete` | warm | unsupported | Deferred post-M5 (SL3). Strongest promotion candidate: Slack's first-party MCP server ships 3 canvas tools. |
-| `conversations.setTopic` / `conversations.setPurpose` | warm | unsupported | Deferred post-M5 (SL4). "Set the channel topic" is a classic agent task; no vendor MCP tool. |
-| `emoji.list` | warm | unsupported | Deferred post-M5 (SL4). Vendor ships an emoji-search tool; trivial read when filled. |
 | `chat.postEphemeral` | cold | unsupported | The twin has no per-viewer visibility model (PS). 501 test-backed. |
 | `files.getUploadURLExternal` / `files.completeUploadExternal` | cold | unsupported | Modern upload flow; the twin serves legacy v1 upload (divergence #7). Promotion candidate when v1 sunsets. 501 test-backed. |
 | `admin.*` | cold | unsupported | No admin scopes modeled (divergence #6) (PS). Representative 501 probes test-backed. |
@@ -142,6 +140,9 @@ does not trigger removals.
 | `bookmarks.remove` | warm | semantic | shape | Occasional chain, absent from the vendor server; F-440 additive-only window. |
 | `bookmarks.list` | warm | semantic | shape | Occasional chain, absent from the vendor server; F-440 additive-only window. |
 | `team.info` | warm | semantic | shape | Context read adjacent to hot chains; F-440 additive-only window. |
+| `conversations.setTopic` | warm | semantic | shape | Classic agent task; Wave 3 fill above warm shape target; F-440 additive-only window. |
+| `conversations.setPurpose` | warm | semantic | shape | Topic sibling; Wave 3 fill above warm shape target; F-440 additive-only window. |
+| `emoji.list` | warm | semantic | shape | Vendor emoji-search adjacency; Wave 3 fill above warm shape target; F-440 additive-only window. |
 
 ## Fidelity-watch coverage (status.pome.sh)
 

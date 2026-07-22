@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openGitHubCloneDatabase } from "../src/db.js";
-import { GitHubDomain } from "../src/domain.js";
+import { GitHubDomain } from "../src/domain/index.js";
 import { parseSeed } from "../src/seed.js";
 
 describe("GitHubDomain edge cases", () => {

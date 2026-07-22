@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { createRecorderStore } from "@pome-sh/sdk/server";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_SID, withAuth } from "./_authHelper.js";
@@ -117,6 +117,40 @@ describe("session route coverage", () => {
 
     expect((await app.request(`${base}/search.messages?query=route`, withAuth(token, {}))).status).toBe(200);
     expect((await app.request(`${base}/team.info`, withAuth(token, {}))).status).toBe(200);
+
+    const setTopic = await post(app, token, "/conversations.setTopic", {
+      channel: "C_GENERAL",
+      topic: "route topic",
+    });
+    expect(setTopic.status).toBe(200);
+    const setPurpose = await post(app, token, "/conversations.setPurpose", {
+      channel: "C_GENERAL",
+      purpose: "route purpose",
+    });
+    expect(setPurpose.status).toBe(200);
+
+    const canvasCreate = await post(app, token, "/canvases.create", {
+      title: "route canvas",
+      document_content: { type: "markdown", markdown: "body" },
+    });
+    expect(canvasCreate.status).toBe(200);
+    const canvas = (await canvasCreate.json()) as { canvas_id: string };
+    expect(
+      (
+        await post(app, token, "/canvases.edit", {
+          canvas_id: canvas.canvas_id,
+          changes: [{ operation: "insert_at_end", document_content: { type: "markdown", markdown: " more" } }],
+        })
+      ).status
+    ).toBe(200);
+    expect((await post(app, token, "/canvases.delete", { canvas_id: canvas.canvas_id })).status).toBe(200);
+
+    const emojiList = await app.request(`${base}/emoji.list`, withAuth(token, {}));
+    expect(emojiList.status).toBe(200);
+    const emojiBody = (await emojiList.json()) as { ok: boolean; emoji: Record<string, string> };
+    expect(emojiBody.ok).toBe(true);
+    expect(emojiBody.emoji.shipit).toBe("alias:squirrel");
+
     expect((await app.request(`${base}/_pome/state`, withAuth(token, {}))).status).toBe(200);
     expect((await app.request(`${base}/_pome/events`, withAuth(token, {}))).status).toBe(200);
 

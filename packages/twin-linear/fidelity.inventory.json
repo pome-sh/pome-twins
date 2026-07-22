@@ -1,12 +1,13 @@
 {
   "twin": "linear",
   "package": "@pome-sh/twin-linear",
-  "updated": "2026-07-21",
-  "notes": "Heat from Linear agent chains is cross-validated against the captured 18-tool MCP launch set (save_* upserts) and graphql-surface.json. Launch MCP tools and in-scope GraphQL ops are semantic/shape over one deterministic domain; documents MCP tools remain named cold unsupported gaps.",
+  "updated": "2026-07-22",
+  "notes": "Wave 4 Gate-1: 22-tool MCP set (Gate 0 18 + delete_comment + documents). save_issue estimate/parentId/append-only relations; save_comment parentId; projects/cycles/agent sessions promoted to semantic where SQLite-backed.",
   "evidenceCodes": {
     "TC:issue-triage": "List/get/update issues and statuses for agent triage",
     "TC:issue-create": "Create issues with team/assignee/label context",
-    "TC:comment": "List/create issue comments",
+    "TC:comment": "List/create/delete issue comments (incl. threads)",
+    "TC:documents": "List/get/create workspace documents",
     "TC:webhook-integrate": "Webhook CRUD and delivery log",
     "TC:oauth-app": "OAuth authorize/token/revoke for app installs"
   },
@@ -16,126 +17,154 @@
       "heat": "hot",
       "fidelity": "semantic",
       "justification": "MCP:list_issues; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "get_issue",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:get_issue; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:get_issue; TC:issue-triage. Returns estimate/parentId/relations.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "save_issue",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:save_issue; TC:issue-create|issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:save_issue; TC:issue-create|issue-triage. Gate-1: estimate, parentId, append-only relations.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_comments",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:list_comments; TC:comment. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:list_comments; TC:comment.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "save_comment",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:save_comment; TC:comment. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:save_comment; TC:comment. Gate-1 threaded parentId.",
+      "defer": "Implemented by LinearDomain."
+    },
+    {
+      "name": "delete_comment",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "MCP:delete_comment; GraphQL commentDelete parity; TC:comment.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_teams",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:list_teams; TC:issue-create. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:list_teams; TC:issue-create.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "get_team",
       "heat": "warm",
       "fidelity": "shape",
-      "justification": "MCP:get_team. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:get_team.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_users",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:list_users; TC:issue-create. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:list_users; TC:issue-create.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "get_user",
       "heat": "warm",
       "fidelity": "shape",
-      "justification": "MCP:get_user. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:get_user.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_issue_statuses",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:list_issue_statuses; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:list_issue_statuses; TC:issue-triage.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "get_issue_status",
       "heat": "warm",
       "fidelity": "shape",
-      "justification": "MCP:get_issue_status. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:get_issue_status.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_issue_labels",
       "heat": "hot",
       "fidelity": "semantic",
-      "justification": "MCP:list_issue_labels; TC:issue-triage. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:list_issue_labels; TC:issue-triage.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "create_issue_label",
       "heat": "warm",
       "fidelity": "shape",
-      "justification": "MCP:create_issue_label. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "justification": "MCP:create_issue_label.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_projects",
       "heat": "warm",
-      "fidelity": "shape",
-      "justification": "MCP:list_projects. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "fidelity": "semantic",
+      "justification": "MCP:list_projects; SQLite project rows + issue projectId linkage.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "get_project",
       "heat": "warm",
-      "fidelity": "shape",
-      "justification": "MCP:get_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "fidelity": "semantic",
+      "justification": "MCP:get_project; SQLite project lookup.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "save_project",
       "heat": "warm",
-      "fidelity": "shape",
-      "justification": "MCP:save_project. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "fidelity": "semantic",
+      "justification": "MCP:save_project; SQLite create/update (no project webhooks — see REFERENCE-DIVERGENCES).",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "list_cycles",
       "heat": "warm",
-      "fidelity": "shape",
-      "justification": "MCP:list_cycles. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
-      "defer": "Implemented by LinearCommands."
+      "fidelity": "semantic",
+      "justification": "MCP:list_cycles; SQLite cycles + issue cycleId linkage.",
+      "defer": "Implemented by LinearDomain."
     },
     {
       "name": "search_documentation",
       "heat": "cold",
       "fidelity": "shape",
-      "justification": "MCP:search_documentation — static/empty twin docs. Launch set frozen in fixtures/mcp-tools-list.canonical.json.",
+      "justification": "MCP:search_documentation — static/empty twin product docs (not workspace documents).",
       "defer": "Returns deterministic empty/static docs in the twin."
+    },
+    {
+      "name": "list_documents",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "MCP:list_documents; TC:documents. Gate-1 SQLite documents.",
+      "defer": "Implemented by LinearDomain."
+    },
+    {
+      "name": "get_document",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "MCP:get_document; TC:documents.",
+      "defer": "Implemented by LinearDomain."
+    },
+    {
+      "name": "save_document",
+      "heat": "warm",
+      "fidelity": "semantic",
+      "justification": "MCP:save_document; TC:documents. One parent: project|team|issue|cycle.",
+      "defer": "Implemented by LinearDomain."
     }
   ],
   "graphql": [
@@ -148,27 +177,27 @@
     { "name": "workflowStates", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage status context." },
     { "name": "workflowState", "heat": "warm", "fidelity": "shape", "justification": "Single workflow state lookup." },
     { "name": "issues", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage|issue-create." },
-    { "name": "issue", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage|issue-create." },
+    { "name": "issue", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage|issue-create; estimate/parent." },
     { "name": "comments", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment." },
-    { "name": "comment", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment." },
+    { "name": "comment", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment; parent thread." },
     { "name": "issueLabels", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
     { "name": "issueLabel", "heat": "warm", "fidelity": "shape", "justification": "Single label lookup." },
-    { "name": "projects", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
-    { "name": "project", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
-    { "name": "cycles", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
-    { "name": "cycle", "heat": "warm", "fidelity": "shape", "justification": "Adjacent PM context." },
+    { "name": "projects", "heat": "warm", "fidelity": "semantic", "justification": "SQLite projects + issue linkage." },
+    { "name": "project", "heat": "warm", "fidelity": "semantic", "justification": "SQLite projects + issue linkage." },
+    { "name": "cycles", "heat": "warm", "fidelity": "semantic", "justification": "SQLite cycles + issue linkage." },
+    { "name": "cycle", "heat": "warm", "fidelity": "semantic", "justification": "SQLite cycles + issue linkage." },
     { "name": "webhooks", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
     { "name": "webhook", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
-    { "name": "agentSessions", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
-    { "name": "agentSession", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
-    { "name": "issueCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-create." },
-    { "name": "issueUpdate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage." },
+    { "name": "agentSessions", "heat": "warm", "fidelity": "semantic", "justification": "SQLite agent sessions + activities; MCP-absent." },
+    { "name": "agentSession", "heat": "warm", "fidelity": "semantic", "justification": "SQLite agent sessions + activities; MCP-absent." },
+    { "name": "issueCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-create; estimate/parentId." },
+    { "name": "issueUpdate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage; estimate/parentId." },
     { "name": "issueDelete", "heat": "warm", "fidelity": "shape", "justification": "Issue lifecycle mutation." },
     { "name": "issueArchive", "heat": "warm", "fidelity": "shape", "justification": "Issue lifecycle mutation." },
     { "name": "issueUnarchive", "heat": "warm", "fidelity": "shape", "justification": "Issue lifecycle mutation." },
-    { "name": "commentCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment." },
+    { "name": "commentCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:comment; parentId threads." },
     { "name": "commentUpdate", "heat": "warm", "fidelity": "shape", "justification": "Comment lifecycle mutation." },
-    { "name": "commentDelete", "heat": "warm", "fidelity": "shape", "justification": "Comment lifecycle mutation." },
+    { "name": "commentDelete", "heat": "warm", "fidelity": "semantic", "justification": "Comment delete; MCP delete_comment parity." },
     { "name": "issueLabelCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
     { "name": "issueLabelUpdate", "heat": "warm", "fidelity": "shape", "justification": "Label lifecycle mutation." },
     { "name": "issueLabelDelete", "heat": "warm", "fidelity": "shape", "justification": "Label lifecycle mutation." },
@@ -176,10 +205,10 @@
     { "name": "issueRemoveLabel", "heat": "hot", "fidelity": "semantic", "justification": "TC:issue-triage labels." },
     { "name": "webhookCreate", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
     { "name": "webhookDelete", "heat": "hot", "fidelity": "semantic", "justification": "TC:webhook-integrate." },
-    { "name": "agentSessionCreateOnIssue", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
-    { "name": "agentSessionCreateOnComment", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
-    { "name": "agentSessionUpdate", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
-    { "name": "agentActivityCreate", "heat": "warm", "fidelity": "shape", "justification": "Emulate agent subset; MCP-absent." },
+    { "name": "agentSessionCreateOnIssue", "heat": "warm", "fidelity": "semantic", "justification": "SQLite agent session create; MCP-absent." },
+    { "name": "agentSessionCreateOnComment", "heat": "warm", "fidelity": "semantic", "justification": "SQLite agent session create; MCP-absent." },
+    { "name": "agentSessionUpdate", "heat": "warm", "fidelity": "semantic", "justification": "SQLite agent session update; MCP-absent." },
+    { "name": "agentActivityCreate", "heat": "warm", "fidelity": "semantic", "justification": "SQLite agent activity create; MCP-absent." },
     { "name": "GET /oauth/authorize", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." },
     { "name": "POST /oauth/authorize/callback", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." },
     { "name": "POST /oauth/token", "heat": "hot", "fidelity": "semantic", "justification": "TC:oauth-app." },
@@ -187,8 +216,8 @@
   ],
   "doc_drift": [
     {
-      "item": "documents_mcp_tools_out_of_launch",
-      "detail": "Documents list/get/create/update tools are documented by Linear but out of Gate 0 launch scope (cold/unsupported)."
+      "item": "document_initiative_parent",
+      "detail": "Official save_document accepts initiative parents; twin Gate-1 accepts project/team/issue/cycle only."
     }
   ],
   "performanceBudgets": {
@@ -204,6 +233,7 @@
     "maxSeedLabels": 500,
     "maxSeedProjects": 200,
     "maxSeedCycles": 200,
+    "maxSeedDocuments": 500,
     "maxSeedOauthApps": 20,
     "maxSeedTokens": 50,
     "maxSeedWebhooks": 50,

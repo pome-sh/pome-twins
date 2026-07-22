@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { mintProviderToken } from "@pome-sh/sdk/server";
 import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_AUTH_SECRET, TEST_SID, withAuth } from "./_authHelper.js";
 

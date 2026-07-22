@@ -52,11 +52,18 @@ const cliContractNames = [
 ].map((match) => match[1]);
 compare("contract/cli-start.test.mjs TWINS", cliContractNames);
 
-const imageMatch = read(".github/workflows/twin-image.yml").match(/twin:\s*\[([^\]]+)\]/);
-if (!imageMatch) throw new Error(".github/workflows/twin-image.yml: twin matrix not found");
+// Twin-image matrix is dynamic on PRs (`detect-twins`); the canonical full
+// set is declared as FIRST_PARTY_TWINS (and mirrored in the detect script's
+// `all='[...]'` / `for twin in ...` loop).
+const imageText = read(".github/workflows/twin-image.yml");
+const imageCanon = imageText.match(/#\s*FIRST_PARTY_TWINS:\s*([^\n]+)/);
+const imageAll = imageText.match(/all='\[([^\]]+)\]'/);
+const imageLegacy = imageText.match(/twin:\s*\[([^\]]+)\]/);
+const imageRaw = imageCanon?.[1] ?? imageAll?.[1] ?? imageLegacy?.[1];
+if (!imageRaw) throw new Error(".github/workflows/twin-image.yml: twin matrix not found");
 compare(
   ".github/workflows/twin-image.yml matrix",
-  imageMatch[1].split(",").map((value) => value.trim()),
+  imageRaw.split(/[,\s]+/).map((value) => value.trim().replace(/^["']|["']$/g, "")).filter(Boolean),
 );
 
 const dependabot = [

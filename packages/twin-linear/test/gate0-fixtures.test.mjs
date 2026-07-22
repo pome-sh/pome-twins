@@ -10,13 +10,14 @@ function readJson(rel) {
   return JSON.parse(readFileSync(join(root, rel), "utf8"));
 }
 
-/** Frozen Linear MCP launch tool order (Gate 0 — current official save_* surface). */
+/** Frozen Linear MCP launch tool order (Gate-1 Wave 4 — Gate 0 + delete_comment/documents). */
 const LINEAR_LAUNCH_TOOLS = [
   "list_issues",
   "get_issue",
   "save_issue",
   "list_comments",
   "save_comment",
+  "delete_comment",
   "list_teams",
   "get_team",
   "list_users",
@@ -30,12 +31,15 @@ const LINEAR_LAUNCH_TOOLS = [
   "save_project",
   "list_cycles",
   "search_documentation",
+  "list_documents",
+  "get_document",
+  "save_document",
 ];
 
-test("MCP canonical launchToolOrder matches Gate 0 freeze", () => {
+test("MCP canonical launchToolOrder matches Gate-1 freeze", () => {
   const canonical = readJson("fixtures/mcp-tools-list.canonical.json");
   assert.equal(canonical.meta.launchToolCount, LINEAR_LAUNCH_TOOLS.length);
-  assert.equal(LINEAR_LAUNCH_TOOLS.length, 18);
+  assert.equal(LINEAR_LAUNCH_TOOLS.length, 22);
   assert.deepEqual(canonical.meta.launchToolOrder, LINEAR_LAUNCH_TOOLS);
   const names = canonical.result.tools.map((t) => t.name);
   assert.equal(names.length, LINEAR_LAUNCH_TOOLS.length);
@@ -53,4 +57,5 @@ test("graphql-surface freezes launch queries and mutations", () => {
   assert.ok(surface.mutations.includes("issueCreate"));
   assert.ok(surface.mutations.includes("issueAddLabel"));
   assert.ok(surface.mutations.includes("webhookCreate"));
+  assert.ok(surface.mutations.includes("commentDelete"));
 });

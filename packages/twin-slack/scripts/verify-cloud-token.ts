@@ -6,7 +6,7 @@
 import { createHmac } from "node:crypto";
 import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 
 process.env.SLACK_DETERMINISTIC_TS = "1";

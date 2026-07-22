@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHmac } from "node:crypto";
-import type { LinearCommands } from "../commands/index.js";
-import type { LinearUser, LinearWebhook } from "../types.js";
+import type { LinearOrganization, LinearTeam, LinearUser, LinearWebhook } from "../types.js";
 import { webhookDestinationBlocked } from "../webhook-policy.js";
 
 export type LinearWebhookEvent = {
@@ -14,8 +13,28 @@ export type LinearWebhookEvent = {
   updatedFrom?: Record<string, unknown>;
 };
 
+/** Structural host for webhook delivery — avoids a domain ↔ dispatch import cycle. */
+export type LinearWebhookHost = {
+  getOrganization(): LinearOrganization | null;
+  listWebhooks(): LinearWebhook[];
+  getTeam(ref: string): LinearTeam | null;
+  nextId(namespace?: string): string;
+  now(): string;
+  recordWebhookDelivery(input: {
+    id: string;
+    webhookId: string;
+    event: string;
+    action: string;
+    url: string;
+    status: number | null;
+    error: string | null;
+    payload: unknown;
+    headers: Record<string, string>;
+  }): void;
+};
+
 export async function dispatchLinearWebhook(
-  commands: LinearCommands,
+  commands: LinearWebhookHost,
   event: LinearWebhookEvent
 ): Promise<void> {
   const organization = commands.getOrganization();
@@ -95,7 +114,7 @@ export async function dispatchLinearWebhook(
 }
 
 function matchesWebhook(
-  commands: LinearCommands,
+  commands: LinearWebhookHost,
   webhook: LinearWebhook,
   event: LinearWebhookEvent
 ): boolean {

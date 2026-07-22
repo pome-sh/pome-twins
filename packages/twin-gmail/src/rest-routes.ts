@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Hono } from "hono";
 import type { RouteContext } from "@pome-sh/sdk";
-import type { GmailDomain } from "./domain.js";
+import type { GmailDomain } from "./domain/index.js";
 import { registerDraftRoutes } from "./rest-routes-drafts.js";
 import { GmailRouteKit } from "./rest-routes-kit.js";
 import { registerMessageRoutes } from "./rest-routes-messages.js";

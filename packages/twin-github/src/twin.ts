@@ -21,7 +21,7 @@ import type { Hono } from "hono";
 import { summarizeGitHubAccessControlCatalog } from "@pome-sh/shared-types";
 import { githubAccessControlPayload } from "./access-control.js";
 import { openGitHubCloneDatabase } from "./db.js";
-import { GitHubDomain } from "./domain.js";
+import { GitHubDomain } from "./domain/index.js";
 import { TwinError, githubError } from "./errors.js";
 import { registerGitHubRoutes } from "./routes.js";
 import { defaultSeedState, parseSeed, type ParsedGitHubStateSeed } from "./seed.js";

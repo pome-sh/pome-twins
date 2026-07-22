@@ -6,7 +6,7 @@
   "captureDate": "2026-07-20",
   "httpStatus": 200,
   "sha256": "6ef35bad568967015c101f89e995148c4eb2131b3a6dd244f7237058abae8e7a",
-  "canonicalSha256": "8771e967b1c8d5c364de2a05c890aaddd27fb9eba45fde68e18d767b1dfc7ac3",
+  "canonicalSha256": "56b5e86181c13ead63fdc8ea0d4bedc6860c1a3fdb17372fdca76591e48a4eed",
   "request": {
     "headers": {
       "content-type": "application/json",
@@ -20,8 +20,8 @@
   },
   "auth": "none (unauthenticated capture succeeded for tools/list and initialize)",
   "liveToolCount": 13,
-  "launchToolCount": 10,
-  "excludedFromLaunch": [
+  "launchToolCount": 13,
+  "gate1PromotedFromPreview": [
     "get_message",
     "apply_sensitive_thread_label",
     "apply_sensitive_message_label"

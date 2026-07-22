@@ -3,7 +3,7 @@ import { sign } from "hono/jwt";
 import { mintProviderToken } from "@pome-sh/sdk/server";
 import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 import { signTestToken, TEST_AUTH_SECRET, TEST_SID } from "./_authHelper.js";
 

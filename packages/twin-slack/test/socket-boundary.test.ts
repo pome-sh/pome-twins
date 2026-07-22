@@ -26,7 +26,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 import { toolDefinitions } from "../src/tools.js";
 import { unsupportedEnvelope } from "../src/unsupported-envelope.js";

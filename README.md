@@ -5,7 +5,7 @@
 [![npm: @pome-sh/cli](https://img.shields.io/npm/v/%40pome-sh%2Fcli?label=%40pome-sh%2Fcli)](https://www.npmjs.com/package/@pome-sh/cli)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
-Open-source digital twins of GitHub, Stripe, Slack, Gmail, and Linear: 130 MCP
+Open-source digital twins of GitHub, Stripe, Slack, Gmail, and Linear: 137 MCP
 tools plus broad frozen REST and GraphQL surfaces, with the `pome` CLI to run your AI agents
 against them locally and capture every trace.
 
@@ -119,8 +119,8 @@ reference lives in the [CLI README](./cli/README.md) and at
 | [`twin-github`](./packages/twin-github/) | **65** (63 semantic) | 62 | Repos, issues, PRs, reviews, merges, collaborators, checks — push-access gated ([FIDELITY](./packages/twin-github/FIDELITY.md)) |
 | [`twin-stripe`](./packages/twin-stripe/) | **26** (all semantic) | 43 | Card + x402 crypto PaymentIntents, customers, payment methods, refunds, charges, balance, events; billing surfaces at shape tier ([FIDELITY](./packages/twin-stripe/FIDELITY.md)) |
 | [`twin-slack`](./packages/twin-slack/) | **11** (all semantic) | 50 | Channels, messages, threads, reactions, search, users, pins, scheduled messages ([FIDELITY](./packages/twin-slack/FIDELITY.md)) |
-| [`twin-gmail`](./packages/twin-gmail/) | **10** (captured first-party launch set) | Frozen broad Gmail v1 set | Messages, drafts, threads, labels, history, settings, media/multipart uploads; no OAuth, Pub/Sub, or external delivery ([contract](./packages/twin-gmail/README.md)) |
-| [`twin-linear`](./packages/twin-linear/) | **18** (curated launch subset) | GraphQL + OAuth (PKCE) + signed webhooks | Issues, comments, teams, projects, cycles, labels, workflow states — the first GraphQL twin ([FIDELITY](./packages/twin-linear/FIDELITY.md)) |
+| [`twin-gmail`](./packages/twin-gmail/) | **13** (Gate-1 first-party set) | Frozen broad Gmail v1 set | Messages, drafts, threads, labels, history, settings, media/multipart uploads; no OAuth, Pub/Sub, or external delivery ([FIDELITY](./packages/twin-gmail/FIDELITY.md)) |
+| [`twin-linear`](./packages/twin-linear/) | **22** (Gate-1 curated subset) | GraphQL + OAuth (PKCE) + signed webhooks | Issues, comments, documents, teams, projects, cycles, labels, workflow states — the first GraphQL twin ([FIDELITY](./packages/twin-linear/FIDELITY.md)) |
 
 Each twin documents its surface, route by route, in its `FIDELITY.md`; the
 tier definitions live in the engine-level

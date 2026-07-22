@@ -1,0 +1,109 @@
+{
+  "github": {
+    "repositories": [
+      {
+        "owner": "acme",
+        "name": "api",
+        "description": "ACME API service",
+        "default_branch": "main",
+        "labels": [
+          {
+            "name": "bug",
+            "color": "d73a4a",
+            "description": "Something isn't working"
+          },
+          {
+            "name": "feature",
+            "color": "a2eeef",
+            "description": "New feature request"
+          },
+          {
+            "name": "question",
+            "color": "d876e3",
+            "description": "Further information is requested"
+          }
+        ],
+        "collaborators": ["alice", "bob"],
+        "issues": [
+          {
+            "number": 1,
+            "title": "500 error on POST /orders after deploy",
+            "body": "Started failing right after the 14:00 deploy. Stack trace points to OrderController#create.",
+            "state": "open",
+            "labels": ["bug"],
+            "assignee": "alice"
+          }
+        ]
+      }
+    ]
+  },
+  "linear": {
+    "clock": "2026-07-21T00:00:00.000Z",
+    "defaultSid": "standalone",
+    "baseUrl": "http://127.0.0.1:3337",
+    "strictScopes": false,
+    "organization": {
+      "id": "org_pome",
+      "name": "Pome Twin",
+      "urlKey": "pome-twin"
+    },
+    "users": [
+      {
+        "id": "user_admin",
+        "email": "admin@pome-twin.test",
+        "name": "Admin User",
+        "displayName": "Admin",
+        "admin": true,
+        "active": true
+      },
+      {
+        "id": "user_dev",
+        "email": "dev@pome-twin.test",
+        "name": "Developer",
+        "displayName": "Dev",
+        "admin": false,
+        "active": true
+      }
+    ],
+    "teams": [
+      {
+        "id": "team_eng",
+        "key": "ENG",
+        "name": "Engineering",
+        "description": "Default engineering team",
+        "private": false,
+        "states": [
+          { "id": "state_backlog", "name": "Backlog", "type": "backlog", "position": 0 },
+          { "id": "state_todo", "name": "Todo", "type": "unstarted", "position": 1 },
+          { "id": "state_progress", "name": "In Progress", "type": "started", "position": 2 },
+          { "id": "state_done", "name": "Done", "type": "completed", "position": 3 },
+          { "id": "state_canceled", "name": "Canceled", "type": "canceled", "position": 4 }
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "id": "label_agent",
+        "name": "Agent",
+        "color": "#0f766e",
+        "team": "ENG",
+        "description": "Agent triage"
+      }
+    ],
+    "projects": [],
+    "cycles": [],
+    "issues": [],
+    "comments": [],
+    "oauthApps": [],
+    "tokens": [
+      {
+        "token": "lin_test_admin",
+        "type": "personal",
+        "user": "admin@pome-twin.test",
+        "actor": "user",
+        "sid": "standalone"
+      }
+    ],
+    "webhooks": []
+  }
+}

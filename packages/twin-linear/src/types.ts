@@ -98,6 +98,14 @@ export type LinearCycle = {
   updatedAt: string;
 };
 
+export type LinearIssueRelationType = "blocks" | "blocked_by" | "related";
+
+export type LinearIssueRelations = {
+  blocks: string[];
+  blockedBy: string[];
+  relatedTo: string[];
+};
+
 export type LinearIssue = {
   id: string;
   identifier: string;
@@ -106,12 +114,14 @@ export type LinearIssue = {
   title: string;
   description: string | null;
   priority: LinearIssuePriority;
+  estimate: number | null;
   stateId: string;
   assigneeId: string | null;
   creatorId: string | null;
   delegateId: string | null;
   projectId: string | null;
   cycleId: string | null;
+  parentId: string | null;
   labelIds: string[];
   url: string;
   archivedAt: string | null;
@@ -128,10 +138,27 @@ export type LinearIssue = {
 export type LinearComment = {
   id: string;
   issueId: string;
+  parentId: string | null;
   userId: string | null;
   body: string;
   createAsUser: string | null;
   displayIconUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LinearDocument = {
+  id: string;
+  title: string;
+  content: string | null;
+  slug: string;
+  projectId: string | null;
+  teamId: string | null;
+  issueId: string | null;
+  cycleId: string | null;
+  icon: string | null;
+  color: string | null;
+  creatorId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -278,12 +305,14 @@ export type LinearStateSeed = {
     title: string;
     description?: string | null;
     priority?: LinearIssuePriority;
+    estimate?: number | null;
     state?: string;
     assignee?: string;
     creator?: string;
     delegate?: string;
     project?: string;
     cycle?: string;
+    parent?: string;
     labels?: string[];
     dueDate?: string | null;
     createdAt?: string;
@@ -293,8 +322,24 @@ export type LinearStateSeed = {
     id?: string;
     issue: string;
     body: string;
+    parent?: string;
     user?: string;
     createdAt?: string;
+  }>;
+  documents?: Array<{
+    id?: string;
+    title: string;
+    content?: string | null;
+    slug?: string;
+    project?: string;
+    team?: string;
+    issue?: string;
+    cycle?: string;
+    icon?: string | null;
+    color?: string | null;
+    creator?: string;
+    createdAt?: string;
+    updatedAt?: string;
   }>;
   oauthApps?: Array<{
     id?: string;

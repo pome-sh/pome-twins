@@ -10,20 +10,44 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Required check context is the job name `typecheck-test` (ruleset +
+  # assert-repo-policy). The job MUST always run on every PR so the check is
+  # never missing. Docs-only PRs run cheap dependency-free gates and skip the
+  # npm ci / build / test / parity suite.
   typecheck-test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: package-lock.json
+          fetch-depth: 0
+      - name: Decide whether the heavy suite is needed
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            echo "heavy=true" >> "$GITHUB_OUTPUT"
+            echo "Running heavy suite (non-PR event)."
+            exit 0
+          fi
+          # Paths that can affect package build/test/parity or the CI contract.
+          if git diff --name-only "${BASE_SHA}" HEAD | grep -qE \
+            '^(packages/|scripts/|contract/|config/|knip\.json|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
+            echo "heavy=true" >> "$GITHUB_OUTPUT"
+            echo "Running heavy suite (package/script/lockfile/ci changes)."
+          else
+            echo "heavy=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping heavy suite (docs/chore-only PR); required check stays green."
+          fi
+      # Cheap, dependency-free gates — always on so docs PRs still catch
+      # copy-marker / barrel / cloud-import / policy fixture regressions.
       - run: node scripts/check-copy-markers.mjs
       - run: node scripts/lint-code-health.mjs
-      - run: npm run lint:twin-registration
+      - run: node scripts/check-first-party-twin-registration.mjs
       # F-778 — the legacy D/P criterion markers are retired; fail on any
       # reintroduction outside the parser's own legacy-detection code.
       - run: node scripts/lint-legacy-criterion-markers.mjs
@@ -35,41 +59,44 @@ jobs:
       - run: bash scripts/lint-no-cloud-imports.test.sh
       - run: node scripts/ci/wait-for-workflow.test.mjs
       - run: node scripts/ci/assert-repo-policy.test.mjs
-      - run: npm ci
-      - run: npm run lint:dead-code
-      # F-705 — zero native deps is an invariant: no gyp-marked package in the
-      # production closure (prebuilt installers like esbuild/fsevents pass).
-      - run: npm run gate:no-native
-      # F-692 / D9 — one repo-wide capture-only gate, scanning cli/src/**,
-      # cli/scripts/**, and packages/** (cli-ci.yml's former duplicate step
-      # was folded in here).
-      - run: npm run gate:no-eval
-      - run: npm run check:trace-contract -w @pome-sh/shared-types
-      # F-818 — the committed manifest JSON Schema (served at
-      # pome.sh/schemas/v1/pome.json) must match the zod source.
-      - run: npm run check:manifest-schema -w @pome-sh/shared-types
-      # Consumers import sibling packages through their published `exports`
-      # (e.g. `@pome-sh/sdk/server` → dist/server.d.ts). Build the workspace in
-      # dependency order so those subpaths resolve before typecheck/test.
-      - run: npm run build
-      - run: npm run typecheck
-      # twin-github runs with coverage thresholds (90% lines/funcs/statements)
-      # instead of a second plain `npm test` pass for that workspace.
-      - run: npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail -w @pome-sh/twin-linear
-      - run: npm run test:coverage -w @pome-sh/twin-github
-      # F-722 — durable recorder crash-loss gate (SIGKILL mid-write). Covered
-      # by packages/sdk test/recorder-crash.test.ts in the sdk workspace test
-      # step above; keep this comment so path reviewers know where it lives.
-      # Black-box twin runtime-contract suite (FDRS-711). Spawns the BUILT twins
-      # via plain `node` — Node 24 to match the GHCR runtime image — and asserts
-      # the control-plane surface frozen in CONTRACT.md. Reuses the build above
-      # so `@pome-sh/sdk/server` (dist) resolves when the contract runner boots
-      # the twins.
-      - run: npm run test:contract
-      # F-730 — fidelity:parity in all three twins: the shared sdk runner
-      # asserts live tool list === fidelity.inventory.json === scenario
-      # coverage, and drives every tool through POST /s/:sid/mcp/call.
-      # Reuses the build above (`@pome-sh/sdk/parity` resolves from dist).
-      - run: npm run fidelity:parity -w @pome-sh/twin-github -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail -w @pome-sh/twin-linear
-      # Twin Fidelity Watch (tools/fidelity) moved to pome-cloud
-      # (packages/fidelity-watch) — it owns status.pome.sh now.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.scope.outputs.heavy == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install, build, test, contract, fidelity
+        if: steps.scope.outputs.heavy == 'true'
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run lint:dead-code
+          # F-705 — zero native deps is an invariant: no gyp-marked package in the
+          # production closure (prebuilt installers like esbuild/fsevents pass).
+          npm run gate:no-native
+          # F-692 / D9 — one repo-wide capture-only gate, scanning cli/src/**,
+          # cli/scripts/**, and packages/** (cli-ci.yml's former duplicate step
+          # was folded in here).
+          npm run gate:no-eval
+          npm run check:trace-contract -w @pome-sh/shared-types
+          # F-818 — the committed manifest JSON Schema (served at
+          # pome.sh/schemas/v1/pome.json) must match the zod source.
+          npm run check:manifest-schema -w @pome-sh/shared-types
+          # Consumers import sibling packages through their published `exports`
+          # (e.g. `@pome-sh/sdk/server` → dist/server.d.ts). Build the workspace in
+          # dependency order so those subpaths resolve before typecheck/test.
+          npm run build
+          npm run typecheck
+          # twin-github runs with coverage thresholds (90% lines/funcs/statements)
+          # instead of a second plain `npm test` pass for that workspace.
+          npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail -w @pome-sh/twin-linear
+          npm run test:coverage -w @pome-sh/twin-github
+          # Black-box twin runtime-contract suite (FDRS-711). Spawns the BUILT twins
+          # via plain `node` — Node 24 to match the GHCR runtime image — and asserts
+          # the control-plane surface frozen in CONTRACT.md.
+          npm run test:contract
+          # F-730 — fidelity:parity across first-party twins.
+          npm run fidelity:parity -w @pome-sh/twin-github -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail -w @pome-sh/twin-linear
+      - name: Heavy suite skipped (docs/chore-only)
+        if: steps.scope.outputs.heavy != 'true'
+        run: echo "Required check typecheck-test is green without npm ci — no package/script changes in this PR."

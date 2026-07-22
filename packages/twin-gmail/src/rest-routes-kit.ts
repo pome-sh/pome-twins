@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Context, Handler } from "hono";
 import type { RouteContext } from "@pome-sh/sdk";
-import type { GmailDomain } from "./domain.js";
+import type { GmailDomain } from "./domain/index.js";
 import { gmailStateDelta } from "./state.js";
 import { GmailRestSerializers } from "./rest-serializers.js";
-import { GmailRestStore } from "./rest-store.js";
 
 export type RouteResult = { status?: number; body: unknown; mutation?: boolean };
 
 export class GmailRouteKit {
-  readonly store: GmailRestStore;
   readonly serializers: GmailRestSerializers;
 
   constructor(readonly context: RouteContext<GmailDomain>) {
-    this.store = new GmailRestStore(context.domain.db, context.domain);
-    this.serializers = new GmailRestSerializers(context.domain, this.store);
+    this.serializers = new GmailRestSerializers(context.domain);
+  }
+
+  get domain(): GmailDomain {
+    return this.context.domain;
   }
 
   read(fn: (c: Context) => RouteResult | Promise<RouteResult>): Handler {

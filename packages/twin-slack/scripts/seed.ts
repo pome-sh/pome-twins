@@ -1,5 +1,5 @@
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 
 const dbPath = process.env.SLACK_CLONE_DB ?? ".slack_clone/slack.db";

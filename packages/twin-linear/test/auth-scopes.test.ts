@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LINEAR_TOKEN,
-  LinearCommands,
+  LinearDomain,
   createLinearTwinApp,
   looksLikeLinearToken,
   openLinearTwinDatabase,
@@ -22,7 +22,7 @@ describe("looksLikeLinearToken", () => {
 describe("strictScopes", () => {
   it("blocks issue create when the actor lacks issues:create", async () => {
     const db = openLinearTwinDatabase(":memory:");
-    const commands = new LinearCommands(db);
+    const commands = new LinearDomain(db);
     commands.seed(
       testSeed({
         strictScopes: true,
@@ -48,7 +48,7 @@ describe("strictScopes", () => {
 
   it("allows issue create when write is present (covers issues:create)", async () => {
     const db = openLinearTwinDatabase(":memory:");
-    const commands = new LinearCommands(db);
+    const commands = new LinearDomain(db);
     commands.seed(testSeed({ strictScopes: true }));
     const issue = await commands.createIssue(
       { teamId: "team_eng", title: "Scoped create" },
@@ -59,7 +59,7 @@ describe("strictScopes", () => {
 
   it("blocks delete/archive/label/webhook/project when actor has only read", async () => {
     const db = openLinearTwinDatabase(":memory:");
-    const commands = new LinearCommands(db);
+    const commands = new LinearDomain(db);
     commands.seed(testSeed({ strictScopes: true }));
     const readActor = { email: "admin@pome-twin.test", scopes: ["read"] };
     const issue = commands.getIssue("issue_todo")!;
@@ -84,7 +84,7 @@ describe("strictScopes", () => {
 
   it("allows write-scoped mutators and leaves default strictScopes off", async () => {
     const writeDb = openLinearTwinDatabase(":memory:");
-    const writeCommands = new LinearCommands(writeDb);
+    const writeCommands = new LinearDomain(writeDb);
     writeCommands.seed(testSeed({ strictScopes: true }));
     const writeActor = { email: "admin@pome-twin.test", scopes: ["write"] };
     const issue = writeCommands.getIssue("issue_todo")!;
@@ -97,7 +97,7 @@ describe("strictScopes", () => {
     expect(project.name).toBe("Write Project");
 
     const openDb = openLinearTwinDatabase(":memory:");
-    const openCommands = new LinearCommands(openDb);
+    const openCommands = new LinearDomain(openDb);
     openCommands.seed(testSeed({ strictScopes: false }));
     const created = await openCommands.createIssue(
       { teamId: "team_eng", title: "Open scopes" },

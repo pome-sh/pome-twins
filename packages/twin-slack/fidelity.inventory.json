@@ -1,8 +1,8 @@
 {
   "twin": "slack",
   "package": "@pome-sh/twin-slack",
-  "updated": "2026-07-12",
-  "notes": "Re-cut against packages/sdk/ENDPOINT-TIERS.md per the F-729 twin-slack ruling (SL1-SL5), implemented by F-736. Heat is ruled, fidelity is measured; both tables lint 1:1 against FIDELITY.md. The hot and warm sets are exhaustive (ruled-but-unimplemented warm gaps carry fidelity 'unsupported' plus a defer note); cold rows are named-only — the remaining upstream tail stays implicitly cold via the 501 catch-all. Warm surfaces above their shape target are mirrored in FIDELITY.md's tier-mismatch ledger (M5 additive-only ruling: no code demotions this milestone). Message drafts have no Web API analog to name a row for (PS, client-UI concept) — recorded here, not as a surface.",
+  "updated": "2026-07-22",
+  "notes": "Re-cut against packages/sdk/ENDPOINT-TIERS.md per the F-729 twin-slack ruling (SL1-SL5), implemented by F-736; Wave 3 filled remaining warm gaps (SL3 canvases shape, SL4 setTopic/setPurpose + emoji.list semantic). Heat is ruled, fidelity is measured; both tables lint 1:1 against FIDELITY.md. Cold rows are named-only — the remaining upstream tail stays implicitly cold via the 501 catch-all. Warm surfaces above their shape target are mirrored in FIDELITY.md's tier-mismatch ledger (M5 additive-only ruling: no code demotions this milestone). Message drafts have no Web API analog to name a row for (PS, client-UI concept) — recorded here, not as a surface.",
   "tools": [
     {
       "name": "slack_post_message",
@@ -303,38 +303,38 @@
     {
       "name": "canvases.create",
       "heat": "warm",
-      "fidelity": "unsupported",
-      "justification": "Ruled warm (F-729, SL3): MCP: vendor first-party server ships 3 canvas tools; growing agent chain. Gap (unsupported < shape target) deferred — F-736 fills hot gaps only; strongest post-M5 promotion candidate."
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL3): MCP: vendor first-party server ships 3 canvas tools; growing agent chain. Wave 3 fill — markdown title/content persistence, canvas_id mint; section model omitted (shape at warm target)."
     },
     {
       "name": "canvases.edit",
       "heat": "warm",
-      "fidelity": "unsupported",
-      "justification": "Ruled warm (F-729, SL3): MCP: vendor first-party server ships 3 canvas tools. Gap (unsupported < shape target) deferred — F-736 fills hot gaps only; strongest post-M5 promotion candidate."
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL3): MCP: vendor first-party server ships 3 canvas tools. Wave 3 fill — coarse whole-document ops for section-relative edits (shape at warm target)."
     },
     {
       "name": "canvases.delete",
       "heat": "warm",
-      "fidelity": "unsupported",
-      "justification": "Ruled warm (F-729, SL3): MCP: vendor canvas toolset implies lifecycle cleanup. Gap (unsupported < shape target) deferred — F-736 fills hot gaps only."
+      "fidelity": "shape",
+      "justification": "Ruled warm (F-729, SL3): MCP: vendor canvas toolset implies lifecycle cleanup. Wave 3 fill — hard delete with canvas_not_found (shape at warm target alongside create/edit)."
     },
     {
       "name": "conversations.setTopic",
       "heat": "warm",
-      "fidelity": "unsupported",
-      "justification": "Ruled warm (F-729, SL4): TC:set-channel-topic — a classic agent task; no vendor MCP tool. Gap (unsupported < shape target) deferred post-M5."
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729, SL4): TC:set-channel-topic — a classic agent task; no vendor MCP tool. Wave 3 fill — membership/too_long/archived codes. Fidelity semantic > shape target → tier-mismatch ledger."
     },
     {
       "name": "conversations.setPurpose",
       "heat": "warm",
-      "fidelity": "unsupported",
-      "justification": "Ruled warm (F-729, SL4): TC:set-channel-topic sibling; no vendor MCP tool. Gap (unsupported < shape target) deferred post-M5."
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729, SL4): TC:set-channel-topic sibling; no vendor MCP tool. Wave 3 fill. Fidelity semantic > shape target → tier-mismatch ledger."
     },
     {
       "name": "emoji.list",
       "heat": "warm",
-      "fidelity": "unsupported",
-      "justification": "Ruled warm (F-729, SL4): MCP:search_emojis (vendor first-party tool); trivial read. Gap (unsupported < shape target) deferred post-M5."
+      "fidelity": "semantic",
+      "justification": "Ruled warm (F-729, SL4): MCP:search_emojis (vendor first-party tool); trivial read. Wave 3 fill — seeded custom emoji map with alias: protocol. Fidelity semantic > shape target → tier-mismatch ledger."
     },
     {
       "name": "chat.postEphemeral",

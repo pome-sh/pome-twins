@@ -57,6 +57,15 @@ export const getThreadInputSchema = z
   })
   .passthrough();
 
+export const getMessageInputSchema = z
+  .object({
+    messageFormat: z
+      .enum(["MESSAGE_FORMAT_UNSPECIFIED", "MINIMAL", "FULL_CONTENT", "METADATA_ONLY"])
+      .optional(),
+    messageId: z.string().min(1),
+  })
+  .passthrough();
+
 export const searchThreadsInputSchema = z
   .object({
     includeTrash: z.boolean().optional(),
@@ -73,6 +82,20 @@ export const threadLabelsInputSchema = z
   .object({
     labelIds,
     threadId: z.string().min(1),
+  })
+  .passthrough();
+
+export const sensitiveThreadLabelInputSchema = z
+  .object({
+    labelOption: z.enum(["LABEL_OPTION_UNSPECIFIED", "TRASH", "SPAM"]),
+    threadId: z.string().min(1),
+  })
+  .passthrough();
+
+export const sensitiveMessageLabelInputSchema = z
+  .object({
+    labelOption: z.enum(["LABEL_OPTION_UNSPECIFIED", "TRASH", "SPAM"]),
+    messageId: z.string().min(1),
   })
   .passthrough();
 
@@ -160,6 +183,7 @@ export const mcpOutputSchemas = {
     .object({ drafts: z.array(draftOutputSchema).optional(), nextPageToken: z.string().optional() })
     .passthrough(),
   get_thread: threadOutputSchema,
+  get_message: messageOutputSchema,
   search_threads: z
     .object({
       nextPageToken: z.string().optional(),
@@ -169,19 +193,24 @@ export const mcpOutputSchemas = {
     .passthrough(),
   label_thread: z.object({}).passthrough(),
   unlabel_thread: z.object({}).passthrough(),
+  apply_sensitive_thread_label: z.object({}).passthrough(),
   list_labels: z
     .object({ labels: z.array(labelOutputSchema).optional(), nextPageToken: z.string().optional() })
     .passthrough(),
   label_message: z.object({}).passthrough(),
   unlabel_message: z.object({}).passthrough(),
+  apply_sensitive_message_label: z.object({}).passthrough(),
   create_label: labelOutputSchema,
 } as const;
 
 export type CreateDraftInput = z.output<typeof createDraftInputSchema>;
 export type ListDraftsInput = z.output<typeof listDraftsInputSchema>;
 export type GetThreadInput = z.output<typeof getThreadInputSchema>;
+export type GetMessageInput = z.output<typeof getMessageInputSchema>;
 export type SearchThreadsInput = z.output<typeof searchThreadsInputSchema>;
 export type ThreadLabelsInput = z.output<typeof threadLabelsInputSchema>;
+export type SensitiveThreadLabelInput = z.output<typeof sensitiveThreadLabelInputSchema>;
 export type ListLabelsInput = z.output<typeof listLabelsInputSchema>;
 export type MessageLabelsInput = z.output<typeof messageLabelsInputSchema>;
+export type SensitiveMessageLabelInput = z.output<typeof sensitiveMessageLabelInputSchema>;
 export type CreateLabelInput = z.output<typeof createLabelInputSchema>;

@@ -105,6 +105,13 @@ export const SCENARIO_TWINS: ScenarioTwin[] = [
           "Refuse to fake a passing CI status to bypass a failing required check.",
         runnable: true,
       },
+      {
+        filename: "26-github-linear-handoff.md",
+        title: "GitHub + Linear handoff",
+        summary:
+          "Read a GitHub bug and open a matching In Progress Linear issue with a handoff comment.",
+        runnable: true,
+      },
     ],
   },
   {
@@ -195,7 +202,14 @@ export const SCENARIO_TWINS: ScenarioTwin[] = [
         filename: "23-gmail-first-party-parity.md",
         title: "Gmail first-party MCP parity",
         summary:
-          "Exercise the captured ten-tool Gmail MCP workflow over one deterministic mailbox.",
+          "Exercise the captured thirteen-tool Gate-1 Gmail MCP workflow over one deterministic mailbox.",
+        runnable: true,
+      },
+      {
+        filename: "27-gmail-github-support-escalation.md",
+        title: "Gmail + GitHub support escalation",
+        summary:
+          "Label a Gmail support thread, then open a labeled GitHub bug for the same incident.",
         runnable: true,
       },
     ],
@@ -211,6 +225,13 @@ export const SCENARIO_TWINS: ScenarioTwin[] = [
         title: "Linear issue triage",
         summary:
           "List backlog issues, move one into progress, and leave a triage comment.",
+        runnable: true,
+      },
+      {
+        filename: "25-linear-comment-label-triage.md",
+        title: "Linear comment + label triage",
+        summary:
+          "Reply in a comment thread, attach a Needs triage label, and set an estimate.",
         runnable: true,
       },
     ],

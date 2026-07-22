@@ -45,10 +45,19 @@ export type SeedChannel = {
   messages?: SeedMessage[];
 };
 
+export type SeedEmoji = {
+  name: string;
+  /** Absolute image URL. Ignored when `alias` is set. */
+  url?: string;
+  /** Alias target name → stored as `alias:<name>`. */
+  alias?: string;
+};
+
 export type SlackStateSeed = {
   team?: SeedTeam;
   users?: SeedUser[];
   channels?: SeedChannel[];
+  emoji?: SeedEmoji[];
 };
 
 export type WorkspaceRow = {
@@ -174,5 +183,22 @@ export type ScheduledMessageRow = {
   post_at: number;
   date_created: number;
   blocks_json: string;
+};
+
+export type CanvasRow = {
+  id: string;
+  team_id: string;
+  title: string;
+  markdown: string;
+  channel_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EmojiRow = {
+  team_id: string;
+  name: string;
+  value: string;
 };
 

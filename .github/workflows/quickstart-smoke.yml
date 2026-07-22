@@ -11,14 +11,33 @@ on:
       - 'examples/triage-agent/**'
       - 'packages/shared-types/**'
       - 'packages/sdk/**'
+      # Smoke boots github + gmail via the CLI; keep both twins in the filter.
+      - 'packages/twin-github/**'
       - 'packages/twin-gmail/**'
       - 'packages/adapter-claude-sdk/**'
       - 'package.json'
       - 'package-lock.json'
       - 'cli/**'
+      - 'scripts/pack-publishable.mjs'
+      - 'scripts/use-local-pome-tarballs.mjs'
       - '.github/workflows/quickstart-smoke.yml'
   push:
     branches: [main]
+    # Match PR paths — do not pay pack/CLI-build cost on unrelated main merges.
+    paths:
+      - 'README.md'
+      - 'examples/triage-agent/**'
+      - 'packages/shared-types/**'
+      - 'packages/sdk/**'
+      - 'packages/twin-github/**'
+      - 'packages/twin-gmail/**'
+      - 'packages/adapter-claude-sdk/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'cli/**'
+      - 'scripts/pack-publishable.mjs'
+      - 'scripts/use-local-pome-tarballs.mjs'
+      - '.github/workflows/quickstart-smoke.yml'
   workflow_dispatch:
 
 concurrency:

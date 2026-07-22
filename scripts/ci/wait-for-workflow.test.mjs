@@ -131,9 +131,11 @@ function main() {
       "twin-image must wait for secret-scan.yml",
     );
     assert(
-      /needs:\s*wait-gates/.test(y) || /needs:\s*\[\s*wait-gates\s*\]/.test(y),
-      "publish must need wait-gates",
+      /needs:\s*wait-gates/.test(y) ||
+        /needs:\s*\[\s*wait-gates[\s,\w-]*\]/.test(y),
+      "publish must need wait-gates (optionally alongside detect-twins)",
     );
+    assert(/detect-twins:/.test(y), "twin-image must declare detect-twins for PR matrix narrowing");
   }
 
   console.log("✅ wait-for-workflow regression tests passed");

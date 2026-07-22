@@ -2,14 +2,14 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LINEAR_EMAIL,
-  LinearCommands,
+  LinearDomain,
   openLinearTwinDatabase,
 } from "../src/index.js";
 import { testSeed } from "./_helpers.js";
 
 function domain() {
   const db = openLinearTwinDatabase(":memory:");
-  const commands = new LinearCommands(db);
+  const commands = new LinearDomain(db);
   commands.seed(testSeed());
   return commands;
 }

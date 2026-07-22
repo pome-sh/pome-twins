@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from "zod";
 import { defineTwin, type TwinDefinition } from "@pome-sh/sdk";
-import { createApp, type RecorderStore, type SessionValue } from "@pome-sh/sdk/server";
+import { createApp, type RecorderStore } from "@pome-sh/sdk/server";
 import { Hono } from "hono";
 import { resolveLinearCredential } from "./auth-credential.js";
-import { LinearCommands } from "./commands/index.js";
+import { LinearDomain } from "./domain/index.js";
 import { openLinearTwinDatabase } from "./db.js";
 import { linearErrorEnvelope, unauthorizedEnvelope, unsupportedEnvelope } from "./errors.js";
 import { LINEAR_MCP_TOOL_COUNT, linearTools } from "./mcp.js";
@@ -28,7 +28,7 @@ const seedSchema = z.preprocess(
 
 export function createLinearTwinDefinition(
   db: LinearTwinDatabase
-): TwinDefinition<LinearTwinDatabase, ParsedLinearStateSeed, LinearCommands> {
+): TwinDefinition<LinearTwinDatabase, ParsedLinearStateSeed, LinearDomain> {
   return defineTwin({
     id: "linear",
     version: process.env.POME_TWIN_VERSION ?? "0.1.0",
@@ -42,7 +42,7 @@ export function createLinearTwinDefinition(
           "twin-linear: the db passed to createApp/serve must be the db the definition was created with"
         );
       }
-      const domain = new LinearCommands(db);
+      const domain = new LinearDomain(db);
       if (seed) domain.seed(seed);
       return domain;
     },
@@ -110,7 +110,7 @@ export type CreateLinearTwinAppOptions = {
  */
 export function withPublicOAuth(app: Hono, db: LinearTwinDatabase): Hono {
   const root = new Hono();
-  registerOAuthRoutes(root, new LinearCommands(db));
+  registerOAuthRoutes(root, new LinearDomain(db));
   root.route("/", app);
   return root;
 }
@@ -128,8 +128,4 @@ export function createLinearTwinApp(options: CreateLinearTwinAppOptions = {}): H
     seed,
   });
   return withPublicOAuth(app, db);
-}
-
-export function linearEmailFromSession(session?: SessionValue): string {
-  return typeof session?.linear_email === "string" ? session.linear_email : DEFAULT_LINEAR_EMAIL;
 }

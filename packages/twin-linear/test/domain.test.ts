@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LINEAR_CLOCK,
   DEFAULT_LINEAR_EMAIL,
-  LinearCommands,
+  LinearDomain,
   defaultSeedState,
   linearStateDelta,
   openLinearTwinDatabase,
@@ -13,7 +13,7 @@ import { testSeed } from "./_helpers.js";
 
 function domain() {
   const db = openLinearTwinDatabase(":memory:");
-  const commands = new LinearCommands(db);
+  const commands = new LinearDomain(db);
   commands.seed(testSeed());
   return { db, commands };
 }

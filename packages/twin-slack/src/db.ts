@@ -162,10 +162,33 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
   FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS canvases (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  markdown TEXT NOT NULL DEFAULT '',
+  channel_id TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (team_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+  FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS emoji (
+  team_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  value TEXT NOT NULL,
+  PRIMARY KEY (team_id, name),
+  FOREIGN KEY (team_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS messages_text_idx ON messages(text);
 `;
 
 const RESET_SQL = `
+DELETE FROM emoji;
+DELETE FROM canvases;
 DELETE FROM scheduled_messages;
 DELETE FROM bookmarks;
 DELETE FROM files;

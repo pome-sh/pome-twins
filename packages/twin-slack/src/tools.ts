@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from "zod";
 import type { StateDelta } from "@pome-sh/shared-types";
-import type { SlackDomain } from "./domain.js";
+import type { SlackDomain } from "./domain/index.js";
 
 // Slack MCP tools — the 11 visible Slack-agent tools exposed by tools/list.
 // Schemas use z.strictObject so toJSONSchema emits `additionalProperties:false`.

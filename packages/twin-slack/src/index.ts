@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export { createSlackTwinApp, slackTwinDefinition } from "./twin.js";
-export { SlackDomain } from "./domain.js";
+export { SlackDomain } from "./domain/index.js";
 export { openSlackTwinDatabase, migrate, resetDatabase } from "./db.js";
 export { seedSchema, parseSeed, loadSeedFromEnv, defaultSeedState } from "./seed.js";
 export { toolDefinitions, listTools, listToolsForMcp, executeTool, MUTATING_TOOL_NAMES, isMutatingTool } from "./tools.js";

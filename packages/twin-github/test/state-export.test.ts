@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openGitHubCloneDatabase } from "../src/db.js";
-import { GitHubDomain } from "../src/domain.js";
+import { GitHubDomain } from "../src/domain/index.js";
 import { parseSeed } from "../src/seed.js";
 import { createGitHubCloneApp } from "../src/twin.js";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";

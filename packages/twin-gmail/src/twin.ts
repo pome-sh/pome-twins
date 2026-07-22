@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { defineTwin, type TwinDefinition } from "@pome-sh/sdk";
-import { createApp, type RecorderStore, type SessionValue } from "@pome-sh/sdk/server";
+import { createApp, type RecorderStore } from "@pome-sh/sdk/server";
 import type { Hono } from "hono";
 import { openGmailTwinDatabase } from "./db.js";
-import { GmailDomain } from "./domain.js";
+import { GmailDomain } from "./domain/index.js";
 import { gmailErrorEnvelope } from "./errors.js";
 import { DEFAULT_GMAIL_EMAIL } from "./identity.js";
 import { gmailTools } from "./mcp.js";
@@ -109,8 +109,4 @@ export function createGmailTwinApp(options: CreateGmailTwinAppOptions = {}): Hon
     runId: options.runId ?? "spawn",
     seed: options.seed as ParsedGmailStateSeed | undefined,
   });
-}
-
-export function gmailEmailFromSession(session?: SessionValue): string {
-  return typeof session?.gmail_email === "string" ? session.gmail_email : DEFAULT_GMAIL_EMAIL;
 }

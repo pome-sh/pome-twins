@@ -10,7 +10,7 @@
 import type { Context, Hono } from "hono";
 import type { RouteContext } from "@pome-sh/sdk";
 import type { StateDelta } from "@pome-sh/shared-types";
-import type { SlackDomain, Actor } from "./domain.js";
+import type { SlackDomain, Actor } from "./domain/index.js";
 import { TwinError } from "./errors.js";
 import { slackOk } from "./serializers.js";
 import { asBool, asNumber, asOptionalString, asString, parseFormOrJson } from "./util.js";
@@ -173,6 +173,22 @@ export function registerSlackRoutes(app: Hono, { domain, recorder }: RouteContex
         delta
       ),
     (result) => !result.already_open
+  );
+
+  write("/conversations.setTopic", (args, actor, delta) =>
+    domain.conversationsSetTopic(
+      { channel: asString(args.channel), topic: asString(args.topic) },
+      actor,
+      delta
+    )
+  );
+
+  write("/conversations.setPurpose", (args, actor, delta) =>
+    domain.conversationsSetPurpose(
+      { channel: asString(args.channel), purpose: asString(args.purpose) },
+      actor,
+      delta
+    )
   );
 
   // ── Chat ──────────────────────────────────────────────────────────────────
@@ -387,4 +403,32 @@ export function registerSlackRoutes(app: Hono, { domain, recorder }: RouteContex
 
   // ── Team ──────────────────────────────────────────────────────────────────
   read("/team.info", (args) => domain.teamInfo({ team: asOptionalString(args.team) }));
+
+  // ── Canvases (Wave 3) ─────────────────────────────────────────────────────
+  write("/canvases.create", (args, actor, delta) =>
+    domain.canvasesCreate(
+      {
+        title: asOptionalString(args.title),
+        document_content: args.document_content,
+        channel_id: asOptionalString(args.channel_id),
+      },
+      actor,
+      delta
+    )
+  );
+
+  write("/canvases.edit", (args, actor, delta) =>
+    domain.canvasesEdit(
+      { canvas_id: asString(args.canvas_id), changes: args.changes },
+      actor,
+      delta
+    )
+  );
+
+  write("/canvases.delete", (args, actor, delta) =>
+    domain.canvasesDelete({ canvas_id: asString(args.canvas_id) }, actor, delta)
+  );
+
+  // ── Emoji (Wave 3) ────────────────────────────────────────────────────────
+  read("/emoji.list", (args) => domain.emojiList(args));
 }

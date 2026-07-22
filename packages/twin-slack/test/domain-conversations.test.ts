@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 
 function fresh() {
@@ -76,6 +76,20 @@ describe("SlackDomain conversations", () => {
     };
     expect(second.already_open).toBe(true);
     expect(second.channel.id).toBe(first.channel.id);
+  });
+
+  it("conversations.setTopic / setPurpose round-trip on general", () => {
+    const { domain } = fresh();
+    const topic = domain.conversationsSetTopic(
+      { channel: "general", topic: "topic via name" },
+      { login: "alice" }
+    ) as { channel: { topic: { value: string } } };
+    expect(topic.channel.topic.value).toBe("topic via name");
+    const purpose = domain.conversationsSetPurpose(
+      { channel: "C_GENERAL", purpose: "purpose via id" },
+      { login: "bob" }
+    ) as { channel: { purpose: { value: string } } };
+    expect(purpose.channel.purpose.value).toBe("purpose via id");
   });
 
   it("conversations.create distinguishes invalid_name_* error codes", () => {

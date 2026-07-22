@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { defaultSeedState } from "../src/seed.js";
 
 function fresh() {

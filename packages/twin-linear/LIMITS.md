@@ -10,6 +10,7 @@ Pinned limits enforced by seed, GraphQL, MCP, and OAuth paths.
 | GraphQL selection depth | `20` | Loud reject above |
 | Seed users / teams / issues | `500` / `50` / `5000` | Seed parse caps |
 | Seed labels / projects / cycles | `500` / `200` / `200` | Seed parse caps |
+| Seed documents | `500` | Seed parse caps |
 | Seed oauth apps / tokens / webhooks | `20` / `50` / `50` | Seed parse caps |
 | MCP `limit` / pageSize | default `50`, max `250` | list tools |
 | Relay `first`/`last` | default `50`, max `250` | GraphQL connections |

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { openGitHubCloneDatabase } from "../src/db.js";
-import { GitHubDomain } from "../src/domain.js";
+import { GitHubDomain } from "../src/domain/index.js";
 
 function freshDomain() {
   const domain = new GitHubDomain(openGitHubCloneDatabase());

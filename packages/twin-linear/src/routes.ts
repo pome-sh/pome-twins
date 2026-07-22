@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { RouteContext } from "@pome-sh/sdk";
 import type { Hono } from "hono";
-import type { LinearCommands } from "./commands/index.js";
+import type { LinearDomain } from "./domain/index.js";
 import { registerGraphqlRoutes } from "./graphql/routes.js";
 
 /**
@@ -9,6 +9,6 @@ import { registerGraphqlRoutes } from "./graphql/routes.js";
  * OAuth is mounted publicly by `withPublicOAuth` — authorize/token/revoke
  * must not sit behind bearerAuth.
  */
-export function registerLinearRoutes(app: Hono, ctx: RouteContext<LinearCommands>): void {
+export function registerLinearRoutes(app: Hono, ctx: RouteContext<LinearDomain>): void {
   registerGraphqlRoutes(app, ctx);
 }

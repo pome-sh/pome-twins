@@ -122,13 +122,13 @@ function rest(
 }
 
 describe("Gmail MCP frozen contract", () => {
-  it("pins the exact ten-tool order, metadata, schemas, annotations, and mutation set", async () => {
+  it("pins the exact thirteen-tool order, metadata, schemas, annotations, and mutation set", async () => {
     const app = createGmailTwinApp({ seed: seed() });
     const listed = (await (
       await rpc(app, { jsonrpc: "2.0", id: 1, method: "tools/list" })
     ).json()) as { result: { tools: unknown[] } };
     expect(listed.result.tools).toEqual(canonicalListing.result.tools);
-    expect(gmailTools).toHaveLength(10);
+    expect(gmailTools).toHaveLength(13);
     expect(gmailTools.map((tool) => tool.name)).toEqual(
       canonicalListing.meta.launchToolOrder
     );
@@ -138,15 +138,51 @@ describe("Gmail MCP frozen contract", () => {
       "create_draft",
       "label_thread",
       "unlabel_thread",
+      "apply_sensitive_thread_label",
       "label_message",
       "unlabel_message",
+      "apply_sensitive_message_label",
       "create_label",
     ]);
   });
 
-  it("executes all ten tools with captured result shapes and truthful recorder flags", async () => {
+  it("executes all thirteen tools with captured result shapes and truthful recorder flags", async () => {
     const recorder = createRecorderStore();
-    const app = createGmailTwinApp({ seed: seed(), recorder, runId: "run_mcp" });
+    const app = createGmailTwinApp({
+      seed: {
+        ...seed(),
+        primaryMailbox: {
+          ...seed().primaryMailbox,
+          messages: [
+            ...seed().primaryMailbox.messages,
+            {
+              id: "msg_spam_target",
+              threadId: "thread_spam_target",
+              from: "spam@example.com",
+              to: [email],
+              subject: "Spam target",
+              text: "Sensitive label target",
+              date: "2026-07-19T12:30:00.000Z",
+              messageId: "spam-target@example.com",
+              labels: ["INBOX"],
+            },
+            {
+              id: "msg_trash_target",
+              threadId: "thread_trash_target",
+              from: "trash@example.com",
+              to: [email],
+              subject: "Trash target",
+              text: "Thread sensitive label target",
+              date: "2026-07-19T12:31:00.000Z",
+              messageId: "trash-target@example.com",
+              labels: ["INBOX"],
+            },
+          ],
+        },
+      },
+      recorder,
+      runId: "run_mcp",
+    });
     const attachmentCanary = "mcp-binary-canary";
     const responses = [
       await call(app, 1, "create_draft", {
@@ -166,33 +202,45 @@ describe("Gmail MCP frozen contract", () => {
         threadId: "thread_seed",
         messageFormat: "FULL_CONTENT",
       }),
-      await call(app, 4, "search_threads", {
+      await call(app, 4, "get_message", {
+        messageId: "msg_seed",
+        messageFormat: "FULL_CONTENT",
+      }),
+      await call(app, 5, "search_threads", {
         query: "is:unread -in:draft",
         pageSize: 20,
       }),
-      await call(app, 5, "label_thread", {
+      await call(app, 6, "label_thread", {
         threadId: "thread_seed",
         labelIds: ["Label_seed"],
       }),
-      await call(app, 6, "unlabel_thread", {
+      await call(app, 7, "unlabel_thread", {
         threadId: "thread_seed",
         labelIds: ["Label_seed"],
       }),
-      await call(app, 7, "list_labels", { pageSize: 50 }),
-      await call(app, 8, "label_message", {
+      await call(app, 8, "apply_sensitive_thread_label", {
+        threadId: "thread_trash_target",
+        labelOption: "TRASH",
+      }),
+      await call(app, 9, "list_labels", { pageSize: 50 }),
+      await call(app, 10, "label_message", {
         messageId: "msg_seed",
         labelIds: ["STARRED"],
       }),
-      await call(app, 9, "unlabel_message", {
+      await call(app, 11, "unlabel_message", {
         messageId: "msg_seed",
         labelIds: ["STARRED"],
       }),
-      await call(app, 10, "create_label", { displayName: "Projects/Alpha" }),
+      await call(app, 12, "apply_sensitive_message_label", {
+        messageId: "msg_spam_target",
+        labelOption: "SPAM",
+      }),
+      await call(app, 13, "create_label", { displayName: "Projects/Alpha" }),
     ];
 
     expect(responses.every((response) => response.result.isError === false)).toBe(true);
     expect(responses.every((response) => response.result.structuredContent)).toBe(true);
-    for (const index of [4, 5, 7, 8]) {
+    for (const index of [5, 6, 7, 9, 10, 11]) {
       expect(responses[index]!.result.content).toEqual([{ type: "text", text: "OK" }]);
       expect(responses[index]!.result.structuredContent).toEqual({});
     }
@@ -201,23 +249,41 @@ describe("Gmail MCP frozen contract", () => {
       messages: [{ id: "msg_seed", plaintextBody: "Unread body" }],
     });
     expect(responses[3]!.result.structuredContent).toMatchObject({
+      id: "msg_seed",
+      plaintextBody: "Unread body",
+    });
+    expect(responses[4]!.result.structuredContent).toMatchObject({
       threads: [{ id: "thread_seed" }],
     });
-    expect(responses[3]!.result.structuredContent).not.toHaveProperty("nextPageToken");
-    expect(responses[9]!.result.structuredContent).toMatchObject({
+    expect(responses[4]!.result.structuredContent).not.toHaveProperty("nextPageToken");
+    expect(responses[12]!.result.structuredContent).toMatchObject({
       name: "Projects/Alpha",
       threadsTotal: 0,
       threadsUnread: 0,
     });
 
     const events = recorder.events();
-    expect(events).toHaveLength(10);
+    expect(events).toHaveLength(13);
     expect(events.map((event) => event.state_mutation)).toEqual(
       gmailTools.map((tool) => tool.mutation)
     );
     expect(
       events.map((event) => (event.state_mutation ? event.state_delta !== null : event.state_delta))
-    ).toEqual([true, null, null, null, true, true, null, true, true, true]);
+    ).toEqual([
+      true,
+      null,
+      null,
+      null,
+      null,
+      true,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+    ]);
     const tape = JSON.stringify(events);
     expect(tape).not.toContain(attachmentCanary);
     expect(tape).not.toContain(Buffer.from(attachmentCanary).toString("base64"));

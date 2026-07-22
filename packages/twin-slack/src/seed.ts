@@ -53,6 +53,15 @@ export const seedSchema = z.object({
       })
     )
     .default([]),
+  emoji: z
+    .array(
+      z.object({
+        name: z.string().regex(/^[a-z0-9_+-]{1,100}$/),
+        url: z.string().url().optional(),
+        alias: z.string().regex(/^[a-z0-9_+-]{1,100}$/).optional(),
+      })
+    )
+    .default([]),
 });
 
 export function parseSeed(input: unknown): SlackStateSeed {
@@ -144,6 +153,11 @@ export function defaultSeedState(): SlackStateSeed {
         members: [],
         messages: [],
       },
+    ],
+    emoji: [
+      { name: "shipit", alias: "squirrel" },
+      { name: "squirrel" },
+      { name: "bowtie" },
     ],
   };
 }

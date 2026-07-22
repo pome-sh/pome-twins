@@ -39,7 +39,7 @@
     "dev": "tsx src/server.ts",
     "start": "node dist/src/server.js",
     "prepack": "npm run build",
-    "test": "node --test test/gate0-fixtures.test.mjs test/package-deps.test.mjs && vitest run test/domain.test.ts test/graphql.test.ts test/mcp.test.ts test/mcp-graphql-parity.test.ts test/oauth.test.ts test/webhooks.test.ts test/webhook-policy.test.ts test/agent-path.test.ts test/official-client.test.ts test/limits.test.ts test/concurrency.test.ts test/canary-matrix.test.ts test/auth-scopes.test.ts",
+    "test": "node --test test/gate0-fixtures.test.mjs test/package-deps.test.mjs && vitest run test/domain.test.ts test/domain-wave4.test.ts test/graphql.test.ts test/mcp.test.ts test/mcp-graphql-parity.test.ts test/oauth.test.ts test/webhooks.test.ts test/webhook-policy.test.ts test/agent-path.test.ts test/official-client.test.ts test/limits.test.ts test/concurrency.test.ts test/canary-matrix.test.ts test/auth-scopes.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "fidelity:parity": "tsx scripts/fidelity-parity.ts"
   },

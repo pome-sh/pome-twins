@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { invalidArgument, notFound } from "./errors.js";
 import { mimeSha256, normalizeSubject, parseMime } from "./mime.js";
-import { stripHtmlTags } from "./search.js";
+import { stripHtmlTags } from "./search-match.js";
 import type { GmailTwinDatabase, MessageRow, SemanticMessage } from "./types.js";
 
 export const SYSTEM_LABELS = [

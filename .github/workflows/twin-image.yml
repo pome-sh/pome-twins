@@ -25,6 +25,69 @@ on:
   workflow_dispatch:
 
 jobs:
+  # On PRs, build only twins whose package tree (or shared runtime inputs)
+  # changed. main/tags/dispatch always build the full matrix so GHCR stays
+  # coherent. Shared-types / lockfiles / Docker wiring ⇒ all twins.
+  #
+  # FIRST_PARTY_TWINS: github, slack, stripe, gmail, linear
+  detect-twins:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      twins: ${{ steps.detect.outputs.twins }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Select twin matrix
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          all='["github","slack","stripe","gmail","linear"]'
+          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            echo "twins=${all}" >> "$GITHUB_OUTPUT"
+            echo "Full twin matrix (non-PR event)."
+            exit 0
+          fi
+          mapfile -t files < <(git diff --name-only "${BASE_SHA}" HEAD)
+          shared=false
+          for f in "${files[@]}"; do
+            case "$f" in
+              packages/shared-types/*|package.json|package-lock.json|.dockerignore|.trivyignore|scripts/ci/*|.github/workflows/*|packages/*/package.json)
+                shared=true
+                break
+                ;;
+            esac
+          done
+          if [[ "${shared}" == "true" ]]; then
+            echo "twins=${all}" >> "$GITHUB_OUTPUT"
+            echo "Full twin matrix (shared runtime / workflow inputs changed)."
+            exit 0
+          fi
+          selected=()
+          for twin in github slack stripe gmail linear; do
+            for f in "${files[@]}"; do
+              if [[ "$f" == packages/twin-${twin}/* ]]; then
+                selected+=("\"${twin}\"")
+                break
+              fi
+            done
+          done
+          if [[ "${#selected[@]}" -eq 0 ]]; then
+            # Path filter admitted the PR but no twin package matched — keep
+            # wait-gates meaningful with a full verify.
+            echo "twins=${all}" >> "$GITHUB_OUTPUT"
+            echo "Full twin matrix (fallback)."
+            exit 0
+          fi
+          printf -v joined '%s,' "${selected[@]}"
+          echo "twins=[${joined%,}]" >> "$GITHUB_OUTPUT"
+          echo "PR twin matrix: [${joined%,}]"
+
   # Package typecheck/test live in `ci`; secret scanning is a parallel required
   # gate. Wait for both on this SHA before building/scanning/pushing so a red
   # twin cannot still ship a rolling tag to GHCR (FDRS-586 / F-696).
@@ -50,12 +113,12 @@ jobs:
 
   publish:
     name: ${{ matrix.twin }}
-    needs: wait-gates
+    needs: [wait-gates, detect-twins]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        twin: [github, slack, stripe, gmail, linear]
+        twin: ${{ fromJSON(needs.detect-twins.outputs.twins) }}
     permissions:
       actions: read
       contents: read

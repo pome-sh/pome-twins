@@ -17,8 +17,7 @@ const BASE = "/gmail/v1/users/:userId/drafts";
 const UPLOAD = "/upload/gmail/v1/users/:userId/drafts";
 
 export function registerDraftRoutes(app: Hono, kit: GmailRouteKit): void {
-  const { context, serializers, store } = kit;
-  const domain = context.domain;
+  const { serializers, domain } = kit;
 
   app.get(
     BASE,
@@ -26,9 +25,9 @@ export function registerDraftRoutes(app: Hono, kit: GmailRouteKit): void {
       const email = emailFromContext(c);
       const query = c.req.query("q") ?? "";
       const includeSpamTrash = booleanQuery(c, "includeSpamTrash");
-      const drafts = asInputError(() => store.drafts(email, query, includeSpamTrash));
+      const drafts = asInputError(() => domain.drafts(email, query, includeSpamTrash));
       const maxResults = numberQuery(c, "maxResults", 100, 500);
-      const snapshot = store.currentHistoryIdFor(email);
+      const snapshot = domain.currentHistoryIdFor(email);
       const binding = normalizeListBinding("drafts.list", email, { query, includeSpamTrash });
       const { page, nextPageToken } = paginate(drafts, {
         maxResults,
@@ -84,7 +83,7 @@ export function registerDraftRoutes(app: Hono, kit: GmailRouteKit): void {
     `${BASE}/:id`,
     kit.read((c) => {
       const email = emailFromContext(c);
-      return { body: serializers.draft(email, store.draft(email, routeParam(c, "id")), messageFormat(c)) };
+      return { body: serializers.draft(email, domain.draft(email, routeParam(c, "id")), messageFormat(c)) };
     })
   );
 

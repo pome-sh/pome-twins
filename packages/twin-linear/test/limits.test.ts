@@ -5,7 +5,7 @@ import {
   DEFAULT_LINEAR_EMAIL,
   DEFAULT_LINEAR_SID,
   DEFAULT_LINEAR_TOKEN,
-  LinearCommands,
+  LinearDomain,
   createLinearTwinApp,
   defaultSeedState,
   openLinearTwinDatabase,
@@ -65,7 +65,7 @@ async function mcpCall(
 describe("LIMITS.md max+1 enforcement", () => {
   it("rejects titles over TITLE_MAX_BYTES", async () => {
     const db = openLinearTwinDatabase(":memory:");
-    const commands = new LinearCommands(db);
+    const commands = new LinearDomain(db);
     commands.seed(defaultSeedState());
     const team = commands.getTeam("ENG")!;
     await expect(

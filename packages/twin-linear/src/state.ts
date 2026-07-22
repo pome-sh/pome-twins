@@ -13,6 +13,8 @@ export type LinearStateExport = {
   cycles: unknown[];
   issues: unknown[];
   comments: unknown[];
+  issueRelations: unknown[];
+  documents: unknown[];
   oauthApps: unknown[];
   tokens: unknown[];
   webhooks: unknown[];
@@ -35,6 +37,8 @@ export type LinearStateDeltaView = {
   cycles?: unknown[];
   issues?: unknown[];
   comments?: unknown[];
+  issueRelations?: unknown[];
+  documents?: unknown[];
   oauthApps?: unknown[];
   tokens?: unknown[];
   webhooks?: unknown[];
@@ -53,6 +57,8 @@ const ENTITY_COLLECTIONS = [
   "cycles",
   "issues",
   "comments",
+  "issueRelations",
+  "documents",
   "oauthApps",
   "tokens",
   "webhooks",
@@ -152,10 +158,11 @@ export function exportLinearState(db: LinearTwinDatabase): LinearStateExport {
     issues: (
       db
         .prepare(
-          `SELECT id, identifier, number, team_id AS teamId, title, description, priority,
+          `SELECT id, identifier, number, team_id AS teamId, title, description, priority, estimate,
                   state_id AS stateId, assignee_id AS assigneeId, creator_id AS creatorId,
-                  delegate_id AS delegateId, project_id AS projectId, cycle_id AS cycleId, url,
-                  archived_at AS archivedAt, created_at AS createdAt, updated_at AS updatedAt
+                  delegate_id AS delegateId, project_id AS projectId, cycle_id AS cycleId,
+                  parent_id AS parentId, url, archived_at AS archivedAt,
+                  created_at AS createdAt, updated_at AS updatedAt
            FROM issues ORDER BY identifier`
         )
         .all() as Array<Record<string, unknown>>
@@ -169,8 +176,23 @@ export function exportLinearState(db: LinearTwinDatabase): LinearStateExport {
     })),
     comments: db
       .prepare(
-        `SELECT id, issue_id AS issueId, user_id AS userId, body, created_at AS createdAt, updated_at AS updatedAt
+        `SELECT id, issue_id AS issueId, parent_id AS parentId, user_id AS userId, body,
+                created_at AS createdAt, updated_at AS updatedAt
          FROM comments ORDER BY created_at`
+      )
+      .all(),
+    issueRelations: db
+      .prepare(
+        `SELECT issue_id AS issueId, related_issue_id AS relatedIssueId, type
+         FROM issue_relations ORDER BY issue_id, related_issue_id, type`
+      )
+      .all(),
+    documents: db
+      .prepare(
+        `SELECT id, title, content, slug, project_id AS projectId, team_id AS teamId,
+                issue_id AS issueId, cycle_id AS cycleId, icon, color, creator_id AS creatorId,
+                created_at AS createdAt, updated_at AS updatedAt
+         FROM documents ORDER BY created_at, id`
       )
       .all(),
     oauthApps: (

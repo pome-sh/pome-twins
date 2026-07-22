@@ -4,13 +4,13 @@
     "endpoint": "https://mcp.linear.app/mcp",
     "method": "tools/list",
     "protocol": "JSON-RPC 2.0 streamable HTTP",
-    "captureDate": "2026-07-21",
-    "launchToolCount": 18,
+    "captureDate": "2026-07-22",
+    "launchToolCount": 22,
     "notes": [
-      "Re-frozen against current official Linear MCP: create/update issue+project collapsed to save_issue/save_project; create_comment → save_comment.",
-      "Documents/initiatives/milestones MCP tools stay out of launch scope — cold/unsupported.",
+      "Gate-1 Wave 4 expands Gate 0's 18-tool freeze: delete_comment + documents list/get/save; save_issue estimate/parentId/relations; save_comment parentId.",
+      "Documents/initiatives/milestones beyond this minimal set stay named gaps.",
       "GraphQL keeps issueCreate/issueUpdate for SDK parity; MCP follows the vendor listing.",
-      "Schemas are twin-owned Gate 0 fixtures matching documented tool names and agent-eval needs."
+      "Schemas are twin-owned Gate-1 fixtures matching documented tool names and agent-eval needs."
     ],
     "launchToolOrder": [
       "list_issues",
@@ -18,6 +18,7 @@
       "save_issue",
       "list_comments",
       "save_comment",
+      "delete_comment",
       "list_teams",
       "get_team",
       "list_users",
@@ -30,7 +31,10 @@
       "get_project",
       "save_project",
       "list_cycles",
-      "search_documentation"
+      "search_documentation",
+      "list_documents",
+      "get_document",
+      "save_document"
     ]
   },
   "jsonrpc": "2.0",
@@ -67,7 +71,7 @@
       },
       {
         "name": "save_issue",
-        "description": "Create or update a Linear issue. Omit id to create (title and team required); provide id for a partial update.",
+        "description": "Create or update a Linear issue. Omit id to create (title and team required); provide id for a partial update. Relation arrays (blocks/blockedBy/relatedTo) are append-only.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -78,9 +82,14 @@
             "assignee": { "type": "string" },
             "state": { "type": "string" },
             "priority": { "type": "number" },
+            "estimate": { "type": ["number", "null"], "description": "Estimate points; null clears on update" },
             "labels": { "type": "array", "items": { "type": "string" } },
             "project": { "type": "string" },
-            "cycle": { "type": "string" }
+            "cycle": { "type": "string" },
+            "parentId": { "type": ["string", "null"], "description": "Parent issue id/identifier; null removes" },
+            "blocks": { "type": "array", "items": { "type": "string" }, "description": "Append-only blocked issues" },
+            "blockedBy": { "type": "array", "items": { "type": "string" }, "description": "Append-only blockers" },
+            "relatedTo": { "type": "array", "items": { "type": "string" }, "description": "Append-only related issues" }
           },
           "additionalProperties": false
         }
@@ -101,15 +110,28 @@
       },
       {
         "name": "save_comment",
-        "description": "Create a comment on a Linear issue. Provide id to edit an existing comment body when supported.",
+        "description": "Create or update a comment on a Linear issue. Provide id to edit. To reply in a thread, pass parentId (issueId optional when replying).",
         "inputSchema": {
           "type": "object",
           "properties": {
             "id": { "type": "string", "description": "Comment id (edit)" },
             "issueId": { "type": "string" },
+            "parentId": { "type": "string", "description": "Parent comment id for threaded replies" },
             "body": { "type": "string" }
           },
           "required": ["body"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "delete_comment",
+        "description": "Delete a Linear comment by id.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "Comment ID" }
+          },
+          "required": ["id"],
           "additionalProperties": false
         }
       },
@@ -277,6 +299,52 @@
             "query": { "type": "string" }
           },
           "required": ["query"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "list_documents",
+        "description": "List documents in the user's Linear workspace.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "projectId": { "type": "string" },
+            "teamId": { "type": "string" },
+            "query": { "type": "string" },
+            "limit": { "type": "number" },
+            "cursor": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get_document",
+        "description": "Retrieve a Linear document by ID or slug.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "Document ID or slug" }
+          },
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "save_document",
+        "description": "Create or update a Linear document. Omit id to create (title + exactly one parent required); provide id for a partial update.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" },
+            "content": { "type": "string" },
+            "project": { "type": "string" },
+            "team": { "type": "string" },
+            "issue": { "type": "string" },
+            "cycle": { "type": "string" },
+            "icon": { "type": "string" },
+            "color": { "type": "string" }
+          },
           "additionalProperties": false
         }
       }

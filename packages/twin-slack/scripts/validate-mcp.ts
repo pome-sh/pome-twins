@@ -23,7 +23,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { createSlackTwinApp } from "../src/twin.js";
 import { openSlackTwinDatabase } from "../src/db.js";
-import { SlackDomain } from "../src/domain.js";
+import { SlackDomain } from "../src/domain/index.js";
 import { createRecorderStore } from "@pome-sh/sdk/server";
 import { defaultSeedState } from "../src/seed.js";
 import { toolDefinitions } from "../src/tools.js";

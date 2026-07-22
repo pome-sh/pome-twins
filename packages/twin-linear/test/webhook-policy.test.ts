@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { isBlockedIp, privateWebhooksAllowed, webhookDestinationBlocked } from "../src/index.js";
+import {
+  isBlockedIp,
+  privateWebhooksAllowed,
+  webhookDestinationBlocked,
+} from "../src/webhook-policy.js";
 
 describe("webhook SSRF policy", () => {
   it("blocks loopback, private, link-local, and reserved IP literals", () => {

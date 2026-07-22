@@ -1,1 +1,6 @@
 dist/
+
+# In-place emit from `npm run build:runtime` (tsconfig.runtime.json, no outDir).
+# Docker/contract plain-node boots need these; they must never be committed.
+# Same rule as contract/run.mjs cleanRuntimeJs — only X.js beside X.ts.
+src/**/*.js

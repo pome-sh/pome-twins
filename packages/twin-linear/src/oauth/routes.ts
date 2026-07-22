@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Context } from "hono";
-import type { LinearCommands } from "../commands/index.js";
+import type { LinearDomain } from "../domain/index.js";
 import { token } from "../ids.js";
 import { OAUTH_CODE_TTL_SECONDS, type LinearOAuthApp, type LinearTokenActorType } from "../types.js";
 
 export function registerOAuthRoutes(
   app: { get: Function; post: Function },
-  commands: LinearCommands
+  commands: LinearDomain
 ): void {
   app.get("/oauth/authorize", (c: Context) => {
     const clientId = c.req.query("client_id") ?? "";
@@ -317,7 +317,7 @@ function normalizeScopes(value: string, fallback: string[]): string[] {
 }
 
 function requireRegisteredOAuthApp(
-  commands: LinearCommands,
+  commands: LinearDomain,
   clientId: string
 ): LinearOAuthApp | null {
   if (!clientId) return null;

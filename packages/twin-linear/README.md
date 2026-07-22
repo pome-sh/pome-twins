@@ -5,7 +5,7 @@ Deterministic Linear-shaped twin for agent testing (Pome).
 **Status: OSS release candidate.** This package includes the deterministic
 SQLite workspace model, strict seed/reset APIs, GraphQL + OAuth surfaces,
 bounded semantic state export, recording projection, and the captured
-eighteen-tool first-party MCP contract.
+twenty-two-tool first-party MCP contract (Gate 0 launch + Gate-1 Wave 4).
 
 ## Auth identity (frozen)
 
@@ -21,26 +21,28 @@ eighteen-tool first-party MCP contract.
 Pome owns hosted authentication. Local runs also accept DB-backed Linear API
 tokens from the seed for official-client parity.
 
-## Gate 0 artifacts
+## Gate 0 / Gate-1 artifacts
 
 | Path | Role |
 | --- | --- |
 | [`fixtures/graphql-surface.json`](fixtures/graphql-surface.json) | Frozen GraphQL query/mutation/OAuth operation floor |
-| [`fixtures/mcp-tools-list.canonical.json`](fixtures/mcp-tools-list.canonical.json) | Official Linear MCP launch set (18 tools) |
+| [`fixtures/mcp-tools-list.canonical.json`](fixtures/mcp-tools-list.canonical.json) | Official Linear MCP launch set (22 tools) |
 | [`fidelity.inventory.json`](fidelity.inventory.json) | Heat × fidelity × evidence for every launch MCP/GraphQL row |
 | [`REFERENCE-DIVERGENCES.md`](REFERENCE-DIVERGENCES.md) | Emulate rejected; never an oracle |
 | [`LIMITS.md`](LIMITS.md) | Seed/GraphQL/MCP/state-export caps |
 
 See [`fixtures/README.md`](fixtures/README.md) for capture provenance.
 
-## Launch MCP tools (exactly 18)
+## Launch MCP tools (exactly 22)
 
 `list_issues`, `get_issue`, `save_issue`, `list_comments`, `save_comment`,
-`list_teams`, `get_team`, `list_users`, `get_user`, `list_issue_statuses`,
-`get_issue_status`, `list_issue_labels`, `create_issue_label`, `list_projects`,
-`get_project`, `save_project`, `list_cycles`, `search_documentation`.
+`delete_comment`, `list_teams`, `get_team`, `list_users`, `get_user`,
+`list_issue_statuses`, `get_issue_status`, `list_issue_labels`,
+`create_issue_label`, `list_projects`, `get_project`, `save_project`,
+`list_cycles`, `search_documentation`, `list_documents`, `get_document`,
+`save_document`.
 
-These 18 are a **curated launch subset** of the official Linear MCP surface
+These 22 are a **curated Gate-1 subset** of the official Linear MCP surface
 (which currently exposes ~50+ tools); order and names are frozen to match it
 (`save_*` upserts). Everything outside the subset is a named gap below, not a
 silent success. GraphQL still exposes `issueCreate`/`issueUpdate` for SDK
@@ -48,23 +50,22 @@ parity.
 
 ## Named gaps (not fake success)
 
-MCP tool families outside the 18-tool launch subset are not implemented:
+MCP tool families outside the 22-tool Gate-1 subset are not implemented:
 
-- Documents (`*_document`), initiatives (`*_initiative*`), milestones
-  (`*_milestone`), releases (`*_release*`), attachments (`*_attachment*`),
-  git diffs / PR review (`*_diff*`, `merge_diff`, `submit_diff_review`),
-  status updates (`*_status_update`), agent skills (`*_agent_skill*`),
-  `delete_comment`, and `list_project_labels`
-- Implemented tools cover a subset of the real parameters (e.g. `save_issue`
-  omits `estimate`/`milestone`/`parentId`/relations; `save_comment` is
-  issue-only with no threaded `parentId`)
+- Initiatives (`*_initiative*`), milestones (`*_milestone`), releases
+  (`*_release*`), attachments (`*_attachment*`), git diffs / PR review
+  (`*_diff*`, `merge_diff`, `submit_diff_review`), status updates
+  (`*_status_update`), agent skills (`*_agent_skill*`), and
+  `list_project_labels`
+- Implemented tools still omit some real parameters (e.g. `save_issue`
+  omits `milestone` / dueDate via MCP; `save_document` omits initiative parents)
 - Full Linear GraphQL schema tail — loud unsupported / 501
 - External webhook delivery beyond logged attempts
 
 ## Non-goals
 
 - Live Linear network calls
-- Expanding MCP beyond the frozen 18-tool launch set without a new Gate 0 ruling
+- Expanding MCP beyond the frozen 22-tool Gate-1 set without a new ruling
 - Hosted product enablement (see [`HOSTED.md`](HOSTED.md))
 
 ## Limits
@@ -82,7 +83,7 @@ Linear follows the same SDK chassis as GitHub / Slack / Stripe / Gmail:
 | `/_pome/state` | yes | Bounded collection rows |
 | `/_pome/events` + durable recorder | yes | `recordingProjection` redacts secrets |
 | `/admin/reset` + `/admin/seed` | yes | Reports `state_delta` |
-| MCP + GraphQL on one domain | yes | `LinearCommands` |
+| MCP + GraphQL on one domain | yes | `LinearDomain` |
 | Session identity claim | `linear_email` | Peers use provider-shaped claims |
 | Root session mount | yes | `mountSessionAtRoot: true` |
 
@@ -102,5 +103,5 @@ npx @pome-sh/cli twin start linear
 # and the identical POME_LINEAR_TOKEN alias
 ```
 
-Use `pome scenarios linear --copy` for the issue-triage scenario. Hosted
-rollout is gated separately; see [`HOSTED.md`](HOSTED.md).
+Use `pome scenarios linear --copy` for the issue-triage and comment+label
+scenarios. Hosted rollout is gated separately; see [`HOSTED.md`](HOSTED.md).

@@ -1,13 +1,13 @@
 {
   "meta": {
-    "source": "live_unauthenticated_tools_list_filtered_to_launch_set",
+    "source": "live_unauthenticated_tools_list_gate1_launch_set",
     "endpoint": "https://gmailmcp.googleapis.com/mcp/v1",
     "method": "tools/list",
     "protocol": "JSON-RPC 2.0 over HTTP (accept: application/json, text/event-stream)",
     "protocolVersion": "2025-03-26",
     "captureDate": "2026-07-20",
     "rawFileSha256": "6ef35bad568967015c101f89e995148c4eb2131b3a6dd244f7237058abae8e7a",
-    "launchToolCount": 10,
+    "launchToolCount": 13,
     "liveToolCount": 13,
     "liveToolOrder": [
       "create_draft",
@@ -28,6 +28,21 @@
       "create_draft",
       "list_drafts",
       "get_thread",
+      "get_message",
+      "search_threads",
+      "label_thread",
+      "unlabel_thread",
+      "apply_sensitive_thread_label",
+      "list_labels",
+      "label_message",
+      "unlabel_message",
+      "apply_sensitive_message_label",
+      "create_label"
+    ],
+    "gate0LaunchToolOrder": [
+      "create_draft",
+      "list_drafts",
+      "get_thread",
       "search_threads",
       "label_thread",
       "unlabel_thread",
@@ -36,20 +51,20 @@
       "unlabel_message",
       "create_label"
     ],
-    "excludedFromLaunch": [
+    "gate1PromotedFromPreview": [
       "get_message",
       "apply_sensitive_thread_label",
       "apply_sensitive_message_label"
     ],
     "notes": [
       "Raw live tools/list returned 13 tools without auth (Developer Preview).",
-      "Gate 0 launch set is exactly the 10 tools named in the Gmail twin plan / public tool reference.",
-      "Schemas/annotations/descriptions for launch tools are copied verbatim from the live capture.",
-      "Excluded live tools (get_message, apply_sensitive_thread_label, apply_sensitive_message_label) are preview drift vs the documented 10-tool launch set — not served by the twin while claiming official listing parity.",
+      "Gate 1 expands the OSS launch set from the Gate 0 ten-tool freeze to the full live 13-tool listing.",
+      "Schemas/annotations/descriptions for all launch tools are copied verbatim from the live capture.",
+      "Promoted Gate-1 tools: get_message, apply_sensitive_thread_label, apply_sensitive_message_label.",
       "Authenticated tools/call success envelopes were unavailable; see mcp-tools-call.representative.json and mcp-tools-call-unauth-error.raw.json.",
       "initialize returned protocolVersion=2025-03-26 (see mcp-initialize.raw.json)."
     ],
-    "canonicalSha256": "8771e967b1c8d5c364de2a05c890aaddd27fb9eba45fde68e18d767b1dfc7ac3"
+    "canonicalSha256": "56b5e86181c13ead63fdc8ea0d4bedc6860c1a3fdb17372fdca76591e48a4eed"
   },
   "jsonrpc": "2.0",
   "id": 1,
@@ -469,6 +484,138 @@
           "idempotentHint": true,
           "openWorldHint": false,
           "readOnlyHint": true,
+          "title": "Retrieves a specific email message from the authenticated user's Gmail account."
+        },
+        "description": "Retrieves a specific email message from the authenticated user's Gmail account by its unique message ID.\n\nUse this tool to inspect a single, individual email when you already know its message ID. If the user wants to read a specific email in detail, check the exact wording of a message, or examine attachment metadata for a single email, this is the right tool. It is not suitable for retrieving entire conversations or viewing back-and-forth discussion threads; use the 'get_thread' tool instead.\nKey indicators include if the user asks for the full content of a specific message ID returned by a previous search, or if the query asks to inspect a specific individual email rather than an entire thread.\nExample user prompts are: \"Get the full text of message ID 18f123456789abcd.\", \"Read the latest message in that thread from Alice.\", and \"What are the attachment names in the email I just received from HR?\" \n\nThe optional `messageFormat` parameter controls the format of the message returned. By default (or with `FULL_CONTENT`), it returns the full content of the message. Use `MINIMAL` to include only subject and snippet (excluding body). Use `METADATA_ONLY` to include only basic metadata (message ID, thread ID, labels, timestamp, and size estimate). \n",
+        "inputSchema": {
+          "description": "Request message for GetMessage RPC.",
+          "properties": {
+            "messageFormat": {
+              "description": "Optional. Specifies the format of the message returned. Defaults to FULL_CONTENT.",
+              "enum": [
+                "MESSAGE_FORMAT_UNSPECIFIED",
+                "MINIMAL",
+                "FULL_CONTENT",
+                "METADATA_ONLY"
+              ],
+              "type": "string",
+              "x-google-enum-descriptions": [
+                "Defaults to FULL_CONTENT.",
+                "Returns message snippets and key headers (Subject, From, To, Cc, Date).",
+                "Returns all information in \"MINIMAL\" plus the full body content of each message.",
+                "Metadata only: does not include subject, snippet, body, attachment filenames."
+              ]
+            },
+            "messageId": {
+              "description": "Required. The unique identifier of the message to fetch.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "messageId"
+          ],
+          "type": "object"
+        },
+        "name": "get_message",
+        "outputSchema": {
+          "$defs": {
+            "AttachmentMetadata": {
+              "description": "Represents an attachment associated with a message.",
+              "properties": {
+                "filename": {
+                  "description": "The filename of the attachment.",
+                  "type": "string"
+                },
+                "id": {
+                  "description": "Output only. The ID of the attachment.",
+                  "readOnly": true,
+                  "type": "string"
+                },
+                "mimeType": {
+                  "description": "The MIME type of the attachment.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "description": "Message within a thread.",
+          "properties": {
+            "attachmentIds": {
+              "description": "Output only. The attachment ids, only populated if MessageFormat was FULL_CONTENT.",
+              "items": {
+                "type": "string"
+              },
+              "readOnly": true,
+              "type": "array"
+            },
+            "attachments": {
+              "description": "Output only. The attachments, only populated if MessageFormat was FULL_CONTENT.",
+              "items": {
+                "$ref": "#/$defs/AttachmentMetadata"
+              },
+              "readOnly": true,
+              "type": "array"
+            },
+            "ccRecipients": {
+              "description": "CC recipient email addresses.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "date": {
+              "description": "Date of the message in ISO 8601 format (YYYY-MM-DD).",
+              "type": "string"
+            },
+            "htmlBody": {
+              "description": "The HTML content of the email, only populated if MessageFormat was FULL_CONTENT.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The unique identifier of the message.",
+              "type": "string"
+            },
+            "labelIds": {
+              "description": "The ids of the labels attached to the message. Includes ids of user labels and standard system labels limited to \"INBOX\", \"SPAM\", \"TRASH\", \"UNREAD\", \"STARRED\", \"IMPORTANT\", \"SENT\", \"DRAFT\", \"CHAT\".",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "plaintextBody": {
+              "description": "Full body content, only populated if MessageFormat was FULL_CONTENT.",
+              "type": "string"
+            },
+            "sender": {
+              "description": "Sender email address.",
+              "type": "string"
+            },
+            "snippet": {
+              "description": "Snippet of the message body.",
+              "type": "string"
+            },
+            "subject": {
+              "description": "The message subject extracted from headers:",
+              "type": "string"
+            },
+            "toRecipients": {
+              "description": "To recipient email addresses.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
           "title": "Searches for email threads from the authenticated user's Gmail account."
         },
         "description": "Lists email threads from the authenticated user's Gmail account.\n\nThis tool can filter threads based on a query string and supports pagination. It returns a list of threads, including their IDs and related messages. Each related message contains details like a snippet of the message body, the subject, the sender, the recipients etc. The `view` parameter controls which fields are populated in the related messages. By default (or with `THREAD_VIEW_MINIMAL`), it includes subject and snippet. Use `THREAD_VIEW_METADATA_ONLY` to exclude subject and snippet. Note that the full message bodies are not returned by this tool; use the 'get_thread' tool with a thread ID to fetch the full message body if needed. Threads with excluded criteria may still appear in the results. This occurs because Gmail identifies matching messages first. For example, if you search for -is:starred, Gmail will find an entire thread if it contains at least one unstarred message, even if other emails in that same conversation are starred.\n",
@@ -718,6 +865,50 @@
       },
       {
         "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Adds a sensitive label (Trash or Spam) to a thread."
+        },
+        "description": "Adds a sensitive label (Trash or Spam) to an entire thread in the authenticated user's Gmail account. This operation affects all messages currently in the thread and any future messages added to it.\n\nUse this tool to trash or mark a thread as spam. If unsure of the thread ID, use the `search_threads` tool first.\n",
+        "inputSchema": {
+          "description": "Request message for ApplySensitiveThreadLabel RPC.",
+          "properties": {
+            "labelOption": {
+              "description": "Required. The sensitive label option to add.",
+              "enum": [
+                "LABEL_OPTION_UNSPECIFIED",
+                "TRASH",
+                "SPAM"
+              ],
+              "type": "string",
+              "x-google-enum-descriptions": [
+                "Unspecified label option.",
+                "Trash label.",
+                "Spam label."
+              ]
+            },
+            "threadId": {
+              "description": "Required. The ID of the thread to add the label to.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "labelOption"
+          ],
+          "type": "object"
+        },
+        "name": "apply_sensitive_thread_label",
+        "outputSchema": {
+          "description": "Response message for ApplySensitiveThreadLabel RPC.",
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "annotations": {
           "destructiveHint": false,
           "idempotentHint": true,
           "openWorldHint": false,
@@ -873,6 +1064,50 @@
         "name": "unlabel_message",
         "outputSchema": {
           "description": "Response message for UnlabelMessage RPC.",
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Adds a sensitive label (Trash or Spam) to a message."
+        },
+        "description": "Adds a sensitive label (Trash or Spam) to a specific message in the authenticated user's Gmail account.\n\nUse this tool to trash or mark a message as spam. To find the message ID, use tools like `search_threads` or `get_thread`.\n",
+        "inputSchema": {
+          "description": "Request message for ApplySensitiveMessageLabel RPC.",
+          "properties": {
+            "labelOption": {
+              "description": "Required. The sensitive label option to add.",
+              "enum": [
+                "LABEL_OPTION_UNSPECIFIED",
+                "TRASH",
+                "SPAM"
+              ],
+              "type": "string",
+              "x-google-enum-descriptions": [
+                "Unspecified label option.",
+                "Trash label.",
+                "Spam label."
+              ]
+            },
+            "messageId": {
+              "description": "Required. The ID of the message to add the label to.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "messageId",
+            "labelOption"
+          ],
+          "type": "object"
+        },
+        "name": "apply_sensitive_message_label",
+        "outputSchema": {
+          "description": "Response message for ApplySensitiveMessageLabel RPC.",
           "properties": {},
           "type": "object"
         }

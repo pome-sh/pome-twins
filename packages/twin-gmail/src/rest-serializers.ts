@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { GmailDomain } from "./domain.js";
+import type { GmailDomain, LabelResource } from "./domain/index.js";
 import { encodeGmailRaw } from "./mime.js";
 import type { MessageFormat } from "./rest-common.js";
-import type { GmailRestStore, LabelResource } from "./rest-store.js";
 import type { HistoryEvent, SemanticMessage } from "./types.js";
 
 export class GmailRestSerializers {
-  constructor(
-    private readonly domain: GmailDomain,
-    private readonly store: GmailRestStore
-  ) {}
+  constructor(private readonly domain: GmailDomain) {}
 
   message(
     email: string,
@@ -22,7 +18,7 @@ export class GmailRestSerializers {
       threadId: message.threadId,
       labelIds: message.labelIds,
       snippet: message.snippet,
-      historyId: this.store.latestMessageHistory(email, message.id),
+      historyId: this.domain.latestMessageHistory(email, message.id),
       internalDate: String(message.internalDate),
       sizeEstimate: message.sizeEstimate,
     };
@@ -30,7 +26,7 @@ export class GmailRestSerializers {
     if (format === "raw") {
       return { ...base, raw: encodeGmailRaw(this.domain.getRaw(email, message.id)) };
     }
-    const headers = this.store.headers(email, message.id);
+    const headers = this.domain.headers(email, message.id);
     if (format === "metadata") {
       return {
         ...base,
@@ -55,7 +51,7 @@ export class GmailRestSerializers {
     const latest = thread.messages.at(-1);
     return {
       id: thread.id,
-      historyId: this.store.latestThreadHistory(email, thread.id),
+      historyId: this.domain.latestThreadHistory(email, thread.id),
       ...(latest?.snippet ? { snippet: latest.snippet } : {}),
       messages: thread.messages.map((message) => this.message(email, message, format, metadataHeaders)),
     };

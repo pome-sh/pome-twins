@@ -23,6 +23,8 @@ export const SUPPORTED_SURFACES = [
   "conversations.history",
   "conversations.replies",
   "conversations.open",
+  "conversations.setTopic",
+  "conversations.setPurpose",
   "chat.postMessage",
   "chat.update",
   "chat.delete",
@@ -48,6 +50,10 @@ export const SUPPORTED_SURFACES = [
   "bookmarks.remove",
   "bookmarks.list",
   "team.info",
+  "canvases.create",
+  "canvases.edit",
+  "canvases.delete",
+  "emoji.list",
 ];
 
 export const unsupportedEnvelope = {

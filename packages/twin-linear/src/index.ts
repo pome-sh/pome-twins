@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-export { LinearCommands } from "./commands/index.js";
-export type { LinearDomain, ActorContext } from "./commands/index.js";
+export { LinearDomain } from "./domain/index.js";
+export type { ActorContext, PendingCode } from "./domain/index.js";
 export { openLinearTwinDatabase, migrate, resetDatabase } from "./db.js";
 export {
   LinearTwinError,
@@ -10,11 +10,6 @@ export {
 } from "./errors.js";
 export { looksLikeLinearToken, resolveLinearCredential } from "./auth-credential.js";
 export { assertWebhookUrl, webhookUrlError } from "./webhook-url.js";
-export {
-  isBlockedIp,
-  privateWebhooksAllowed,
-  webhookDestinationBlocked,
-} from "./webhook-policy.js";
 export { linearTools, LINEAR_MCP_TOOL_COUNT } from "./mcp.js";
 export { projectLinearRecording } from "./recording.js";
 export {
@@ -29,7 +24,6 @@ export type { LinearStateExport } from "./state.js";
 export {
   createLinearTwinApp,
   createLinearTwinDefinition,
-  linearEmailFromSession,
   withPublicOAuth,
 } from "./twin.js";
 export { registerLinearRoutes } from "./routes.js";

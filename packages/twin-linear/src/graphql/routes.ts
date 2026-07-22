@@ -3,22 +3,19 @@ import { getOperationAST, graphql, parse, type GraphQLError, type GraphQLFormatt
 import type { Context } from "hono";
 import type { RouteContext } from "@pome-sh/sdk";
 import type { SessionValue } from "@pome-sh/sdk/server";
-import type { LinearCommands } from "../commands/index.js";
+import type { LinearDomain } from "../domain/index.js";
 import { LinearTwinError, badUserInput } from "../errors.js";
 // GraphQL v16 dropped `formatError` on `graphql()` — project twin errors after execute.
 import { byteLength } from "../ids.js";
+import { actorFromSession } from "../identity.js";
 import { linearStateDelta } from "../state.js";
-import {
-  GRAPHQL_QUERY_MAX_BYTES,
-  GRAPHQL_SELECTION_DEPTH_MAX,
-  DEFAULT_LINEAR_EMAIL,
-} from "../types.js";
+import { GRAPHQL_QUERY_MAX_BYTES, GRAPHQL_SELECTION_DEPTH_MAX } from "../types.js";
 import { createRootValue } from "./resolvers.js";
 import { linearGraphQLSchema } from "./schema.js";
 
 export function registerGraphqlRoutes(
   app: { get: Function; post: Function },
-  ctx: RouteContext<LinearCommands>
+  ctx: RouteContext<LinearDomain>
 ): void {
   app.get(
     "/graphql",
@@ -44,7 +41,7 @@ export function registerGraphqlRoutes(
 }
 
 async function executeRecordedGraphQL(
-  ctx: RouteContext<LinearCommands>,
+  ctx: RouteContext<LinearDomain>,
   c: Context,
   query: string,
   opts: { variables?: Record<string, unknown>; operationName?: string }
@@ -64,7 +61,7 @@ async function executeRecordedGraphQL(
 }
 
 async function runGraphQL(
-  commands: LinearCommands,
+  commands: LinearDomain,
   c: Context,
   query: string,
   opts: { variables?: Record<string, unknown>; operationName?: string }
@@ -96,14 +93,7 @@ async function runGraphQL(
   }
 
   const session = c.get("session") as SessionValue | undefined;
-  const actor = {
-    userId: typeof session?.linear_user_id === "string" ? session.linear_user_id : undefined,
-    email:
-      typeof session?.linear_email === "string"
-        ? session.linear_email
-        : DEFAULT_LINEAR_EMAIL,
-    scopes: Array.isArray(session?.scopes) ? (session.scopes as string[]) : undefined,
-  };
+  const actor = actorFromSession(session);
 
   try {
     const result = await graphql({
