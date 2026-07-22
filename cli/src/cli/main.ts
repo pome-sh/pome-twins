@@ -154,7 +154,7 @@ export function createProgram() {
         "\n" +
         "Optional follow-ups:\n" +
         "  - pome init --sdk claude         # scaffold a Claude Agent SDK starter\n" +
-        "  - pome scenarios stripe --copy   # add Stripe payment scenarios when needed\n" +
+        "  - pome scenarios stripe --copy   # add Stripe payment tasks when needed\n" +
         "\n" +
         "See `pome docs getting-started` for a narrative walkthrough.";
 
@@ -290,7 +290,7 @@ export function createProgram() {
     )
     .option(
       "--copy",
-      "Copy the twin's runnable scenarios into the local project.",
+      "Copy the twin's runnable tasks into the local project.",
       false,
     )
     .option(
@@ -303,7 +303,7 @@ export function createProgram() {
       "With --copy, write into this directory instead of ./scenarios/.",
     )
     .description(
-      "Browse the bundled scenarios library (or copy a twin's scenarios into the local project)",
+      "Browse the bundled task library (or copy a twin's tasks into the local project)",
     )
     .action(
       async (
@@ -320,7 +320,7 @@ export function createProgram() {
 
   program
     .command("compile-seeds")
-    .argument("[target]", "Scenario .md file or directory (defaults to ./scenarios)")
+    .argument("[target]", "Task .md file or directory (defaults to ./scenarios)")
     .option("--force", "Recompile even if the sidecar's source hash matches", false)
     .option(
       "--hosted",
@@ -553,7 +553,7 @@ export function createProgram() {
     .option(
       "-n, --trials <count>",
       "FDRS-636: run <count> isolated trials of the task as ONE trial group (integer 1-20; hosted only). " +
-        "Default is the scenario config's `runs` field (capped at 20). k>1 mints sessions with a shared group id up to your " +
+        "Default is the task config's `runs` field (capped at 20). k>1 mints sessions with a shared group id up to your " +
         "plan's concurrent-twin quota (FDRS-663: remaining trials reuse slots as earlier trials finish), runs trials at that " +
         "concurrency, prints the per-trial verdict table (numeric cloud-judge scores), and exits 0 iff at least one " +
         "trial completed and every completed trial passed (1: a completed trial failed; 2: nothing completed). " +
@@ -921,7 +921,7 @@ export function createProgram() {
     .command("eval")
     .argument(
       "[run-dir]",
-      "Existing run directory (runs/<scenario>/<run-id>). Omit to use <artifacts-dir>/latest.json.",
+      "Existing run directory (runs/<task>/<run-id>). Omit to use <artifacts-dir>/latest.json.",
     )
     .option(
       "--artifacts-dir <dir>",
@@ -934,7 +934,7 @@ export function createProgram() {
     )
     .option(
       "--task <name>",
-      "Task name recorded on the eval session. Defaults to meta.json's scenario slug (then title).",
+      "Task name recorded on the eval session. Defaults to meta.json's `scenario` slug (a legacy key name; then title).",
     )
     .option(
       "--api-url <url>",
@@ -1005,14 +1005,14 @@ export function createProgram() {
     .command("fix-prompt")
     .argument(
       "[target]",
-      "Artifacts root or a trial run dir (default: runs). Legacy form: a path to events.jsonl — then <scenario> is required.",
+      "Artifacts root or a trial run dir (default: runs). Legacy form: a path to events.jsonl — then <task> is required.",
     )
     .argument(
-      "[scenario]",
-      "Path to scenario.md (only with an events.jsonl target)",
+      "[task]",
+      "Path to the task .md file (only with an events.jsonl target)",
     )
     .description(
-      "Assemble a paste-into-IDE fix prompt (no LLM call, no network). With no args, reads the latest FAILED run set under ./runs: the persisted cloud verdicts (verdict.json) become grouped failure signatures over the raw traces, in one prompt. Point it at a trial run dir to target that set, or use the legacy `<events.jsonl> <scenario.md>` form for a single trace.",
+      "Assemble a paste-into-IDE fix prompt (no LLM call, no network). With no args, reads the latest FAILED run set under ./runs: the persisted cloud verdicts (verdict.json) become grouped failure signatures over the raw traces, in one prompt. Point it at a trial run dir to target that set, or use the legacy `<events.jsonl> <task.md>` form for a single trace.",
     )
     .action(async (target?: string, scenarioArg?: string) => {
       // Legacy 2-arg form: <events.jsonl> <scenario.md> — unchanged
@@ -1020,7 +1020,7 @@ export function createProgram() {
       if (target !== undefined && target.endsWith(".jsonl")) {
         if (!scenarioArg) {
           console.error(
-            "The events.jsonl form needs the scenario: pome fix-prompt <events.jsonl> <scenario.md>",
+            "The events.jsonl form needs the task file: pome fix-prompt <events.jsonl> <task.md>",
           );
           process.exitCode = 5;
           return;
@@ -1039,7 +1039,7 @@ export function createProgram() {
       }
       if (scenarioArg !== undefined) {
         console.error(
-          "The second argument only applies to the events.jsonl form: pome fix-prompt <events.jsonl> <scenario.md>",
+          "The second argument only applies to the events.jsonl form: pome fix-prompt <events.jsonl> <task.md>",
         );
         process.exitCode = 5;
         return;
@@ -1265,7 +1265,7 @@ async function scenarioFiles(target: string) {
   // of the default 2 ("twin/orch"). CI consumers branching on $? expect
   // 5 to mean "fix your command", not "retry the cloud".
   if (!existsSync(resolved)) {
-    throw new HostedUsageError(`Scenario path not found: ${target}`);
+    throw new HostedUsageError(`Task path not found: ${target}`);
   }
   const stat = await import("node:fs/promises").then((fs) => fs.stat(resolved));
   if (stat.isFile()) return [resolved];

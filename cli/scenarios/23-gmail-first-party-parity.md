@@ -1,8 +1,8 @@
-# Scenario 23 — Gmail First-Party MCP Parity
+# Task 23 — Gmail First-Party MCP Parity
 
 ## Setup
 The mailbox contains a multi-thread inbox (welcome, build+reply, support)
-plus the parity seed message, two drafts, and user labels. This scenario
+plus the parity seed message, two drafts, and user labels. This task
 targets the captured first-party Gmail MCP Gate-1 launch contract (13 tools).
 
 ## Prompt

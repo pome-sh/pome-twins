@@ -61,7 +61,7 @@ export async function loginWithClerk(options: LoginOptions): Promise<void> {
   }
 
   console.error("Pome login complete.");
-  console.error("Next: `pome session create --twin github` or `pome run <scenario>.md`");
+  console.error("Next: `pome session create --twin github` or `pome run <task>.md`");
 }
 
 async function exchangeCode(input: {

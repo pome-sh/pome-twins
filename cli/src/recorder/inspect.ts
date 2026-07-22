@@ -146,7 +146,7 @@ export function computeTraceHealth(input: TraceHealthInput): TraceHealthLayer[] 
     status: layerStatus(casCount, casExpected),
     note:
       casExpected > 0 && casCount === 0
-        ? "warning: scenario flagged adapter but no adapter events recorded"
+        ? "warning: task flagged adapter but no adapter events recorded"
         : null,
   };
 

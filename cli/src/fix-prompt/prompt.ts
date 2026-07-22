@@ -107,10 +107,10 @@ export function buildFixUserPrompt(ctx: FixPromptContext): string {
   const scenarioTitle = redactSecrets(ctx.scenario.title) as string;
   const scenarioPrompt = redactSecrets(ctx.scenario.prompt) as string;
 
-  return `## Scenario
+  return `## Task
 ${scenarioTitle}
 
-## Scenario prompt (what the agent was told to do)
+## Task prompt (what the agent was told to do)
 ${scenarioPrompt}
 
 ## Criteria the run had to satisfy
@@ -280,7 +280,7 @@ task ${redactSecrets(ctx.taskName) as string} · ${
   sections.push(`## Grouped failure signatures (from the cloud judge)
 ${escapeTagContent(signatures)}`);
 
-  sections.push(`## Scenario prompt (what the agent was told to do)
+  sections.push(`## Task prompt (what the agent was told to do)
 ${promptBlock}`);
 
   sections.push(`## Criteria the run had to satisfy

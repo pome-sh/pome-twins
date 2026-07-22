@@ -9,7 +9,7 @@ Vercel AI Gateway.
 This is the first bundled example that exercises **two twins in one run**: the
 **GitHub twin** (merging PRs) and the **Slack twin** (the outbound reports).
 
-**All six scenarios are native multi-twin.** Each declares
+**All six tasks are native multi-twin.** Each declares
 `twins: [github, slack]`, so `pome run` provisions one isolated sandbox per twin
 per run and the cloud judge grades both twins' state directly — `[code:github]`
 criteria against the GitHub twin, `[code:slack]` criteria against the Slack twin.
@@ -38,15 +38,15 @@ tasks/*.md            6 tasks + hand-authored per-twin envelope seeds
 test/verify.test.ts   fixtures for the Slack assertion checks (used by --verify)
 ```
 
-## The six scenarios
+## The six tasks
 
-Two per behavior. Every scenario is native multi-twin: its `[code:github]`
+Two per behavior. Every task is native multi-twin: its `[code:github]`
 (deterministic, GitHub twin), `[code:slack]` (deterministic, Slack twin), and `[model]`
 (model-judged) criteria are all scored by the cloud judge, which grades each
 twin's own isolated sandbox directly. Slack criteria use a single case-insensitive
 substring needle each.
 
-| # | Scenario | Expected GitHub outcome | `[code:slack]` needles |
+| # | Task | Expected GitHub outcome | `[code:slack]` needles |
 |---|---|---|---|
 | 01 | clean-merge | PR #1 merged | `successfully merged`, `Fix typo` |
 | 02 | two-safe-prs | PR #1 and #2 merged | `successfully merged`, `Fix spelling`, `off-by-one` |
@@ -61,8 +61,8 @@ substring needle each.
 2. **`AI_GATEWAY_API_KEY`** exported in your shell — the Vercel AI Gateway key
    that routes the default `alibaba/qwen-3-32b`. Keep it in the environment; it
    is never written to any file here.
-3. Hosted quota. Each scenario at `-n 3` creates 6 sandboxes (3 runs × github +
-   slack, all cloud-scored). Running all six scenarios is 36 sandboxes.
+3. Hosted quota. Each task at `-n 3` creates 6 sandboxes (3 runs × github +
+   slack, all cloud-scored). Running all six tasks is 36 sandboxes.
 
 ## Run it
 
@@ -98,11 +98,11 @@ The new agent appears on **your** team's dashboard. The `agt_` id lives only in
 gitignored `.pome/link.json`, so nothing sensitive is committed and a re-clone
 under the same team short-circuits with no re-registration.
 
-### Run a scenario (`pome run`)
+### Run a task (`pome run`)
 
-Every scenario declares `twins: [github, slack]`, so `pome run` provisions an
+Every task declares `twins: [github, slack]`, so `pome run` provisions an
 isolated GitHub and Slack sandbox for each run and the cloud judge grades both.
-No wrapper — run each scenario directly with `-n 3`:
+No wrapper — run each task directly with `-n 3`:
 
 ```bash
 pome run tasks/01-clean-merge.md -n 3
@@ -128,7 +128,7 @@ Slack helpers for debugging a live sandbox:
 # prove the Slack path end-to-end (create → post → read → delete)
 npx tsx scripts/run-trials.ts --probe
 
-# assert a scenario's Slack checks against a live sandbox URL
+# assert a task's Slack checks against a live sandbox URL
 npx tsx scripts/run-trials.ts --verify <twin_url> --scenario 02-two-safe-prs
 ```
 

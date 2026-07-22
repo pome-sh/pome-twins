@@ -1,4 +1,4 @@
-# Scenario 03 — Already triaged
+# Task 03 — Already triaged
 
 ## Setup
 

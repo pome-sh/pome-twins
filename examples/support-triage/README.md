@@ -27,7 +27,7 @@ duplicate) for v1 vs `issues: 1 → 1` + a comment for v2. Measured results are 
 [`VERIFICATION.md`](./VERIFICATION.md) (v1 **0/5**, v2 **4/5** on
 `claude-sonnet-5`).
 
-## The scenario
+## The task
 
 [`scenarios/duplicate-issue.md`](./scenarios/duplicate-issue.md) is
 self-contained (task + criteria + an inline `## Seed State`). The seed pre-loads
@@ -73,14 +73,14 @@ by filing a duplicate → switch to v2 (the one-line fix) → watch it pass.
 ```
 agents/support-triage-v1.yaml   baseline (files a duplicate) — fails
 agents/support-triage-v2.yaml   fixed (searches first) — passes; one line different
-scenarios/duplicate-issue.md    the scenario (inline ## Seed State)
+scenarios/duplicate-issue.md    the task (inline ## Seed State)
 VERIFICATION.md                 measured v1-vs-v2 results with run ids
 ```
 
 ## Notes
 
 - The bearer token in each `examinee_launch` is **sensitive** — keep it in memory
-  only; never write it to disk or into a scenario.
+  only; never write it to disk or into a task.
 - The declared `mcp_servers` URLs (`mcp.slack.com`, `api.githubcopilot.com`) are
   the agent's *real* servers; Pome swaps them for per-session twin URLs at run
   time. Do not intake `support-triage-v1` against a real deployment — it files

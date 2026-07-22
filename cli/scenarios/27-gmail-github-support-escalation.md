@@ -1,4 +1,4 @@
-# Scenario 27 — Gmail + GitHub support escalation
+# Task 27 — Gmail + GitHub support escalation
 
 ## Setup
 The Gmail twin has an unread support email from alice@example.com about a stuck

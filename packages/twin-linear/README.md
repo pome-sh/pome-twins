@@ -104,4 +104,4 @@ npx @pome-sh/cli twin start linear
 ```
 
 Use `pome scenarios linear --copy` for the issue-triage and comment+label
-scenarios. Hosted rollout is gated separately; see [`HOSTED.md`](HOSTED.md).
+tasks. Hosted rollout is gated separately; see [`HOSTED.md`](HOSTED.md).
