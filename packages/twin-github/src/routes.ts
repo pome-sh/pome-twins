@@ -11,7 +11,7 @@ import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { RouteContext } from "@pome-sh/sdk";
 import type { StateDelta } from "@pome-sh/shared-types";
-import type { GitHubDomain } from "./domain.js";
+import type { GitHubDomain } from "./domain/index.js";
 import { TwinError, validationFailed } from "./errors.js";
 
 type HandleResult = { status: number; body: unknown; mutation?: boolean; delta?: StateDelta };

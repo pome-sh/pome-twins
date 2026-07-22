@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createGitHubCloneApp } from "../src/twin.js";
 import { openGitHubCloneDatabase } from "../src/db.js";
-import { GitHubDomain } from "../src/domain.js";
+import { GitHubDomain } from "../src/domain/index.js";
 import { TEST_AUTH_SECRET, TEST_SID, signTestToken, withAuth } from "./_authHelper.js";
 
 const previousSecret = process.env.TWIN_AUTH_SECRET;

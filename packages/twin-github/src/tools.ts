@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from "zod";
 import type { StateDelta } from "@pome-sh/shared-types";
-import type { GitHubDomain } from "./domain.js";
+import type { GitHubDomain } from "./domain/index.js";
 import { TwinError, validationFailed } from "./errors.js";
 
 const pageShape = {

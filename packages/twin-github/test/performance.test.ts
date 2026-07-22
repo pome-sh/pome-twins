@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openGitHubCloneDatabase } from "../src/db.js";
-import { GitHubDomain } from "../src/domain.js";
+import { GitHubDomain } from "../src/domain/index.js";
 
 describe("SQLite performance smoke checks", () => {
   it("keeps hot-path search, listing, and export bounded on larger seeded repos", () => {
