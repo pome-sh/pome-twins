@@ -89,6 +89,35 @@ function warnUnknownFramework(existingAgent: Record<string, unknown>): void {
   console.error(`Unknown agent.framework "${framework}".${hint} (Recorded as-is.)`);
 }
 
+/** F-861 — surface the slug rename when the resolver matched an old slug via an
+ *  alias (cloud emits `resolved_via: "alias"` + a `hint` since v0.4.18). By this
+ *  point the manifest has already been rewritten to the new canonical slug, so
+ *  attribution self-heals silently; this only makes the change visible. Shared
+ *  by `pome register agent` and `pome install` (both go through
+ *  createAndPersistAgent), so the notice prints on either path.
+ *
+ *  Gated strictly on `resolved_via === "alias"` — the "alias branch only" rule.
+ *  A bare `hint` is NOT a rename signal (a future cloud may attach a hint to a
+ *  non-alias response), and real alias responses always carry resolved_via, so
+ *  strict gating never drops a genuine rename. "The slug the CLI sent" is the
+ *  manifest's prior `agent.slug` (createAndPersistAgent posts only name/twins,
+ *  never a slug), compared against the server-returned canonical slug. */
+function maybeWarnSlugRenamed(
+  existingAgent: Record<string, unknown>,
+  agent: AgentResponse,
+  manifestPath: string,
+): void {
+  if (agent.resolved_via !== "alias") return;
+  const sentSlug = typeof existingAgent.slug === "string" ? existingAgent.slug : undefined;
+  if (sentSlug === undefined || agent.slug === sentSlug) return;
+
+  console.error(
+    `Agent slug "${sentSlug}" was renamed to "${agent.slug}" in Pome. Updated agent.slug in ${basename(manifestPath)}.`,
+  );
+  const hint = typeof agent.hint === "string" && agent.hint.trim().length > 0 ? agent.hint : undefined;
+  if (hint !== undefined) console.error(stripControlCharacters(hint));
+}
+
 /** POST the resolver, then write the server-canonical identity into the
  *  manifest (preserving format + unrelated keys), cache the id in
  *  `.pome/link.json` (team-gated), and ensure `.pome/` is gitignored. */
@@ -128,6 +157,8 @@ async function createAndPersistAgent(input: {
   };
   if (typeof nextRaw.$schema !== "string") nextRaw.$schema = SCHEMA_URL;
   await writeManifest(input.manifestRead.path, input.manifestRead.format, nextRaw);
+
+  maybeWarnSlugRenamed(existingAgent, agent, input.manifestRead.path);
 
   // Cache the resolved id only when we know the caller's team (env-key auth
   // has no local team; the cache stays absent and every run re-resolves).

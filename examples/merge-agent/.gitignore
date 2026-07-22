@@ -4,3 +4,7 @@ dist/
 .env
 .env.local
 runs/
+# legacy per-user config; may still exist in pre-migration clones (holds an agent id)
+pome.config.json
+# per-user: team-gated resolver cache (resolved agt_ id), written by `pome run` / `pome register`
+.pome/

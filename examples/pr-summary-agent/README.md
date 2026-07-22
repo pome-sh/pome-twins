@@ -54,6 +54,15 @@ Infisical lookups honor `INFISICAL_ENV` (default `dev`),
 `INFISICAL_PROJECT_ID`, and `POME_INFISICAL_SECRET_NAME` (default
 `ANTHROPIC_API_KEY`).
 
+## Identity (`pome.json`)
+
+This example ships a committed [`pome.json`](./pome.json) manifest carrying the
+portable `agent.slug` (`pr-summary-agent`) and `framework: "claude-agent-sdk"` —
+no agent id. On a hosted `pome run` the CLI resolves that slug to an `agt_` id
+under **your** team and caches it in the gitignored `.pome/` dir, so a fork
+self-onboards onto your own dashboard with nothing sensitive committed. Task
+files live under [`tasks/`](./tasks/), referenced by the manifest's `tasks` key.
+
 ## Run (standalone, against `pome twin start`)
 
 ```bash
@@ -88,7 +97,7 @@ export ANTHROPIC_API_KEY=sk-ant-...    # or run under `infisical run -- ...`
 
 # from this directory, with the CLI repo checked out beside `pome`
 npm run --cwd ../../../cli dev -- run \
-  ../pome/examples/pr-summary-agent/01-summarize-prs.md \
+  ../pome/examples/pr-summary-agent/tasks/01-summarize-prs.md \
   --agent "npm run --cwd $(pwd) start"
 ```
 

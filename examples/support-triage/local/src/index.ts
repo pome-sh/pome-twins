@@ -57,7 +57,7 @@ ${TRIAGE_RULE}
 Be concise. Include real reproduction steps.`;
 
 // Fallback kickoff prompt when the launcher doesn't inject POME_TASK. Matches
-// the `## Prompt` of ../../scenarios/duplicate-issue.md (the task itself —
+// the `## Prompt` of ../../tasks/duplicate-issue.md (the task itself —
 // seed, criteria, config — stays in that file; this is only the kickoff line).
 const DEFAULT_TASK = `A customer bug report came in on the #support Slack channel. Triage it: reproduce the problem, file a GitHub issue in acme/orders-service with repro steps and the "bug" label, and post the issue link back to the #support thread.`;
 
@@ -97,7 +97,7 @@ export function resolveTwinWiring(env: NodeJS.ProcessEnv = process.env): TwinWir
         "  • coach flow — `run_task` returns an `examinee_launch` spec; map its\n" +
         "    per-twin MCP URLs to POME_GITHUB_MCP_URL / POME_SLACK_MCP_URL and\n" +
         "    its agent_token to POME_AUTH_TOKEN, then spawn `npm run start`.\n" +
-        "  • CLI flow — `pome run ../scenarios/duplicate-issue.md --agent \"npm run start\"`\n" +
+        "  • CLI flow — `pome run ../tasks/duplicate-issue.md --agent \"npm run start\"`\n" +
         "    injects all of them automatically."
     );
   }

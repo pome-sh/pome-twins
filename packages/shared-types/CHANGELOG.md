@@ -1,5 +1,18 @@
 # @pome-sh/shared-types — CHANGELOG
 
+## 0.12.1
+
+### Added
+
+- `agentResponseSchema` (`POST /v1/agents`) gains optional `resolved_via` and
+  `hint` (F-861). `resolved_via` is an open string enum — known values today are
+  `slug` (live match), `alias` (an old slug renamed to the returned canonical),
+  and `created` (fresh auto-register); an unknown future resolver mode is
+  tolerated as an additive value, not rejected. `hint` is an optional
+  human-readable nudge. Both optional and tolerant — no change for the pre-F-820
+  cloud. Consumed by the CLI to surface a one-time slug-rename notice on the
+  alias branch.
+
 ## 0.12.0
 
 ### Added

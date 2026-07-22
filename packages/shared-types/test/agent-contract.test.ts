@@ -100,3 +100,43 @@ describe("agentResponseSchema — resolver fields (F-818)", () => {
     expect(parsed.created).toBe(false);
   });
 });
+
+describe("agentResponseSchema — slug-rename hint fields (F-861)", () => {
+  const base = {
+    id: "agt_YRZsOPRGSaxiSKCNcXfaB",
+    slug: "pr-review-agent",
+    display_name: "PR Review Agent",
+    judge_model: "google/gemini-2.5-flash",
+  };
+
+  it("surfaces resolved_via + hint when the alias resolver returns them", () => {
+    const parsed = agentResponseSchema.parse({
+      ...base,
+      resolved_via: "alias",
+      hint: 'Resolved "pr-reviewer" via a slug alias; the canonical slug is now "pr-review-agent".',
+    });
+    expect(parsed.resolved_via).toBe("alias");
+    expect(parsed.hint).toContain("pr-review-agent");
+  });
+
+  it("accepts the slug / created resolver kinds too", () => {
+    expect(agentResponseSchema.parse({ ...base, resolved_via: "slug" }).resolved_via).toBe("slug");
+    expect(agentResponseSchema.parse({ ...base, resolved_via: "created" }).resolved_via).toBe(
+      "created",
+    );
+  });
+
+  it("tolerates their absence (older cloud) — both read undefined", () => {
+    const parsed = agentResponseSchema.parse(base);
+    expect(parsed.resolved_via).toBeUndefined();
+    expect(parsed.hint).toBeUndefined();
+  });
+
+  it("tolerates an unknown resolver mode (open enum) instead of rejecting the response", () => {
+    // A future control plane may add a resolver mode. Since resolved_via only
+    // drives an informational CLI notice, an unknown value must not fail the
+    // whole parse (which would break register/install).
+    const parsed = agentResponseSchema.parse({ ...base, resolved_via: "merged" });
+    expect(parsed.resolved_via).toBe("merged");
+  });
+});

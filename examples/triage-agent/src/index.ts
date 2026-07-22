@@ -15,7 +15,7 @@
  *    bearer JWT. The agent talks to the twin at
  *    http://127.0.0.1:3333/s/standalone/mcp.
  *
- * 2. Pome CLI evaluator — `pome run 01-triage-acme-issues.md --agent="npm
+ * 2. Pome CLI evaluator — `pome run tasks/01-triage-acme-issues.md --agent="npm
  *    run start"`. The CLI spins up its own twin on a random port, seeds the
  *    scenario, mints the JWT itself, and passes the URL + token to the agent
  *    via env (POME_GITHUB_MCP_URL, POME_AUTH_TOKEN, POME_TASK).

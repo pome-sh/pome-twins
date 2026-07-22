@@ -8,7 +8,7 @@ connects to Pome's GitHub + Slack twins over plain MCP (bearer-authenticated
 streamable HTTP), works the task, and exits when done.
 
 The exam it takes is the pack's task,
-[`../scenarios/duplicate-issue.md`](../scenarios/duplicate-issue.md): a customer
+[`../tasks/duplicate-issue.md`](../tasks/duplicate-issue.md): a customer
 re-reports a bug that open issue #1 already tracks.
 
 ## The fix ("33, not 0")
@@ -68,7 +68,7 @@ The same env contract is what the Pome CLI injects, so the local loop also
 works without the coach — from this directory, with the CLI at `../../../cli`:
 
 ```bash
-npm run --cwd ../../../cli dev -- run ../examples/support-triage/scenarios/duplicate-issue.md \
+npm run --cwd ../../../cli dev -- run ../examples/support-triage/tasks/duplicate-issue.md \
   --agent "npm run --cwd $(pwd) start"
 ```
 
