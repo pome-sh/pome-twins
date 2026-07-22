@@ -338,6 +338,14 @@ export const agentResponseSchema = z.object({
   // agent for this slug, false when it resolved an existing one. Optional for
   // the pre-F-820 cloud; absence means "unknown", not "resolved".
   created: z.boolean().optional(),
+  // F-861 slug-rename hint (cloud-emitted since v0.4.18): how the resolver
+  // matched this slug — "slug" (live match), "alias" (an old slug that was
+  // renamed; the returned `slug` is the new canonical), or "created" (fresh
+  // auto-register). The CLI surfaces a rename notice only on the "alias" branch.
+  // `hint` is an optional human-readable nudge to print verbatim. Both optional
+  // for the pre-v0.4.18 cloud; absence means "unknown".
+  resolved_via: z.enum(["slug", "alias", "created"]).optional(),
+  hint: z.string().optional(),
   // Multi-twin (M3): the services (twins) this agent may exercise. Absent on an
   // older cloud; new CLIs treat absence as "unconstrained / server default".
   enabled_services: z.array(z.string()).optional(),

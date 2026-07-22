@@ -292,6 +292,79 @@ describe("runRegisterAgent near-miss", () => {
   });
 });
 
+describe("slug-rename hint (F-861)", () => {
+  const RENAMED = {
+    ...AGENT_OK,
+    slug: "pr-review-agent",
+    display_name: "PR Review Agent",
+    resolved_via: "alias" as const,
+    hint: 'Resolved "pr-reviewer" via a slug alias; the canonical slug is now "pr-review-agent".',
+  };
+
+  function spyErrors(): string[] {
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((m?: unknown) => void errors.push(String(m)));
+    return errors;
+  }
+
+  it("register: on an alias resolve to a new slug, prints the rename notice, names the new slug, confirms pome.json, and surfaces the hint", async () => {
+    await writeManifest({ agent: { slug: "pr-reviewer" }, command: "node a.js" });
+    const errors = spyErrors();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response(RENAMED));
+
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "PR Review Agent", force: false });
+
+    const out = errors.join("\n");
+    expect(out).toContain("pr-reviewer"); // old slug named
+    expect(out).toContain("pr-review-agent"); // new slug named
+    expect(out).toMatch(/renamed/i);
+    expect(out).toContain("pome.json"); // confirms the manifest was updated
+    expect(out).toContain("canonical slug is now"); // server hint surfaced verbatim
+    // Attribution self-heal: the manifest now carries the new slug.
+    expect(readManifestFile()).toMatchObject({ agent: { slug: "pr-review-agent" } });
+  });
+
+  it("install: the shared createAndPersistAgent prints the same rename notice", async () => {
+    const dir = process.cwd();
+    const credentialsPath = await writeCreds(dir, "tm_team");
+    delete process.env.POME_API_KEY;
+    await writeManifest({ agent: { slug: "pr-reviewer" } });
+    const errors = spyErrors();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response(RENAMED));
+
+    await ensureAgentRegistered({ apiBaseUrl: "https://api.example.com", credentialsPath });
+
+    const out = errors.join("\n");
+    expect(out).toMatch(/renamed/i);
+    expect(out).toContain("pr-review-agent");
+    expect(readManifestFile()).toMatchObject({ agent: { slug: "pr-review-agent" } });
+  });
+
+  it("no notice on a normal live-slug resolve (resolved_via: slug, unchanged slug)", async () => {
+    await writeManifest({ agent: { slug: "triage-bot" } });
+    const errors = spyErrors();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({ ...AGENT_OK, resolved_via: "slug" }),
+    );
+
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false });
+
+    expect(errors.join("\n")).not.toMatch(/renamed/i);
+  });
+
+  it("no notice on a fresh create, even when the derived slug differs from the manifest", async () => {
+    await writeManifest({ agent: { slug: "old-slug" } });
+    const errors = spyErrors();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response({ ...AGENT_OK, slug: "triage-bot", resolved_via: "created", created: true }),
+    );
+
+    await runRegisterAgent({ apiBaseUrl: "https://api.example.com", name: "Triage Bot", force: false });
+
+    expect(errors.join("\n")).not.toMatch(/renamed/i);
+  });
+});
+
 describe("normalizeRegisterTwins", () => {
   it("parses and de-dupes a comma list", () => {
     expect(normalizeRegisterTwins("github, slack ,github")).toEqual(["github", "slack"]);
