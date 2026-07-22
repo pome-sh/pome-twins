@@ -11,9 +11,13 @@ const FILE_SIZE_HEADER = /^\/\/\s*file-size:\s*.+/;
 
 const BARREL_PATHS = [
   "packages/twin-gmail/src/index.ts",
+  "packages/twin-gmail/src/domain/index.ts",
   "packages/twin-github/src/index.ts",
+  "packages/twin-github/src/domain/index.ts",
   "packages/twin-linear/src/index.ts",
+  "packages/twin-linear/src/domain/index.ts",
   "packages/twin-slack/src/index.ts",
+  "packages/twin-slack/src/domain/index.ts",
   "packages/twin-stripe/src/index.ts",
   "packages/twin-stripe/src/domain/index.ts",
   "packages/adapter-claude-sdk/src/index.ts",
@@ -29,14 +33,9 @@ const FILE_SIZE_ALLOWLIST = new Set([
   "cli/src/hosted/client.ts",
   "cli/src/runner/runScenarioHosted.ts",
   "packages/shared-types/src/otel/fixtures/data.ts",
-  "packages/twin-github/src/domain.ts",
   "packages/twin-github/src/serializers.ts",
   "packages/twin-github/src/tools.ts",
-  "packages/twin-linear/src/commands/index.ts",
-  "packages/twin-linear/src/graphql/resolvers.ts",
-  "packages/twin-linear/src/mcp.ts",
   "packages/twin-linear/src/seed.ts",
-  "packages/twin-slack/src/domain.ts",
   "packages/twin-stripe/src/x402.ts",
 ]);
 
