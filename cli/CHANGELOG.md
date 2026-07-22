@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#168](https://github.com/pome-sh/digital-twins/pull/168) [`6454466`](https://github.com/pome-sh/digital-twins/commit/64544668ee86ad76668a5e514c2292bc3c5ace7d) Thanks [@GaganSD](https://github.com/GaganSD)! - Add first-party Gmail support across local and hosted runs: standalone start,
+  multi-twin harnessing, Gmail REST/MCP URLs, `POME_GMAIL_TOKEN` as an alias of
+  the Pome session JWT, Gmail scenario parsing/catalog entries, and routing
+  diagnostics for both Google Gmail production hosts.
+
+- [#177](https://github.com/pome-sh/digital-twins/pull/177) [`07f3b9c`](https://github.com/pome-sh/digital-twins/commit/07f3b9cb9c8c9f4eb25176430400c09cc0362e28) Thanks [@GaganSD](https://github.com/GaganSD)! - Add first-party Linear support across local runs: standalone start, multi-twin
+  harnessing, Linear GraphQL/MCP URLs, Linear scenario seed parsing/catalog
+  entries, and the issue-triage demo scenario.
+
+- [#179](https://github.com/pome-sh/digital-twins/pull/179) [`b6b18ef`](https://github.com/pome-sh/digital-twins/commit/b6b18ef60d45056b91f3420236af77a29f7e0a57) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Adopt the `pome.json` / `pome.yaml` manifest for agent identity (replaces `pome.config.json`). `pome register` / `pome install` now write the portable `agent.slug` to the manifest and cache the resolved `agt_` id in gitignored `.pome/link.json` (team-gated, so forks and re-clones self-onboard by slug and never carry a foreign id). Runs resolve identity from the manifest, stamp `agent_version` (with a new `--agent-version` override), and near-miss slugs get an interactive did-you-mean confirmation.
+
+### Patch Changes
+
+- [#190](https://github.com/pome-sh/digital-twins/pull/190) [`ee1adc8`](https://github.com/pome-sh/digital-twins/commit/ee1adc8cc2d04392df42c28d80c0b3757471c96a) Thanks [@GaganSD](https://github.com/GaganSD)! - Add multi-twin scenarios for Gmail/Linear Gate-1 and wire LinearDomain in the twin harness.
+
+- [#163](https://github.com/pome-sh/digital-twins/pull/163) [`3a48d73`](https://github.com/pome-sh/digital-twins/commit/3a48d73d1cd40873facff2c5f83ad234d34420c1) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Hosted runs no longer count the preflight probe's telemetry toward the uploaded usage ledger. The runner ran the agent command twice against one shared signals file (a ≤10s preflight probe, then the real run) and uploaded the file whole, so per-turn LLM usage (`LlmTurnEvent`) was double-counted. The shared signals file is now truncated after a successful preflight, before the real run, so the uploaded `signals.jsonl` reflects real-run telemetry only.
+
+- [#192](https://github.com/pome-sh/digital-twins/pull/192) [`2913402`](https://github.com/pome-sh/digital-twins/commit/291340272b557e13cb1b68e4bed02746e57d0136) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - Rename "scenario" to "task" across user-facing copy (F-860): help text, error
+  messages, `pome scenarios` listings, the fix-prompt template, and the bundled
+  task files' titles/prose. No behavior change — the `pome scenarios` command,
+  the `./scenarios/` directory convention, positional CLI usage, and all wire
+  keys (`scenario_*`) are unchanged.
+
+- [#193](https://github.com/pome-sh/digital-twins/pull/193) [`672eb17`](https://github.com/pome-sh/digital-twins/commit/672eb173951e4ac7679dbdf488f7608ae752c3db) Thanks [@AFFFPupu](https://github.com/AFFFPupu)! - `pome register agent` and `pome install` now print a one-time notice when the control plane resolves your `pome.json` `agent.slug` to a renamed agent via a slug alias: it names the old and new slug, confirms `pome.json` was rewritten to the new canonical slug, and surfaces the server's hint. Attribution already self-healed silently (the CLI writes the returned slug back to the manifest); this just makes the rename visible. No notice on a normal live-slug resolve or a fresh registration.
+
 ## 0.3.0
 
 ### Minor Changes
