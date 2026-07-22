@@ -129,8 +129,13 @@ export class GitHubDomain {
           const assignees = issue.assignees ?? (legacyAssignee ? [legacyAssignee] : []);
           const created = this.createIssue({ owner: repo.owner, repo: repo.name, title: issue.title, body: issue.body ?? "", labels: issue.labels ?? [], assignees });
           if (issue.number && issue.number !== created.number) {
-            this.db.prepare("UPDATE issues SET number = ? WHERE repo_id = ? AND number = ?").run(issue.number, repo.id, created.number);
-            this.bumpEntityCounter(repo.id, issue.number);
+            const from = created.number;
+            const to = issue.number;
+            this.db.prepare("UPDATE issues SET number = ? WHERE repo_id = ? AND number = ?").run(to, repo.id, from);
+            this.db.prepare("UPDATE issue_labels SET issue_number = ? WHERE repo_id = ? AND issue_number = ?").run(to, repo.id, from);
+            this.db.prepare("UPDATE issue_assignees SET issue_number = ? WHERE repo_id = ? AND issue_number = ?").run(to, repo.id, from);
+            this.db.prepare("UPDATE issue_comments SET issue_number = ? WHERE repo_id = ? AND issue_number = ?").run(to, repo.id, from);
+            this.bumpEntityCounter(repo.id, to);
           }
           if (issue.state === "closed") this.updateIssue({ owner: repo.owner, repo: repo.name, issue_number: issue.number ?? created.number, state: "closed" });
         }

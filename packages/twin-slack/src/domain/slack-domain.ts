@@ -544,6 +544,7 @@ export class SlackDomain {
         workspaceId: workspace.id,
         actor: this.resolveActorUser(actor),
         allocId: (prefix) => this.allocId(workspace.id, prefix),
+        requireChannel: (ref) => this.requireChannel(ref),
       },
       args,
       onDelta
@@ -563,6 +564,7 @@ export class SlackDomain {
         workspaceId: workspace.id,
         actor: this.resolveActorUser(actor),
         allocId: (prefix) => this.allocId(workspace.id, prefix),
+        requireChannel: (ref) => this.requireChannel(ref),
       },
       args,
       onDelta
@@ -582,6 +584,7 @@ export class SlackDomain {
         workspaceId: workspace.id,
         actor: this.resolveActorUser(actor),
         allocId: (prefix) => this.allocId(workspace.id, prefix),
+        requireChannel: (ref) => this.requireChannel(ref),
       },
       args,
       onDelta

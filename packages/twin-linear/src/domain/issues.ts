@@ -266,6 +266,19 @@ export async function updateIssue(
   if ("parentId" in input) {
     patch.parent_id = input.parentId ? domain.requireIssue(input.parentId).id : null;
     if (patch.parent_id === issue.id) badUserInput("Issue cannot be its own parent");
+    if (patch.parent_id) {
+      // Reject ancestry cycles (A→B→A) by walking the proposed parent's chain.
+      let cursor: string | null = patch.parent_id;
+      const seen = new Set<string>([issue.id]);
+      while (cursor) {
+        if (seen.has(cursor)) badUserInput("Issue parent would create a cycle");
+        seen.add(cursor);
+        const row = domain.db
+          .prepare("SELECT parent_id AS parentId FROM issues WHERE id = ?")
+          .get(cursor) as { parentId: string | null } | undefined;
+        cursor = row?.parentId ?? null;
+      }
+    }
     if (patch.parent_id !== issue.parentId) changed = true;
   }
   if ("stateId" in input && input.stateId != null) {

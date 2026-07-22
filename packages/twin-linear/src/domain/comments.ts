@@ -122,6 +122,8 @@ export async function deleteComment(
     )
     .run(comment.id);
   domain.db.prepare("DELETE FROM agent_sessions WHERE comment_id = ?").run(comment.id);
+  // Cascade replies explicitly (SQLite FK may be off); children first.
+  domain.db.prepare("DELETE FROM comments WHERE parent_id = ?").run(comment.id);
   domain.db.prepare("DELETE FROM comments WHERE id = ?").run(comment.id);
   await emitWebhook(domain, {
     type: "Comment",

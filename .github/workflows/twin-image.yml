@@ -28,6 +28,8 @@ jobs:
   # On PRs, build only twins whose package tree (or shared runtime inputs)
   # changed. main/tags/dispatch always build the full matrix so GHCR stays
   # coherent. Shared-types / lockfiles / Docker wiring ⇒ all twins.
+  #
+  # FIRST_PARTY_TWINS: github, slack, stripe, gmail, linear
   detect-twins:
     runs-on: ubuntu-latest
     permissions:

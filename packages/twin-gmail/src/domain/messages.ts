@@ -123,8 +123,13 @@ export function modifyMessageLabels(
       invalidArgument("The DRAFT label is managed by draft operations");
     }
     assertLabels(domain.db, mailboxId, [...add, ...remove]);
-    const actualRemove = [...new Set(remove)].filter((label) => before.labelIds.includes(label));
-    const actualAdd = [...new Set(add)].filter((label) => !before.labelIds.includes(label));
+    // TRASH and SPAM are mutually exclusive (Gmail system labels).
+    const addSet = new Set(add);
+    const removeSet = new Set(remove);
+    if (addSet.has("TRASH")) removeSet.add("SPAM");
+    if (addSet.has("SPAM")) removeSet.add("TRASH");
+    const actualRemove = [...removeSet].filter((label) => before.labelIds.includes(label));
+    const actualAdd = [...addSet].filter((label) => !before.labelIds.includes(label));
     for (const label of actualRemove) {
       domain.db
         .prepare("DELETE FROM message_labels WHERE mailbox_id = ? AND message_id = ? AND label_id = ?")

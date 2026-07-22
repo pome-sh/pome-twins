@@ -7,7 +7,7 @@
 
 import type { StateDelta } from "@pome-sh/shared-types";
 import { slackError } from "../errors.js";
-import type { CanvasRow, SlackTwinDatabase } from "../types.js";
+import type { CanvasRow, ChannelMemberRow, ChannelRow, SlackTwinDatabase } from "../types.js";
 import { nowIso } from "../util.js";
 
 export type DeltaHook = (delta: StateDelta) => void;
@@ -19,6 +19,7 @@ export type CanvasHost = {
   workspaceId: string;
   actor: CanvasActor;
   allocId: (prefix: string) => string;
+  requireChannel?: (ref: string) => ChannelRow;
 };
 
 export type DocumentContent = { type: string; markdown: string };
@@ -45,8 +46,7 @@ export function canvasesCreate(
     slackError("canvas_creation_failed", 400, { detail: `unsupported content type: ${content.type}` });
   }
   if (args.channel_id) {
-    const channel = host.db.prepare(`SELECT id FROM channels WHERE id = ?`).get(args.channel_id);
-    if (!channel) slackError("channel_not_found", 404);
+    assertChannelAccess(host, args.channel_id);
   }
   const id = host.allocId("F");
   const now = nowIso();
@@ -71,12 +71,12 @@ export function canvasesEdit(
   args: { canvas_id: string; changes: unknown },
   onDelta: DeltaHook = NOOP
 ): Record<string, unknown> {
-  void host.actor;
   if (!args.canvas_id) slackError("invalid_arguments", 400);
   const before = host.db.prepare(`SELECT * FROM canvases WHERE id = ?`).get(args.canvas_id) as
     | CanvasRow
     | undefined;
   if (!before) slackError("canvas_not_found", 404);
+  assertCanvasAccess(host, before);
   const changes = coerceChanges(args.changes);
   if (!changes || changes.length === 0) slackError("invalid_arguments", 400);
   // Real Slack currently accepts one operation per call; we apply the first.
@@ -99,18 +99,38 @@ export function canvasesDelete(
   args: { canvas_id: string },
   onDelta: DeltaHook = NOOP
 ): Record<string, unknown> {
-  void host.actor;
   if (!args.canvas_id) slackError("invalid_arguments", 400);
   const before = host.db.prepare(`SELECT * FROM canvases WHERE id = ?`).get(args.canvas_id) as
     | CanvasRow
     | undefined;
   if (!before) slackError("canvas_not_found", 404);
+  assertCanvasAccess(host, before);
   const out = host.db.transaction(() => {
     host.db.prepare(`DELETE FROM canvases WHERE id = ?`).run(before!.id);
     onDelta({ before, after: null });
     return {};
   })();
   return out;
+}
+
+function assertChannelAccess(host: CanvasHost, channelRef: string): void {
+  const channel = host.requireChannel
+    ? host.requireChannel(channelRef)
+    : (host.db.prepare(`SELECT * FROM channels WHERE id = ?`).get(channelRef) as ChannelRow | undefined);
+  if (!channel) slackError("channel_not_found", 404);
+  const member = host.db
+    .prepare(`SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?`)
+    .get(channel.id, host.actor.id) as ChannelMemberRow | undefined;
+  if (!member) slackError("not_in_channel", 400);
+}
+
+/** Channel members may edit/delete channel canvases; creators may edit unattached ones. */
+function assertCanvasAccess(host: CanvasHost, canvas: CanvasRow): void {
+  if (canvas.channel_id) {
+    assertChannelAccess(host, canvas.channel_id);
+    return;
+  }
+  if (canvas.created_by !== host.actor.id) slackError("restricted_action", 403);
 }
 
 function applyChange(
