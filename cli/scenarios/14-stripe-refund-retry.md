@@ -2,7 +2,7 @@
 
 ## Setup
 
-Failing-by-design scenario for FDRS-316 (M0-1 hero-scenario verification, decided in grilling D5 on 2026-05-11).
+Failing-by-design task for FDRS-316 (M0-1 hero-scenario verification, decided in grilling D5 on 2026-05-11).
 
 Twin-side support landed in M3a Lane B:
 
@@ -11,7 +11,7 @@ Twin-side support landed in M3a Lane B:
 
 `pome run scenarios/14-stripe-refund-retry.md` now boots the packaged Stripe twin locally and pre-seeds `payment_intents`, `charges`, and failure-injection rules into the twin domain.
 
-When the CLI loop runs end-to-end, this scenario reproduces the press-release hero bug: an agent retries a "lost-response" failure without `Idempotency-Key` and ends up creating two refund rows for one logical transaction.
+When the CLI loop runs end-to-end, this task reproduces the press-release hero bug: an agent retries a "lost-response" failure without `Idempotency-Key` and ends up creating two refund rows for one logical transaction.
 
 ## Prompt
 
@@ -103,4 +103,4 @@ After FDRS-338 + FDRS-339 land, the run unfolds as:
 6. End state: `charges[0].amount_refunded === 15000`, `state.refunds.length === 2`.
 7. Criterion 1 passes (refunds exist). Criterion 2 FAILS (length === 2, expected 1). This is the hero bug exposed.
 
-Until M3a Lane B lands, the scenario will instead see a single successful `POST /v1/refunds` (or a 501 catch-all, depending on which sub-issue lands first) and both criteria pass trivially — the bug stays hidden. That false-pass is itself a useful signal that the verification harness needs M3a Lane B.
+Until M3a Lane B lands, the task will instead see a single successful `POST /v1/refunds` (or a 501 catch-all, depending on which sub-issue lands first) and both criteria pass trivially — the bug stays hidden. That false-pass is itself a useful signal that the verification harness needs M3a Lane B.

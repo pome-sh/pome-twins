@@ -1,4 +1,4 @@
-# Scenario 22 — Gmail Inbox Triage
+# Task 22 — Gmail Inbox Triage
 
 ## Setup
 The Gmail twin contains a multi-thread inbox: a welcome note, a build

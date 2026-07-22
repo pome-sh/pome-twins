@@ -1,4 +1,4 @@
-# Scenario 25 — Linear Comment + Label Triage
+# Task 25 — Linear Comment + Label Triage
 
 ## Setup
 The Linear twin contains an Engineering team with a backlog issue labeled for

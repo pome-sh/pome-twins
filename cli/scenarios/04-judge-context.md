@@ -1,8 +1,8 @@
-# Scenario 04 — Judge sees context (hosted-compatible)
+# Task 04 — Judge sees context (hosted-compatible)
 
 ## Setup
 
-The repo `acme/api` already has an open bug (issue #1) pre-labeled `bug` via the sidecar seed `04-judge-context.seed.json`. (The twin's `defaultSeedState()` leaves issue #1 *unlabeled*, so this scenario ships its own sidecar — without it the correct no-op would fail the `[code]` label check.) The scenario is designed to exercise the `[model]` LLM-judge evaluator: the deterministic check confirms a label was applied; the probabilistic check evaluates whether that label is *contextually appropriate* given the issue's title and body.
+The repo `acme/api` already has an open bug (issue #1) pre-labeled `bug` via the sidecar seed `04-judge-context.seed.json`. (The twin's `defaultSeedState()` leaves issue #1 *unlabeled*, so this task ships its own sidecar — without it the correct no-op would fail the `[code]` label check.) The task is designed to exercise the `[model]` LLM-judge evaluator: the deterministic check confirms a label was applied; the probabilistic check evaluates whether that label is *contextually appropriate* given the issue's title and body.
 
 ## Prompt
 

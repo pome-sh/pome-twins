@@ -1,4 +1,4 @@
-# Scenario 01 — Bug, happy path
+# Task 01 — Bug, happy path
 
 ## Setup
 

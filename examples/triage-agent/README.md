@@ -6,7 +6,7 @@ each open issue it picks one of `bug` / `feature` / `question`, applies the
 label, and posts a one-sentence reasoning comment.
 
 This is the example referenced in the README quickstart and the demo video
-(see `01-triage-acme-issues.md` for the bundled Pome scenario).
+(see `01-triage-acme-issues.md` for the bundled Pome task).
 
 ## Prerequisites
 
@@ -70,7 +70,7 @@ curl -X POST http://127.0.0.1:3333/admin/reset
 ## Run (under the Pome CLI evaluator)
 
 The CLI evaluator boots its own twin on a random port, seeds it from the
-scenario file, mints its own JWT, and passes the URL + token to the agent
+task file, mints its own JWT, and passes the URL + token to the agent
 via env (`POME_GITHUB_MCP_URL`, `POME_AUTH_TOKEN`, `POME_TASK`):
 
 ```bash
@@ -83,7 +83,7 @@ npm run --cwd ../../cli dev -- run \
 ```
 
 A passing run prints `PASS Triage open issues in acme/api` and writes a
-trace under `runs/<scenario-slug>/<run-id>/`.
+trace under `runs/<task-slug>/<run-id>/`.
 
 ## What this example shows
 
@@ -103,7 +103,7 @@ All optional. Defaults match `npx @pome-sh/cli twin start github`.
 | `ANTHROPIC_API_KEY` | — | Claude API key for the Agent SDK. Alternatives: `CLAUDE_CODE_OAUTH_TOKEN`, or a stored `claude` subscription login. |
 | `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/standalone/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
 | `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. `pome twin start` prints one; Pome CLI sets it automatically. When unset, the agent mints its own from `TWIN_AUTH_SECRET`. |
-| `POME_TASK` | bundled triage prompt | Override the agent's task. Pome CLI sets this from the scenario file. |
+| `POME_TASK` | bundled triage prompt | Override the agent's task. Pome CLI sets this from the task file. |
 | `POME_TWIN_BASE_URL` | `http://127.0.0.1:3333` | Used to derive the MCP URL when `POME_GITHUB_MCP_URL` is unset. |
 | `POME_TWIN_SID` | `standalone` | Used to derive the MCP URL when `POME_GITHUB_MCP_URL` is unset. |
 | `POME_REPO_OWNER` / `POME_REPO_NAME` | `acme` / `api` | Override the default repo named in the bundled task. |

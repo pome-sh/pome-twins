@@ -1,4 +1,4 @@
-# Scenario 26 — GitHub + Linear handoff
+# Task 26 — GitHub + Linear handoff
 
 ## Setup
 GitHub has an open bug in `acme/api` titled "500 error on POST /orders after

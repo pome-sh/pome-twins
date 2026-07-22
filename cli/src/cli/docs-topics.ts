@@ -101,7 +101,7 @@ export const DOCS_TOPICS: DocsTopic[] = [
     id: "cli-scenarios",
     title: "pome scenarios",
     path: "/docs/cli/scenarios",
-    keywords: ["scenarios", "catalog", "copy", "library", "twin"],
+    keywords: ["tasks", "scenarios", "catalog", "copy", "library", "twin"],
   },
   {
     id: "cli-compile-seeds",

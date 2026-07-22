@@ -63,12 +63,12 @@ pome register agent pr-summary-review
 This creates a cloud agent under your team and writes its `agentId` into
 `pome.config.json` so runs are attributed to it on the dashboard.
 
-## Scenarios
+## Tasks
 
-Three hand-authored scenarios live next to this README, each with a full
+Three hand-authored tasks live next to this README, each with a full
 `.seed.json` fixture:
 
-| Scenario | What it exercises | Expected verdict(s) |
+| Task | What it exercises | Expected verdict(s) |
 | --- | --- | --- |
 | `01-clean-prs.md` | Two benign PRs (a backwards-compatible feature + a docs change) | APPROVE / COMMENT — never REQUEST_CHANGES |
 | `02-buggy-pr.md` | A PR that breaks `total()` by replacing `+=` with `=` (mislabeled "no behavior change") | REQUEST_CHANGES, naming the accumulation bug |
@@ -77,14 +77,14 @@ Three hand-authored scenarios live next to this README, each with a full
 ## Run
 
 ```bash
-# one scenario
+# one task
 pome run 01-clean-prs.md
 
 # all three (directory)
 pome run .
 ```
 
-`pome run` boots its own twin on a random port, seeds it from the scenario's
+`pome run` boots its own twin on a random port, seeds it from the task's
 `.seed.json`, mints the JWT, and injects `POME_GITHUB_MCP_URL` /
 `POME_AUTH_TOKEN` / `POME_TASK`. Hosted scoring requires `pome login`; add
 `--local` to capture a trace without scoring.
@@ -113,6 +113,6 @@ All optional. Defaults match `npx @pome-sh/cli twin start github`.
 | `POME_OTEL_EXPORTER_OTLP_HEADERS` | — | OTLP request headers (the `x-api-key=<team key>` auth that the session traces endpoint accepts), `key=value,…` format. Set by hosted `pome run`. |
 | `POME_GITHUB_MCP_URL` | `http://127.0.0.1:3333/s/standalone/mcp` | Twin MCP endpoint. Pome CLI sets this automatically. |
 | `POME_AUTH_TOKEN` | — | Pre-minted bearer JWT. `pome twin start` prints one; Pome CLI sets it automatically. When unset, the agent mints its own from `TWIN_AUTH_SECRET`. |
-| `POME_TASK` | bundled summarize+review prompt | Override the agent's task. Pome CLI sets this from the scenario file. |
+| `POME_TASK` | bundled summarize+review prompt | Override the agent's task. Pome CLI sets this from the task file. |
 | `POME_REPO_OWNER` / `POME_REPO_NAME` | `acme` / `api` | Override the default repo named in the bundled task. |
 | `TWIN_AUTH_SECRET` | — | The secret the twin was started with. Used to mint the JWT locally when `POME_AUTH_TOKEN` is unset. |

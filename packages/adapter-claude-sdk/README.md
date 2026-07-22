@@ -79,7 +79,7 @@ side-effect import is captured in the `[DECISION]` comment on
 - **v0 returns an `AsyncGenerator` from `query()`**, not the full `Query`
   interface. Control methods like `interrupt()` or `setPermissionMode()` are
   not re-exposed yet — call `claude-agent-sdk`'s `query` directly if you need
-  them. Iteration is what hero scenarios use today.
+  them. Iteration is what hero tasks use today.
 - **`withPome()` is idempotent.** A second call is a no-op; the global fetch
   replacement is installed exactly once per process.
 

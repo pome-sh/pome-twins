@@ -44,12 +44,12 @@ CI runs typecheck, build, tests, and capture-only gates. PRs are gated on green 
 ## File layout
 
 - `src/cli/`: command surface (Commander.js entry points).
-- `src/runner/`: scenario execution (local + hosted).
+- `src/runner/`: task execution (local + hosted).
 - `src/hosted/`: control-plane HTTP client, plus the pure cloud-verdict
   display/cache models (`evalResultView.ts`, `evalResultCache.ts`).
 - `src/twin/`: local twin boot harness (`githubCloneAdapter.ts` wraps published twin packages).
 - `package.json`: pins exact `@pome-sh/*` package versions consumed by the published CLI.
-- `scenarios/`: bundled starter scenarios shipped with the package.
+- `scenarios/`: bundled starter tasks shipped with the package.
 - `examples/`: example agent implementations.
 - `scripts/`: build-only helpers (not published).
 

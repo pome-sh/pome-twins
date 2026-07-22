@@ -1,8 +1,8 @@
-# Scenario 00 — Default seed triage (hosted-compatible)
+# Task 00 — Default seed triage (hosted-compatible)
 
 ## Setup
 
-The repo `acme/api` already has an open bug (issue #1) labeled `bug` from the default seed. This scenario does not provide a custom `## Seed State` block — both self-host (`runScenario`) and hosted (`runScenarioHosted`) fall back to the GitHub twin's `defaultSeedState()`, so the run state is identical in both modes.
+The repo `acme/api` already has an open bug (issue #1) labeled `bug` from the default seed. This task does not provide a custom `## Seed State` block — both self-host (`runScenario`) and hosted (`runScenarioHosted`) fall back to the GitHub twin's `defaultSeedState()`, so the run state is identical in both modes.
 
 ## Prompt
 

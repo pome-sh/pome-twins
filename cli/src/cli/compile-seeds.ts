@@ -40,7 +40,7 @@ interface FileResult {
 export async function runCompileSeeds(target: string | undefined, opts: CompileOptions): Promise<number> {
   const files = await resolveScenarioFiles(target ?? "scenarios");
   if (files.length === 0) {
-    console.error(`No scenario .md files found at ${target ?? "scenarios"}.`);
+    console.error(`No task .md files found at ${target ?? "scenarios"}.`);
     return 2;
   }
 

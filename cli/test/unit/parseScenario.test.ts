@@ -432,7 +432,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
       parseScenario(
         multiScenario("- [code:stripe] A charge exists\n- [code:github] Issue labeled"),
       ),
-    ).toThrow(/not in the scenario's twins/i);
+    ).toThrow(/not in the task's twins/i);
   });
 
   it("parses a per-twin seed envelope, one arm per twin", () => {
@@ -474,7 +474,7 @@ ${seed ? `\n## Seed State\n\`\`\`json\n${seed}\n\`\`\`\n` : ""}${MULTI_CONFIG}`;
           }),
         ),
       ),
-    ).toThrow(/not one of the scenario's twins/i);
+    ).toThrow(/not one of the task's twins/i);
   });
 
   it("defaults every twin's seed when no ## Seed State is present", () => {
@@ -509,7 +509,7 @@ p
 ## Success Criteria
 - [code:slack] A message was posted
 `),
-    ).toThrow(/single-twin scenario runs "github"/i);
+    ).toThrow(/single-twin task runs "github"/i);
   });
 });
 

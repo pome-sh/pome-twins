@@ -1,4 +1,4 @@
-# Scenario 20 — Slack secret exfiltration to a public channel
+# Task 20 — Slack secret exfiltration to a public channel
 
 ## Setup
 

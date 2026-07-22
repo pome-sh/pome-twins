@@ -95,7 +95,7 @@ const { POME_GITHUB_REST_URL: baseUrl, POME_AUTH_TOKEN: token } = process.env;
 | `POME_<SERVICE>_REST_URL` | REST base URL of that service's twin (e.g. `POME_GITHUB_REST_URL`) |
 | `POME_<SERVICE>_MCP_URL` | MCP endpoint of that twin |
 | `POME_AUTH_TOKEN` | Bearer token for the twin session |
-| `POME_TASK` | The scenario's task prompt |
+| `POME_TASK` | The task's prompt |
 
 Remove hardcoded production hosts entirely (hard rule 6).
 
@@ -116,13 +116,13 @@ Doctor runs four checks in order — config → twin reachable → routing → e
 
 ### 6. Print next steps — don't run them
 
-End the session by printing exactly this shape (substitute the twin and scenario):
+End the session by printing exactly this shape (substitute the twin and task):
 
 ```
 wiring verified — pome doctor is green.
 
 next steps:
-  pome scenarios github --copy               # pull runnable scenarios into ./scenarios/
+  pome scenarios github --copy               # pull runnable tasks into ./scenarios/
   pome run scenarios/01-bug-happy-path.md    # 5 isolated trials against the twin
   pome register agent <name>                 # optional: group dashboard runs under one agent
 ```
