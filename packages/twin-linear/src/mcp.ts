@@ -3,6 +3,7 @@ import type { ToolCallContext, ToolSpec } from "@pome-sh/sdk";
 import { z } from "zod";
 import canonicalListing from "../fixtures/mcp-tools-list.canonical.json" with { type: "json" };
 import type { LinearCommands } from "./commands/index.js";
+import { badUserInput, notFound } from "./errors.js";
 import { mcpPage } from "./pagination.js";
 import { linearStateDelta } from "./state.js";
 import {
@@ -119,7 +120,7 @@ const implementations: Record<
     mutation: false,
     handler: (commands, args) => {
       const issue = commands.getIssue(String(args.id));
-      if (!issue) throw new Error(`Issue not found: ${args.id}`);
+      if (!issue) notFound(`Issue not found: ${args.id}`);
       return projectIssue(issue, commands);
     },
   },
@@ -162,10 +163,10 @@ const implementations: Record<
           return projectIssue(issue, commands);
         }
         if (!args.title || !args.team) {
-          throw new Error("title and team are required when creating an issue (omit id)");
+          badUserInput("title and team are required when creating an issue (omit id)");
         }
         const team = commands.getTeam(String(args.team));
-        if (!team) throw new Error(`Team not found: ${args.team}`);
+        if (!team) notFound(`Team not found: ${args.team}`);
         const issue = await commands.createIssue(
           {
             teamId: team.id,
@@ -234,7 +235,7 @@ const implementations: Record<
             createdAt: comment.createdAt,
           };
         }
-        if (!args.issueId) throw new Error("issueId is required when creating a comment");
+        if (!args.issueId) badUserInput("issueId is required when creating a comment");
         const comment = await commands.createComment(
           { issueId: String(args.issueId), body: String(args.body) },
           actorFrom(ctx)
@@ -272,7 +273,7 @@ const implementations: Record<
     mutation: false,
     handler: (commands, args) => {
       const team = commands.getTeam(String(args.query));
-      if (!team) throw new Error(`Team not found: ${args.query}`);
+      if (!team) notFound(`Team not found: ${args.query}`);
       return { id: team.id, key: team.key, name: team.name, description: team.description, url: team.url };
     },
   },
@@ -302,7 +303,7 @@ const implementations: Record<
     mutation: false,
     handler: (commands, args) => {
       const user = commands.getUser(String(args.query));
-      if (!user) throw new Error(`User not found: ${args.query}`);
+      if (!user) notFound(`User not found: ${args.query}`);
       return {
         id: user.id,
         name: user.name,
@@ -336,9 +337,9 @@ const implementations: Record<
     mutation: false,
     handler: (commands, args) => {
       const ref = (args.id as string | undefined) ?? (args.name as string | undefined);
-      if (!ref) throw new Error("id or name is required");
+      if (!ref) badUserInput("id or name is required");
       const state = commands.getWorkflowState(ref, args.team as string | undefined);
-      if (!state) throw new Error(`Issue status not found: ${ref}`);
+      if (!state) notFound(`Issue status not found: ${ref}`);
       return { id: state.id, name: state.name, type: state.type, position: state.position, teamId: state.teamId };
     },
   },
@@ -429,7 +430,7 @@ const implementations: Record<
     mutation: false,
     handler: (commands, args) => {
       const project = commands.getProject(String(args.query));
-      if (!project) throw new Error(`Project not found: ${args.query}`);
+      if (!project) notFound(`Project not found: ${args.query}`);
       return {
         id: project.id,
         name: project.name,
@@ -471,7 +472,7 @@ const implementations: Record<
             teamId: project.teamId,
           };
         }
-        if (!args.name) throw new Error("name is required when creating a project (omit id)");
+        if (!args.name) badUserInput("name is required when creating a project (omit id)");
         const project = commands.createProject(
           {
             name: String(args.name),
