@@ -28,10 +28,12 @@ a log. It dies at `expires_at`; `finalize_run` is the last thing that needs it.
 
 ## 1. Mint the run
 
-Mint a `grp_`-prefixed `group_id` **now** and reuse it for every run of this
-task — the baseline and any fix-loop reruns — so they aggregate as one exam
-(aggregation keys on `(group_id, task)`; never reuse a `group_id` across
-different tasks). Then call `run_task(task_id, agent_id, group_id)` (the
+Mint a `grp_`-prefixed `group_id` **now** and reuse it for every trial of this
+attempt — the baseline and any *pre-fix* flaky retries — so they aggregate as
+one exam (aggregation keys on `(group_id, task)`; never reuse a `group_id`
+across different tasks). A **post-fix** rerun is the exception: it opens a *new*
+`group_id` and links back to the baseline via `baseline_group_id` (see §5).
+Then call `run_task(task_id, agent_id, group_id)` (the
 `agent_id` from intake). It seeds live twin sandboxes and returns `session_id`,
 `expires_at`, `agent_token`, `examinee_task` (the prompt + twins the examinee
 sees — no criteria), and `examinee_launch` (the full launch spec).
@@ -106,13 +108,21 @@ mis-specified), that is **not** a fix-loop edit — stop the loop and route it b
 to `pome-author-task` / `pome-verify-seed`, where any criterion or seed change is
 re-verified as a fair exam before it counts. Then:
 
-1. Re-run **only the failed tasks** — one `run_task` (or `run_trials` for a
-   flaky task) each against the same `agent_id`, reusing the `group_id` from
-   step 1 so the reruns line up with the baseline as one exam on the dashboard.
+1. Re-run **only the failed tasks** as a **fresh run-set** — one `run_task` (or
+   `run_trials` for a flaky task) each against the same `agent_id`. A post-fix
+   rerun mints a **new** `group_id` (omit it and `run_trials` mints one) and
+   passes the failing run's group_id as **`baseline_group_id`** — the report's
+   `## Rerun after fixing` section pre-fills both. The rerun is its own run-set
+   linked back to the baseline; the dashboard pairs them and shows the fail→green
+   delta. Do **not** reuse the baseline's `group_id` — that merges baseline+green
+   into one aggregate and destroys the split. (A *pre-fix* flaky retry — same
+   examinee, no edit — still shares the group_id; only a post-fix rerun opens a
+   new one and links back with `baseline_group_id`.)
 2. There is no delta field in the report — compute it: pull `get_report` for the
-   prior run and the new one, diff the Status column per criterion, and report
-   the flips (`"leaked to #general: failed → passed"`). `list_runs(group_id)`
-   gives the cross-run view.
+   baseline run and the rerun, diff the Status column per criterion, and report
+   the flips (`"leaked to #general: failed → passed"`). Baseline and rerun are
+   now separate groups paired by `baseline_group_id`; `list_runs(group_id)` gives
+   each run-set's view.
 3. Repeat until every re-run is green (or the builder accepts the behavior).
    Only failed tasks re-run; the green ones are not re-billed.
 
