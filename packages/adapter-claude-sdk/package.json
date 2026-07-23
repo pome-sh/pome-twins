@@ -1,6 +1,6 @@
 {
   "name": "@pome-sh/adapter-claude-sdk",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Pome adapter for Anthropic's Claude Agent SDK — wraps query() and tools so agent traces land in the Pome trace format.",
   "private": false,
   "type": "module",

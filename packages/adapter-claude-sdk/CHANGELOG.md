@@ -1,5 +1,19 @@
 # @pome-sh/adapter-claude-sdk — CHANGELOG
 
+## 0.2.4 — 2026-07-24
+
+F-866 — `tool()`'s return type is widened from `SdkMcpToolDefinition<Schema>` to
+`SdkMcpToolDefinition<any>`, while the generic `Schema` still binds from
+`inputSchema` so each handler's `args` stay precisely typed. This lets callers
+collect tools of differing schemas into one array and hand it to
+`createSdkMcpServer({ tools })` (whose param is `SdkMcpToolDefinition<any>[]`)
+without a per-call type annotation. The SDK's own precise `<Schema>` return
+tripped a cross-copy structural typecheck when the adapter is consumed via a
+local `file:` link (a different physical copy of the SDK types than the caller's
+`createSdkMcpServer`), surfacing as `TS2322` in the bundled examples. Type-level
+only — no runtime or signals-surface change. Patch, not minor: the widening is
+more permissive, so no consumer build breaks under the pre-1.0 rule.
+
 ## 0.2.3 — 2026-07-21
 
 Dependency-only patch: repin `@pome-sh/shared-types` to 0.12.0 (F-818). No
