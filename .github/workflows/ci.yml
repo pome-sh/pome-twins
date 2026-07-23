@@ -36,7 +36,7 @@ jobs:
           fi
           # Paths that can affect package build/test/parity or the CI contract.
           if git diff --name-only "${BASE_SHA}" HEAD | grep -qE \
-            '^(packages/|scripts/|contract/|config/|knip\.json|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
+            '^(packages/|examples/|scripts/|contract/|config/|knip\.json|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
             echo "heavy=true" >> "$GITHUB_OUTPUT"
             echo "Running heavy suite (package/script/lockfile/ci changes)."
           else
@@ -87,6 +87,11 @@ jobs:
           # dependency order so those subpaths resolve before typecheck/test.
           npm run build
           npm run typecheck
+          # F-866 — the bundled examples/ projects are standalone npm packages
+          # (own lockfiles), not workspaces, so `npm run typecheck` above misses
+          # them. Typecheck each against the just-built adapter so a zod-4 / SDK
+          # `tool()` typing regression can't sit latent again.
+          npm run typecheck:examples
           # twin-github runs with coverage thresholds (90% lines/funcs/statements)
           # instead of a second plain `npm test` pass for that workspace.
           npm test -w @pome-sh/shared-types -w @pome-sh/sdk -w @pome-sh/adapter-claude-sdk -w @pome-sh/twin-slack -w @pome-sh/twin-stripe -w @pome-sh/twin-gmail -w @pome-sh/twin-linear

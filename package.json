@@ -9,6 +9,7 @@
     "test": "npm run test --workspaces --if-present",
     "test:contract": "node contract/run.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck:examples": "node scripts/typecheck-examples.mjs",
     "lint:no-cloud-imports": "bash scripts/lint-no-cloud-imports.sh",
     "gate:no-eval": "node scripts/no-eval-in-oss.mjs",
     "gate:no-native": "node scripts/no-native-modules.mjs",
