@@ -87,6 +87,50 @@ Linear follows the same SDK chassis as GitHub / Slack / Stripe / Gmail:
 | Session identity claim | `linear_email` | Peers use provider-shaped claims |
 | Root session mount | yes | `mountSessionAtRoot: true` |
 
+## Runtime contract (for snapshot consumers)
+
+`pome-cloud` builds a Vercel Sandbox snapshot from this package's signed source
+artifact. The following constraints must hold for that build to succeed and for
+the resulting snapshot to boot. Changing any of these is a breaking change for
+hosted; land the producer change here first, then open the cloud consumer PR
+that pins and verifies the new signed digest.
+
+### Build
+
+- Package is `npm install`-able from `package.json` alone (no `workspace:*`
+  protocols, no package-manager-specific deps; no committed lockfile is required, the snapshot
+  build regenerates one on each rebuild)
+- `npm run build` exits 0 and emits `dist/src/server.js`
+- Built output is loadable under Node 24 — the snapshot runs `runtime: "node24"`.
+  SQLite is the built-in `node:sqlite` (via the sdk's `openTwinDatabase()`) —
+  no native modules, no compiler toolchain.
+
+### Runtime
+
+- Server entry: `node dist/src/server.js` (cwd = package root)
+- Listens on `:3337` by default (`LINEAR_TWIN_PORT`, then the native default)
+- **Hosted normalizes the port to `PORT=3333`.** The server honors the `PORT`
+  env var first (`PORT` → `LINEAR_TWIN_PORT` → `3337`); the pome-cloud
+  control-plane sets `PORT=3333` at spawn for every twin, so the native `3337`
+  default is only used for standalone local runs.
+- Honors `LINEAR_TWIN_HOST=0.0.0.0` env (default `127.0.0.1` is unreachable via
+  Vercel Sandbox port forwarding)
+- Boots via a manual `@hono/node-server` path (not the SDK `serve()` helper),
+  with graceful `SIGINT`/`SIGTERM` handlers that flush and close the recorder
+  store before exit
+- Serves GraphQL at `/graphql` (in addition to the session MCP surface)
+- `GET /healthz` returns 200 within ~3s of process start (the snapshot build
+  sleeps 3s after `node dist/src/server.js` before probing)
+- Seed via `POME_SEED_JSON` (strict Linear seed schema; `LINEAR_TWIN_NO_SEED=1`
+  boots empty)
+- Bearer auth at `Authorization: Bearer <jwt>` — Pome session JWT, seeded Linear
+  tokens, or `lin_pome_*` provider tokens
+
+### Cloud consumer coordination
+
+- Bumping any of the above = publish a signed twin digest and open the matching
+  `pome-cloud` consumer PR.
+
 ## Development
 
 ```bash
